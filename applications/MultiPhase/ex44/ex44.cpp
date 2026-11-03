@@ -20,7 +20,7 @@
 #include "MyMatrix.hpp"
 #include "VTKWriter.hpp"
 
-// #include <gperftools/profiler.h>
+#include <gperftools/profiler.h>
 
 using namespace femus;
 #include "../includeLS/Shape.hpp"
@@ -570,7 +570,7 @@ int main(int argc, char **argv) {
         std::ofstream(bbOutputPrefix + "_droplets.dat", std::ios::trunc).close();
       }
 
-      for (unsigned t = 1; t <= 1 + nSteps; t++) {
+      for (unsigned t = 1; t <= 1 + 0*nSteps; t++) {
 
         TimeDiscretization td = (t == 1) ? TimeDiscretization::BackEuler : TimeDiscretization::CrankNicholson;
 
@@ -1102,8 +1102,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
-  // if (nprocs == 1)
-  //   ProfilerStart("profiling.prof");
+  if (nprocs == 1)
+    ProfilerStart("profiling.prof");
 
   if (printdb) std::cout << "After Solution Projection\n" << std::flush;
 
@@ -1490,12 +1490,24 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
           //cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20, 1);
 
+
+          cfw[ielGeom]->SetHex27IntegrationDirection(0);
+          cfw[ielGeom]->SetTet15IntegrationDirection(0);
+          cfw[ielGeom]->SetQuad9IntegrationDirection(0);
+          cfw[ielGeom]->SetTri7IntegrationDirection(0);
+
           cfw[ielGeom]->SetHex27DirectionValidation(0);
+          cfw[ielGeom]->SetTet15DirectionValidation(0);
           cfw[ielGeom]->SetQuad9DirectionValidation(0);
           cfw[ielGeom]->SetTri7DirectionValidation(0);
 
           cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-05, 1.E-05);
+
+
           for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
+
+
+
           //cfw[ielGeom]->GetWeightFromNodalValues(-1, psi, weightCF);
 
         }
@@ -2242,5 +2254,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   double A_th = (dim == 2) ? M_PI * radius2 : 4. / 3. * M_PI * radius3;
   std::cout << " Area error " << std::abs(A - A_th) << std::endl;
   std::cout << " Perimetro error " << std::abs(Per - per_th) << std::endl;
+
+   if (nprocs == 1)
+    ProfilerStop();
 
 }

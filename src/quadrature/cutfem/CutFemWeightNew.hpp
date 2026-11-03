@@ -520,6 +520,14 @@ class CutFemWeight {
       _nodalWeightCacheValid = false;
     }
 
+    void SetTet15IntegrationDirection(const unsigned direction) {
+      if(direction > 4) throw std::invalid_argument("TET15 integration direction must be between 0 and 4.");
+      if(direction == _tet15IntegrationDirection) return;
+      _tet15IntegrationDirection = direction;
+      _nodalMomentCacheValid = false;
+      _nodalWeightCacheValid = false;
+    }
+
     void SetTet15DirectionValidation(const unsigned mode) {
       if(mode > 2) throw std::invalid_argument("TET15 direction validation must be 0, 1, or 2.");
       if(mode == _tet15DirectionValidation) return;
@@ -736,7 +744,7 @@ class CutFemWeight {
         else {
           std::vector<std::vector<std::vector<double>>> positive;
           std::vector<std::vector<std::vector<double>>> delta;
-          FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,24,0,200000,nullptr,_tet15DirectionValidation);
+          FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,24,_tet15IntegrationDirection,200000,nullptr,_tet15DirectionValidation);
           StoreNodalMomentPair(positive,delta);
         }
       }
@@ -874,6 +882,7 @@ class CutFemWeight {
     unsigned _hex27DirectionValidation = 1;
     unsigned _hex27IntegrationDirection = 0;
     unsigned _tet15DirectionValidation = 1;
+    unsigned _tet15IntegrationDirection = 0;
     unsigned _quad9DirectionValidation = 1;
     unsigned _quad9IntegrationDirection = 0;
     unsigned _tri7DirectionValidation = 1;

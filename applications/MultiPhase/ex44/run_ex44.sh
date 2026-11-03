@@ -9,7 +9,7 @@ set -euo pipefail
 # MPI
 # ------------------------------------------------------------
 
-NPROC=8
+NPROC=1
 NPRINT=1200
 NREINIT=1
 
@@ -17,19 +17,19 @@ NREINIT=1
 # Problem
 # ------------------------------------------------------------
 
-DIM=3
+DIM=2
 SIMULATION="rb2"
 SYMMETRIC=0
 AXISYMMETRIC=0
-ELTYPE=0
+ELTYPE=3
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(4)
-LEVEL_OFFSET=1
+UNIFORM_LEVELS=(2)
+ADAPTIVE_LEVELS=(10)
+LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
 # Time discretization
