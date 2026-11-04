@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include "ReferenceSurfaceMoments.hpp"
 
 // Paired LINE3/QUAD9/TRI7 H/delta moments use analytic segment formulas and adaptive Gauss-Kronrod integration without Taylor integration or divergence recurrence.
 
@@ -744,7 +745,7 @@ inline long double LineSliceEventOffset(long double point, const std::vector<std
   return offset;
 }
 
-inline void LineSliceSegmentMoments(long double a, long double b, long double c, unsigned degree, long double lower, long double upper, bool computeDelta, bool fullBoundaryDelta, long double discriminant, long double jacobian, long double deltaJacobian, bool lowerZero, bool upperZero, std::vector<long double>& positive, std::vector<long double>& delta) {
+inline void LineSliceSegmentMoments(long double a, long double b, long double c, unsigned degree, long double lower, long double upper, bool computeDelta, bool fullBoundaryDelta, long double discriminant, long double jacobian, long double deltaJacobian, bool lowerZero, bool upperZero, std::vector<long double>& positive, std::vector<long double>& delta, long double surfaceFirst = 0.0L, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   positive.assign(degree+1U,0.0L);
   delta.assign(degree+1U,0.0L);
   if(!(upper > lower)) return;
@@ -813,6 +814,7 @@ inline void LineSliceSegmentMoments(long double a, long double b, long double c,
     if(root < lower || root > upper) continue;
     if(!(derivative > 0.0L)) throw std::domain_error("The segment delta moment is undefined.");
     long double weight = std::isfinite(deltaJacobian) ? deltaJacobian : jacobian/derivative;
+    if(surfaceGradient != nullptr) weight *= SurfaceGradientNorm(*surfaceGradient,surfaceFirst,root);
     if(!fullBoundaryDelta && (root == lower || root == upper)) weight *= 0.5L;
     long double power = 1.0L;
     for(unsigned j = 0; j <= degree; ++j) {
@@ -853,7 +855,7 @@ inline std::vector<long double> LineSliceFlatFibers(const std::vector<std::vecto
   return roots;
 }
 
-inline void LineSliceSample(const std::vector<std::vector<long double>>& field, const std::vector<long double>& flat, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameter, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, std::vector<long double>& values) {
+inline void LineSliceSample(const std::vector<std::vector<long double>>& field, const std::vector<long double>& flat, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameter, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   long double width = (right-left)+(rightOffset-leftOffset);
   long double sine = linear ? 0.0L : std::sin(parameter);
   long double cosine = linear ? 0.0L : std::cos(parameter);
@@ -901,7 +903,7 @@ inline void LineSliceSample(const std::vector<std::vector<long double>>& field, 
   long double lower = shape == 3 ? x : 0.0L;
   long double upper = shape == 2 ? x : 1.0L;
   std::vector<long double> h,d;
-  LineSliceSegmentMoments(a,b,c,degree,lower,upper,computeDelta,fullBoundaryDelta,discriminant,jacobian,deltaJacobian,lowerZero,upperZero,h,d);
+  LineSliceSegmentMoments(a,b,c,degree,lower,upper,computeDelta,fullBoundaryDelta,discriminant,jacobian,deltaJacobian,lowerZero,upperZero,h,d,x+coordinateError,surfaceGradient);
   if(computeDelta) {
     for(unsigned j = 0; j <= degree; ++j) d[j] /= std::abs(factor);
   }
@@ -918,7 +920,7 @@ inline void LineSliceSample(const std::vector<std::vector<long double>>& field, 
   }
 }
 
-inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& flat, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameterLeft, long double parameterRight, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError) {
+inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& flat, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameterLeft, long double parameterRight, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   const long double nodes[8] = {0.991455371120812639206854697526329L,0.949107912342758524526189684047851L,0.864864423359769072789712788640926L,0.741531185599394439863864773280788L,0.586087235467691130294144838258730L,0.405845151377397166906606412076961L,0.207784955007898467600689403773245L,0.0L};
   const long double kronrod[8] = {0.022935322010529224963732008058970L,0.063092092629978553290700663189204L,0.104790010322250183839876322541518L,0.140653259715525918745189590510238L,0.169004726639267902826583426598550L,0.190350578064785409913256402421014L,0.204432940075298892414161999234649L,0.209482141084727828012999174891714L};
   const long double gauss[4] = {0.129484966168869693270611432679082L,0.279705391489276667901467771423780L,0.381830050505118944950369775488975L,0.417959183673469387755102040816327L};
@@ -934,7 +936,7 @@ inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>
       if(evaluations >= maximumEvaluations) throw std::runtime_error("The line-slice evaluation budget was exhausted.");
       ++evaluations;
       long double point = middle+(side == 0 ? -1.0L : 1.0L)*halfWidth*nodes[node];
-      LineSliceSample(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,point,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,samples[numberOfSamples]);
+      LineSliceSample(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,point,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,samples[numberOfSamples],surfaceGradient);
       const std::vector<long double>& value = samples[numberOfSamples];
       sampleWeights[numberOfSamples++] = kronrod[node];
       for(unsigned k = 0; k < value.size(); ++k) {
@@ -964,12 +966,67 @@ inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>
     return;
   }
   if(depth >= maximumDepth || middle == parameterLeft || middle == parameterRight) throw std::runtime_error("Line-slice quadrature did not reach the requested tolerance.");
-  LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,parameterLeft,middle,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError);
-  LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,middle,parameterRight,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError);
+  LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,parameterLeft,middle,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient);
+  LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,middle,parameterRight,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient);
 }
 
-inline void LineSliceDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, unsigned order, bool computeDelta, bool fullBoundaryDelta, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned guaranteedMonotoneOrder = 0, const std::vector<unsigned>* zeroBoundary = nullptr) {
+inline void LineSliceSurfaceFiberMoments(long double a, long double b, long double c, long double fixed, long double left, long double right, unsigned degree, const std::vector<std::vector<std::vector<long double>>>& gradient, long double absoluteTolerance, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, std::vector<long double>& values, std::vector<long double>& errors) {
+  static const long double nodes[8] = {0.991455371120812639206854697526329L,0.949107912342758524526189684047851L,0.864864423359769072789712788640926L,0.741531185599394439863864773280788L,0.586087235467691130294144838258730L,0.405845151377397166906606412076961L,0.207784955007898467600689403773245L,0.0L};
+  static const long double kronrod[8] = {0.022935322010529224963732008058970L,0.063092092629978553290700663189204L,0.104790010322250183839876322541518L,0.140653259715525918745189590510238L,0.169004726639267902826583426598550L,0.190350578064785409913256402421014L,0.204432940075298892414161999234649L,0.209482141084727828012999174891714L};
+  static const long double gauss[4] = {0.129484966168869693270611432679082L,0.279705391489276667901467771423780L,0.381830050505118944950369775488975L,0.417959183673469387755102040816327L};
+  const long double middle = 0.5L*(left+right);
+  const long double halfWidth = 0.5L*(right-left);
+  std::vector<long double> high(degree+1U,0.0L), low(degree+1U,0.0L), absolute(degree+1U,0.0L);
+  std::vector<std::vector<long double>> samples(15,std::vector<long double>(degree+1U,0.0L));
+  unsigned sample = 0;
+  for(unsigned node = 0; node < 8; ++node) {
+    for(unsigned side = 0; side < (node == 7 ? 1U : 2U); ++side) {
+      if(evaluations >= maximumEvaluations) throw std::runtime_error("The surface-fiber evaluation budget was exhausted.");
+      ++evaluations;
+      const long double point = middle+(side == 0 ? -1.0L : 1.0L)*halfWidth*nodes[node];
+      const long double denominator = std::fma(a,point*point,std::fma(b,point,c));
+      if(!(denominator > 0.0L)) throw std::domain_error("A surface fiber has a critical transverse derivative.");
+      long double value = SurfaceGradientNorm(gradient,fixed,point)/denominator;
+      for(unsigned j = 0; j <= degree; ++j) {
+        samples[sample][j] = value;
+        high[j] += kronrod[node]*value;
+        absolute[j] += kronrod[node]*std::abs(value);
+        if((node&1U) != 0) low[j] += gauss[node/2U]*value;
+        value *= point;
+      }
+      ++sample;
+    }
+  }
+  bool converged = true;
+  std::vector<long double> error(degree+1U);
+  for(unsigned j = 0; j <= degree; ++j) {
+    long double variation = 0.0L;
+    for(unsigned k = 0; k < 15; ++k) variation += kronrod[k/2U]*std::abs(samples[k][j]-0.5L*high[j]);
+    long double estimate = std::abs(high[j]-low[j]);
+    if(variation > 0.0L && estimate > 0.0L) estimate = variation*std::min(1.0L,std::pow(200.0L*estimate/variation,1.5L));
+    error[j] = halfWidth*std::max(estimate,128.0L*std::numeric_limits<long double>::epsilon()*absolute[j]);
+    high[j] *= halfWidth;
+    converged = converged && error[j] <= absoluteTolerance+relativeTolerance*std::abs(high[j]);
+  }
+  if(converged) {
+    for(unsigned j = 0; j <= degree; ++j) {
+      values[j] += high[j];
+      errors[j] += error[j];
+    }
+    return;
+  }
+  if(depth >= maximumDepth || middle == left || middle == right) throw std::runtime_error("Surface-fiber quadrature did not reach the requested tolerance.");
+  LineSliceSurfaceFiberMoments(a,b,c,fixed,left,middle,degree,gradient,0.5L*absoluteTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,values,errors);
+  LineSliceSurfaceFiberMoments(a,b,c,fixed,middle,right,degree,gradient,0.5L*absoluteTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,values,errors);
+}
+
+inline void LineSliceDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, unsigned order, bool computeDelta, bool fullBoundaryDelta, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned guaranteedMonotoneOrder = 0, const std::vector<unsigned>* zeroBoundary = nullptr, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   std::vector<std::vector<long double>> field(3,std::vector<long double>(3,0.0L));
+  std::vector<std::vector<std::vector<long double>>> transposedGradient;
+  if(surfaceGradient != nullptr && order == 2) {
+    SurfaceGradientTranspose(*surfaceGradient,transposedGradient);
+    surfaceGradient = &transposedGradient;
+  }
   for(unsigned i = 0; i < 3; ++i) {
     for(unsigned j = 0; j < 3; ++j) field[2U-j][i] = order == 1 ? coefficient[i][j] : coefficient[j][i];
   }
@@ -1044,7 +1101,12 @@ inline void LineSliceDirection(const std::vector<std::vector<long double>>& coef
     long double sign = std::fma(a,0.25L*(lower+upper)*(lower+upper),std::fma(b,0.5L*(lower+upper),c)) > 0.0L ? 1.0L : -1.0L;
     std::vector<long double> moments;
     std::vector<long double> momentError;
-    LineSliceUtilities::RationalSegmentMoments(sign*a,sign*b,sign*c,lower,upper,degree,0.002L*absoluteDelta,0,moments,momentError);
+    if(surfaceGradient == nullptr) LineSliceUtilities::RationalSegmentMoments(sign*a,sign*b,sign*c,lower,upper,degree,0.002L*absoluteDelta,0,moments,momentError);
+    else {
+      moments.assign(degree+1U,0.0L);
+      momentError.assign(degree+1U,0.0L);
+      LineSliceSurfaceFiberMoments(sign*a,sign*b,sign*c,root,lower,upper,degree,*surfaceGradient,0.002L*absoluteDelta,0.02L*relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,moments,momentError);
+    }
     long double boundary = !fullBoundaryDelta && (root == 0.0L || root == 1.0L) ? 0.5L : 1.0L;
     for(unsigned i = 0; i <= degree; ++i) {
       for(unsigned j = 0; j <= degree-i; ++j) {
@@ -1096,7 +1158,7 @@ inline void LineSliceDirection(const std::vector<std::vector<long double>>& coef
       }
     }
     bool intervalLinear = linear && leftMultiplicity == 0 && rightMultiplicity == 0;
-    LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,eventOffsets[interval-1U],eventOffsets[interval],0.0L,intervalLinear ? 1.0L : 0.5L*std::acos(-1.0L),intervalLinear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors);
+    LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,eventOffsets[interval-1U],eventOffsets[interval],0.0L,intervalLinear ? 1.0L : 0.5L*std::acos(-1.0L),intervalLinear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors,surfaceGradient);
   }
 }
 
@@ -1191,7 +1253,7 @@ inline void LineSliceTriangleRestoreMoments(unsigned degree, unsigned chart, con
   }
 }
 
-inline void LineSliceTriangleDirections(const std::vector<std::vector<long double>>& normalized, long double scale, unsigned degree, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned integrationOrder, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected) {
+inline void LineSliceTriangleDirections(const std::vector<std::vector<long double>>& normalized, long double scale, unsigned degree, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned integrationOrder, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   std::vector<std::vector<std::vector<long double>>> charts(3);
   long double lower[3];
   long double upper[3];
@@ -1215,6 +1277,12 @@ inline void LineSliceTriangleDirections(const std::vector<std::vector<long doubl
   std::string failure = "No triangle direction converged.";
   for(unsigned attempt = 0; attempt < 3; ++attempt) {
     const unsigned chart = order[attempt];
+    std::vector<std::vector<std::vector<long double>>> chartGradient;
+    if(surfaceGradient != nullptr) {
+      if(chart == 0) chartGradient = *surfaceGradient;
+      else if(chart == 1) SurfaceGradientAffine(*surfaceGradient,1.0L,-1.0L,1.0L,1.0L,-1.0L,0.0L,chartGradient);
+      else SurfaceGradientDiagonal(*surfaceGradient,chartGradient);
+    }
     std::vector<unsigned> boundary;
     if(zeroBoundary != nullptr) {
       boundary.resize(3);
@@ -1225,7 +1293,7 @@ inline void LineSliceTriangleDirections(const std::vector<std::vector<long doubl
     std::vector<long double> trialError;
     unsigned trialAccepted = 0;
     try {
-      LineSliceDirection(charts[chart],degree,true,1,computeDelta,fullBoundaryDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,trial,trialError,evaluations,trialAccepted,lower[chart] > 0.0L ? 1U : 0U,zeroBoundary == nullptr ? nullptr : &boundary);
+      LineSliceDirection(charts[chart],degree,true,1,computeDelta,fullBoundaryDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,trial,trialError,evaluations,trialAccepted,lower[chart] > 0.0L ? 1U : 0U,zeroBoundary == nullptr ? nullptr : &boundary,surfaceGradient == nullptr ? nullptr : &chartGradient);
       LineSliceTriangleRestoreMoments(degree,chart,trial,trialError,values,errors);
       for(unsigned k = 0; k < values.size(); ++k) {
         const long double tolerance = (k < count ? absoluteTolerance : absoluteTolerance*scale)+relativeTolerance*std::abs(values[k]);
@@ -1242,7 +1310,7 @@ inline void LineSliceTriangleDirections(const std::vector<std::vector<long doubl
   throw std::runtime_error(failure);
 }
 
-inline void IntegrateNormalizedByLineSlices(const std::vector<std::vector<long double>>& normalized, long double scale, unsigned degree, bool triangle, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr) {
+inline void IntegrateNormalizedByLineSlices(const std::vector<std::vector<long double>>& normalized, long double scale, unsigned degree, bool triangle, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   if(degree > 10000U || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 60 || integrationOrder > (triangle ? 3U : 2U) || maximumEvaluations < 15) throw std::invalid_argument("Invalid adaptive line-slice input.");
   unsigned long long size = (static_cast<unsigned long long>(degree)+1ULL)*(degree+2ULL)/2ULL;
   if(size > std::numeric_limits<unsigned>::max()/2U) throw std::length_error("The moment table is too large.");
@@ -1265,7 +1333,7 @@ inline void IntegrateNormalizedByLineSlices(const std::vector<std::vector<long d
     }
   }
   else if(triangle && normalized[2][2] == 0.0L && normalized[2][1] == -normalized[1][2]) {
-    LineSliceTriangleDirections(normalized,scale,degree,computeDelta,fullBoundaryDelta,absoluteTolerance,relativeTolerance,maximumDepth,integrationOrder,maximumEvaluations,zeroBoundary,values,errors,evaluations,accepted,selected);
+    LineSliceTriangleDirections(normalized,scale,degree,computeDelta,fullBoundaryDelta,absoluteTolerance,relativeTolerance,maximumDepth,integrationOrder,maximumEvaluations,zeroBoundary,values,errors,evaluations,accepted,selected,surfaceGradient);
   }
   else {
     if(integrationOrder > 2) throw std::invalid_argument("The third triangle direction requires the enriched TRI7 polynomial space.");
@@ -1277,7 +1345,7 @@ inline void IntegrateNormalizedByLineSlices(const std::vector<std::vector<long d
       unsigned order = attempt == 0 ? preferred : 3U-preferred;
       accepted = 0;
       try {
-        LineSliceDirection(normalized,degree,triangle,order,computeDelta,fullBoundaryDelta,absoluteTolerance,static_cast<long double>(absoluteTolerance)*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,monotoneOrder,zeroBoundary);
+        LineSliceDirection(normalized,degree,triangle,order,computeDelta,fullBoundaryDelta,absoluteTolerance,static_cast<long double>(absoluteTolerance)*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,monotoneOrder,zeroBoundary,surfaceGradient);
         if(order == 2) {
           std::vector<long double> copy(values),copyError(errors);
           for(unsigned i = 0; i <= degree; ++i) {
@@ -1318,11 +1386,11 @@ inline void IntegrateNormalizedByLineSlices(const std::vector<std::vector<long d
   if(estimatedError != nullptr) *estimatedError = {static_cast<double>(maxH),static_cast<double>(maxD),static_cast<double>(accepted),static_cast<double>(evaluations),static_cast<double>(selected)};
 }
 
-inline void IntegrateCanonicalByLineSlices(const std::vector<std::vector<double>>& coefficient, unsigned degree, bool triangle, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr) {
+inline void IntegrateCanonicalByLineSlices(const std::vector<std::vector<double>>& coefficient, unsigned degree, bool triangle, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   std::vector<std::vector<long double>> normalized;
   long double scale;
   LineSliceUtilities::NormalizeCanonicalPolynomial(coefficient,normalized,scale);
-  IntegrateNormalizedByLineSlices(normalized,scale,degree,triangle,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError,zeroBoundary);
+  IntegrateNormalizedByLineSlices(normalized,scale,degree,triangle,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError,zeroBoundary,surfaceGradient);
 }
 
 inline void IntegrateQuad9UnitByLineSlices(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr) {
@@ -1352,7 +1420,7 @@ inline void IntegrateTri7NodalByLineSlices(const std::vector<double>& nodalValue
   IntegrateTri7ReflectedByLineSlices(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,28,0,200000,nullptr,&zeroBoundary);
 }
 
-inline void IntegrateTri7ReflectedByLineSlicesLongDouble(const std::vector<long double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr) {
+inline void IntegrateTri7ReflectedByLineSlicesLongDouble(const std::vector<long double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   if(coefficient.size() != 7) throw std::invalid_argument("TRI7 requires seven coefficients.");
   long double scale = 0.0L;
   for(unsigned term = 0; term < 7; ++term) {
@@ -1372,7 +1440,7 @@ inline void IntegrateTri7ReflectedByLineSlicesLongDouble(const std::vector<long 
   normalized[0][2] = coefficient[5]/scale;
   normalized[2][1] = coefficient[6]/scale;
   normalized[1][2] = -coefficient[6]/scale;
-  IntegrateNormalizedByLineSlices(normalized,scale,degree,true,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError,zeroBoundary);
+  IntegrateNormalizedByLineSlices(normalized,scale,degree,true,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError,zeroBoundary,surfaceGradient);
 }
 
 inline void IntegrateQuad9CanonicalByLineSlices(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false) {
@@ -1418,3 +1486,4 @@ inline void IntegrateLine3NodalByLineSlices(const std::vector<double>& nodalValu
 }
 
 #endif
+

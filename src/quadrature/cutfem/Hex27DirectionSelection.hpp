@@ -95,7 +95,7 @@ inline void Hex27SelectedSlice(const std::vector<long double>& coefficient, unsi
   }
 }
 
-inline void Hex27SelectedSample(const std::vector<long double>& coefficient, unsigned degree, unsigned axis, unsigned innerAxis, long double point, long double jacobian, long double absoluteTolerance, long double deltaTolerance, long double relativeTolerance, bool computeDelta, std::vector<long double>& value, std::vector<long double>& error, bool& cut, unsigned& evaluations, unsigned maximumEvaluations, bool useTaylor, const std::vector<unsigned>* zeroFaces, std::vector<unsigned>& innerCounts) {
+inline void Hex27SelectedSample(const std::vector<long double>& coefficient, unsigned degree, unsigned axis, unsigned innerAxis, long double point, long double jacobian, long double absoluteTolerance, long double deltaTolerance, long double relativeTolerance, bool computeDelta, std::vector<long double>& value, std::vector<long double>& error, bool& cut, unsigned& evaluations, unsigned maximumEvaluations, bool useTaylor, const std::vector<unsigned>* zeroFaces, std::vector<unsigned>& innerCounts, const std::vector<std::vector<long double>>* surfaceGradient = nullptr) {
   if(evaluations >= maximumEvaluations) throw std::runtime_error("HEX27 slice evaluation budget exceeded.");
   ++evaluations;
   unsigned first;
@@ -103,6 +103,8 @@ inline void Hex27SelectedSample(const std::vector<long double>& coefficient, uns
   Hex27OtherAxes(axis,first,second);
   std::vector<std::vector<long double>> slice;
   Hex27SelectedSlice(coefficient,axis,point,slice);
+  std::vector<std::vector<std::vector<long double>>> sliceGradient;
+  if(surfaceGradient != nullptr) Hex27SliceReferenceSurfaceGradient(*surfaceGradient,axis,point,sliceGradient);
   std::vector<unsigned> boundary(4,0);
   bool anyBoundary = false;
   for(unsigned edge = 0; edge < 4; ++edge) {
@@ -151,7 +153,7 @@ inline void Hex27SelectedSample(const std::vector<long double>& coefficient, uns
     for(unsigned attempt = 0; attempt < (innerAxis == 3 ? 2U : 1U) && !completed; ++attempt) {
       const unsigned order = attempt == 0 ? preferred : 3U-preferred;
       try {
-        Quad9SelectedOneDirection(slice,norm,degree,order,lower[2U-order],computeDelta,false,innerTolerance,0.05L*relativeTolerance,28,200000,anyBoundary ? &boundary : nullptr,moments,sliceError,lineEvaluations,accepted,useTaylor);
+        Quad9SelectedOneDirection(slice,norm,degree,order,lower[2U-order],computeDelta,false,innerTolerance,0.05L*relativeTolerance,28,200000,anyBoundary ? &boundary : nullptr,moments,sliceError,lineEvaluations,accepted,useTaylor,surfaceGradient == nullptr ? nullptr : &sliceGradient);
         ++innerCounts[order == 2 ? first : second];
         completed = true;
       }
@@ -195,7 +197,7 @@ inline void Hex27SelectedSample(const std::vector<long double>& coefficient, uns
   cut = (moments[0] > 0.0L && moments[0] < 1.0L) || (computeDelta && moments[sliceCount] != 0.0L);
 }
 
-inline void Hex27SelectedInterval(const std::vector<long double>& coefficient, const std::vector<long double>& bernstein, unsigned degree, unsigned axis, unsigned innerAxis, long double left, long double right, long double thetaLeft, long double thetaRight, long double absoluteTolerance, long double deltaTolerance, long double relativeTolerance, bool computeDelta, unsigned depth, unsigned maximumDepth, unsigned& evaluations, unsigned maximumEvaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, bool regularGraph, bool useTaylor, const std::vector<unsigned>* zeroFaces, std::vector<unsigned>& innerCounts) {
+inline void Hex27SelectedInterval(const std::vector<long double>& coefficient, const std::vector<long double>& bernstein, unsigned degree, unsigned axis, unsigned innerAxis, long double left, long double right, long double thetaLeft, long double thetaRight, long double absoluteTolerance, long double deltaTolerance, long double relativeTolerance, bool computeDelta, unsigned depth, unsigned maximumDepth, unsigned& evaluations, unsigned maximumEvaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, bool regularGraph, bool useTaylor, const std::vector<unsigned>* zeroFaces, std::vector<unsigned>& innerCounts, const std::vector<std::vector<long double>>* surfaceGradient = nullptr, long double surfaceGradientBound = 1.0L) {
   const long double nodes[8] = {0.991455371120812639206854697526329L,0.949107912342758524526189684047851L,0.864864423359769072789712788640926L,0.741531185599394439863864773280788L,0.586087235467691130294144838258730L,0.405845151377397166906606412076961L,0.207784955007898467600689403773245L,0.0L};
   const long double kronrod[8] = {0.022935322010529224963732008058970L,0.063092092629978553290700663189204L,0.104790010322250183839876322541518L,0.140653259715525918745189590510238L,0.169004726639267902826583426598550L,0.190350578064785409913256402421014L,0.204432940075298892414161999234649L,0.209482141084727828012999174891714L};
   const long double gauss[4] = {0.129484966168869693270611432679082L,0.279705391489276667901467771423780L,0.381830050505118944950369775488975L,0.417959183673469387755102040816327L};
@@ -239,7 +241,7 @@ inline void Hex27SelectedInterval(const std::vector<long double>& coefficient, c
       std::vector<long double> value, error;
       bool sampleCut = false;
       try {
-        Hex27SelectedSample(coefficient,degree,axis,innerAxis,point,jacobian,absoluteTolerance,deltaTolerance,relativeTolerance,computeDelta,value,error,sampleCut,evaluations,maximumEvaluations,useTaylor,zeroFaces,innerCounts);
+        Hex27SelectedSample(coefficient,degree,axis,innerAxis,point,jacobian,absoluteTolerance,deltaTolerance,relativeTolerance,computeDelta,value,error,sampleCut,evaluations,maximumEvaluations,useTaylor,zeroFaces,innerCounts,surfaceGradient);
       }
       catch(const std::domain_error&) { failed = true; split = theta; break; }
       anyCut = anyCut || sampleCut;
@@ -257,7 +259,7 @@ inline void Hex27SelectedInterval(const std::vector<long double>& coefficient, c
   std::vector<long double> errors(2U*count,0.0L);
   long double intervalFraction = std::max(1.0e-2L,width*(thetaRight-thetaLeft)/(regularGraph ? 1.0L : 0.5L*std::acos(-1.0L)));
   if(failed && zRight-zLeft <= 0.25L*absoluteTolerance*intervalFraction) {
-    long double bound = computeDelta ? Hex27SlabDeltaBound(bernstein,axis,zLeft,zRight,0.25L*deltaTolerance*intervalFraction) : 0.0L;
+    long double bound = computeDelta ? (surfaceGradientBound > 0.0L ? surfaceGradientBound*Hex27SlabDeltaBound(bernstein,axis,zLeft,zRight,0.25L*deltaTolerance*intervalFraction/surfaceGradientBound) : 0.0L) : 0.0L;
     if(bound <= 0.25L*deltaTolerance*intervalFraction) {
       for(unsigned k = 0; k < count; ++k) { totalError[k] += zRight-zLeft; totalError[count+k] += bound; }
       ++accepted;
@@ -267,7 +269,7 @@ inline void Hex27SelectedInterval(const std::vector<long double>& coefficient, c
   if(!failed) {
     long double fraction = intervalFraction;
     if(!anyCut && zRight-zLeft <= absoluteTolerance*fraction) {
-      long double bound = computeDelta ? Hex27SlabDeltaBound(bernstein,axis,zLeft,zRight,deltaTolerance*fraction) : 0.0L;
+      long double bound = computeDelta ? (surfaceGradientBound > 0.0L ? surfaceGradientBound*Hex27SlabDeltaBound(bernstein,axis,zLeft,zRight,deltaTolerance*fraction/surfaceGradientBound) : 0.0L) : 0.0L;
       if(bound <= deltaTolerance*fraction) {
         converged = true;
         for(unsigned k = 0; k < count; ++k) { innerError[k] += (zRight-zLeft)/halfWidth; innerError[count+k] += bound/halfWidth; }
@@ -291,11 +293,11 @@ inline void Hex27SelectedInterval(const std::vector<long double>& coefficient, c
     return;
   }
   if(depth >= maximumDepth || !(split > thetaLeft && split < thetaRight)) throw std::runtime_error("HEX27 integration did not resolve the requested tolerance or slice topology.");
-  Hex27SelectedInterval(coefficient,bernstein,degree,axis,innerAxis,left,right,thetaLeft,split,absoluteTolerance,deltaTolerance,relativeTolerance,computeDelta,depth+1U,maximumDepth,evaluations,maximumEvaluations,accepted,total,totalError,regularGraph,useTaylor,zeroFaces,innerCounts);
-  Hex27SelectedInterval(coefficient,bernstein,degree,axis,innerAxis,left,right,split,thetaRight,absoluteTolerance,deltaTolerance,relativeTolerance,computeDelta,depth+1U,maximumDepth,evaluations,maximumEvaluations,accepted,total,totalError,regularGraph,useTaylor,zeroFaces,innerCounts);
+  Hex27SelectedInterval(coefficient,bernstein,degree,axis,innerAxis,left,right,thetaLeft,split,absoluteTolerance,deltaTolerance,relativeTolerance,computeDelta,depth+1U,maximumDepth,evaluations,maximumEvaluations,accepted,total,totalError,regularGraph,useTaylor,zeroFaces,innerCounts,surfaceGradient,surfaceGradientBound);
+  Hex27SelectedInterval(coefficient,bernstein,degree,axis,innerAxis,left,right,split,thetaRight,absoluteTolerance,deltaTolerance,relativeTolerance,computeDelta,depth+1U,maximumDepth,evaluations,maximumEvaluations,accepted,total,totalError,regularGraph,useTaylor,zeroFaces,innerCounts,surfaceGradient,surfaceGradientBound);
 }
 
-inline void Hex27SelectedOneAxis(const std::vector<long double>& normalized, const std::vector<long double>& bernstein, unsigned degree, unsigned axis, unsigned innerAxis, bool independent, unsigned graphAxes, long double scale, long double absoluteTolerance, long double relativeTolerance, bool computeDelta, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& values, std::vector<long double>& errors, bool useTaylor, const std::vector<unsigned>* zeroFaces, std::vector<unsigned>& innerCounts) {
+inline void Hex27SelectedOneAxis(const std::vector<long double>& normalized, const std::vector<long double>& bernstein, unsigned degree, unsigned axis, unsigned innerAxis, bool independent, unsigned graphAxes, long double scale, long double absoluteTolerance, long double relativeTolerance, bool computeDelta, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& values, std::vector<long double>& errors, bool useTaylor, const std::vector<unsigned>* zeroFaces, std::vector<unsigned>& innerCounts, const std::vector<std::vector<long double>>* surfaceGradient = nullptr) {
   const unsigned count = (degree+1U)*(degree+2U)*(degree+3U)/6U;
   const bool regularGraph = (graphAxes & ~(1U<<axis)) != 0;
   if(computeDelta && !regularGraph && Hex27FlatSlice(normalized,axis)) throw std::runtime_error("The requested HEX27 height contains an entire zero slice.");
@@ -303,12 +305,13 @@ inline void Hex27SelectedOneAxis(const std::vector<long double>& normalized, con
   if(!independent) events = regularGraph ? std::vector<long double>{0.0L,1.0L} : Hex27Events(normalized,axis);
   long double positiveWorkingTolerance = absoluteTolerance;
   long double deltaWorkingTolerance = std::max(absoluteTolerance*scale,relativeTolerance);
+  const long double surfaceGradientBound = surfaceGradient == nullptr ? 1.0L : Hex27ReferenceSurfaceGradientBound(*surfaceGradient);
   for(unsigned refinement = 0; refinement < 4; ++refinement) {
     values.assign(2U*count,0.0L);
     errors.assign(2U*count,0.0L);
     if(independent) {
       bool cut = false;
-      Hex27SelectedSample(normalized,degree,axis,innerAxis,0.5L,1.0L,positiveWorkingTolerance,deltaWorkingTolerance,relativeTolerance,computeDelta,values,errors,cut,evaluations,maximumEvaluations,useTaylor,zeroFaces,innerCounts);
+      Hex27SelectedSample(normalized,degree,axis,innerAxis,0.5L,1.0L,positiveWorkingTolerance,deltaWorkingTolerance,relativeTolerance,computeDelta,values,errors,cut,evaluations,maximumEvaluations,useTaylor,zeroFaces,innerCounts,surfaceGradient);
       for(unsigned i = 0; i <= degree; ++i) {
         for(unsigned j = 0; j <= degree-i; ++j) {
           for(unsigned k = 0; k <= degree-i-j; ++k) {
@@ -326,7 +329,7 @@ inline void Hex27SelectedOneAxis(const std::vector<long double>& normalized, con
     }
     else {
       for(unsigned event = 1; event < events.size(); ++event) {
-        if(events[event] > events[event-1U]) Hex27SelectedInterval(normalized,bernstein,degree,axis,innerAxis,events[event-1U],events[event],0.0L,regularGraph ? 1.0L : 0.5L*std::acos(-1.0L),positiveWorkingTolerance,deltaWorkingTolerance,relativeTolerance,computeDelta,0,maximumDepth,evaluations,maximumEvaluations,accepted,values,errors,regularGraph,useTaylor,zeroFaces,innerCounts);
+        if(events[event] > events[event-1U]) Hex27SelectedInterval(normalized,bernstein,degree,axis,innerAxis,events[event-1U],events[event],0.0L,regularGraph ? 1.0L : 0.5L*std::acos(-1.0L),positiveWorkingTolerance,deltaWorkingTolerance,relativeTolerance,computeDelta,0,maximumDepth,evaluations,maximumEvaluations,accepted,values,errors,regularGraph,useTaylor,zeroFaces,innerCounts,surfaceGradient,surfaceGradientBound);
       }
     }
     bool positiveConverged = true;
@@ -363,7 +366,7 @@ inline bool Hex27SelectedAgreement(const std::vector<long double>& first, const 
   return agree;
 }
 
-inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector<double>>>& coefficient, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, bool useTaylor = true, const std::vector<unsigned>* zeroFaces = nullptr, std::vector<double>* directionInfo = nullptr) {
+inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector<double>>>& coefficient, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, bool useTaylor = true, const std::vector<unsigned>* zeroFaces = nullptr, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false) {
   if(&positive == &delta || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 48 || integrationOrder > 6 || maximumEvaluations == 0 || validationMode > 2 || (directionInfo != nullptr && directionInfo == estimatedError)) throw std::invalid_argument("Invalid selected-direction HEX27 integration input.");
   if(zeroFaces != nullptr) {
     if(zeroFaces->size() != 6) throw std::invalid_argument("HEX27 requires six zero-face flags.");
@@ -374,6 +377,8 @@ inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector
   std::vector<long double> normalized;
   long double scale;
   Hex27Normalize(coefficient,normalized,scale);
+  std::vector<std::vector<long double>> surfaceGradient;
+  if(referenceSurface && computeDelta) Hex27ReferenceSurfaceGradient(normalized,scale,surfaceGradient);
   const unsigned count = (degree+1U)*(degree+2U)*(degree+3U)/6U;
   std::vector<long double> values(2U*count,0.0L);
   std::vector<long double> errors(2U*count,0.0L);
@@ -415,7 +420,14 @@ inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector
       }
     }
   }
-  else if(planar) Hex27PlanarMoments(normalized,degree,computeDelta,absoluteTolerance,relativeTolerance,values);
+  else if(planar) {
+    Hex27PlanarMoments(normalized,degree,computeDelta,absoluteTolerance,relativeTolerance,values);
+    if(referenceSurface && computeDelta) {
+      long double norm = 0.0L;
+      for(unsigned component = 0; component < 3; ++component) norm = std::hypot(norm,surfaceGradient[component][0]);
+      for(unsigned k = count; k < values.size(); ++k) values[k] *= norm;
+    }
+  }
   else {
     long double lower[3];
     long double upper[3];
@@ -453,7 +465,7 @@ inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector
         ++attempts;
         const std::vector<unsigned> countsBefore = innerCounts;
         try {
-          Hex27SelectedOneAxis(normalized,bernstein,degree,axis,inner,independent[axis],graphAxes,scale,absoluteTolerance*factor,relativeTolerance*factor,computeDelta,maximumDepth,maximumEvaluations,evaluations,accepted,trial,trialError,useTaylor,zeroFaces,innerCounts);
+          Hex27SelectedOneAxis(normalized,bernstein,degree,axis,inner,independent[axis],graphAxes,scale,absoluteTolerance*factor,relativeTolerance*factor,computeDelta,maximumDepth,maximumEvaluations,evaluations,accepted,trial,trialError,useTaylor,zeroFaces,innerCounts,referenceSurface && computeDelta ? &surfaceGradient : nullptr);
           ++successes;
           if(!validate) {
             values.swap(trial);
@@ -471,7 +483,7 @@ inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector
               std::vector<long double> otherError;
               ++attempts;
               try {
-                Hex27SelectedOneAxis(normalized,bernstein,degree,axis,otherInner,true,graphAxes,scale,absoluteTolerance*factor,relativeTolerance*factor,computeDelta,maximumDepth,maximumEvaluations,evaluations,accepted,other,otherError,useTaylor,zeroFaces,innerCounts);
+                Hex27SelectedOneAxis(normalized,bernstein,degree,axis,otherInner,true,graphAxes,scale,absoluteTolerance*factor,relativeTolerance*factor,computeDelta,maximumDepth,maximumEvaluations,evaluations,accepted,other,otherError,useTaylor,zeroFaces,innerCounts,referenceSurface && computeDelta ? &surfaceGradient : nullptr);
                 ++successes;
                 std::vector<long double> checkedError;
                 if((integrationOrder == 0 || axis == requestedOuter) && Hex27SelectedAgreement(trial,trialError,other,otherError,count,scale,absoluteTolerance,relativeTolerance,computeDelta,checkedError)) {
@@ -541,7 +553,7 @@ inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector
   if(directionInfo != nullptr) *directionInfo = {static_cast<double>(selectedAxis),static_cast<double>(compared),static_cast<double>(attempts),static_cast<double>(successes),static_cast<double>(innerCounts[0]),static_cast<double>(innerCounts[1]),static_cast<double>(innerCounts[2])};
 }
 
-inline void IntegrateHex27NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = true, std::vector<double>* directionInfo = nullptr) {
+inline void IntegrateHex27NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = true, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false) {
   std::vector<std::vector<std::vector<double>>> coefficient;
   Hex27UnitCoefficientsFromNodalValues(nodalValues,coefficient);
   std::vector<unsigned> zeroFaces(6,0);
@@ -554,9 +566,10 @@ inline void IntegrateHex27NodalSelected(const std::vector<double>& nodalValues, 
       zeroFaces[2U*axis+side] = zero;
     }
   }
-  IntegrateHex27UnitSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,24,integrationOrder,200000,estimatedError,validationMode,useTaylor,&zeroFaces,directionInfo);
+  IntegrateHex27UnitSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,24,integrationOrder,200000,estimatedError,validationMode,useTaylor,&zeroFaces,directionInfo,referenceSurface);
 }
 
 }
 
 #endif
+

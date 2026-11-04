@@ -103,13 +103,18 @@ inline void Tri7SelectedRestoreDiagonal(unsigned degree, const std::vector<long 
   }
 }
 
-inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>& normalized, long double scale, unsigned degree, unsigned direction, long double derivativeBound, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, bool useTaylor, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted) {
+inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>& normalized, long double scale, unsigned degree, unsigned direction, long double derivativeBound, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, bool useTaylor, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   const unsigned order = direction == 2 ? 2U : 1U;
   const long double amplification = direction == 3 ? LineSliceUtilities::Power(2.0L,degree) : 1.0L;
   std::vector<std::vector<long double>> coefficient;
   if(direction == 3) Tri7SelectedDiagonalPolynomial(normalized,coefficient);
   else coefficient = normalized;
+  std::vector<std::vector<std::vector<long double>>> diagonalGradient;
+  if(direction == 3 && surfaceGradient != nullptr) {
+    SurfaceGradientDiagonal(*surfaceGradient,diagonalGradient);
+    surfaceGradient = &diagonalGradient;
+  }
   std::vector<unsigned> boundary;
   bool zeroEdge = false;
   if(zeroBoundary != nullptr) {
@@ -125,20 +130,20 @@ inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>
   if(!line) {
     bool completed = false;
     if(derivativeBound > 0.0L && !fullBoundaryDelta) {
-      try { completed = IntegrateCanonicalGraph(coefficient,degree,order,true,computeDelta,derivativeBound,absoluteH,absoluteD,relative,maximumDepth,raw,rawError,accepted); }
+      try { completed = IntegrateCanonicalGraph(coefficient,degree,order,true,computeDelta,derivativeBound,absoluteH,absoluteD,relative,maximumDepth,raw,rawError,accepted,surfaceGradient); }
       catch(const std::runtime_error&) { completed = false; }
     }
     if(!completed) {
       accepted = 0;
       const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
-      try { IntegrateNormalizedCell(coefficient,degree,2,domain,true,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,32,maximumDepth,order,raw,rawError,accepted); }
+      try { IntegrateNormalizedCell(coefficient,degree,2,domain,true,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,32,maximumDepth,order,raw,rawError,accepted,surfaceGradient); }
       catch(const std::runtime_error&) { line = true; }
     }
     if(computeDelta && raw[count] == 0.0L) line = true;
   }
   if(line) {
     accepted = 0;
-    LineSliceDirection(coefficient,degree,true,order,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,raw,rawError,evaluations,accepted,derivativeBound > 0.0L ? order : 0U,zeroBoundary == nullptr ? nullptr : &boundary);
+    LineSliceDirection(coefficient,degree,true,order,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,raw,rawError,evaluations,accepted,derivativeBound > 0.0L ? order : 0U,zeroBoundary == nullptr ? nullptr : &boundary,surfaceGradient);
     if(order == 2) {
       for(unsigned i = 0; i <= degree; ++i) {
         for(unsigned j = i+1U; j <= degree-i; ++j) {
@@ -162,7 +167,7 @@ inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>
   }
 }
 
-inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationDirection = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr, bool useTaylor = false) {
+inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationDirection = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr, bool useTaylor = false, bool referenceSurface = false) {
   if(&positive == &delta || coefficient.size() != 7 || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 60 || integrationDirection > 3 || validationMode > 2 || maximumEvaluations < 15) throw std::invalid_argument("Invalid TRI7 selected-direction input.");
   if(zeroBoundary != nullptr && zeroBoundary->size() != 3) throw std::invalid_argument("TRI7 requires three boundary flags.");
   long double scale = 0.0L;
@@ -185,6 +190,19 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
   normalized[0][2] = coefficient[5]/scale;
   normalized[2][1] = coefficient[6]/scale;
   normalized[1][2] = -coefficient[6]/scale;
+  std::vector<std::vector<std::vector<long double>>> referenceGradient;
+  if(referenceSurface) {
+    std::vector<std::vector<double>> original(3,std::vector<double>(3,0.0));
+    original[0][0] = coefficient[0];
+    original[1][0] = coefficient[1];
+    original[0][1] = coefficient[2];
+    original[2][0] = coefficient[3];
+    original[1][1] = coefficient[4];
+    original[0][2] = coefficient[5];
+    original[2][1] = coefficient[6];
+    original[1][2] = -coefficient[6];
+    SurfaceGradientFromPolynomial(original,-1.0L,1.0L,referenceGradient);
+  }
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   std::vector<long double> values(2U*count,0.0L), errors(2U*count,0.0L);
   unsigned evaluations = 0, accepted = 0, selected = 0, compared = 0, attempts = 0;
@@ -227,7 +245,7 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
       for(unsigned candidate = 0; candidate < number && !completed; ++candidate) {
         ++attempts;
         try {
-          Tri7SelectedOneDirection(normalized,scale,degree,ranked[candidate],lower[ranked[candidate]-1U],computeDelta,fullBoundaryDelta,absoluteTolerance*factor,relativeTolerance*factor,maximumDepth,maximumEvaluations,zeroBoundary,useTaylor,trial[candidate],trialError[candidate],evaluations,trialAccepted[candidate]);
+          Tri7SelectedOneDirection(normalized,scale,degree,ranked[candidate],lower[ranked[candidate]-1U],computeDelta,fullBoundaryDelta,absoluteTolerance*factor,relativeTolerance*factor,maximumDepth,maximumEvaluations,zeroBoundary,useTaylor,trial[candidate],trialError[candidate],evaluations,trialAccepted[candidate],referenceSurface ? &referenceGradient : nullptr);
           success[candidate] = true;
           if(!verify) {
             values.swap(trial[candidate]);
@@ -280,19 +298,20 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
   if(estimatedError != nullptr) *estimatedError = {static_cast<double>(errorH),static_cast<double>(errorD),static_cast<double>(accepted),useTaylor ? -1.0 : static_cast<double>(evaluations),static_cast<double>(selected),static_cast<double>(compared),static_cast<double>(attempts)};
 }
 
-inline void IntegrateTri7NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false) {
+inline void IntegrateTri7NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false) {
   std::vector<double> coefficient;
   LineSliceUtilities::Tri7ReflectedCoefficientsFromNodalValues(nodalValues,coefficient);
   const std::vector<unsigned> boundary = {static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[3] == 0.0),static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[2] == 0.0 && nodalValues[5] == 0.0),static_cast<unsigned>(nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[4] == 0.0)};
-  IntegrateTri7ReflectedSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationDirection,200000,estimatedError,validationMode,&boundary,useTaylor);
+  IntegrateTri7ReflectedSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationDirection,200000,estimatedError,validationMode,&boundary,useTaylor,referenceSurface);
 }
 
-inline void IntegrateTri7CanonicalSelected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false) {
+inline void IntegrateTri7CanonicalSelected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false) {
   std::vector<double> reflected;
   LineSliceUtilities::Tri7CoefficientsToReflectedTriangle(coefficient,reflected);
-  IntegrateTri7ReflectedSelected(reflected,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationDirection,200000,estimatedError,validationMode,nullptr,useTaylor);
+  IntegrateTri7ReflectedSelected(reflected,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationDirection,200000,estimatedError,validationMode,nullptr,useTaylor,referenceSurface);
 }
 
 }
 
 #endif
+

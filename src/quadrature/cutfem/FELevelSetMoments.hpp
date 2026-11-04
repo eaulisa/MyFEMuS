@@ -9,6 +9,7 @@
 #include <limits>
 #include <stdexcept>
 #include <vector>
+#include "ReferenceSurfaceMoments.hpp"
 
 // Native moments use [0,1] for LINE3, [0,1]^2 for QUAD9, and 0<=y<=x<=1 for TRI7; legacy entry points retain FEMuS-coordinate monomials.
 
@@ -394,6 +395,22 @@ namespace FELevelSetMoments {
     return result;
   }
 
+  inline std::vector<long double> SurfaceGradientSeriesNorm(const std::vector<std::vector<std::vector<long double>>>& gradient, const std::vector<long double>& first, const std::vector<long double>& second) {
+    const unsigned order = static_cast<unsigned>(first.size())-1U;
+    std::vector<long double> squared(order+1U,0.0L);
+    for(unsigned component = 0; component < gradient.size(); ++component) {
+      std::vector<long double> value(order+1U,0.0L);
+      for(unsigned i = static_cast<unsigned>(gradient[component].size()); i > 0; --i) {
+        value = SeriesProduct(value,first);
+        const std::vector<long double> row = SeriesPolynomial(gradient[component][i-1U],second);
+        for(unsigned k = 0; k <= order; ++k) value[k] += row[k];
+      }
+      const std::vector<long double> term = SeriesProduct(value,value);
+      for(unsigned k = 0; k <= order; ++k) squared[k] += term[k];
+    }
+    return SeriesSquareRoot(squared);
+  }
+
   inline void SineCosineSeries(long double middle, long double halfWidth, unsigned order, std::vector<long double>& sine, std::vector<long double>& cosine) {
     sine.assign(order + 1U, 0.0L);
     cosine.assign(order + 1U, 0.0L);
@@ -645,7 +662,7 @@ namespace FELevelSetMoments {
     }
   }
 
-  inline bool SliceTaylor(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, std::vector<long double>& values, std::vector<long double>& errors, bool fullDeltaChart = false) {
+  inline bool SliceTaylor(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, std::vector<long double>& values, std::vector<long double>& errors, bool fullDeltaChart = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
     long double middle = 0.5L * (thetaLeft + thetaRight);
     long double halfWidth = 0.5L * (thetaRight - thetaLeft);
     long double width = xRight - xLeft;
@@ -750,6 +767,7 @@ namespace FELevelSetMoments {
           if(!fullBoundaryDelta && boundary[r] != 0) {
             for(unsigned k = 0; k <= order; ++k) weight[k] *= 0.5L;
           }
+          if(surfaceGradient != nullptr) weight = SeriesProduct(weight,SurfaceGradientSeriesNorm(*surfaceGradient,x,root));
           weights.push_back(weight);
           continue;
         }
@@ -775,6 +793,7 @@ namespace FELevelSetMoments {
             weight[k] *= 0.5L;
           }
         }
+        if(surfaceGradient != nullptr) weight = SeriesProduct(weight,SurfaceGradientSeriesNorm(*surfaceGradient,x,root));
         weights.push_back(weight);
       }
     }
@@ -839,10 +858,10 @@ namespace FELevelSetMoments {
     return allConverged;
   }
 
-  inline void IntegrateTaylorInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absolutePositive, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& sum, std::vector<long double>& sumError, unsigned& acceptedIntervals, bool fullDeltaChart = false) {
+  inline void IntegrateTaylorInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absolutePositive, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& sum, std::vector<long double>& sumError, unsigned& acceptedIntervals, bool fullDeltaChart = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
     std::vector<long double> values;
     std::vector<long double> errors;
-    bool accepted = SliceTaylor(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, thetaLeft, thetaRight, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, values, errors, fullDeltaChart);
+    bool accepted = SliceTaylor(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, thetaLeft, thetaRight, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, values, errors, fullDeltaChart, surfaceGradient);
     unsigned count = (degree + 1U) * (degree + 2U) / 2U;
     for (unsigned k = 0; k < values.size(); ++k) {
       long double tolerance = ((k < count) ? absolutePositive : absoluteDelta) + relativeTolerance * std::abs(values[k]);
@@ -860,11 +879,11 @@ namespace FELevelSetMoments {
     if (depth >= maximumDepth || middle == thetaLeft || middle == thetaRight) {
       throw std::runtime_error("Taylor recurrence did not reach the requested tolerance; increase maximumDepth or relax the tolerance.");
     }
-    IntegrateTaylorInterval(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, thetaLeft, middle, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, 0.5L * absolutePositive, 0.5L * absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, sum, sumError, acceptedIntervals, fullDeltaChart);
-    IntegrateTaylorInterval(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, middle, thetaRight, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, 0.5L * absolutePositive, 0.5L * absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, sum, sumError, acceptedIntervals, fullDeltaChart);
+    IntegrateTaylorInterval(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, thetaLeft, middle, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, 0.5L * absolutePositive, 0.5L * absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, sum, sumError, acceptedIntervals, fullDeltaChart, surfaceGradient);
+    IntegrateTaylorInterval(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, middle, thetaRight, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, 0.5L * absolutePositive, 0.5L * absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, sum, sumError, acceptedIntervals, fullDeltaChart, surfaceGradient);
   }
 
-  inline void IntegrateDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double deltaTolerance, long double relativeTolerance, unsigned order, unsigned maximumDepth, std::vector<long double>& result, std::vector<long double>& resultError, unsigned& acceptedIntervals, bool fullDeltaChart = false) {
+  inline void IntegrateDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double deltaTolerance, long double relativeTolerance, unsigned order, unsigned maximumDepth, std::vector<long double>& result, std::vector<long double>& resultError, unsigned& acceptedIntervals, bool fullDeltaChart = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
     std::vector<std::vector<long double>> field(3, std::vector<long double>(3, 0.0L));
     for (unsigned i = 0; i < 3; ++i) {
       for (unsigned j = 0; j < 3; ++j) {
@@ -930,7 +949,7 @@ namespace FELevelSetMoments {
         }
       }
       long double fraction = (right - left) / (domain[1] - domain[0]);
-      IntegrateTaylorInterval(field, reduced, leftMultiplicity, rightMultiplicity, left, right, 0.0L, 0.5L * std::acos(-1.0L), signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, absoluteTolerance * fraction, deltaTolerance * fraction, relativeTolerance, 0, maximumDepth, result, resultError, acceptedIntervals, fullDeltaChart);
+      IntegrateTaylorInterval(field, reduced, leftMultiplicity, rightMultiplicity, left, right, 0.0L, 0.5L * std::acos(-1.0L), signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, absoluteTolerance * fraction, deltaTolerance * fraction, relativeTolerance, 0, maximumDepth, result, resultError, acceptedIntervals, fullDeltaChart, surfaceGradient);
     }
   }
 
@@ -979,7 +998,7 @@ namespace FELevelSetMoments {
     return true;
   }
 
-  inline void IntegrateNormalizedCell(const std::vector<std::vector<long double>>& normalized, unsigned degree, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absolutePositive, long double absoluteDelta, long double relativeTolerance, unsigned seriesOrder, unsigned maximumDepth, unsigned integrationOrder, std::vector<long double>& result, std::vector<long double>& errors, unsigned& acceptedIntervals) {
+  inline void IntegrateNormalizedCell(const std::vector<std::vector<long double>>& normalized, unsigned degree, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absolutePositive, long double absoluteDelta, long double relativeTolerance, unsigned seriesOrder, unsigned maximumDepth, unsigned integrationOrder, std::vector<long double>& result, std::vector<long double>& errors, unsigned& acceptedIntervals, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
     if (integrationOrder > 2U) {
       throw std::invalid_argument("integrationOrder must be 0 (automatic), 1 (y first), or 2 (x first).");
     }
@@ -996,7 +1015,7 @@ namespace FELevelSetMoments {
       }
       try {
         if(selected == 1) {
-          IntegrateDirection(normalized, degree, triangle, domain, computePositive, true, fullBoundaryDelta, absolutePositive, absoluteDelta, relativeTolerance, seriesOrder, maximumDepth, result, errors, acceptedIntervals, true);
+          IntegrateDirection(normalized, degree, triangle, domain, computePositive, true, fullBoundaryDelta, absolutePositive, absoluteDelta, relativeTolerance, seriesOrder, maximumDepth, result, errors, acceptedIntervals, true, surfaceGradient);
           return;
         }
         if(selected == 2) {
@@ -1009,7 +1028,9 @@ namespace FELevelSetMoments {
           std::swap(swapped[1], swapped[3]);
           unsigned shape = triangle == 2 ? 3U : (triangle == 3 ? 2U : triangle);
           std::vector<long double> value, error;
-          IntegrateDirection(transposed, degree, shape, swapped, computePositive, true, fullBoundaryDelta, absolutePositive, absoluteDelta, relativeTolerance, seriesOrder, maximumDepth, value, error, acceptedIntervals, true);
+          std::vector<std::vector<std::vector<long double>>> transposedGradient;
+          if(surfaceGradient != nullptr) SurfaceGradientTranspose(*surfaceGradient,transposedGradient);
+          IntegrateDirection(transposed, degree, shape, swapped, computePositive, true, fullBoundaryDelta, absolutePositive, absoluteDelta, relativeTolerance, seriesOrder, maximumDepth, value, error, acceptedIntervals, true, surfaceGradient == nullptr ? nullptr : &transposedGradient);
           for(unsigned i = 0; i <= degree; ++i) {
             for(unsigned j = 0; j <= degree - i; ++j) {
               unsigned target = MomentIndex(degree, i, j);
@@ -1030,7 +1051,7 @@ namespace FELevelSetMoments {
       }
     }
     if ((computePositive && !reversePositive) || computeDelta) {
-      IntegrateDirection(normalized, degree, triangle, domain, computePositive && !reversePositive, computeDelta, fullBoundaryDelta, absolutePositive, 0.5L * absoluteDelta, relativeTolerance, seriesOrder, maximumDepth, result, errors, acceptedIntervals);
+      IntegrateDirection(normalized, degree, triangle, domain, computePositive && !reversePositive, computeDelta, fullBoundaryDelta, absolutePositive, 0.5L * absoluteDelta, relativeTolerance, seriesOrder, maximumDepth, result, errors, acceptedIntervals, false, surfaceGradient);
     }
     if (computeDelta || reversePositive) {
       std::vector<std::vector<long double>> transposed(3, std::vector<long double>(3, 0.0L));
@@ -1045,7 +1066,9 @@ namespace FELevelSetMoments {
       unsigned swappedTriangle = (triangle == 2U) ? 3U : ((triangle == 3U) ? 2U : triangle);
       std::vector<long double> reverse;
       std::vector<long double> reverseError;
-      IntegrateDirection(transposed, degree, swappedTriangle, swappedDomain, reversePositive, computeDelta, fullBoundaryDelta, absolutePositive, 0.5L * absoluteDelta, relativeTolerance, seriesOrder, maximumDepth, reverse, reverseError, acceptedIntervals);
+      std::vector<std::vector<std::vector<long double>>> transposedGradient;
+      if(surfaceGradient != nullptr) SurfaceGradientTranspose(*surfaceGradient,transposedGradient);
+      IntegrateDirection(transposed, degree, swappedTriangle, swappedDomain, reversePositive, computeDelta, fullBoundaryDelta, absolutePositive, 0.5L * absoluteDelta, relativeTolerance, seriesOrder, maximumDepth, reverse, reverseError, acceptedIntervals, false, surfaceGradient == nullptr ? nullptr : &transposedGradient);
       for (unsigned i = 0; i <= degree; ++i) {
         for (unsigned j = 0; j <= degree - i; ++j) {
           unsigned original = MomentIndex(degree, i, j);
@@ -1311,7 +1334,7 @@ namespace FELevelSetMoments {
   // }
 
 
-  inline void CanonicalGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double point, bool computeDelta, std::vector<long double>& values, bool triangle = false) {
+  inline void CanonicalGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double point, bool computeDelta, std::vector<long double>& values, bool triangle = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   long double polynomial[3];
   for(unsigned k = 0; k < 3; ++k) {
     const long double quadratic = order == 1 ? coefficient[2][k] : coefficient[k][2];
@@ -1351,6 +1374,7 @@ namespace FELevelSetMoments {
     const long double derivative = std::abs(signedDerivative);
     if(!(derivative > 0.0L)) throw std::runtime_error("A monotone graph derivative was not resolved.");
 
+    const long double surfaceNorm = computeDelta && surfaceGradient != nullptr ? SurfaceGradientNorm(*surfaceGradient,order == 1 ? point : root,order == 1 ? root : point) : 1.0L;
     const bool above = signedDerivative > 0.0L;
     const long double left = above ? root : lower;
     const long double right = above ? upper : root;
@@ -1365,7 +1389,7 @@ namespace FELevelSetMoments {
       geometric = rightPower + left * geometric;
       const unsigned index = order == 1 ? MomentIndex(degree, 0, j) : MomentIndex(degree, j, 0);
       values[index] = width * geometric / (j + 1U);
-      values[count + index] = computeDelta ? rootPower / derivative : 0.0L;
+      values[count + index] = computeDelta ? surfaceNorm * rootPower / derivative : 0.0L;
       if(computeDelta) rootPower *= root;
       rightPower *= right;
     }
@@ -1384,7 +1408,7 @@ namespace FELevelSetMoments {
 
 
 
-  inline void IntegrateCanonicalGraphInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double left, long double right, bool computeDelta, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, bool triangle = false) {
+  inline void IntegrateCanonicalGraphInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double left, long double right, bool computeDelta, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, bool triangle = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
     static const long double nodes[8] = {0.991455371120812639206854697526329L, 0.949107912342758524526189684047851L, 0.864864423359769072789712788640926L, 0.741531185599394439863864773280788L, 0.586087235467691130294144838258730L, 0.405845151377397166906606412076961L, 0.207784955007898467600689403773245L, 0.0L};
     static const long double kronrod[8] = {0.022935322010529224963732008058970L, 0.063092092629978553290700663189204L, 0.104790010322250183839876322541518L, 0.140653259715525918745189590510238L, 0.169004726639267902826583426598550L, 0.190350578064785409913256402421014L, 0.204432940075298892414161999234649L, 0.209482141084727828012999174891714L};
     static const long double gauss[4] = {0.129484966168869693270611432679082L, 0.279705391489276667901467771423780L, 0.381830050505118944950369775488975L, 0.417959183673469387755102040816327L};
@@ -1406,7 +1430,7 @@ namespace FELevelSetMoments {
         const unsigned sample = 2U * node + side;
         const long double point = middle + (side == 0 ? -1.0L : 1.0L) * halfWidth * nodes[node];
 
-        CanonicalGraphSample(coefficient, degree, order, point, computeDelta, samples[sample], triangle);
+        CanonicalGraphSample(coefficient, degree, order, point, computeDelta, samples[sample], triangle, surfaceGradient);
 
         for(unsigned k = 0; k < size; ++k) {
           high[k] += kronrod[node] * samples[sample][k];
@@ -1453,8 +1477,8 @@ namespace FELevelSetMoments {
 
     if(depth >= maximumDepth || middle == left || middle == right) throw std::runtime_error("Monotone graph integration did not reach the requested tolerance.");
 
-    IntegrateCanonicalGraphInterval(coefficient, degree, order, left, middle, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle);
-    IntegrateCanonicalGraphInterval(coefficient, degree, order, middle, right, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle);
+    IntegrateCanonicalGraphInterval(coefficient, degree, order, left, middle, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle, surfaceGradient);
+    IntegrateCanonicalGraphInterval(coefficient, degree, order, middle, right, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle, surfaceGradient);
   }
 
 
@@ -1514,7 +1538,7 @@ namespace FELevelSetMoments {
   //   IntegrateCanonicalGraphInterval(coefficient, degree, order, middle, right, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle);
   // }
 
-  inline bool IntegrateCanonicalGraph(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, bool triangle, bool computeDelta, long double derivativeBound, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted) {
+  inline bool IntegrateCanonicalGraph(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, bool triangle, bool computeDelta, long double derivativeBound, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
     const std::vector<long double> domain = {0.0L, 1.0L, 0.0L, 1.0L};
     std::vector<std::vector<long double>> field(3, std::vector<long double>(3));
     long double norm = 0.0L;
@@ -1549,7 +1573,8 @@ namespace FELevelSetMoments {
         events.push_back(roots[k]);
       }
     }
-    if(rootError > 0.125L * absoluteH || (computeDelta && rootError / derivativeBound > 0.125L * absoluteDelta)) return false;
+    const long double surfaceBound = surfaceGradient == nullptr ? 1.0L : SurfaceGradientBound(*surfaceGradient);
+    if(rootError > 0.125L * absoluteH || (computeDelta && rootError * surfaceBound / derivativeBound > 0.125L * absoluteDelta)) return false;
     SortDistinct(events);
     unsigned count = (degree + 1U) * (degree + 2U) / 2U;
     for(unsigned interval = 1; interval < events.size(); ++interval) {
@@ -1570,11 +1595,11 @@ namespace FELevelSetMoments {
         }
         ++accepted;
       }
-      else IntegrateCanonicalGraphInterval(coefficient, degree, order, left, right, computeDelta, 0.875L * absoluteH, 0.875L * absoluteDelta, relativeTolerance, 0, maximumDepth, total, totalError, accepted, triangle);
+      else IntegrateCanonicalGraphInterval(coefficient, degree, order, left, right, computeDelta, 0.875L * absoluteH, 0.875L * absoluteDelta, relativeTolerance, 0, maximumDepth, total, totalError, accepted, triangle, surfaceGradient);
     }
     for(unsigned k = 0; k < count; ++k) {
       totalError[k] += rootError;
-      if(computeDelta) totalError[count + k] += rootError / derivativeBound;
+      if(computeDelta) totalError[count + k] += rootError * surfaceBound / derivativeBound;
     }
     return true;
   }
@@ -2064,3 +2089,4 @@ int main() {
 #endif
 
 #endif
+

@@ -1,5 +1,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <algorithm>
+#include <cmath>
 
 #include "FemusInit.hpp"
 
@@ -1460,6 +1462,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           //BuildQuad9Parabola(psi, BX, BY, xSquared, interfacePoints);
         }
 
+        const bool referenceSurfaceWeights = true;
         std::vector <TypeIO> weightCF(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
         std::vector <TypeIO> weightCFInt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
         std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
@@ -1502,8 +1505,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           cfw[ielGeom]->SetQuad9DirectionValidation(0);
           cfw[ielGeom]->SetTri7DirectionValidation(0);
 
-          cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20, 1);
-          //cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5);
+          cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20, 1, referenceSurfaceWeights);
+          //cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights);
 
 
           for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
@@ -1571,6 +1574,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
           if (cut == 1) {
             std::vector<double> gradGPhysical(dim, 0.);
+            double normGradGReference = 0.;
 
             if (dim == 2 || dim == 3) {
               std::vector<double> xiPsi(dim);
@@ -1588,6 +1592,34 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                   gradGPhysical[d] += psi[i] * shapePsi_x[i * dim + d];
                 }
               }
+
+              if (referenceSurfaceWeights) {
+                std::vector<double> gradGReference(dim, 0.);
+                std::vector<double> shapePsiReference;
+                femPsi->GetDPhiDXi(shapePsiReference, xiPsi);
+                for (unsigned i = 0; i < nDofsPsi; ++i) gradGReference[0] += psi[i] * shapePsiReference[i];
+                femPsi->GetDPhiDEta(shapePsiReference, xiPsi);
+                for (unsigned i = 0; i < nDofsPsi; ++i) gradGReference[1] += psi[i] * shapePsiReference[i];
+                if (dim == 3) {
+                  femPsi->GetDPhiDZeta(shapePsiReference, xiPsi);
+                  for (unsigned i = 0; i < nDofsPsi; ++i) gradGReference[2] += psi[i] * shapePsiReference[i];
+                }
+                for (unsigned d = 0; d < dim; ++d) normGradGReference = std::hypot(normGradGReference, gradGReference[d]);
+                if (normGradGReference == 0.) {
+                  // Extend the normal at off-interface stationary Gauss points.
+                  for (unsigned d = 0; d < dim; ++d) normGradGReference = std::hypot(normGradGReference, a[d]);
+                  gradGReference = a;
+                  if (normGradGReference == 0.) {
+                    gradGReference[0] = 1.;
+                    normGradGReference = 1.;
+                  }
+                  femPsi->GetJacobianMatrix(coordX, xiPsi, determinantPsi, Jacob, JacI);
+                  std::fill(gradGPhysical.begin(), gradGPhysical.end(), 0.);
+                  for (unsigned d = 0; d < dim; ++d) {
+                    for (unsigned j = 0; j < dim; ++j) gradGPhysical[d] += JacI[j][d] * gradGReference[j];
+                  }
+                }
+              }
             }
             else {
               femV->GetJacobianMatrix(coordX, ig, weightFake, Jacob, JacI);
@@ -1596,17 +1628,18 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                   gradGPhysical[d] += JacI[j][d] * a[j];
                 }
               }
+              if (referenceSurfaceWeights) {
+                for (unsigned d = 0; d < dim; ++d) normGradGReference = std::hypot(normGradGReference, a[d]);
+              }
             }
 
             dsN = 0.;
-            for (unsigned d = 0; d < dim; ++d) {
-              dsN += gradGPhysical[d] * gradGPhysical[d];
-            }
-            dsN = std::sqrt(dsN);
+            for (unsigned d = 0; d < dim; ++d) dsN = std::hypot(dsN, gradGPhysical[d]);
 
             for (unsigned d = 0; d < dim; ++d) {
               Nf[d] = dsN > 0. ? gradGPhysical[d] / dsN : 0.;
             }
+            if (referenceSurfaceWeights) dsN = normGradGReference > 0. ? dsN / normGradGReference : 0.;
 
             for (unsigned i = 0; i < dim; ++i) {
               for (unsigned j = 0; j < dim; ++j) {
@@ -2261,3 +2294,4 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     ProfilerStop();
 
 }
+

@@ -94,6 +94,52 @@ inline void Hex27OtherAxes(unsigned axis, unsigned& first, unsigned& second) {
   second = axis == 2 ? 1 : 2;
 }
 
+inline void Hex27ReferenceSurfaceGradient(const std::vector<long double>& coefficient, long double scale, std::vector<std::vector<long double>>& gradient) {
+  gradient.assign(3,std::vector<long double>(27,0.0L));
+  for(unsigned i = 0; i < 3; ++i) {
+    for(unsigned j = 0; j < 3; ++j) {
+      for(unsigned k = 0; k < 3; ++k) {
+        const long double value = 0.5L*scale*coefficient[Hex27Index(i,j,k)];
+        if(i != 0) gradient[0][Hex27Index(i-1U,j,k)] = i*value;
+        if(j != 0) gradient[1][Hex27Index(i,j-1U,k)] = j*value;
+        if(k != 0) gradient[2][Hex27Index(i,j,k-1U)] = k*value;
+      }
+    }
+  }
+}
+
+inline long double Hex27ReferenceSurfaceGradientBound(const std::vector<std::vector<long double>>& gradient) {
+  long double bound = 0.0L;
+  for(unsigned component = 0; component < gradient.size(); ++component) {
+    long double magnitude = 0.0L;
+    for(unsigned term = 0; term < gradient[component].size(); ++term) magnitude += std::abs(gradient[component][term]);
+    bound = std::hypot(bound,magnitude);
+  }
+  return bound*(1.0L+256.0L*std::numeric_limits<long double>::epsilon());
+}
+
+inline void Hex27SliceReferenceSurfaceGradient(const std::vector<std::vector<long double>>& gradient, unsigned axis, long double point, std::vector<std::vector<std::vector<long double>>>& slice) {
+  unsigned first;
+  unsigned second;
+  Hex27OtherAxes(axis,first,second);
+  slice.assign(gradient.size(),std::vector<std::vector<long double>>(3,std::vector<long double>(3,0.0L)));
+  for(unsigned component = 0; component < gradient.size(); ++component) {
+    for(unsigned i = 0; i < 3; ++i) {
+      for(unsigned j = 0; j < 3; ++j) {
+        unsigned powers[3] = {0,0,0};
+        powers[first] = i;
+        powers[second] = j;
+        long double value = 0.0L;
+        for(unsigned k = 3; k > 0; --k) {
+          powers[axis] = k-1U;
+          value = std::fma(value,point,gradient[component][Hex27Index(powers[0],powers[1],powers[2])]);
+        }
+        slice[component][i][j] = value;
+      }
+    }
+  }
+}
+
 inline void Hex27Slice(const std::vector<long double>& coefficient, unsigned axis, long double point, std::vector<std::vector<double>>& slice) {
   unsigned first, second;
   Hex27OtherAxes(axis, first, second);
@@ -841,3 +887,4 @@ inline void IntegrateHex27Unit(const std::vector<std::vector<std::vector<double>
 }
 
 #endif
+
