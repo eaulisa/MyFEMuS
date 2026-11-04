@@ -1164,8 +1164,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   start_time = clock();
 
+  bool algoim = false;
+
   double A = 0.;
   double Per = 0.;
+  double Int_r4_Omega1 = 0.;
+  double Int_r4_Gamma = 0.;
 
   for (unsigned l = levelC; l <= levelF; ++l) {
     Solution* sol0 = mlSol0->GetLevel(l);
@@ -1453,9 +1457,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           std::vector<const double *> xg(dim);
           for (unsigned d = 0; d < dim; d++) xg[d] = (femPsi->GetGaussRule()).GetGaussCoordinatePointer(d);
 
-          BestFitLinearInterpolation(xg, psig, a);
-          d = a[dim];
-          a.resize(dim);
+          // BestFitLinearInterpolation(xg, psig, a);
+          // d = a[dim];
+          // a.resize(dim);
 
           // BestFitQuadraticInterpolation(xg, psi, BX, BY, xSquared);
           // BestFitQuadraticInterpolation(xg, psig, BX, BY, xSquared);
@@ -1489,12 +1493,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           // (*cfw[ielGeom])(-1, aParabola, dParabola, xSquared, weightCF);
 
 
-          //for(unsigned i =0;i<psi.size();i++) std::cout<<psi[i] <<" ";
-          //std::cout<<std::endl;
-
-
-
-
           cfw[ielGeom]->SetHex27IntegrationDirection(0);
           cfw[ielGeom]->SetTet15IntegrationDirection(0);
           cfw[ielGeom]->SetQuad9IntegrationDirection(0);
@@ -1505,15 +1503,14 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           cfw[ielGeom]->SetQuad9DirectionValidation(0);
           cfw[ielGeom]->SetTri7DirectionValidation(0);
 
-          cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20, 1, referenceSurfaceWeights);
-          //cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights);
-
+          if (algoim) {
+            cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20, 1, referenceSurfaceWeights);
+          }
+          else {
+            cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights);
+          }
 
           for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
-
-
-
-          //cfw[ielGeom]->GetWeightFromNodalValues(-1, psi, weightCF);
 
         }
         else {
@@ -1549,15 +1546,17 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             for (unsigned i = 0; i < nDofsP; i++) phiP[i] = phiPtemp[i];
           }
 
-          double x_gss = 0.;
+          std::vector<double> x_gss(dim);
 
           if (nDofsX != nDofsV) throw std::runtime_error("ADD FEMX");
 
-          for (unsigned i = 0; i < nDofsX; ++i) {
-            x_gss += coordXgf[0][i] * phiV[i];
+          for (unsigned idim = 0; idim < dim; idim ++) {
+            for (unsigned i = 0; i < nDofsX; ++i) {
+              x_gss[idim] += coordXgf[idim][i] * phiV[i];
+            }
           }
 
-          const double r = axisymmetric ? x_gss - axisCoordinate : 1.;
+          const double r = axisymmetric ? x_gss[0] - axisCoordinate : 1.;
           const double axisWeight = axisymmetric ? r : 1.;
 
           if (axisymmetric && dim != 2) {
@@ -1816,6 +1815,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
           A += weight * weightCFInt[ig];
           Per += weight * weightCF[ig] * dsN;
+          double r2 = 0;
+          for (unsigned idim = 0; idim < dim; idim++) r2 += (x_gss[idim] - 0.5) * (x_gss[idim] - 0.5);
+          Int_r4_Gamma += r2 * r2 * weight * weightCF[ig] * dsN;
+          Int_r4_Omega1 += r2 * r2 * weight * weightCFInt[ig];
 
           // *** phiV_i loop ***
           for (unsigned i = 0; i < nDofsV; i++) {
@@ -2280,6 +2283,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   MPI_Allreduce(MPI_IN_PLACE, &A, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(MPI_IN_PLACE, &Per, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &Int_r4_Omega1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &Int_r4_Gamma, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 
   double radius  = 0.25;
@@ -2287,11 +2292,17 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   double radius3 = radius2 * radius;
   double per_th = (dim == 2) ? 2 * M_PI * radius : 4. * M_PI * radius2;
   double A_th = (dim == 2) ? M_PI * radius2 : 4. / 3. * M_PI * radius3;
+  double Int_r4_Gamma_th = 2 * M_PI * radius2 * radius3;
+  double Int_r4_Omega1_th = M_PI * radius3 * radius3 / 3.;
   std::cout << " Area error " << std::abs(A - A_th)/A_th << std::endl;
   std::cout << " Perimetro error " << std::abs(Per - per_th)/per_th << std::endl;
+  std::cout << " Int R4 Omega1 error " << std::abs(Int_r4_Omega1 - Int_r4_Omega1_th)/Int_r4_Omega1_th << std::endl;
+  std::cout << " Int R4 Gamma error " << std::abs(Int_r4_Gamma - Int_r4_Gamma_th)/Int_r4_Gamma_th << std::endl << std::flush;
 
    if (nprocs == 1)
     ProfilerStop();
+
+    abort();
 
 }
 

@@ -62,8 +62,8 @@ class Psi {
             const double dx = x[d] - _cfg.center[d];
             r2 += dx * dx;
           }
-          return _cfg.radius - std::sqrt(r2);
-          // return _cfg.radius * _cfg.radius - r2;
+          // return _cfg.radius - std::sqrt(r2);
+          return _cfg.radius * _cfg.radius - r2;
 
         }
 

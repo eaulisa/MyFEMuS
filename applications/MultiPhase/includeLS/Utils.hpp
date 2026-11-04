@@ -3952,6 +3952,38 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
 
   switch(simulation) {
 
+    case SimulationCase::PAR: {
+
+      cfg.x_min[0] = 0.;
+      cfg.x_max[0] = 1.;
+      cfg.x_min[1] = 0.;
+      cfg.x_max[1] = 1.;
+      cfg.x_min[2] = 0.;
+      cfg.x_max[2] = (dim == 3) ? 1. : 0.;
+
+      cfg.n[0] = (dim == 3) ? 1 : 1;
+      cfg.n[1] = (dim == 3) ? 1 : 1;
+      cfg.n[2] = (dim == 3) ? 1 : 0;
+
+      cfg.period = 10.;
+
+      cfg.psi.type = PsiType::BALL;
+      cfg.psi.center = {0.5, 0.5, 0.5};
+      cfg.psi.center.resize(dim);
+      cfg.psi.radius = 0.25;
+
+      cfg.properties.rho1 = 1.;
+      cfg.properties.rho2 = 1.;
+      cfg.properties.mu1 = 1.;
+      cfg.properties.mu2 = 1.;
+      cfg.properties.sigma = 1.;
+      cfg.properties.gravity = 0.;
+
+      SetAllSlip();
+
+      break;
+    }
+
     case SimulationCase::SAYE1:
     case SimulationCase::SAYE2: {
 
@@ -4012,7 +4044,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.properties.mu1 = rb1 ? 1. : 0.1;
       cfg.properties.mu2 = 10.;
       cfg.properties.sigma = rb1 ? 24.5 : 1.96;
-      cfg.properties.gravity = 0.;// -0.98;
+      cfg.properties.gravity = -0.98;
 
       SetSlipSidesWallEnds();
 
