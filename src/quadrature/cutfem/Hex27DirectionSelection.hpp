@@ -299,6 +299,7 @@ inline void Hex27SelectedInterval(const std::vector<long double>& coefficient, c
 
 inline void Hex27SelectedOneAxis(const std::vector<long double>& normalized, const std::vector<long double>& bernstein, unsigned degree, unsigned axis, unsigned innerAxis, bool independent, unsigned graphAxes, long double scale, long double absoluteTolerance, long double relativeTolerance, bool computeDelta, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& values, std::vector<long double>& errors, bool useTaylor, const std::vector<unsigned>* zeroFaces, std::vector<unsigned>& innerCounts, const std::vector<std::vector<long double>>* surfaceGradient = nullptr) {
   const unsigned count = (degree+1U)*(degree+2U)*(degree+3U)/6U;
+  if(independent && surfaceGradient != nullptr) independent = Hex27SurfaceGradientIndependent(*surfaceGradient,axis);
   const bool regularGraph = (graphAxes & ~(1U<<axis)) != 0;
   if(computeDelta && !regularGraph && Hex27FlatSlice(normalized,axis)) throw std::runtime_error("The requested HEX27 height contains an entire zero slice.");
   std::vector<long double> events;
@@ -366,10 +367,12 @@ inline bool Hex27SelectedAgreement(const std::vector<long double>& first, const 
   return agree;
 }
 
-inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector<double>>>& coefficient, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, bool useTaylor = true, const std::vector<unsigned>* zeroFaces = nullptr, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
+inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector<double>>>& coefficient, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, bool useTaylor = true, const std::vector<unsigned>* zeroFaces = nullptr, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
   if(&positive == &delta || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 48 || integrationOrder > 6 || maximumEvaluations == 0 || validationMode > 2 || (directionInfo != nullptr && directionInfo == estimatedError)) throw std::invalid_argument("Invalid selected-direction HEX27 integration input.");
   if(inverseJacobian != nullptr && !referenceSurface) throw std::invalid_argument("A physical HEX27 metric requires surface moments.");
   if(inverseJacobian != nullptr) ValidateSurfaceInverseJacobian(*inverseJacobian,3);
+  if(geometryCoordinates != nullptr && (!referenceSurface || inverseJacobian != nullptr)) throw std::invalid_argument("HEX27 surface geometry requires surface moments without an inverse Jacobian.");
+  if(geometryCoordinates != nullptr) ValidateSurfaceGeometryCoordinates(*geometryCoordinates,3,27);
   if(zeroFaces != nullptr) {
     if(zeroFaces->size() != 6) throw std::invalid_argument("HEX27 requires six zero-face flags.");
     for(unsigned face = 0; face < 6; ++face) {
@@ -380,7 +383,7 @@ inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector
   long double scale;
   Hex27Normalize(coefficient,normalized,scale);
   std::vector<std::vector<long double>> surfaceGradient;
-  if(referenceSurface && computeDelta) Hex27ReferenceSurfaceGradient(normalized,scale,surfaceGradient,inverseJacobian);
+  if(referenceSurface && computeDelta) Hex27ReferenceSurfaceGradient(normalized,scale,surfaceGradient,inverseJacobian,geometryCoordinates);
   const unsigned count = (degree+1U)*(degree+2U)*(degree+3U)/6U;
   std::vector<long double> values(2U*count,0.0L);
   std::vector<long double> errors(2U*count,0.0L);
@@ -422,7 +425,7 @@ inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector
       }
     }
   }
-  else if(planar) {
+  else if(planar && (geometryCoordinates == nullptr || !computeDelta)) {
     Hex27PlanarMoments(normalized,degree,computeDelta,absoluteTolerance,relativeTolerance,values);
     if(referenceSurface && computeDelta) {
       long double norm = 0.0L;
@@ -555,7 +558,7 @@ inline void IntegrateHex27UnitSelected(const std::vector<std::vector<std::vector
   if(directionInfo != nullptr) *directionInfo = {static_cast<double>(selectedAxis),static_cast<double>(compared),static_cast<double>(attempts),static_cast<double>(successes),static_cast<double>(innerCounts[0]),static_cast<double>(innerCounts[1]),static_cast<double>(innerCounts[2])};
 }
 
-inline void IntegrateHex27NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = true, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
+inline void IntegrateHex27NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = true, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
   std::vector<std::vector<std::vector<double>>> coefficient;
   Hex27UnitCoefficientsFromNodalValues(nodalValues,coefficient);
   std::vector<unsigned> zeroFaces(6,0);
@@ -568,7 +571,7 @@ inline void IntegrateHex27NodalSelected(const std::vector<double>& nodalValues, 
       zeroFaces[2U*axis+side] = zero;
     }
   }
-  IntegrateHex27UnitSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,24,integrationOrder,200000,estimatedError,validationMode,useTaylor,&zeroFaces,directionInfo,referenceSurface,inverseJacobian);
+  IntegrateHex27UnitSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,24,integrationOrder,200000,estimatedError,validationMode,useTaylor,&zeroFaces,directionInfo,referenceSurface,inverseJacobian,geometryCoordinates);
 }
 
 }

@@ -101,7 +101,25 @@ inline void Quad9SelectedOneDirection(const std::vector<std::vector<long double>
   }
 }
 
-inline void IntegrateQuad9UnitSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
+inline void Quad9SurfaceCoordinatePolynomials(const std::vector<std::vector<double>>& geometryCoordinates, std::vector<std::vector<std::vector<long double>>>& coordinatePolynomials) {
+  ValidateSurfaceGeometryCoordinates(geometryCoordinates,2,9);
+  coordinatePolynomials.assign(2,std::vector<std::vector<long double>>(3,std::vector<long double>(3,0.0L)));
+  for(unsigned component = 0; component < 2; ++component) {
+    std::vector<double> shifted(9);
+    for(unsigned node = 0; node < 9; ++node) shifted[node] = geometryCoordinates[component][node]-geometryCoordinates[component][0];
+    std::vector<std::vector<double>> coefficient;
+    LineSliceUtilities::Quad9UnitCoefficientsFromNodalValues(shifted,coefficient);
+    for(unsigned i = 0; i < 3; ++i) {
+      for(unsigned j = 0; j < 3; ++j) coordinatePolynomials[component][i][j] = coefficient[i][j];
+    }
+  }
+}
+
+inline void IntegrateQuad9UnitSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+  if(geometryCoordinates != nullptr) {
+    if(!referenceSurface || inverseJacobian != nullptr) throw std::invalid_argument("Surface geometry requires surface moments without an inverse Jacobian.");
+    ValidateSurfaceGeometryCoordinates(*geometryCoordinates,2,9);
+  }
   if(inverseJacobian != nullptr) {
     if(!referenceSurface) throw std::invalid_argument("A surface inverse Jacobian requires surface moments.");
     ValidateSurfaceInverseJacobian(*inverseJacobian,2);
@@ -119,6 +137,13 @@ inline void IntegrateQuad9UnitSelected(const std::vector<std::vector<double>>& c
   if(inverseJacobian != nullptr) {
     if(surfaceGradient != &referenceGradient) referenceGradient = *surfaceGradient;
     SurfaceGradientPhysical(referenceGradient,*inverseJacobian);
+    surfaceGradient = &referenceGradient;
+  }
+  if(geometryCoordinates != nullptr) {
+    if(surfaceGradient != &referenceGradient) referenceGradient = *surfaceGradient;
+    std::vector<std::vector<std::vector<long double>>> coordinatePolynomials;
+    Quad9SurfaceCoordinatePolynomials(*geometryCoordinates,coordinatePolynomials);
+    SurfaceGradientCofactor2D(referenceGradient,coordinatePolynomials,0.5L,0.5L);
     surfaceGradient = &referenceGradient;
   }
   long double norm = 0.0L;
@@ -224,18 +249,27 @@ inline void IntegrateQuad9UnitSelected(const std::vector<std::vector<double>>& c
   if(estimatedError != nullptr) *estimatedError = {static_cast<double>(errorH),static_cast<double>(errorD),static_cast<double>(accepted),useTaylor ? -1.0 : static_cast<double>(evaluations),static_cast<double>(selected),static_cast<double>(compared),static_cast<double>(attempts)};
 }
 
-inline void IntegrateQuad9NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
+inline void IntegrateQuad9NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
   std::vector<std::vector<double>> coefficient;
   LineSliceUtilities::Quad9UnitCoefficientsFromNodalValues(nodalValues,coefficient);
   std::vector<unsigned> boundary = {static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[3] == 0.0 && nodalValues[7] == 0.0),static_cast<unsigned>(nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[5] == 0.0),static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[4] == 0.0),static_cast<unsigned>(nodalValues[3] == 0.0 && nodalValues[2] == 0.0 && nodalValues[6] == 0.0)};
-  IntegrateQuad9UnitSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationOrder,200000,estimatedError,validationMode,&boundary,useTaylor,referenceSurface,nullptr,inverseJacobian);
+  IntegrateQuad9UnitSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationOrder,200000,estimatedError,validationMode,&boundary,useTaylor,referenceSurface,nullptr,inverseJacobian,geometryCoordinates);
 }
 
-inline void IntegrateQuad9CanonicalSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
+inline void IntegrateQuad9CanonicalSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+  if(geometryCoordinates != nullptr) {
+    if(!referenceSurface || inverseJacobian != nullptr) throw std::invalid_argument("Surface geometry requires surface moments without an inverse Jacobian.");
+    ValidateSurfaceGeometryCoordinates(*geometryCoordinates,2,9);
+  }
   std::vector<std::vector<double>> transformed;
   LineSliceUtilities::Quad9CoefficientsToUnitSquare(coefficient,transformed,xLeft,xRight,yBottom,yTop);
   std::vector<std::vector<std::vector<long double>>> referenceGradient;
   if(referenceSurface) SurfaceGradientFromPolynomial(transformed,1.0L/(xRight-xLeft),1.0L/(yTop-yBottom),referenceGradient);
+  if(geometryCoordinates != nullptr) {
+    std::vector<std::vector<std::vector<long double>>> coordinatePolynomials;
+    Quad9SurfaceCoordinatePolynomials(*geometryCoordinates,coordinatePolynomials);
+    SurfaceGradientCofactor2D(referenceGradient,coordinatePolynomials,1.0L/(xRight-xLeft),1.0L/(yTop-yBottom));
+  }
   IntegrateQuad9UnitSelected(transformed,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationOrder,200000,estimatedError,validationMode,nullptr,useTaylor,referenceSurface,referenceSurface ? &referenceGradient : nullptr,inverseJacobian);
 }
 

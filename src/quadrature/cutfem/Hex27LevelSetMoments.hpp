@@ -94,7 +94,7 @@ inline void Hex27OtherAxes(unsigned axis, unsigned& first, unsigned& second) {
   second = axis == 2 ? 1 : 2;
 }
 
-inline void Hex27ReferenceSurfaceGradient(const std::vector<long double>& coefficient, long double scale, std::vector<std::vector<long double>>& gradient, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
+inline void Hex27ReferenceSurfaceGradient(const std::vector<long double>& coefficient, long double scale, std::vector<std::vector<long double>>& gradient, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
   gradient.assign(3,std::vector<long double>(27,0.0L));
   for(unsigned i = 0; i < 3; ++i) {
     for(unsigned j = 0; j < 3; ++j) {
@@ -107,6 +107,21 @@ inline void Hex27ReferenceSurfaceGradient(const std::vector<long double>& coeffi
     }
   }
   if(inverseJacobian != nullptr) SurfaceGradientPhysical(gradient,*inverseJacobian);
+  if(geometryCoordinates != nullptr) {
+    std::vector<std::vector<long double>> coordinates(3,std::vector<long double>(27,0.0L));
+    for(unsigned component = 0; component < 3; ++component) {
+      std::vector<double> nodal(27);
+      for(unsigned node = 0; node < 27; ++node) nodal[node] = (*geometryCoordinates)[component][node]-(*geometryCoordinates)[component][0];
+      std::vector<std::vector<std::vector<double>>> polynomial;
+      Hex27UnitCoefficientsFromNodalValues(nodal,polynomial);
+      for(unsigned i = 0; i < 3; ++i) {
+        for(unsigned j = 0; j < 3; ++j) {
+          for(unsigned k = 0; k < 3; ++k) coordinates[component][Hex27Index(i,j,k)] = polynomial[i][j][k];
+        }
+      }
+    }
+    SurfaceGradientCofactor3D(gradient,coordinates,0.5L);
+  }
 }
 
 inline long double Hex27ReferenceSurfaceGradientBound(const std::vector<std::vector<long double>>& gradient) {
@@ -120,25 +135,41 @@ inline long double Hex27ReferenceSurfaceGradientBound(const std::vector<std::vec
 }
 
 inline void Hex27SliceReferenceSurfaceGradient(const std::vector<std::vector<long double>>& gradient, unsigned axis, long double point, std::vector<std::vector<std::vector<long double>>>& slice) {
+  const unsigned size = SurfacePolynomialCubeSize(gradient[0].size());
   unsigned first;
   unsigned second;
   Hex27OtherAxes(axis,first,second);
-  slice.assign(gradient.size(),std::vector<std::vector<long double>>(3,std::vector<long double>(3,0.0L)));
+  slice.assign(gradient.size(),std::vector<std::vector<long double>>(size,std::vector<long double>(size,0.0L)));
   for(unsigned component = 0; component < gradient.size(); ++component) {
-    for(unsigned i = 0; i < 3; ++i) {
-      for(unsigned j = 0; j < 3; ++j) {
+    for(unsigned i = 0; i < size; ++i) {
+      for(unsigned j = 0; j < size; ++j) {
         unsigned powers[3] = {0,0,0};
         powers[first] = i;
         powers[second] = j;
         long double value = 0.0L;
-        for(unsigned k = 3; k > 0; --k) {
+        for(unsigned k = size; k > 0; --k) {
           powers[axis] = k-1U;
-          value = std::fma(value,point,gradient[component][Hex27Index(powers[0],powers[1],powers[2])]);
+          value = std::fma(value,point,gradient[component][size*size*powers[0]+size*powers[1]+powers[2]]);
         }
         slice[component][i][j] = value;
       }
     }
   }
+}
+
+inline bool Hex27SurfaceGradientIndependent(const std::vector<std::vector<long double>>& gradient, unsigned axis) {
+  const unsigned size = SurfacePolynomialCubeSize(gradient[0].size());
+  for(unsigned component = 0; component < gradient.size(); ++component) {
+    for(unsigned i = 0; i < size; ++i) {
+      for(unsigned j = 0; j < size; ++j) {
+        for(unsigned k = 0; k < size; ++k) {
+          const unsigned powers[3] = {i,j,k};
+          if(powers[axis] != 0 && gradient[component][size*size*i+size*j+k] != 0.0L) return false;
+        }
+      }
+    }
+  }
+  return true;
 }
 
 inline void Hex27Slice(const std::vector<long double>& coefficient, unsigned axis, long double point, std::vector<std::vector<double>>& slice) {

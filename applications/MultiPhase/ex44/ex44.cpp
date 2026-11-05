@@ -103,47 +103,30 @@ struct TaylorHood {
   }
 };
 
+// bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
+//   bool dirichlet = true; //dirichlet
 
-bool GetAffineSurfaceInverseJacobian(const elem_type* finiteElement, const std::vector<std::vector<double>>& coordinates, std::vector<std::vector<double>>& inverseJacobian) {
-  const unsigned dimension = finiteElement->GetDim();
-  const unsigned nodes = static_cast<unsigned>(finiteElement->GetNDofs());
-  inverseJacobian.clear();
-  if(coordinates.size() != dimension || nodes == 0) throw std::invalid_argument("Invalid surface geometry coordinates.");
-  for(unsigned d = 0; d < dimension; ++d) if(coordinates[d].size() != nodes) throw std::invalid_argument("Invalid surface geometry node count.");
-  const double* origin = finiteElement->GetBasis()->GetXcoarse(0);
-  if(origin == nullptr) return false;
-  std::vector<double> referenceOrigin(origin,origin+dimension);
-  std::vector<std::vector<double>> relativeCoordinates = coordinates;
-  long double coordinateScale = 0.0L;
-  for(unsigned d = 0; d < dimension; ++d) {
-    for(unsigned i = 0; i < nodes; ++i) {
-      relativeCoordinates[d][i] -= coordinates[d][0];
-      coordinateScale = std::max(coordinateScale,std::abs(static_cast<long double>(relativeCoordinates[d][i])));
-    }
-  }
-  double determinant = 0.;
-  std::vector<std::vector<double>> jacobian;
-  finiteElement->GetJacobianMatrix(relativeCoordinates,referenceOrigin,determinant,jacobian,inverseJacobian);
-  if(!std::isfinite(determinant) || determinant == 0.) throw std::domain_error("Singular surface geometry.");
-  const long double tolerance = 128.0L*std::numeric_limits<double>::epsilon()*coordinateScale;
-  for(unsigned i = 0; i < nodes; ++i) {
-    const double* point = finiteElement->GetBasis()->GetXcoarse(static_cast<int>(i));
-    if(point == nullptr) {
-      inverseJacobian.clear();
-      return false;
-    }
-    for(unsigned d = 0; d < dimension; ++d) {
-      long double displacement = 0.0L;
-      for(unsigned j = 0; j < dimension; ++j) displacement += static_cast<long double>(jacobian[d][j])*(static_cast<long double>(point[j])-origin[j]);
-      if(std::abs(displacement-static_cast<long double>(relativeCoordinates[d][i])) > tolerance) {
-        inverseJacobian.clear();
-        return false;
-      }
-    }
-  }
-  return true;
-}
+//   if(!strcmp(SolName, "U")) {  // strcmp compares two string in lexiographic sense.
+//     //if(facename == 1 || facename == 3) dirichlet = false;
+//     value = 0.;
+//   }
+//   else if(!strcmp(SolName, "V")) {
+//     // if(facename == 2 || facename == 4) dirichlet = false;
+//     if ((x[0] < -0.5 + 1.e-10 || x[0] > 0.5 - 1.e-10) && (x[1] < 0.5 - 1.e-10 && x[1] > -0.5 + 1.e-10)) {
+//       dirichlet = false;
+//     }
+//     value = 0.;
+//   }
+//   else if(!strcmp(SolName, "W")) {
+//     value = 0.;
+//   }
+//   else if(!strcmp(SolName, "P1") || !strcmp(SolName, "P2") ) {
+//     dirichlet = false;
+//     value = 0.;
+//   }
 
+//   return dirichlet;
+// }
 
 void AssembleMultiphase(MultiLevelProblem& ml_prob);
 void AssembleNormalLumped(MultiLevelProblem& ml_prob);
@@ -1182,12 +1165,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   start_time = clock();
 
-  bool algoim = true;
-
   double A = 0.;
   double Per = 0.;
-  double Int_r4_Omega1 = 0.;
-  double Int_r4_Gamma = 0.;
 
   for (unsigned l = levelC; l <= levelF; ++l) {
     Solution* sol0 = mlSol0->GetLevel(l);
@@ -1475,19 +1454,17 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           std::vector<const double *> xg(dim);
           for (unsigned d = 0; d < dim; d++) xg[d] = (femPsi->GetGaussRule()).GetGaussCoordinatePointer(d);
 
-          // BestFitLinearInterpolation(xg, psig, a);
-          // d = a[dim];
-          // a.resize(dim);
+          BestFitLinearInterpolation(xg, psig, a);
+          d = a[dim];
+          a.resize(dim);
 
           // BestFitQuadraticInterpolation(xg, psi, BX, BY, xSquared);
           // BestFitQuadraticInterpolation(xg, psig, BX, BY, xSquared);
           //BuildQuad9Parabola(psi, BX, BY, xSquared, interfacePoints);
         }
 
-        const bool physicalSurfaceWeights = true;
+        const bool geometrySurfaceWeights = true;
         const bool referenceSurfaceWeights = true;
-        bool usePhysicalSurfaceWeights = false;
-        std::vector<std::vector<double>> surfaceInverseJacobian;
         std::vector <TypeIO> weightCF(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
         std::vector <TypeIO> weightCFInt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
         std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
@@ -1514,6 +1491,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           // (*cfw[ielGeom])(-1, aParabola, dParabola, xSquared, weightCF);
 
 
+          //for(unsigned i =0;i<psi.size();i++) std::cout<<psi[i] <<" ";
+          //std::cout<<std::endl;
+
+
+
+
           cfw[ielGeom]->SetHex27IntegrationDirection(0);
           cfw[ielGeom]->SetTet15IntegrationDirection(0);
           cfw[ielGeom]->SetQuad9IntegrationDirection(0);
@@ -1524,33 +1507,21 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           cfw[ielGeom]->SetQuad9DirectionValidation(0);
           cfw[ielGeom]->SetTri7DirectionValidation(0);
 
-          if (algoim) {
-            cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, (ielGeom == 1) ? 20 : 20, 1, referenceSurfaceWeights);
+          if(geometrySurfaceWeights) {
+            cfw[ielGeom]->GetPhysicalSurfaceWeightsFromNodalGeometryByAlgoim(psi, coordX, weightCFInt, weightCF, 20, 0);
+            //cfw[ielGeom]->GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCF, 1.E-5, 1.E-5);
           }
           else {
-            cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights);
-          }
-
-          if(physicalSurfaceWeights) usePhysicalSurfaceWeights = GetAffineSurfaceInverseJacobian(fem.GetFiniteElement(ielGeom,solXType),coordX,surfaceInverseJacobian);
-          if(usePhysicalSurfaceWeights) {
-            if (algoim) {
-              cfw[ielGeom]->GetPhysicalSurfaceWeightsFromNodalValuesByAlgoim(psi, surfaceInverseJacobian, weightCFInt, weightCF, 20, 0);
-            }
-            else {
-              cfw[ielGeom]->GetPhysicalSurfaceWeightsFromNodalValues(psi, surfaceInverseJacobian, weightCFInt, weightCF, 1.E-5, 1.E-5);
-            }
-          }
-          else {
-            if (algoim) {
             cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, 20, 0, referenceSurfaceWeights);
-            }
-            else {
-              cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights);
-            }
+            //cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights);
           }
 
 
           for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
+
+
+
+          //cfw[ielGeom]->GetWeightFromNodalValues(-1, psi, weightCF);
 
         }
         else {
@@ -1586,17 +1557,15 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             for (unsigned i = 0; i < nDofsP; i++) phiP[i] = phiPtemp[i];
           }
 
-          std::vector<double> x_gss(dim);
+          double x_gss = 0.;
 
           if (nDofsX != nDofsV) throw std::runtime_error("ADD FEMX");
 
-          for (unsigned idim = 0; idim < dim; idim ++) {
-            for (unsigned i = 0; i < nDofsX; ++i) {
-              x_gss[idim] += coordXgf[idim][i] * phiV[i];
-            }
+          for (unsigned i = 0; i < nDofsX; ++i) {
+            x_gss += coordXgf[0][i] * phiV[i];
           }
 
-          const double r = axisymmetric ? x_gss[0] - axisCoordinate : 1.;
+          const double r = axisymmetric ? x_gss - axisCoordinate : 1.;
           const double axisWeight = axisymmetric ? r : 1.;
 
           if (axisymmetric && dim != 2) {
@@ -1632,7 +1601,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                 }
               }
 
-              if (referenceSurfaceWeights || usePhysicalSurfaceWeights) {
+              if (referenceSurfaceWeights || geometrySurfaceWeights) {
                 std::vector<double> gradGReference(dim, 0.);
                 std::vector<double> shapePsiReference;
                 femPsi->GetDPhiDXi(shapePsiReference, xiPsi);
@@ -1667,7 +1636,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                   gradGPhysical[d] += JacI[j][d] * a[j];
                 }
               }
-              if (referenceSurfaceWeights || usePhysicalSurfaceWeights) {
+              if (referenceSurfaceWeights || geometrySurfaceWeights) {
                 for (unsigned d = 0; d < dim; ++d) normGradGReference = std::hypot(normGradGReference, a[d]);
               }
             }
@@ -1678,8 +1647,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             for (unsigned d = 0; d < dim; ++d) {
               Nf[d] = dsN > 0. ? gradGPhysical[d] / dsN : 0.;
             }
-
-            if (usePhysicalSurfaceWeights) dsN = 1;
+            if (geometrySurfaceWeights) dsN = 1.;
             else if (referenceSurfaceWeights) dsN = normGradGReference > 0. ? dsN / normGradGReference : 0.;
 
             for (unsigned i = 0; i < dim; ++i) {
@@ -1855,12 +1823,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           const double convectionCoefficientNew = cnew * rho * weight * axisWeight;
           const double convectionCoefficientOld = cold * rho * weight * axisWeight;
 
+          const double surfaceWeight = cut == 1 ? (geometrySurfaceWeights ? cfw[ielGeom]->GetGaussWeightPointer()[ig] : weight * dsN) * weightCF[ig] : 0.;
           A += weight * weightCFInt[ig];
-          Per += weight * weightCF[ig] * dsN;
-          double r2 = 0;
-          for (unsigned idim = 0; idim < dim; idim++) r2 += (x_gss[idim] - 0.5) * (x_gss[idim] - 0.5);
-          Int_r4_Gamma += r2 * r2 * weight * weightCF[ig] * dsN;
-          Int_r4_Omega1 += r2 * r2 * weight * weightCFInt[ig];
+          Per += surfaceWeight;
 
           // *** phiV_i loop ***
           for (unsigned i = 0; i < nDofsV; i++) {
@@ -1901,11 +1866,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
               // surface tension stabilization -- rhs contribution
               if (cut == 1) {
                 for (int d = 0; d < dim; d++) {
-                  Res[I * nDofsV + i] += - sigma * axisWeight * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
+                  Res[I * nDofsV + i] += - sigma * axisWeight * P[I][d] * phiV_x[i * dim + d] * surfaceWeight;
                 }
 
                 if (axisymmetric && I == 0) {
-                  Res[I * nDofsV + i] += -sigma * phiV[i] * weight * weightCF[ig] * dsN;
+                  Res[I * nDofsV + i] += -sigma * phiV[i] * surfaceWeight;
                 }
 
                 double stabSF = 0.0;
@@ -1928,7 +1893,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                   stabSF += (cnew * solV_gss[0] - cold * solVOld_gss[0]) * phiV[i] / (r * r);
                 }
 
-                Res[I * nDofsV + i] += -cnew * sigma * dt * stabSF * weight * weightCF[ig] * dsN * axisWeight;
+                Res[I * nDofsV + i] += -cnew * sigma * dt * stabSF * surfaceWeight * axisWeight;
               }
             }
           } // end phiV_i loop
@@ -1980,7 +1945,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             }
           }
 
-          double surfaceTensionCoefficient = cnew * cnew * sigma * dt * weight * weightCF[ig] * dsN * axisWeight;
+          double surfaceTensionCoefficient = cnew * cnew * sigma * dt * surfaceWeight * axisWeight;
 
           for (unsigned i = 0; i < nDofsV; i++) {
             for (unsigned j = 0; j < nDofsV; j++) {
@@ -2325,8 +2290,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   MPI_Allreduce(MPI_IN_PLACE, &A, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(MPI_IN_PLACE, &Per, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, &Int_r4_Omega1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, &Int_r4_Gamma, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 
   double radius  = 0.25;
@@ -2334,17 +2297,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   double radius3 = radius2 * radius;
   double per_th = (dim == 2) ? 2 * M_PI * radius : 4. * M_PI * radius2;
   double A_th = (dim == 2) ? M_PI * radius2 : 4. / 3. * M_PI * radius3;
-  double Int_r4_Gamma_th = 2 * M_PI * radius2 * radius3;
-  double Int_r4_Omega1_th = M_PI * radius3 * radius3 / 3.;
   std::cout << " Area error " << std::abs(A - A_th)/A_th << std::endl;
   std::cout << " Perimetro error " << std::abs(Per - per_th)/per_th << std::endl;
-  std::cout << " Int R4 Omega1 error " << std::abs(Int_r4_Omega1 - Int_r4_Omega1_th)/Int_r4_Omega1_th << std::endl;
-  std::cout << " Int R4 Gamma error " << std::abs(Int_r4_Gamma - Int_r4_Gamma_th)/Int_r4_Gamma_th << std::endl << std::flush;
 
    if (nprocs == 1)
     ProfilerStop();
-
-    abort();
 
 }
 

@@ -167,7 +167,30 @@ inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>
   }
 }
 
-inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationDirection = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
+inline void Tri7SurfaceCoordinatePolynomials(const std::vector<std::vector<double>>& geometryCoordinates, std::vector<std::vector<std::vector<long double>>>& coordinatePolynomials) {
+  ValidateSurfaceGeometryCoordinates(geometryCoordinates,2,7);
+  coordinatePolynomials.assign(2,std::vector<std::vector<long double>>(3,std::vector<long double>(3,0.0L)));
+  for(unsigned component = 0; component < 2; ++component) {
+    std::vector<double> shifted(7);
+    for(unsigned node = 0; node < 7; ++node) shifted[node] = geometryCoordinates[component][node]-geometryCoordinates[component][0];
+    std::vector<double> coefficient;
+    LineSliceUtilities::Tri7ReflectedCoefficientsFromNodalValues(shifted,coefficient);
+    coordinatePolynomials[component][0][0] = coefficient[0];
+    coordinatePolynomials[component][1][0] = coefficient[1];
+    coordinatePolynomials[component][0][1] = coefficient[2];
+    coordinatePolynomials[component][2][0] = coefficient[3];
+    coordinatePolynomials[component][1][1] = coefficient[4];
+    coordinatePolynomials[component][0][2] = coefficient[5];
+    coordinatePolynomials[component][2][1] = coefficient[6];
+    coordinatePolynomials[component][1][2] = -coefficient[6];
+  }
+}
+
+inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationDirection = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+  if(geometryCoordinates != nullptr) {
+    if(!referenceSurface || inverseJacobian != nullptr) throw std::invalid_argument("Surface geometry requires surface moments without an inverse Jacobian.");
+    ValidateSurfaceGeometryCoordinates(*geometryCoordinates,2,7);
+  }
   if(inverseJacobian != nullptr) {
     if(!referenceSurface) throw std::invalid_argument("A surface inverse Jacobian requires surface moments.");
     ValidateSurfaceInverseJacobian(*inverseJacobian,2);
@@ -207,6 +230,11 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
     original[1][2] = -coefficient[6];
     SurfaceGradientFromPolynomial(original,-1.0L,1.0L,referenceGradient);
     if(inverseJacobian != nullptr) SurfaceGradientPhysical(referenceGradient,*inverseJacobian);
+    if(geometryCoordinates != nullptr) {
+      std::vector<std::vector<std::vector<long double>>> coordinatePolynomials;
+      Tri7SurfaceCoordinatePolynomials(*geometryCoordinates,coordinatePolynomials);
+      SurfaceGradientCofactor2D(referenceGradient,coordinatePolynomials,-1.0L,1.0L);
+    }
   }
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   std::vector<long double> values(2U*count,0.0L), errors(2U*count,0.0L);
@@ -303,17 +331,17 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
   if(estimatedError != nullptr) *estimatedError = {static_cast<double>(errorH),static_cast<double>(errorD),static_cast<double>(accepted),useTaylor ? -1.0 : static_cast<double>(evaluations),static_cast<double>(selected),static_cast<double>(compared),static_cast<double>(attempts)};
 }
 
-inline void IntegrateTri7NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
+inline void IntegrateTri7NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
   std::vector<double> coefficient;
   LineSliceUtilities::Tri7ReflectedCoefficientsFromNodalValues(nodalValues,coefficient);
   const std::vector<unsigned> boundary = {static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[3] == 0.0),static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[2] == 0.0 && nodalValues[5] == 0.0),static_cast<unsigned>(nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[4] == 0.0)};
-  IntegrateTri7ReflectedSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationDirection,200000,estimatedError,validationMode,&boundary,useTaylor,referenceSurface,inverseJacobian);
+  IntegrateTri7ReflectedSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationDirection,200000,estimatedError,validationMode,&boundary,useTaylor,referenceSurface,inverseJacobian,geometryCoordinates);
 }
 
-inline void IntegrateTri7CanonicalSelected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
+inline void IntegrateTri7CanonicalSelected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
   std::vector<double> reflected;
   LineSliceUtilities::Tri7CoefficientsToReflectedTriangle(coefficient,reflected);
-  IntegrateTri7ReflectedSelected(reflected,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationDirection,200000,estimatedError,validationMode,nullptr,useTaylor,referenceSurface,inverseJacobian);
+  IntegrateTri7ReflectedSelected(reflected,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationDirection,200000,estimatedError,validationMode,nullptr,useTaylor,referenceSurface,inverseJacobian,geometryCoordinates);
 }
 
 }
