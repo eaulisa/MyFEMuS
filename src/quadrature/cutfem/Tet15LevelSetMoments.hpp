@@ -49,7 +49,7 @@ inline void Tet15SliceReferenceMap(const std::vector<long double>& reference, un
   }
 }
 
-inline void Tet15ReferenceSurfaceGradientFields(const std::vector<double>& nodalValues, std::vector<std::vector<std::vector<long double>>>& fields) {
+inline void Tet15ReferenceSurfaceGradientFields(const std::vector<double>& nodalValues, std::vector<std::vector<std::vector<long double>>>& fields, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
   std::vector<long double> coefficient;
   Tet15PolynomialFromNodalValues(nodalValues,false,coefficient);
   std::vector<std::vector<long double>> gradient(3,std::vector<long double>(125,0.0L));
@@ -63,6 +63,7 @@ inline void Tet15ReferenceSurfaceGradientFields(const std::vector<double>& nodal
       }
     }
   }
+  if(inverseJacobian != nullptr) SurfaceGradientPhysical(gradient,*inverseJacobian);
   fields.assign(4,std::vector<std::vector<long double>>(3));
   for(unsigned vertex = 0; vertex < 4; ++vertex) {
     for(unsigned component = 0; component < 3; ++component) Tet15SliceReferenceMap(gradient[component],vertex,fields[vertex][component]);
@@ -657,7 +658,7 @@ inline void Tet15PlaneInterval(const std::vector<long double>& derivative, unsig
   Tet15PlaneInterval(derivative,degree,vertex,height,middle,right,absoluteTolerance,relativeTolerance,depth+1U,maximumDepth,evaluations,maximumEvaluations,total,totalError);
 }
 
-inline void Tet15PlaneDelta(const std::vector<std::vector<long double>>& field, long double height, unsigned degree, unsigned vertex, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned& evaluations, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, bool referenceSurface = false, long double scale = 1.0L) {
+inline void Tet15PlaneDelta(const std::vector<std::vector<long double>>& field, long double height, unsigned degree, unsigned vertex, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned& evaluations, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, bool referenceSurface = false, long double scale = 1.0L, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
   const unsigned powers[7] = {0,1,1,2,2,2,3};
   std::vector<long double> derivative(7);
   std::vector<std::vector<long double>> constant(7);
@@ -680,7 +681,15 @@ inline void Tet15PlaneDelta(const std::vector<std::vector<long double>>& field, 
       delta[i].resize(degree-i+1U);
       for(unsigned j = 0; j <= degree-i; ++j) delta[i][j] = static_cast<double>(1.0L/((i+j+2U)*(j+1U)));
     }
-    long double weight = scale*(vertex == 0 ? std::sqrt(3.0L) : 1.0L)*(1.0L-height)*(1.0L-height);
+    long double normalNorm = vertex == 0 ? std::sqrt(3.0L) : 1.0L;
+    if(inverseJacobian != nullptr) {
+      std::vector<std::vector<long double>> normal(3,std::vector<long double>(1,vertex == 0 ? -1.0L : 0.0L));
+      if(vertex != 0) normal[vertex-1U][0] = 1.0L;
+      SurfaceGradientPhysical(normal,*inverseJacobian);
+      normalNorm = 0.0L;
+      for(unsigned component = 0; component < 3; ++component) normalNorm = std::hypot(normalNorm,normal[component][0]);
+    }
+    long double weight = scale*normalNorm*(1.0L-height)*(1.0L-height);
     if(height == 0.0L) weight *= 0.5L;
     std::vector<long double> value;
     std::vector<long double> error;
@@ -768,8 +777,10 @@ inline bool Tet15DirectionsAgree(const std::vector<long double>& first, const st
   return true;
 }
 
-inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationAxis = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned directionValidation = 1, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false) {
+inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationAxis = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned directionValidation = 1, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
   if(nodalValues.size() != 15 || &positive == &delta || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 48 || integrationAxis > 4 || maximumEvaluations < 15 || directionValidation > 2 || (directionInfo != nullptr && directionInfo == estimatedError)) throw std::invalid_argument("Invalid adaptive TET15 integration input.");
+  if(inverseJacobian != nullptr && !referenceSurface) throw std::invalid_argument("A physical TET15 metric requires surface moments.");
+  if(inverseJacobian != nullptr) ValidateSurfaceInverseJacobian(*inverseJacobian,3);
   long double scale = 0.0L;
   for(unsigned node = 0; node < 15; ++node) {
     if(!std::isfinite(nodalValues[node])) throw std::invalid_argument("A TET15 nodal value is not finite.");
@@ -783,7 +794,7 @@ inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodal
   std::vector<std::vector<std::vector<long double>>> fields(4);
   std::vector<std::vector<std::vector<long double>>> units(4);
   std::vector<std::vector<std::vector<long double>>> surfaceGradientFields;
-  if(referenceSurface && computeDelta) Tet15ReferenceSurfaceGradientFields(nodalValues,surfaceGradientFields);
+  if(referenceSurface && computeDelta) Tet15ReferenceSurfaceGradientFields(nodalValues,surfaceGradientFields,inverseJacobian);
   long double lower[4];
   long double quality[4];
   unsigned axes[4] = {0,1,2,3};
@@ -861,7 +872,7 @@ inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodal
       accepted = 0;
       evaluations = 0;
       if(computeDelta) {
-        for(unsigned n = 0; n < flat.size(); ++n) Tet15PlaneDelta(fields[vertex],flat[n],degree,vertex,0.05L*absoluteTolerance*scale,0.05L*relativeTolerance,maximumDepth,evaluations,maximumEvaluations,values,errors,referenceSurface,scale);
+        for(unsigned n = 0; n < flat.size(); ++n) Tet15PlaneDelta(fields[vertex],flat[n],degree,vertex,0.05L*absoluteTolerance*scale,0.05L*relativeTolerance,maximumDepth,evaluations,maximumEvaluations,values,errors,referenceSurface,scale,inverseJacobian);
       }
       for(unsigned event = 1; event < events.size(); ++event) {
         if(events[event] > events[event-1U]) {

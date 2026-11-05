@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include "FemusInit.hpp"
 
@@ -102,30 +103,47 @@ struct TaylorHood {
   }
 };
 
-// bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[], double& value, const int facename, const double time) {
-//   bool dirichlet = true; //dirichlet
 
-//   if(!strcmp(SolName, "U")) {  // strcmp compares two string in lexiographic sense.
-//     //if(facename == 1 || facename == 3) dirichlet = false;
-//     value = 0.;
-//   }
-//   else if(!strcmp(SolName, "V")) {
-//     // if(facename == 2 || facename == 4) dirichlet = false;
-//     if ((x[0] < -0.5 + 1.e-10 || x[0] > 0.5 - 1.e-10) && (x[1] < 0.5 - 1.e-10 && x[1] > -0.5 + 1.e-10)) {
-//       dirichlet = false;
-//     }
-//     value = 0.;
-//   }
-//   else if(!strcmp(SolName, "W")) {
-//     value = 0.;
-//   }
-//   else if(!strcmp(SolName, "P1") || !strcmp(SolName, "P2") ) {
-//     dirichlet = false;
-//     value = 0.;
-//   }
+bool GetAffineSurfaceInverseJacobian(const elem_type* finiteElement, const std::vector<std::vector<double>>& coordinates, std::vector<std::vector<double>>& inverseJacobian) {
+  const unsigned dimension = finiteElement->GetDim();
+  const unsigned nodes = static_cast<unsigned>(finiteElement->GetNDofs());
+  inverseJacobian.clear();
+  if(coordinates.size() != dimension || nodes == 0) throw std::invalid_argument("Invalid surface geometry coordinates.");
+  for(unsigned d = 0; d < dimension; ++d) if(coordinates[d].size() != nodes) throw std::invalid_argument("Invalid surface geometry node count.");
+  const double* origin = finiteElement->GetBasis()->GetXcoarse(0);
+  if(origin == nullptr) return false;
+  std::vector<double> referenceOrigin(origin,origin+dimension);
+  std::vector<std::vector<double>> relativeCoordinates = coordinates;
+  long double coordinateScale = 0.0L;
+  for(unsigned d = 0; d < dimension; ++d) {
+    for(unsigned i = 0; i < nodes; ++i) {
+      relativeCoordinates[d][i] -= coordinates[d][0];
+      coordinateScale = std::max(coordinateScale,std::abs(static_cast<long double>(relativeCoordinates[d][i])));
+    }
+  }
+  double determinant = 0.;
+  std::vector<std::vector<double>> jacobian;
+  finiteElement->GetJacobianMatrix(relativeCoordinates,referenceOrigin,determinant,jacobian,inverseJacobian);
+  if(!std::isfinite(determinant) || determinant == 0.) throw std::domain_error("Singular surface geometry.");
+  const long double tolerance = 128.0L*std::numeric_limits<double>::epsilon()*coordinateScale;
+  for(unsigned i = 0; i < nodes; ++i) {
+    const double* point = finiteElement->GetBasis()->GetXcoarse(static_cast<int>(i));
+    if(point == nullptr) {
+      inverseJacobian.clear();
+      return false;
+    }
+    for(unsigned d = 0; d < dimension; ++d) {
+      long double displacement = 0.0L;
+      for(unsigned j = 0; j < dimension; ++j) displacement += static_cast<long double>(jacobian[d][j])*(static_cast<long double>(point[j])-origin[j]);
+      if(std::abs(displacement-static_cast<long double>(relativeCoordinates[d][i])) > tolerance) {
+        inverseJacobian.clear();
+        return false;
+      }
+    }
+  }
+  return true;
+}
 
-//   return dirichlet;
-// }
 
 void AssembleMultiphase(MultiLevelProblem& ml_prob);
 void AssembleNormalLumped(MultiLevelProblem& ml_prob);
@@ -1466,7 +1484,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           //BuildQuad9Parabola(psi, BX, BY, xSquared, interfacePoints);
         }
 
+        const bool physicalSurfaceWeights = true;
         const bool referenceSurfaceWeights = true;
+        bool usePhysicalSurfaceWeights = false;
+        std::vector<std::vector<double>> surfaceInverseJacobian;
         std::vector <TypeIO> weightCF(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
         std::vector <TypeIO> weightCFInt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
         std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
@@ -1509,6 +1530,25 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           else {
             cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights);
           }
+
+          if(physicalSurfaceWeights) usePhysicalSurfaceWeights = GetAffineSurfaceInverseJacobian(fem.GetFiniteElement(ielGeom,solXType),coordX,surfaceInverseJacobian);
+          if(usePhysicalSurfaceWeights) {
+            if (algoim) {
+              cfw[ielGeom]->GetPhysicalSurfaceWeightsFromNodalValuesByAlgoim(psi, surfaceInverseJacobian, weightCFInt, weightCF, 20, 0);
+            }
+            else {
+              cfw[ielGeom]->GetPhysicalSurfaceWeightsFromNodalValues(psi, surfaceInverseJacobian, weightCFInt, weightCF, 1.E-5, 1.E-5);
+            }
+          }
+          else {
+            if (algoim) {
+            cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, 20, 0, referenceSurfaceWeights);
+            }
+            else {
+              cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights);
+            }
+          }
+
 
           for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
 
@@ -1592,7 +1632,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                 }
               }
 
-              if (referenceSurfaceWeights) {
+              if (referenceSurfaceWeights || usePhysicalSurfaceWeights) {
                 std::vector<double> gradGReference(dim, 0.);
                 std::vector<double> shapePsiReference;
                 femPsi->GetDPhiDXi(shapePsiReference, xiPsi);
@@ -1627,7 +1667,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                   gradGPhysical[d] += JacI[j][d] * a[j];
                 }
               }
-              if (referenceSurfaceWeights) {
+              if (referenceSurfaceWeights || usePhysicalSurfaceWeights) {
                 for (unsigned d = 0; d < dim; ++d) normGradGReference = std::hypot(normGradGReference, a[d]);
               }
             }
@@ -1638,7 +1678,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             for (unsigned d = 0; d < dim; ++d) {
               Nf[d] = dsN > 0. ? gradGPhysical[d] / dsN : 0.;
             }
-            if (referenceSurfaceWeights) dsN = normGradGReference > 0. ? dsN / normGradGReference : 0.;
+
+            if (usePhysicalSurfaceWeights) dsN = 1;
+            else if (referenceSurfaceWeights) dsN = normGradGReference > 0. ? dsN / normGradGReference : 0.;
 
             for (unsigned i = 0; i < dim; ++i) {
               for (unsigned j = 0; j < dim; ++j) {

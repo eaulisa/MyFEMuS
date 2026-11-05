@@ -3,10 +3,72 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
 namespace FELevelSetMoments {
+
+inline void ValidateSurfaceInverseJacobian(const std::vector<std::vector<double>>& inverseJacobian, unsigned dimension) {
+  if(dimension < 1 || dimension > 3 || inverseJacobian.size() != dimension) throw std::invalid_argument("Invalid surface inverse Jacobian dimensions.");
+  long double factor[3][3] = {};
+  for(unsigned reference = 0; reference < dimension; ++reference) {
+    long double scale = 0.0L;
+    if(inverseJacobian[reference].size() != dimension) throw std::invalid_argument("Invalid surface inverse Jacobian dimensions.");
+    for(unsigned physical = 0; physical < dimension; ++physical) {
+      if(!std::isfinite(inverseJacobian[reference][physical])) throw std::invalid_argument("A surface inverse Jacobian entry is not finite.");
+      scale = std::max(scale,std::abs(static_cast<long double>(inverseJacobian[reference][physical])));
+    }
+    if(scale == 0.0L) throw std::invalid_argument("The surface inverse Jacobian is singular.");
+    for(unsigned physical = 0; physical < dimension; ++physical) factor[reference][physical] = static_cast<long double>(inverseJacobian[reference][physical])/scale;
+  }
+  for(unsigned column = 0; column < dimension; ++column) {
+    unsigned pivot = column;
+    for(unsigned row = column+1U; row < dimension; ++row) {
+      if(std::abs(factor[row][column]) > std::abs(factor[pivot][column])) pivot = row;
+    }
+    if(std::abs(factor[pivot][column]) <= 64.0L*std::numeric_limits<long double>::epsilon()) throw std::invalid_argument("The surface inverse Jacobian is numerically singular.");
+    for(unsigned entry = column; entry < dimension; ++entry) std::swap(factor[column][entry],factor[pivot][entry]);
+    for(unsigned row = column+1U; row < dimension; ++row) {
+      const long double multiplier = factor[row][column]/factor[column][column];
+      for(unsigned entry = column+1U; entry < dimension; ++entry) factor[row][entry] = std::fma(-multiplier,factor[column][entry],factor[row][entry]);
+    }
+  }
+}
+
+inline void SurfaceGradientPhysical(std::vector<std::vector<std::vector<long double>>>& gradient, const std::vector<std::vector<double>>& inverseJacobian) {
+  const unsigned dimension = static_cast<unsigned>(gradient.size());
+  ValidateSurfaceInverseJacobian(inverseJacobian,dimension);
+  unsigned rows = 0;
+  unsigned columns = 0;
+  for(unsigned component = 0; component < dimension; ++component) {
+    rows = std::max(rows,static_cast<unsigned>(gradient[component].size()));
+    for(unsigned row = 0; row < gradient[component].size(); ++row) columns = std::max(columns,static_cast<unsigned>(gradient[component][row].size()));
+  }
+  std::vector<std::vector<std::vector<long double>>> transformed(dimension,std::vector<std::vector<long double>>(rows,std::vector<long double>(columns,0.0L)));
+  for(unsigned reference = 0; reference < dimension; ++reference) {
+    for(unsigned physical = 0; physical < dimension; ++physical) {
+      for(unsigned row = 0; row < gradient[reference].size(); ++row) {
+        for(unsigned column = 0; column < gradient[reference][row].size(); ++column) transformed[physical][row][column] = std::fma(static_cast<long double>(inverseJacobian[reference][physical]),gradient[reference][row][column],transformed[physical][row][column]);
+      }
+    }
+  }
+  gradient.swap(transformed);
+}
+
+inline void SurfaceGradientPhysical(std::vector<std::vector<long double>>& gradient, const std::vector<std::vector<double>>& inverseJacobian) {
+  const unsigned dimension = static_cast<unsigned>(gradient.size());
+  ValidateSurfaceInverseJacobian(inverseJacobian,dimension);
+  unsigned count = 0;
+  for(unsigned component = 0; component < dimension; ++component) count = std::max(count,static_cast<unsigned>(gradient[component].size()));
+  std::vector<std::vector<long double>> transformed(dimension,std::vector<long double>(count,0.0L));
+  for(unsigned reference = 0; reference < dimension; ++reference) {
+    for(unsigned physical = 0; physical < dimension; ++physical) {
+      for(unsigned term = 0; term < gradient[reference].size(); ++term) transformed[physical][term] = std::fma(static_cast<long double>(inverseJacobian[reference][physical]),gradient[reference][term],transformed[physical][term]);
+    }
+  }
+  gradient.swap(transformed);
+}
 
 inline long double SurfacePolynomialValue(const std::vector<std::vector<long double>>& polynomial, long double first, long double second) {
   long double value = 0.0L;

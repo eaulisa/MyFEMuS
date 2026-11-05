@@ -112,7 +112,26 @@ void Line3SurfaceMoments(double a, double b, double c, unsigned degree, std::vec
   for(unsigned power = 0; power <= degree; ++power) delta[power] = static_cast<double>(moments[power]);
 }
 
-long double TensorGradientNorm(const std::vector<long double>& coefficient, const long double* point, unsigned dimension, unsigned extent) {
+void ValidateGradientTransform(const std::vector<std::vector<double>>* inverseJacobian, unsigned dimension, bool referenceSurface) {
+  if(inverseJacobian == nullptr) return;
+  if(!referenceSurface) throw std::invalid_argument("A surface inverse Jacobian requires gradient-weighted moments.");
+  FELevelSetMoments::ValidateSurfaceInverseJacobian(*inverseJacobian,dimension);
+}
+
+long double SurfaceGradientNorm(const long double* gradient, unsigned dimension, const std::vector<std::vector<double>>* inverseJacobian) {
+  long double norm = 0.0L;
+  for(unsigned physical = 0; physical < dimension; ++physical) {
+    long double value = gradient[physical];
+    if(inverseJacobian != nullptr) {
+      value = 0.0L;
+      for(unsigned reference = 0; reference < dimension; ++reference) value = std::fma(static_cast<long double>((*inverseJacobian)[reference][physical]),gradient[reference],value);
+    }
+    norm = std::hypot(norm,value);
+  }
+  return norm;
+}
+
+long double TensorGradientNorm(const std::vector<long double>& coefficient, const long double* point, unsigned dimension, unsigned extent, const std::vector<std::vector<double>>* inverseJacobian) {
   long double powers[3][5] = {};
   long double gradient[3] = {};
   for(unsigned axis = 0; axis < dimension; ++axis) {
@@ -134,19 +153,19 @@ long double TensorGradientNorm(const std::vector<long double>& coefficient, cons
       gradient[derivative] += value;
     }
   }
-  long double norm = 0.0L;
-  for(unsigned axis = 0; axis < dimension; ++axis) norm = std::hypot(norm,gradient[axis]);
-  return norm;
+  return SurfaceGradientNorm(gradient,dimension,inverseJacobian);
 }
 
 template<int N>
-long double ReferenceGradientNorm(const algoim::uvector<double,N>& point, const std::vector<long double>& coefficient, unsigned simplexDimension) {
+long double ReferenceGradientNorm(const algoim::uvector<double,N>& point, const std::vector<long double>& coefficient, unsigned simplexDimension, const std::vector<std::vector<double>>* inverseJacobian) {
   if(simplexDimension == 2) {
     const long double first = point(0);
     const long double second = first*point(1);
     const long double firstDerivative = coefficient[1]+2.0L*coefficient[3]*first+coefficient[4]*second+coefficient[6]*second*(2.0L*first-second);
     const long double secondDerivative = coefficient[2]+coefficient[4]*first+2.0L*coefficient[5]*second+coefficient[6]*first*(first-2.0L*second);
-    return std::hypot(firstDerivative,secondDerivative);
+    if(inverseJacobian == nullptr) return std::hypot(firstDerivative,secondDerivative);
+    const long double gradient[2] = {-firstDerivative,secondDerivative};
+    return SurfaceGradientNorm(gradient,2,inverseJacobian);
   }
   long double referencePoint[3] = {};
   for(int axis = 0; axis < N; ++axis) referencePoint[axis] = point(axis);
@@ -155,11 +174,11 @@ long double ReferenceGradientNorm(const algoim::uvector<double,N>& point, const 
     referencePoint[1] = static_cast<long double>(point(0))*point(1)*(1.0L-point(2));
     referencePoint[2] = static_cast<long double>(point(0))*point(1)*point(2);
   }
-  return (simplexDimension == 0 ? 0.5L : 1.0L)*TensorGradientNorm(coefficient,referencePoint,N,simplexDimension == 3 ? 5U : 3U);
+  return (simplexDimension == 0 ? 0.5L : 1.0L)*TensorGradientNorm(coefficient,referencePoint,N,simplexDimension == 3 ? 5U : 3U,inverseJacobian);
 }
 
 template<int N>
-void SurfacePoint(const algoim::uvector<double,N>& local, double weight, const algoim::uvector<double,N>& normalWeight, const algoim::xarray<double,N>& polynomial, const algoim::uvector<double,N>& low, double width, long double scale, unsigned simplexDimension, unsigned removedFirstPower, unsigned removedSecondPower, unsigned degree, const std::vector<unsigned>& zeroBoundary, bool referenceSurface, const std::vector<long double>& surfaceCoefficient, std::vector<long double>& powers, std::vector<long double>& moments) {
+void SurfacePoint(const algoim::uvector<double,N>& local, double weight, const algoim::uvector<double,N>& normalWeight, const algoim::xarray<double,N>& polynomial, const algoim::uvector<double,N>& low, double width, long double scale, unsigned simplexDimension, unsigned removedFirstPower, unsigned removedSecondPower, unsigned degree, const std::vector<unsigned>& zeroBoundary, bool referenceSurface, const std::vector<long double>& surfaceCoefficient, const std::vector<std::vector<double>>* inverseJacobian, std::vector<long double>& powers, std::vector<long double>& moments) {
   static_cast<void>(normalWeight);
   algoim::uvector<double,N> point = low+width*local;
   for(unsigned boundary = 0; boundary < zeroBoundary.size(); ++boundary) {
@@ -190,7 +209,7 @@ void SurfacePoint(const algoim::uvector<double,N>& local, double weight, const a
     if(removedSecondPower == 0) mappedWeight *= point(1);
   }
   if(referenceSurface) {
-    const long double surfaceNorm = ReferenceGradientNorm<N>(point,surfaceCoefficient,simplexDimension);
+    const long double surfaceNorm = ReferenceGradientNorm<N>(point,surfaceCoefficient,simplexDimension,inverseJacobian);
     if(!(surfaceNorm > 0.0L) || !std::isfinite(surfaceNorm)) throw std::domain_error("The Algoim surface integral requires a regular reference level set.");
     mappedWeight *= surfaceNorm;
   }
@@ -253,7 +272,7 @@ bool HasMonotoneDirection(const algoim::xarray<double,N>& polynomial) {
 }
 
 template<int N>
-void IntegrateTensor(const std::vector<long double>& coefficient, algoim::uvector<int,N> extent, unsigned degree, unsigned simplexDimension, unsigned removedFirstPower, unsigned removedSecondPower, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface, const std::vector<long double>& surfaceCoefficient, const std::vector<unsigned>* prescribedZeroBoundary = nullptr, const std::vector<unsigned>* surfaceZeroBoundary = nullptr) {
+void IntegrateTensor(const std::vector<long double>& coefficient, algoim::uvector<int,N> extent, unsigned degree, unsigned simplexDimension, unsigned removedFirstPower, unsigned removedSecondPower, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface, const std::vector<long double>& surfaceCoefficient, const std::vector<std::vector<double>>* inverseJacobian, const std::vector<unsigned>* prescribedZeroBoundary = nullptr, const std::vector<unsigned>* surfaceZeroBoundary = nullptr) {
   if(&positive == &delta || degree > 64 || quadratureOrder == 0 || quadratureOrder > 100 || quadratureOrder < (degree+(simplexDimension == 0 ? 2U : simplexDimension+1U))/2U || subdivisions > 32) {
     throw std::invalid_argument("Invalid Algoim moment degree, quadrature order, subdivisions, or output vectors.");
   }
@@ -357,7 +376,7 @@ void IntegrateTensor(const std::vector<long double>& coefficient, algoim::uvecto
     }
     algoim::ImplicitPolyQuadrature<N> quadrature(localPolynomial);
     quadrature.integrate(algoim::AutoMixed,static_cast<int>(quadratureOrder),std::bind(&VolumePoint<N>,std::placeholders::_1,std::placeholders::_2,std::cref(polynomial),std::cref(low),width,simplexDimension,degree,std::ref(powers),std::ref(h)));
-    quadrature.integrate_surf(algoim::AutoMixed,static_cast<int>(quadratureOrder),std::bind(&SurfacePoint<N>,std::placeholders::_1,std::placeholders::_2,std::placeholders::_3,std::cref(polynomial),std::cref(low),width,scale,simplexDimension,removedFirstPower,removedSecondPower,degree,std::cref(skippedSurfaceBoundary),referenceSurface,std::cref(surfaceCoefficient),std::ref(powers),std::ref(d)));
+    quadrature.integrate_surf(algoim::AutoMixed,static_cast<int>(quadratureOrder),std::bind(&SurfacePoint<N>,std::placeholders::_1,std::placeholders::_2,std::placeholders::_3,std::cref(polynomial),std::cref(low),width,scale,simplexDimension,removedFirstPower,removedSecondPower,degree,std::cref(skippedSurfaceBoundary),referenceSurface,std::cref(surfaceCoefficient),inverseJacobian,std::ref(powers),std::ref(d)));
   }
   std::vector<double> resultH(momentCount);
   std::vector<double> resultD(momentCount);
@@ -374,7 +393,8 @@ void IntegrateTensor(const std::vector<long double>& coefficient, algoim::uvecto
 
 }
 
-void IntegrateQuad9Moments(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface) {
+void IntegrateQuad9Moments(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface, const std::vector<std::vector<double>>* inverseJacobian) {
+  ValidateGradientTransform(inverseJacobian,2,referenceSurface);
   if(coefficient.size() != 3) {
     throw std::invalid_argument("QUAD9 requires a 3 by 3 coefficient tensor.");
   }
@@ -387,7 +407,7 @@ void IntegrateQuad9Moments(const std::vector<std::vector<double>>& coefficient, 
       data[3U*i+j] = coefficient[i][j];
     }
   }
-  IntegrateTensor<2>(data,algoim::uvector<int,2>(3,3),degree,0,0,0,positive,delta,quadratureOrder,subdivisions,referenceSurface,data);
+  IntegrateTensor<2>(data,algoim::uvector<int,2>(3,3),degree,0,0,0,positive,delta,quadratureOrder,subdivisions,referenceSurface,data,inverseJacobian);
 }
 
 static bool Tri7ExactSumZero(long double first, long double second, long double third) {
@@ -397,7 +417,7 @@ static bool Tri7ExactSumZero(long double first, long double second, long double 
   return sum == -third && error == 0.0L;
 }
 
-static void IntegrateTri7MomentsInternal(const std::vector<double>& coefficient, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface, const std::vector<unsigned>* surfaceZeroBoundary) {
+static void IntegrateTri7MomentsInternal(const std::vector<double>& coefficient, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface, const std::vector<unsigned>* surfaceZeroBoundary, const std::vector<std::vector<double>>* inverseJacobian) {
   if(coefficient.size() != 7) {
     throw std::invalid_argument("TRI7 requires coefficients of 1,x,y,x*x,x*y,y*y,x*y*(x-y).");
   }
@@ -430,21 +450,28 @@ static void IntegrateTri7MomentsInternal(const std::vector<double>& coefficient,
     throw std::domain_error("TRI7 has a critical zero at the collapsed vertex.");
   }
   const std::vector<long double> surfaceCoefficient(referenceSurface ? coefficient.begin() : coefficient.end(),coefficient.end());
-  IntegrateTensor<2>(data,algoim::uvector<int,2>(static_cast<int>(rows),3),degree,2,removed,0,positive,delta,quadratureOrder,subdivisions,referenceSurface,surfaceCoefficient,nullptr,surfaceZeroBoundary);
+  IntegrateTensor<2>(data,algoim::uvector<int,2>(static_cast<int>(rows),3),degree,2,removed,0,positive,delta,quadratureOrder,subdivisions,referenceSurface,surfaceCoefficient,inverseJacobian,nullptr,surfaceZeroBoundary);
   if(referenceSurface && surfaceZeroBoundary != nullptr) {
+    const long double firstNormal[2] = {1.0L,0.0L};
+    const long double secondNormal[2] = {0.0L,1.0L};
+    const long double diagonalNormal[2] = {1.0L,1.0L};
+    const double firstWeight = inverseJacobian == nullptr ? 0.5 : static_cast<double>(0.5L*SurfaceGradientNorm(firstNormal,2,inverseJacobian));
+    const double secondWeight = inverseJacobian == nullptr ? 0.5 : static_cast<double>(0.5L*SurfaceGradientNorm(secondNormal,2,inverseJacobian));
+    const double diagonalWeight = inverseJacobian == nullptr ? std::sqrt(0.5) : static_cast<double>(0.5L*SurfaceGradientNorm(diagonalNormal,2,inverseJacobian));
     unsigned index = 0;
     for(unsigned total = 0; total <= degree; ++total) {
       for(unsigned j = 0; j <= total; ++j) {
-        if((*surfaceZeroBoundary)[1] != 0) delta[index] += 0.5/static_cast<double>(j+1U);
-        if((*surfaceZeroBoundary)[2] != 0 && j == 0) delta[index] += 0.5/static_cast<double>(total+1U);
-        if((*surfaceZeroBoundary)[3] != 0) delta[index] += std::sqrt(0.5)/static_cast<double>(total+1U);
+        if((*surfaceZeroBoundary)[1] != 0) delta[index] += firstWeight/static_cast<double>(j+1U);
+        if((*surfaceZeroBoundary)[2] != 0 && j == 0) delta[index] += secondWeight/static_cast<double>(total+1U);
+        if((*surfaceZeroBoundary)[3] != 0) delta[index] += diagonalWeight/static_cast<double>(total+1U);
         ++index;
       }
     }
   }
 }
 
-void IntegrateTri7Moments(const std::vector<double>& coefficient, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface) {
+void IntegrateTri7Moments(const std::vector<double>& coefficient, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface, const std::vector<std::vector<double>>* inverseJacobian) {
+  ValidateGradientTransform(inverseJacobian,2,referenceSurface);
   std::vector<unsigned> surfaceZeroBoundary(4,0);
   if(referenceSurface) {
     if(coefficient.size() != 7) throw std::invalid_argument("TRI7 requires coefficients of 1,x,y,x*x,x*y,y*y,x*y*(x-y).");
@@ -452,10 +479,11 @@ void IntegrateTri7Moments(const std::vector<double>& coefficient, unsigned degre
     surfaceZeroBoundary[2] = coefficient[0] == 0.0 && coefficient[1] == 0.0 && coefficient[3] == 0.0;
     surfaceZeroBoundary[3] = coefficient[0] == 0.0 && coefficient[1] == -coefficient[2] && Tri7ExactSumZero(coefficient[3],coefficient[4],coefficient[5]);
   }
-  IntegrateTri7MomentsInternal(coefficient,degree,positive,delta,quadratureOrder,subdivisions,referenceSurface,referenceSurface ? &surfaceZeroBoundary : nullptr);
+  IntegrateTri7MomentsInternal(coefficient,degree,positive,delta,quadratureOrder,subdivisions,referenceSurface,referenceSurface ? &surfaceZeroBoundary : nullptr,inverseJacobian);
 }
 
-void IntegrateHex27Moments(const std::vector<std::vector<std::vector<double>>>& coefficient, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface) {
+void IntegrateHex27Moments(const std::vector<std::vector<std::vector<double>>>& coefficient, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface, const std::vector<std::vector<double>>* inverseJacobian) {
+  ValidateGradientTransform(inverseJacobian,3,referenceSurface);
   if(coefficient.size() != 3) {
     throw std::invalid_argument("HEX27 requires a 3 by 3 by 3 coefficient tensor.");
   }
@@ -473,10 +501,10 @@ void IntegrateHex27Moments(const std::vector<std::vector<std::vector<double>>>& 
       }
     }
   }
-  IntegrateTensor<3>(data,algoim::uvector<int,3>(3,3,3),degree,0,0,0,positive,delta,quadratureOrder,subdivisions,referenceSurface,data);
+  IntegrateTensor<3>(data,algoim::uvector<int,3>(3,3,3),degree,0,0,0,positive,delta,quadratureOrder,subdivisions,referenceSurface,data,inverseJacobian);
 }
 
-void Tet15ZeroFaceMoments(const std::vector<double>& nodalValues, const std::vector<unsigned>& zeroFaces, unsigned degree, unsigned order, unsigned subdivisions, std::vector<double>& delta, bool referenceSurface) {
+void Tet15ZeroFaceMoments(const std::vector<double>& nodalValues, const std::vector<unsigned>& zeroFaces, unsigned degree, unsigned order, unsigned subdivisions, std::vector<double>& delta, bool referenceSurface, const std::vector<std::vector<double>>* inverseJacobian) {
   std::vector<long double> coefficient;
   FELevelSetMoments::Tet15PolynomialFromNodalValues(nodalValues,false,coefficient);
   std::vector<long double> moments(delta.size(),0.0L);
@@ -521,7 +549,7 @@ void Tet15ZeroFaceMoments(const std::vector<double>& nodalValues, const std::vec
             }
             if(normalDerivative == 0.0L || !std::isfinite(normalDerivative)) throw std::domain_error("A TET15 zero face has a critical level set.");
             long double weight = 0.5L*algoim::GaussQuad::w(order,a)*algoim::GaussQuad::w(order,b)*(1.0L-first)/(cells*cells*std::abs(normalDerivative));
-            if(referenceSurface) weight *= TensorGradientNorm(coefficient,point,3,5);
+            if(referenceSurface) weight *= TensorGradientNorm(coefficient,point,3,5,inverseJacobian);
             long double u = point[0]+point[1]+point[2];
             long double v = (point[1]+point[2])/u;
             long double w = point[1]+point[2] > 0.0L ? point[2]/(point[1]+point[2]) : 0.0L;
@@ -537,7 +565,8 @@ void Tet15ZeroFaceMoments(const std::vector<double>& nodalValues, const std::vec
   }
 }
 
-void IntegrateTet15NodalMoments(const std::vector<double>& nodalValues, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface) {
+void IntegrateTet15NodalMoments(const std::vector<double>& nodalValues, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface, const std::vector<std::vector<double>>* inverseJacobian) {
+  ValidateGradientTransform(inverseJacobian,3,referenceSurface);
   std::vector<long double> polynomial;
   FELevelSetMoments::Tet15PolynomialFromNodalValues(nodalValues,true,polynomial);
   std::vector<long double> surfaceCoefficient;
@@ -601,28 +630,29 @@ void IntegrateTet15NodalMoments(const std::vector<double>& nodalValues, unsigned
       }
     }
   }
-  IntegrateTensor<3>(data,algoim::uvector<int,3>(maximum[0]+1U,maximum[1]+1U,maximum[2]+1U),degree,3,removed[0],removed[1],positive,delta,quadratureOrder,subdivisions,referenceSurface,surfaceCoefficient,zeroBoundary.empty() ? nullptr : &zeroBoundary);
-  if(numberOfZeroFaces != 0) Tet15ZeroFaceMoments(nodalValues,zeroFaces,degree,quadratureOrder,subdivisions,delta,referenceSurface);
+  IntegrateTensor<3>(data,algoim::uvector<int,3>(maximum[0]+1U,maximum[1]+1U,maximum[2]+1U),degree,3,removed[0],removed[1],positive,delta,quadratureOrder,subdivisions,referenceSurface,surfaceCoefficient,inverseJacobian,zeroBoundary.empty() ? nullptr : &zeroBoundary);
+  if(numberOfZeroFaces != 0) Tet15ZeroFaceMoments(nodalValues,zeroFaces,degree,quadratureOrder,subdivisions,delta,referenceSurface,inverseJacobian);
 }
 
-void IntegrateNodalMoments(const std::vector<double>& nodalValues, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface) {
+void IntegrateNodalMoments(const std::vector<double>& nodalValues, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, unsigned quadratureOrder, unsigned subdivisions, bool referenceSurface, const std::vector<std::vector<double>>* inverseJacobian) {
   if(&positive == &delta || degree > 64 || quadratureOrder == 0 || quadratureOrder > 100 || subdivisions > 32) {
     throw std::invalid_argument("Invalid Algoim nodal integration request.");
   }
   if(nodalValues.size() == 27) {
     std::vector<std::vector<std::vector<double>>> coefficient;
     FELevelSetMoments::Hex27UnitCoefficientsFromNodalValues(nodalValues,coefficient);
-    IntegrateHex27Moments(coefficient,degree,positive,delta,quadratureOrder,subdivisions,referenceSurface);
+    IntegrateHex27Moments(coefficient,degree,positive,delta,quadratureOrder,subdivisions,referenceSurface,inverseJacobian);
   }
   else if(nodalValues.size() == 15) {
-    IntegrateTet15NodalMoments(nodalValues,degree,positive,delta,quadratureOrder,subdivisions,referenceSurface);
+    IntegrateTet15NodalMoments(nodalValues,degree,positive,delta,quadratureOrder,subdivisions,referenceSurface,inverseJacobian);
   }
   else if(nodalValues.size() == 9) {
     std::vector<std::vector<double>> coefficient;
     FELevelSetMoments::Quad9UnitCoefficientsFromNodalValues(nodalValues,coefficient);
-    IntegrateQuad9Moments(coefficient,degree,positive,delta,quadratureOrder,subdivisions,referenceSurface);
+    IntegrateQuad9Moments(coefficient,degree,positive,delta,quadratureOrder,subdivisions,referenceSurface,inverseJacobian);
   }
   else if(nodalValues.size() == 7) {
+    ValidateGradientTransform(inverseJacobian,2,referenceSurface);
     std::vector<double> coefficient;
     FELevelSetMoments::Tri7ReflectedCoefficientsFromNodalValues(nodalValues,coefficient);
     std::vector<unsigned> surfaceZeroBoundary(4,0);
@@ -631,15 +661,19 @@ void IntegrateNodalMoments(const std::vector<double>& nodalValues, unsigned degr
       surfaceZeroBoundary[2] = nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[3] == 0.0;
       surfaceZeroBoundary[3] = nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[4] == 0.0;
     }
-    IntegrateTri7MomentsInternal(coefficient,degree,positive,delta,quadratureOrder,subdivisions,referenceSurface,referenceSurface ? &surfaceZeroBoundary : nullptr);
+    IntegrateTri7MomentsInternal(coefficient,degree,positive,delta,quadratureOrder,subdivisions,referenceSurface,referenceSurface ? &surfaceZeroBoundary : nullptr,inverseJacobian);
   }
   else if(nodalValues.size() == 3) {
+    ValidateGradientTransform(inverseJacobian,1,referenceSurface);
     double a = 0.0;
     double b = 0.0;
     double c = 0.0;
     FELevelSetMoments::Line3CoefficientsFromNodalValues(nodalValues,a,b,c);
     FELevelSetMoments::Integrate1D(a,b,c,degree,positive,delta,0.0,1.0,!referenceSurface);
     if(referenceSurface) Line3SurfaceMoments(a,b,c,degree,delta,nodalValues[0] == 0.0,nodalValues[1] == 0.0);
+    if(inverseJacobian != nullptr) {
+      for(unsigned power = 0; power <= degree; ++power) delta[power] *= std::abs((*inverseJacobian)[0][0]);
+    }
   }
   else {
     throw std::invalid_argument("Algoim nodal integration supports LINE3, QUAD9, TRI7, HEX27, and TET15.");

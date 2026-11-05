@@ -94,7 +94,7 @@ inline void Hex27OtherAxes(unsigned axis, unsigned& first, unsigned& second) {
   second = axis == 2 ? 1 : 2;
 }
 
-inline void Hex27ReferenceSurfaceGradient(const std::vector<long double>& coefficient, long double scale, std::vector<std::vector<long double>>& gradient) {
+inline void Hex27ReferenceSurfaceGradient(const std::vector<long double>& coefficient, long double scale, std::vector<std::vector<long double>>& gradient, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
   gradient.assign(3,std::vector<long double>(27,0.0L));
   for(unsigned i = 0; i < 3; ++i) {
     for(unsigned j = 0; j < 3; ++j) {
@@ -106,6 +106,7 @@ inline void Hex27ReferenceSurfaceGradient(const std::vector<long double>& coeffi
       }
     }
   }
+  if(inverseJacobian != nullptr) SurfaceGradientPhysical(gradient,*inverseJacobian);
 }
 
 inline long double Hex27ReferenceSurfaceGradientBound(const std::vector<std::vector<long double>>& gradient) {

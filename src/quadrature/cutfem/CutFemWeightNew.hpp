@@ -559,6 +559,20 @@ class CutFemWeight {
       GetNodalWeightPair(nodalValues,positiveWeight,deltaWeight,1.0e-12,1.0e-12,false,referenceSurface,quadratureOrder,subdivisions,&FemusAlgoim::IntegrateNodalMoments);
     }
 
+    // For affine maps, include |J^-T grad G| in the moments and retain |det J| in the assembly weight.
+    void GetPhysicalSurfaceWeightsFromNodalValues(const std::vector<double>& nodalValues, const std::vector<std::vector<double>>& inverseJacobian, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& surfaceWeight, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
+      GetNodalWeightPair(nodalValues,positiveWeight,surfaceWeight,absoluteTolerance,relativeTolerance,false,true,0,1,nullptr,&inverseJacobian);
+    }
+
+    void GetPhysicalSurfaceWeightsFromNodalValuesByLineSlices(const std::vector<double>& nodalValues, const std::vector<std::vector<double>>& inverseJacobian, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& surfaceWeight, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
+      GetNodalWeightPair(nodalValues,positiveWeight,surfaceWeight,absoluteTolerance,relativeTolerance,true,true,0,1,nullptr,&inverseJacobian);
+    }
+
+    void GetPhysicalSurfaceWeightsFromNodalValuesByAlgoim(const std::vector<double>& nodalValues, const std::vector<std::vector<double>>& inverseJacobian, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& surfaceWeight, unsigned quadratureOrder = 20, unsigned subdivisions = 0) {
+      if(quadratureOrder == 0 || quadratureOrder > 100 || subdivisions > 32) throw std::invalid_argument("Invalid Algoim quadrature order or subdivisions.");
+      GetNodalWeightPair(nodalValues,positiveWeight,surfaceWeight,1.0e-12,1.0e-12,false,true,quadratureOrder,subdivisions,&FemusAlgoim::IntegrateNodalMoments,&inverseJacobian);
+    }
+
     void UpdateQuadratureRule(const unsigned &qM) {
       bool retainNodalMoments = _nodalMomentCacheValid;
       clear();
@@ -616,15 +630,17 @@ class CutFemWeight {
     void PolyBasis(const std::vector<double> &x, std::vector<double> &bo);
 
   private:
-    void GetNodalWeightPair(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool useLineSlices, bool referenceSurface, unsigned algoimOrder = 0, unsigned algoimSubdivisions = 1, void (*algoimIntegrator)(const std::vector<double>&, unsigned, std::vector<double>&, std::vector<double>&, unsigned, unsigned, bool) = nullptr) {
+    void GetNodalWeightPair(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool useLineSlices, bool referenceSurface, unsigned algoimOrder = 0, unsigned algoimSubdivisions = 1, void (*algoimIntegrator)(const std::vector<double>&, unsigned, std::vector<double>&, std::vector<double>&, unsigned, unsigned, bool, const std::vector<std::vector<double>>*) = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
       if(&positiveWeight == &deltaWeight) {
         throw std::invalid_argument("Heaviside and delta weights require distinct output vectors.");
       }
       if(!(absoluteTolerance > 0.) || !(relativeTolerance >= 0.) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance)) {
         throw std::invalid_argument("Invalid nodal integration tolerance.");
       }
+      if(inverseJacobian != nullptr) FELevelSetMoments::ValidateSurfaceInverseJacobian(*inverseJacobian,_dim);
       useLineSlices = useLineSlices && (_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == TRI || _geomElemType == TET);
-      bool sameField = referenceSurface == _nodalMomentUsesReferenceSurface && algoimOrder == _nodalMomentAlgoimOrder && algoimSubdivisions == _nodalMomentAlgoimSubdivisions && useLineSlices == _nodalMomentUsesLineSlices && _nodalMomentCacheValid && nodalValues == _nodalValues && absoluteTolerance == _nodalAbsoluteTolerance && relativeTolerance == _nodalRelativeTolerance;
+      const bool sameGeometry = inverseJacobian == nullptr ? _nodalInverseJacobian.empty() : _nodalInverseJacobian == *inverseJacobian;
+      bool sameField = sameGeometry && referenceSurface == _nodalMomentUsesReferenceSurface && algoimOrder == _nodalMomentAlgoimOrder && algoimSubdivisions == _nodalMomentAlgoimSubdivisions && useLineSlices == _nodalMomentUsesLineSlices && _nodalMomentCacheValid && nodalValues == _nodalValues && absoluteTolerance == _nodalAbsoluteTolerance && relativeTolerance == _nodalRelativeTolerance;
       if(sameField && _nodalWeightCacheValid) {
         positiveWeight = _nodalPositiveWeight;
         deltaWeight = _nodalDeltaWeight;
@@ -635,7 +651,7 @@ class CutFemWeight {
         _fPair = _nodalMomentCache.topRows(_L);
       }
       else {
-        IntegrateNodalMomentPair(nodalValues, absoluteTolerance, relativeTolerance, useLineSlices, referenceSurface, algoimOrder, algoimSubdivisions, algoimIntegrator);
+        IntegrateNodalMomentPair(nodalValues, absoluteTolerance, relativeTolerance, useLineSlices, referenceSurface, algoimOrder, algoimSubdivisions, algoimIntegrator, inverseJacobian);
         _nodalMomentCache = _fPair;
         _nodalValues = nodalValues;
         _nodalMomentDegree = _qM;
@@ -643,6 +659,8 @@ class CutFemWeight {
         _nodalRelativeTolerance = relativeTolerance;
         _nodalMomentUsesLineSlices = useLineSlices;
         _nodalMomentUsesReferenceSurface = referenceSurface;
+        if(inverseJacobian == nullptr) _nodalInverseJacobian.clear();
+        else _nodalInverseJacobian = *inverseJacobian;
         _nodalMomentAlgoimOrder = algoimOrder;
         _nodalMomentAlgoimSubdivisions = algoimSubdivisions;
         _nodalMomentCacheValid = true;
@@ -728,9 +746,18 @@ class CutFemWeight {
       }
     }
 
-    void ScalePlanarReferenceSurfaceMoments(const std::vector<TypeIO>& normal) {
+    void ScalePlanarReferenceSurfaceMoments(const std::vector<TypeIO>& normal, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
       TypeA squaredNorm = 0;
-      for(unsigned d = 0; d < _dim; ++d) squaredNorm += static_cast<TypeA>(normal[d])*static_cast<TypeA>(normal[d]);
+      if(inverseJacobian == nullptr) {
+        for(unsigned d = 0; d < _dim; ++d) squaredNorm += static_cast<TypeA>(normal[d])*static_cast<TypeA>(normal[d]);
+      }
+      else {
+        for(unsigned d = 0; d < _dim; ++d) {
+          TypeA component = 0;
+          for(unsigned j = 0; j < _dim; ++j) component += static_cast<TypeA>((*inverseJacobian)[j][d])*static_cast<TypeA>(normal[j]);
+          squaredNorm += component*component;
+        }
+      }
       TypeA norm = Eigen::numext::sqrt(squaredNorm);
       for(unsigned i = 0; i < _L; ++i) _fPair(i,1) *= norm;
     }
@@ -773,7 +800,7 @@ class CutFemWeight {
       }
     }
 
-    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool useLineSlices, bool referenceSurface, unsigned algoimOrder = 0, unsigned algoimSubdivisions = 1, void (*algoimIntegrator)(const std::vector<double>&, unsigned, std::vector<double>&, std::vector<double>&, unsigned, unsigned, bool) = nullptr) {
+    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool useLineSlices, bool referenceSurface, unsigned algoimOrder = 0, unsigned algoimSubdivisions = 1, void (*algoimIntegrator)(const std::vector<double>&, unsigned, std::vector<double>&, std::vector<double>&, unsigned, unsigned, bool, const std::vector<std::vector<double>>*) = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
       if(_geomElemType == TET) {
         std::vector<std::vector<std::vector<double>>> coefficient;
         FELevelSetMoments::Tet15ReferenceCoefficientsFromNodalValues(nodalValues,coefficient);
@@ -787,19 +814,19 @@ class CutFemWeight {
           std::vector<TypeIO> normal = {static_cast<TypeIO>(coefficient[1][0][0]),static_cast<TypeIO>(coefficient[0][1][0]),static_cast<TypeIO>(coefficient[0][0][1])};
           _obj->SetBaseType(1);
           IntegratePlanarMomentPair(normal,static_cast<TypeIO>(coefficient[0][0][0]));
-          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal);
+          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal,inverseJacobian);
           _obj->SetBaseType(_tetBaseType);
         }
         else if(algoimOrder != 0) {
           std::vector<double> positiveMoments;
           std::vector<double> deltaMoments;
-          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions,referenceSurface);
+          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions,referenceSurface,inverseJacobian);
           StoreAlgoimMomentPair(positiveMoments,deltaMoments);
         }
         else {
           std::vector<std::vector<std::vector<double>>> positive;
           std::vector<std::vector<std::vector<double>>> delta;
-          FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,24,_tet15IntegrationDirection,200000,nullptr,_tet15DirectionValidation,nullptr,referenceSurface);
+          FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,24,_tet15IntegrationDirection,200000,nullptr,_tet15DirectionValidation,nullptr,referenceSurface,inverseJacobian);
           StoreNodalMomentPair(positive,delta);
         }
       }
@@ -815,18 +842,18 @@ class CutFemWeight {
         if(planar && (coefficient[1][0][0] != 0. || coefficient[0][1][0] != 0. || coefficient[0][0][1] != 0.)) {
           std::vector<TypeIO> normal = {static_cast<TypeIO>(0.5L*coefficient[1][0][0]),static_cast<TypeIO>(0.5L*coefficient[0][1][0]),static_cast<TypeIO>(0.5L*coefficient[0][0][1])};
           IntegratePlanarMomentPair(normal,static_cast<TypeIO>(static_cast<long double>(coefficient[0][0][0])+0.5L*coefficient[1][0][0]+0.5L*coefficient[0][1][0]+0.5L*coefficient[0][0][1]));
-          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal);
+          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal,inverseJacobian);
           return;
         }
         if(algoimOrder != 0) {
           std::vector<double> positiveMoments;
           std::vector<double> deltaMoments;
-          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions,referenceSurface);
+          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions,referenceSurface,inverseJacobian);
           StoreAlgoimMomentPair(positiveMoments,deltaMoments);
           return;
         }
         std::vector<std::vector<std::vector<double>>> positive, delta;
-        FELevelSetMoments::IntegrateHex27NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,_hex27DirectionValidation,_hex27IntegrationDirection,nullptr,!useLineSlices,nullptr,referenceSurface);
+        FELevelSetMoments::IntegrateHex27NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,_hex27DirectionValidation,_hex27IntegrationDirection,nullptr,!useLineSlices,nullptr,referenceSurface,inverseJacobian);
         StoreNodalMomentPair(positive,delta);
       }
       else if(_geomElemType == QUAD) {
@@ -841,19 +868,19 @@ class CutFemWeight {
         if(planar && (coefficient[1][0] != 0. || coefficient[0][1] != 0.)) {
           std::vector<TypeIO> normal = {static_cast<TypeIO>(0.5L * coefficient[1][0]), static_cast<TypeIO>(0.5L * coefficient[0][1])};
           IntegratePlanarMomentPair(normal, static_cast<TypeIO>(static_cast<long double>(coefficient[0][0]) + 0.5L * coefficient[1][0] + 0.5L * coefficient[0][1]));
-          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal);
+          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal,inverseJacobian);
           return;
         }
         if(algoimOrder != 0) {
           std::vector<double> positiveMoments;
           std::vector<double> deltaMoments;
-          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions,referenceSurface);
+          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions,referenceSurface,inverseJacobian);
           StoreAlgoimMomentPair(positiveMoments,deltaMoments);
           return;
         }
         std::vector<std::vector<double>> positive;
         std::vector<std::vector<double>> delta;
-        FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues, _qM, positive, delta, absoluteTolerance, relativeTolerance, true, false, _quad9DirectionValidation, _quad9IntegrationDirection, nullptr, !useLineSlices, referenceSurface);
+        FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues, _qM, positive, delta, absoluteTolerance, relativeTolerance, true, false, _quad9DirectionValidation, _quad9IntegrationDirection, nullptr, !useLineSlices, referenceSurface, inverseJacobian);
         StoreNodalMomentPair(positive, delta);
       }
       else if(_geomElemType == TRI) {
@@ -862,19 +889,19 @@ class CutFemWeight {
         if(coefficient[3] == 0. && coefficient[4] == 0. && coefficient[5] == 0. && coefficient[6] == 0. && (coefficient[1] != 0. || coefficient[2] != 0.)) {
           std::vector<TypeIO> normal = {static_cast<TypeIO>(-coefficient[1]), static_cast<TypeIO>(coefficient[2])};
           IntegratePlanarMomentPair(normal, static_cast<TypeIO>(static_cast<long double>(coefficient[0]) + coefficient[1]));
-          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal);
+          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal,inverseJacobian);
           return;
         }
         if(algoimOrder != 0) {
           std::vector<double> positiveMoments;
           std::vector<double> deltaMoments;
-          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions,referenceSurface);
+          algoimIntegrator(nodalValues,_qM,positiveMoments,deltaMoments,algoimOrder,algoimSubdivisions,referenceSurface,inverseJacobian);
           StoreAlgoimMomentPair(positiveMoments,deltaMoments);
           return;
         }
         std::vector<std::vector<double>> positive;
         std::vector<std::vector<double>> delta;
-        FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues, _qM, positive, delta, absoluteTolerance, relativeTolerance, true, false, _tri7DirectionValidation, _tri7IntegrationDirection, nullptr, !useLineSlices, referenceSurface);
+        FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues, _qM, positive, delta, absoluteTolerance, relativeTolerance, true, false, _tri7DirectionValidation, _tri7IntegrationDirection, nullptr, !useLineSlices, referenceSurface, inverseJacobian);
         StoreNodalMomentPair(positive, delta);
       }
       else if(_geomElemType == LINE) {
@@ -885,11 +912,15 @@ class CutFemWeight {
         if(a == 0. && b != 0.) {
           std::vector<TypeIO> normal(1, static_cast<TypeIO>(0.5L * b));
           IntegratePlanarMomentPair(normal, static_cast<TypeIO>(static_cast<long double>(c) + 0.5L * b));
-          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal);
+          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal,inverseJacobian);
           return;
         }
         if(referenceSurface) {
           IntegrateLineReferenceSurfaceMomentPair(a,b,c,nodalValues[0] == 0.0,nodalValues[1] == 0.0);
+          if(inverseJacobian != nullptr) {
+            const TypeA factor = static_cast<TypeA>(std::abs((*inverseJacobian)[0][0]));
+            for(unsigned i = 0; i < _L; ++i) _fPair(i,1) *= factor;
+          }
           return;
         }
         std::vector<double> positive;
@@ -961,6 +992,7 @@ class CutFemWeight {
     double _nodalAbsoluteTolerance = 0.;
     double _nodalRelativeTolerance = 0.;
     std::vector<double> _nodalValues;
+    std::vector<std::vector<double>> _nodalInverseJacobian;
     std::vector<TypeIO> _nodalPositiveWeight;
     std::vector<TypeIO> _nodalDeltaWeight;
     unsigned _L;

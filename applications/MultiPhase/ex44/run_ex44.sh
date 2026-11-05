@@ -21,14 +21,14 @@ DIM=2
 SIMULATION="par"
 SYMMETRIC=0
 AXISYMMETRIC=0
-ELTYPE=3
+ELTYPE=4
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(0)
+ADAPTIVE_LEVELS=(8)
 LEVEL_OFFSET=0
 
 # ------------------------------------------------------------
