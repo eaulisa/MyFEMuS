@@ -1508,12 +1508,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           cfw[ielGeom]->SetTri7DirectionValidation(0);
 
           if(geometrySurfaceWeights) {
-            cfw[ielGeom]->GetPhysicalSurfaceWeightsFromNodalGeometryByAlgoim(psi, coordX, weightCFInt, weightCF, 20, 0);
-            //cfw[ielGeom]->GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCF, 1.E-5, 1.E-5);
+            //cfw[ielGeom]->GetPhysicalSurfaceWeightsFromNodalGeometryByAlgoim(psi, coordX, weightCFInt, weightCF, 20, 0);
+            cfw[ielGeom]->GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCF, 1.E-8, 1.E-8);
           }
           else {
-            cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, 20, 0, referenceSurfaceWeights);
-            //cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights);
+            //cfw[ielGeom]->GetWeightsFromNodalValuesByAlgoim(psi, weightCFInt, weightCF, 20, 0, referenceSurfaceWeights);
+            cfw[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights);
           }
 
 

@@ -10,7 +10,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 NPROC=1
-NPRINT=1
+NPRINT=1000
 NREINIT=1
 
 # ------------------------------------------------------------
@@ -27,9 +27,9 @@ ELTYPE=4
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(0)
-LEVEL_OFFSET=0
+UNIFORM_LEVELS=(2)
+ADAPTIVE_LEVELS=(10)
+LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
 # Time discretization
