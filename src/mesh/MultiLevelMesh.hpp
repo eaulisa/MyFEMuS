@@ -126,6 +126,12 @@ namespace femus {
       /** Domain (optional) */
       void    SetDomain(Domain* );
 
+      Mesh* GenerateSingleElementMesh(
+        const GeomElType geometry,
+        const std::array<double, 3>& lo,
+        const std::array<double, 3>& hi,
+        const char GaussOrder[]) ;
+
     protected:
 
     private:

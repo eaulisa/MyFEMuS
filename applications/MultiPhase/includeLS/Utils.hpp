@@ -1,5 +1,11 @@
 #pragma once
 
+
+#include "../includeLS/RungeKutta.hpp"
+#include "../includeLS/BBoxToIel.hpp"
+#include "../includeLS/Shape.hpp"
+#include "../includeLS/Boundary.hpp"
+#include "../includeLS/GradientApproximation.hpp"
 #include "CutFemWeightNew.hpp"
 #include "CDWeights.hpp"
 #include "MultiLevelProblem.hpp"
@@ -7,6 +13,8 @@ typedef double TypeIO;
 // typedef cpp_bin_float_oct TypeA;
 typedef long double TypeA;
 typedef cpp_bin_float_oct oct;
+
+const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Zero;
 
 CutFemWeight <TypeIO, TypeA> hex  = CutFemWeight<TypeIO, TypeA >(HEX, 5, "legendre");
 CutFemWeight <TypeIO, TypeA> tet  = CutFemWeight<TypeIO, TypeA >(TET, 5, "legendre");

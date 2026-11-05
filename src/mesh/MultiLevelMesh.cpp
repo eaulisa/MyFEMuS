@@ -407,4 +407,39 @@ namespace femus {
 
   }
 
+  Mesh* MultiLevelMesh::GenerateSingleElementMesh(
+    const GeomElType geometry,
+    const std::array<double, 3>& lo,
+    const std::array<double, 3>& hi,
+    const char GaussOrder[]) {
+
+    // Reinitialization is supported; owning MultiLevelMesh controls FE lifetimes.
+    clear();
+    _level0IsOwned = true;
+    _gridn0 = _gridn = 1;
+    _finiteElementGeometryFlag.assign(6, false);
+
+    switch (geometry) {
+      case HEX: _finiteElementGeometryFlag[0] = true;
+                _finiteElementGeometryFlag[3] = true; break;
+      case TET: _finiteElementGeometryFlag[1] = true;
+                _finiteElementGeometryFlag[4] = true; break;
+      case QUAD: _finiteElementGeometryFlag[3] = true; break;
+      case TRI: _finiteElementGeometryFlag[4] = true; break;
+      default: throw std::invalid_argument("Unsupported element geometry");
+    }
+
+    const bool is3D = (geometry == HEX || geometry == TET);
+    if (!(lo[0] < hi[0]) || !(lo[1] < hi[1]) ||
+        (is3D && !(lo[2] < hi[2])))
+      throw std::invalid_argument("Invalid single-element bounds");
+
+    _level0.resize(1);
+    _level0[0] = new Mesh();
+    _level0[0]->BuildSingleElement(geometry, lo, hi);
+    BuildElemType(GaussOrder);
+    _level = _level0;
+    return _level0[0];
+  }
+
 } //end namespace femus

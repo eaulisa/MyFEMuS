@@ -43,7 +43,7 @@ using namespace femus;
 
 bool printdb = false;
 
-const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Zero;
+// const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Zero;
 //const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Translation;
 //const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
 //const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;
@@ -1182,7 +1182,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   start_time = clock();
 
-  bool algoim = false;
+  bool algoim = true;
 
   double A = 0.;
   double Per = 0.;

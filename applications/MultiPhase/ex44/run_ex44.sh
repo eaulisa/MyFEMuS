@@ -17,18 +17,18 @@ NREINIT=1
 # Problem
 # ------------------------------------------------------------
 
-DIM=2
+DIM=3
 SIMULATION="par"
 SYMMETRIC=0
 AXISYMMETRIC=0
-ELTYPE=4
+ELTYPE=0
 
 # ------------------------------------------------------------
 # Grid configurations
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(8)
+ADAPTIVE_LEVELS=(5)
 LEVEL_OFFSET=0
 
 # ------------------------------------------------------------

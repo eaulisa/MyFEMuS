@@ -22,6 +22,7 @@
 #include "Elem.hpp"
 #include "Solution.hpp"
 #include "ElemType.hpp"
+#include "GeomElTypeEnum.hpp"
 #include "ElemTypeEnum.hpp"
 #include "ParallelObject.hpp"
 #include <assert.h>
@@ -262,6 +263,10 @@ namespace femus {
       };
 
       void EnforceOneLevelAMR(std::vector<double> &localizedAmrVector, bool vectorIsInitialized = false);
+
+      void BuildSingleElement(const GeomElType geometry,
+                                const std::array<double, 3>& lo,
+                                const std::array<double, 3>& hi);
 
     private:
       /** Coarser mesh from which this mesh is generated, it equals NULL if _level = 0 */
