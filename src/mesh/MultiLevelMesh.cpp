@@ -442,4 +442,25 @@ namespace femus {
     return _level0[0];
   }
 
+
+  Mesh* MultiLevelMesh::GenerateSingleManufacturedBallElementMesh(
+  const GeomElType geometry,
+  const std::array<double, 3>& lo,
+  const std::array<double, 3>& hi,
+  const std::array<double, 3>& center,
+  double radius,
+  double epsilon,
+  const char GaussOrder[]) {
+
+  if(geometry != TRI && geometry != QUAD &&
+     geometry != TET && geometry != HEX) {
+    throw std::invalid_argument("Unsupported manufactured BALL geometry");
+  }
+
+  Mesh* msh = GenerateSingleElementMesh(geometry, lo, hi, GaussOrder);
+
+  msh->CurveSingleElementManufacturedBall(center, radius, epsilon);
+
+  return msh;
+}
 } //end namespace femus

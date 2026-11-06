@@ -1771,5 +1771,68 @@ namespace femus {
     PrintInfo();
   }
 
+  void Mesh::CurveSingleElementManufacturedBall(
+  const std::array<double, 3>& center,
+  double radius,
+  double epsilon) {
+
+  if(GetNumberOfElements() != 1u) {
+    throw std::runtime_error("Manufactured BALL requires exactly one element");
+  }
+
+  const unsigned geom = GetElementType(0);
+
+  if(geom != TRI && geom != QUAD && geom != TET && geom != HEX) {
+    throw std::invalid_argument("Unsupported manufactured BALL element");
+  }
+
+  const unsigned dim = (geom == TET || geom == HEX) ? 3u : 2u;
+  const unsigned nNodes = GetElementDofNumber(0, 2);
+
+  if(!(radius > 0.) || !std::isfinite(radius) || !std::isfinite(epsilon)) {
+    throw std::invalid_argument("Invalid radius or epsilon");
+  }
+
+  for(unsigned d = 0; d < dim; ++d) {
+    if(!std::isfinite(center[d])) {
+      throw std::invalid_argument("Invalid manufactured BALL center");
+    }
+  }
+
+  std::vector<double> newX = _coords[0];
+
+  for(unsigned i = 0; i < nNodes; ++i) {
+
+    const unsigned dof = GetSolutionDof(i, 0, 2);
+
+    // Evaluate the reference quadratic level set.
+    double phi = radius * radius;
+
+    for(unsigned d = 0; d < dim; ++d) {
+      const double delta = _coords[d][dof] - center[d];
+      phi -= delta * delta;
+    }
+
+    // Check invertibility of the manufactured mapping.
+    const double determinant =
+      1. - 2. * epsilon * (_coords[0][dof] - center[0]);
+
+    if(!std::isfinite(determinant) || determinant <= 1.e-10) {
+      throw std::runtime_error("Non-invertible manufactured BALL mapping");
+    }
+
+    // F(q) = q + epsilon * phi(q) * e_1.
+    newX[dof] = _coords[0][dof] + epsilon * phi;
+  }
+
+  _coords[0].swap(newX);
+
+  _topology->GetSolutionName("X") = _coords[0];
+  _topology->GetSolutionName("X").close();
+}
+
+
+
+
 
 } //end namespace femus

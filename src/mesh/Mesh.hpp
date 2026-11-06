@@ -268,6 +268,8 @@ namespace femus {
                                 const std::array<double, 3>& lo,
                                 const std::array<double, 3>& hi);
 
+      void CurveSingleElementManufacturedBall(const std::array<double, 3>& center, double radius, double epsilon);
+
     private:
       /** Coarser mesh from which this mesh is generated, it equals NULL if _level = 0 */
       Mesh* _coarseMsh;
