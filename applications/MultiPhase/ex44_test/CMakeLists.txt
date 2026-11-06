@@ -12,6 +12,12 @@ SET(EXEC_FILE "${APP_FOLDER_NAME_PARENT}_${MAIN_FILE}") # the name of the execut
 
 femusMacroBuildApplication(${MAIN_FILE} ${EXEC_FILE})
 
+set_target_properties(${EXEC_FILE} PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+)
+
 find_package(OpenMP QUIET)
 if (OpenMP_CXX_FOUND)
   message(STATUS "Found OpenMP (GCC): ${OpenMP_CXX_VERSION}")
@@ -31,4 +37,10 @@ if (GPERFTOOLS_INCLUDE_DIR AND GPERFTOOLS_LIB)
 else()
   message(WARNING "gperftools not found, profiling disabled")
 endif()
+
+file(CREATE_LINK
+     "${PROJECT_SOURCE_DIR}/run_ex44_test.sh"
+     "${PROJECT_BINARY_DIR}/run_ex44_test.sh"
+     SYMBOLIC)
+
 
