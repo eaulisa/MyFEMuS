@@ -11,7 +11,7 @@ MODE="moment"         # moment, algoim, compare
 DEGREE=7              # moment-fitting degree
 ALGOIM_ORDER=5
 ALGOIM_SUBDIVISIONS=0
-VTK=0                 # 0=off, 1=on
+VTK=1                # 0=off, 1=on
 EXECUTABLE="./MultiPhase_ex44_test"
 # ------------------------------------------------------------
 

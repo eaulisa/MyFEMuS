@@ -395,9 +395,7 @@ int main(int argc, char** argv) {
           else InitLevelSet(mlSol, psiName, psi);
 
           if(options.vtk) {
-            const std::string outputdir = "output_" + std::string(ElementName(element)) + "_" + PsiName(kind)
-                                        + "_" + meshTag
-                                        + "/level_" + std::to_string(level);
+            const std::string outputdir = "output_" + std::string(ElementName(element));
             VTKWriter writer(&mlSol);
             writer.SetDebugOutput(true);
             writer.Write(outputdir, "biquadratic", std::vector<std::string>{psiName}, 0);
