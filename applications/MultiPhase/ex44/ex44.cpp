@@ -1538,13 +1538,14 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           // *** get gauss point weight, test function and test function partial derivatives ***
 
           if (l > levelC) {
-            femXi->Jacobian(coordX, ig, weight, phiXi, phiXi_x);
+            double *phiXi = femXi->GetPhi(ig);
             std::vector <double> xi_gf(dim, 0.);
             for (unsigned i = 0; i < nDofsXi; i++) {
               for (unsigned d = 0; d < dim; d++) {
                 xi_gf[d] += coordXi[d][i] * phiXi[i];
               }
             }
+            femV->Jacobian(coordX, ig, weight, phiV, phiV_x);
             femV->Jacobian(coordXgf, xi_gf, weightFake, phiV, phiV_x);
             femP->GetPhi(phiP, xi_gf);
           }
