@@ -1425,8 +1425,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         std::vector<std::vector<double>> interfacePoints;
 
 
-
-
         if (cut == 1) { // this can happen only on l == levelF
           if (l != levelF) throw std::runtime_error("CUT CELL SHOULD BE ONLY AT LEVELF\n");
           femV = fem.GetFiniteElement(ielGeom, solVType);
@@ -1578,8 +1576,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
           double dsN = 0.;
 
-
-
           if (cut == 1) {
             std::vector<double> gradGPhysical(dim, 0.);
             double normGradGReference = 0.;
@@ -1663,120 +1659,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
               }
             }
           }
-
-
-
-          /*
-          if (cut == 1) {
-            femV->GetJacobianMatrix(coordX, ig, weightFake, Jacob, JacI);
-            std::vector<double> xiPsi(dim);
-            for(unsigned d = 0; d < dim; ++d) {
-              xiPsi[d] = femV->GetGaussRule().GetGaussCoordinatePointer(d)[ig];
-            }
-
-            // xSquared ? BX[i] : BY[i]
-            std::vector<double> grad_G(dim);
-            if(dim == 2) {
-              if(xSquared) {
-                grad_G[0] = 2. * BX[0] * xiPsi[0] + BX[1];
-                grad_G[1] = BX[2];
-              }
-              else {
-                grad_G[0] = BY[2];
-                grad_G[1] = 2. * BY[0] * xiPsi[1] + BY[1];
-              }
-            }
-            else {
-              grad_G = a;
-            }
-
-            dsN = 0.0;
-            for (unsigned d = 0; d < dim; ++d) {
-              double nd = 0.0;
-              for (unsigned j = 0; j < dim; ++j) {
-                // nd += JacI[j][d] * a[j]; // we should change here the normal using normal to parabola in the gauss point
-                nd += JacI[j][d] * grad_G[j];
-              }
-              Nf[d] = nd;
-              dsN += nd * nd;
-            }
-            dsN = std::sqrt(dsN) + 1.e-20;
-            for (unsigned d = 0; d < dim; ++d) {
-              Nf[d] /= dsN;
-            }
-            for (unsigned i = 0; i < dim; ++i) {
-              const double ni = Nf[i];
-              auto& Pi = P[i];
-              for (unsigned j = 0; j < dim; ++j)
-                Pi[j] = (i == j ? 1.0 : 0.0) - ni * Nf[j];
-            }
-            for (unsigned j = 0; j < nDofsV; j++) {
-              const unsigned jOffset = j * dim;
-              normalDotGradPhi[j] = 0.;
-              for (unsigned J = 0; J < dim; J++) {
-                const double gradPhiJ = phiV_x[jOffset + J];
-                normalDotGradPhi[j] += Nf[J] * gradPhiJ;
-              }
-            }
-            // std::vector<double> Nls(dim);
-            // std::vector<double> gradPsi(dim);
-            //
-            // double weightPsi = 0.;
-            //
-            // femPsi->Jacobian(coordX, xiPsi, weightPsi, phiPsi, phiPsi_x);
-            //
-            // std::fill(gradPsi.begin(), gradPsi.end(), 0.);
-            //
-            // for(unsigned i = 0; i < nDofsPsi; ++i) {
-            //   for(unsigned d = 0; d < dim; ++d) {
-            //     gradPsi[d] += psi[i] * phiPsi_x[i * dim + d];
-            //   }
-            // }
-            //
-            // double normGradPsi = 0.;
-            //
-            // for(unsigned d = 0; d < dim; ++d) {
-            //   normGradPsi += gradPsi[d] * gradPsi[d];
-            // }
-            //
-            // normGradPsi = std::sqrt(normGradPsi);
-            //
-            // if(normGradPsi > 1.e-12) {
-            //   for(unsigned d = 0; d < dim; ++d) {
-            //     Nls[d] = gradPsi[d] / normGradPsi;
-            //   }
-            // }
-            // else {
-            //   for(unsigned d = 0; d < dim; ++d) {
-            //     Nls[d] = Nf[d];
-            //   }
-            // }
-            //
-            // double normalAlignment = 0.;
-            //
-            // for(unsigned d = 0; d < dim; ++d) {
-            //   normalAlignment += Nls[d] * Nf[d];
-            // }
-            //
-            // if(normalAlignment < 0.) {
-            //   for(unsigned d = 0; d < dim; ++d) {
-            //     Nls[d] *= -1.;
-            //   }
-            // }
-            //
-            // for(unsigned i = 0; i < dim; ++i) {
-            //   for(unsigned j = 0; j < dim; ++j) {
-            //     P[i][j] = (i == j ? 1. : 0.) - Nls[i] * Nls[j];
-            //   }
-            // }
-            //
-            // for(unsigned j = 0; j < nDofsV; ++j) {
-            //   normalDotGradPhi[j] = 0.;
-            //   for(unsigned J = 0; J < dim; ++J) {
-            //     normalDotGradPhi[j] += Nls[J] * phiV_x[j * dim + J];
-            //   }
-            // }
-          }*/
 
           for (unsigned d = 0; d < dim; ++d) {
             solV_gss[d] = 0.0;
