@@ -198,121 +198,41 @@ std::vector<std::vector<Type>> Transpose(const std::vector<std::vector<Type>> &M
 
 template <class Type>
 void GetMassMatrix(const unsigned &element, const unsigned &degree, std::vector<std::vector<Type>> &MM) {
-
-  if(element == 0 || element == 1) {
-
-    unsigned size = ((degree + 1) * (degree + 2) * (degree + 3)) / 6;
-
-    MM.assign(size, std::vector<Type>(size, Type(0)));
-    std::vector<unsigned> m(size, 0);
-    std::vector<unsigned> n(size, 0);
-    std::vector<unsigned> o(size, 0);
-
-    unsigned count = 0;
-    for(int l = 0; l <= degree; l++) {
-      for(int i = l; i >= 0; i--) {
-        for(int j = l - i; j >= 0; j--) {
-          unsigned k = l - i - j;
-          m[count] = i;
-          n[count] = j;
-          o[count] = k;
-          count++;
-
-        }
-      }
-    }
-
-    if(element == 0) {
-      for(int h = 0; h < size; h++) {
-        count = 0;
-        for(int l = 0; l <= degree; l++) {
-          for(int i = l; i >= 0; i--) {
-            for(int j = l - i; j >= 0; j--) {
-              MM[h][count] = Type(1) / ((m[h] + m[count] + 1) * (n[h] + n[count] + 1) * (o[h] + o[count] + 1));
-              count++;
-
-            }
-          }
-        }
-      }
-    }
-
-    else if(element == 1) {
-      for(int h = 0; h < size; h++) {
-        count = 0;
-        for(int l = 0; l <= degree; l++) {
-          for(int i = l; i >= 0; i--) {
-            for(int j = l - i; j >= 0; j--) {
-              MM[h][count] = (Type)(1) / ((3 + m[h] + m[count] + n[h] + n[count] + o[h] + o[count]) * (2 + n[h] + n[count] + o[h] + o[count]) * (1 + o[h] + o[count]));
-
-              count++;
-            }
-          }
-        }
-      }
-    }
-
-  }
-
-  else if(element == 3 || element == 4) {
-    unsigned size = ((degree + 1) * (degree + 2)) / 2;
-    MM.assign(size, std::vector<Type>(size, Type(0)));
-    std::vector<unsigned> m(size, 0);
-    std::vector<unsigned> n(size, 0);
-
-    unsigned count = 0;
-    for(unsigned q = 0; q <= degree; q++) {
-      for(unsigned j = 0; j <= q; j++) {
-        unsigned i = q - j;
-        m[count] = i;
-        n[count] = j;
-        count++;
-
-      }
-    }
-
-    if(element == 3) {
-      for(int k = 0; k < size; k++) {
-        count = 0;
-
-        for(unsigned q = 0; q <= degree; q++) {
-          for(unsigned j = 0; j <= q; j++) {
-            MM[k][count] = Type(1) / ((m[k] + m[count] + 1) * (n[k] + n[count] + 1));
-            count++;
-
-          }
-        }
-      }
-    }
-
-    else if(element == 4) {
-      for(int k = 0; k < size; k++) {
-        count = 0;
-        for(unsigned q = 0; q <= degree; q++) {
-          for(unsigned j = 0; j <= q; j++) {
-            MM[k][count] = Type(1) / ((m[k] + m[count] + n[k] + n[count] + 2) * (n[k] + n[count] + 1));
-            count++;
-
-          }
+  if(element != HEX && element != TET && element != QUAD && element != TRI && element != LINE) throw std::invalid_argument("Unsupported level-set element.");
+  const unsigned dimension = element == LINE ? 1U : (element == QUAD || element == TRI ? 2U : 3U);
+  const bool simplex = element == TRI || element == TET;
+  std::vector<std::vector<unsigned>> powers;
+  for(unsigned total = 0; total <= degree; ++total) {
+    if(dimension == 1) powers.push_back({total});
+    else {
+      for(int first = static_cast<int>(total); first >= 0; --first) {
+        if(dimension == 2) powers.push_back({static_cast<unsigned>(first),total-static_cast<unsigned>(first)});
+        else {
+          for(int second = static_cast<int>(total)-first; second >= 0; --second) powers.push_back({static_cast<unsigned>(first),static_cast<unsigned>(second),total-static_cast<unsigned>(first+second)});
         }
       }
     }
   }
-
-  else if(element == 5) {
-    unsigned size = degree + 1;
-    MM.assign(size, std::vector<Type>(size, Type(0)));
-    for(int i = 0; i < size; i++) {
-      for(int j = 0; j < size; j++) {
-        MM[i][j] = Type(1) / (i + j + 1);
+  MM.assign(powers.size(),std::vector<Type>(powers.size(),Type(0)));
+  for(unsigned row = 0; row < powers.size(); ++row) {
+    for(unsigned column = 0; column <= row; ++column) {
+      Type moment = Type(1);
+      unsigned sum = 0;
+      for(unsigned axis = 0; axis < dimension; ++axis) {
+        const unsigned exponent = powers[row][axis]+powers[column][axis];
+        if(simplex) {
+          for(unsigned factor = 1; factor <= exponent; ++factor) moment *= Type(factor)/Type(sum+factor);
+          sum += exponent;
+        }
+        else moment *= exponent%2U == 0 ? Type(2)/Type(exponent+1U) : Type(0);
       }
+      if(simplex) {
+        for(unsigned factor = 1; factor <= dimension; ++factor) moment /= Type(sum+factor);
+      }
+      MM[row][column] = moment;
+      MM[column][row] = moment;
     }
   }
-
-  else {
-    throw std::invalid_argument("Unsupported level-set element.");
-  }
-
 }
 
 template <class Type>

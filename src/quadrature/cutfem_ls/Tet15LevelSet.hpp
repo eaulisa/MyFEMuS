@@ -103,23 +103,6 @@ inline void Tet15PolynomialFromNodalValues(const std::vector<double>& nodalValue
   Tet15AddProduct(barycentric,{0,1,2,3},interior,coefficient);
 }
 
-inline void Tet15ReferenceCoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<std::vector<std::vector<double>>>& coefficient) {
-  std::vector<long double> polynomial;
-  Tet15PolynomialFromNodalValues(nodalValues,false,polynomial);
-  std::vector<std::vector<std::vector<double>>> result(5,std::vector<std::vector<double>>(5,std::vector<double>(5,0.0)));
-  for(unsigned i = 0; i < 5; ++i) {
-    for(unsigned j = 0; j < 5; ++j) {
-      for(unsigned k = 0; k < 5; ++k) {
-        result[i][j][k] = static_cast<double>(polynomial[Tet15Index(i,j,k)]);
-        if(!std::isfinite(result[i][j][k])) {
-          throw std::overflow_error("A TET15 coefficient exceeds double precision range.");
-        }
-      }
-    }
-  }
-  coefficient.swap(result);
-}
-
 }
 
 #endif

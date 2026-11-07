@@ -312,6 +312,7 @@ inline int Tet15SlabPhase(const std::vector<long double>& bernstein, long double
   return Tet15BernsteinPhase(slab,computeDelta,0,budget);
 }
 
+// Lift local triangular moments directly to monomials in the standard FEMuS tetrahedron coordinates.
 inline void Tet15LiftMoments(unsigned degree, unsigned vertex, long double height, long double jacobian, const std::vector<std::vector<double>>& positive, const std::vector<std::vector<double>>& delta, long double positiveError, long double deltaError, std::vector<long double>& values, std::vector<long double>& errors) {
   unsigned count = (degree+1U)*(degree+2U)*(degree+3U)/6U;
   unsigned triangleCount = (degree+1U)*(degree+2U)/2U;
@@ -330,7 +331,7 @@ inline void Tet15LiftMoments(unsigned degree, unsigned vertex, long double heigh
   barycentric[remaining[1]][1] = width;
   barycentric[remaining[1]][2] = -width;
   barycentric[remaining[2]][2] = width;
-  long double coordinate[3][3] = {{1.0L-barycentric[0][0],-barycentric[0][1],-barycentric[0][2]},{barycentric[2][0]+barycentric[3][0],barycentric[2][1]+barycentric[3][1],barycentric[2][2]+barycentric[3][2]},{barycentric[3][0],barycentric[3][1],barycentric[3][2]}};
+  long double coordinate[3][3] = {{barycentric[1][0],barycentric[1][1],barycentric[1][2]},{barycentric[2][0],barycentric[2][1],barycentric[2][2]},{barycentric[3][0],barycentric[3][1],barycentric[3][2]}};
   values.assign(2U*count,0.0L);
   errors.assign(2U*count,0.0L);
   for(unsigned total = 0; total <= degree; ++total) {

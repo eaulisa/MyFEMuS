@@ -21,7 +21,7 @@ DIM=2
 SIMULATION="par"
 SYMMETRIC=0
 AXISYMMETRIC=0
-ELTYPE=4
+ELTYPE=3
 
 # ------------------------------------------------------------
 # Grid configurations

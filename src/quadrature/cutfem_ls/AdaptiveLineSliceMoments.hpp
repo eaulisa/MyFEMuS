@@ -428,7 +428,7 @@ inline bool PreferReverseOrder(const std::vector<std::vector<long double>>& coef
   return derivativeX > derivativeY;
 }
 
-inline void NormalizeCanonicalPolynomial(const std::vector<std::vector<double>>& coefficient, std::vector<std::vector<long double>>& normalized, long double& scale) {
+template <class Type> inline void NormalizeCanonicalPolynomial(const std::vector<std::vector<Type>>& coefficient, std::vector<std::vector<long double>>& normalized, long double& scale) {
   if (coefficient.size() != 3) {
     throw std::invalid_argument("The coefficient matrix must be 3 by 3.");
   }
@@ -515,65 +515,6 @@ inline unsigned CanonicalGraphOrder(const std::vector<std::vector<long double>>&
   }
   if(derivativeBound != nullptr) *derivativeBound = selectedBound;
   return selected;
-}
-
-inline void Quad9UnitCoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<std::vector<double>>& coefficient) {
-  if (nodalValues.size() != 9) {
-    throw std::invalid_argument("QUAD9 requires nine nodal values in FEMuS order.");
-  }
-  for (unsigned k = 0; k < 9; ++k) {
-    if (!std::isfinite(nodalValues[k])) {
-      throw std::invalid_argument("A nodal value is not finite.");
-    }
-  }
-  const unsigned node[3][3] = {{0, 3, 7}, {1, 2, 5}, {4, 6, 8}};
-  const long double interpolation[3][3] = {{1.0L, 0.0L, 0.0L}, {-3.0L, -1.0L, 4.0L}, {2.0L, 2.0L, -4.0L}};
-  long double intermediate[3][3] = {};
-  for (unsigned i = 0; i < 3; ++i) {
-    for (unsigned sampleY = 0; sampleY < 3; ++sampleY) {
-      for (unsigned sampleX = 0; sampleX < 3; ++sampleX) {
-        intermediate[i][sampleY] += interpolation[i][sampleX] * nodalValues[node[sampleX][sampleY]];
-      }
-    }
-  }
-  std::vector<std::vector<double>> result(3, std::vector<double>(3, 0.0));
-  for (unsigned i = 0; i < 3; ++i) {
-    for (unsigned j = 0; j < 3; ++j) {
-      long double value = 0.0L;
-      for (unsigned sampleY = 0; sampleY < 3; ++sampleY) {
-        value += interpolation[j][sampleY] * intermediate[i][sampleY];
-      }
-      result[i][j] = static_cast<double>(value);
-      if (!std::isfinite(result[i][j])) {
-        throw std::overflow_error("A unit-square QUAD9 coefficient exceeds double precision range.");
-      }
-    }
-  }
-  coefficient.swap(result);
-}
-
-inline void Tri7ReflectedCoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<double>& coefficient) {
-  if (nodalValues.size() != 7) {
-    throw std::invalid_argument("TRI7 requires seven nodal values in FEMuS order.");
-  }
-  for (unsigned k = 0; k < 7; ++k) {
-    if (!std::isfinite(nodalValues[k])) {
-      throw std::invalid_argument("A nodal value is not finite.");
-    }
-  }
-  const long double interpolation[7][7] = {{0.0L, 1.0L, 0.0L, 0.0L, 0.0L, 0.0L, 0.0L}, {-1.0L, -3.0L, 0.0L, 4.0L, 0.0L, 0.0L, 0.0L}, {1.0L, 0.0L, -1.0L, -4.0L, 4.0L, 0.0L, 0.0L}, {2.0L, 2.0L, 0.0L, -4.0L, 0.0L, 0.0L, 0.0L}, {-1.0L, 3.0L, 3.0L, -8.0L, -16.0L, -8.0L, 27.0L}, {-1.0L, -3.0L, -1.0L, 12.0L, 12.0L, 8.0L, -27.0L}, {-3.0L, -3.0L, -3.0L, 12.0L, 12.0L, 12.0L, -27.0L}};
-  std::vector<double> result(7, 0.0);
-  for (unsigned i = 0; i < 7; ++i) {
-    long double value = 0.0L;
-    for (unsigned k = 0; k < 7; ++k) {
-      value += interpolation[i][k] * nodalValues[k];
-    }
-    result[i] = static_cast<double>(value);
-    if (!std::isfinite(result[i])) {
-      throw std::overflow_error("A reflected TRI7 coefficient exceeds double precision range.");
-    }
-  }
-  coefficient.swap(result);
 }
 
 inline void RationalSegmentMoments(long double a, long double b, long double c, long double left, long double right, unsigned degree, long double tolerance, unsigned depth, std::vector<long double>& values, std::vector<long double>& errors) {

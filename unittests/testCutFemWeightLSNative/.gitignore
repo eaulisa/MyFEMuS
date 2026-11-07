@@ -1,0 +1,6 @@
+/build/
+/results/
+/__pycache__/
+/*_summary.json
+/*_results*.json
+/planar_comparison.json

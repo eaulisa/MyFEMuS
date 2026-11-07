@@ -15,10 +15,10 @@ inline unsigned HexMomentIndex(unsigned i, unsigned j, unsigned k) {
   return q * (q + 1U) * (q + 2U) / 6U + (q - i) * (q - i + 1U) / 2U + k;
 }
 
-inline void Hex27UnitCoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<std::vector<std::vector<double>>>& coefficient) {
+inline void Hex27ReferenceCoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<std::vector<std::vector<double>>>& coefficient) {
   if(nodalValues.size() != 27) throw std::invalid_argument("HEX27 requires 27 nodal values in FEMuS order.");
   const unsigned node[27][3] = {{0,0,0},{2,0,0},{2,2,0},{0,2,0},{0,0,2},{2,0,2},{2,2,2},{0,2,2},{1,0,0},{2,1,0},{1,2,0},{0,1,0},{1,0,2},{2,1,2},{1,2,2},{0,1,2},{0,0,1},{2,0,1},{2,2,1},{0,2,1},{1,0,1},{2,1,1},{1,2,1},{0,1,1},{1,1,0},{1,1,2},{1,1,1}};
-  const long double interpolation[3][3] = {{1.0L,0.0L,0.0L},{-3.0L,4.0L,-1.0L},{2.0L,-4.0L,2.0L}};
+  const long double interpolation[3][3] = {{0.0L,1.0L,0.0L},{-0.5L,0.0L,0.5L},{0.5L,-1.0L,0.5L}};
   std::vector<long double> values(27, 0.0L);
   for(unsigned n = 0; n < 27; ++n) {
     if(!std::isfinite(nodalValues[n])) throw std::invalid_argument("A HEX27 nodal value is not finite.");
@@ -94,12 +94,45 @@ inline void Hex27OtherAxes(unsigned axis, unsigned& first, unsigned& second) {
   second = axis == 2 ? 1 : 2;
 }
 
+// Substitute each native coordinate by 2*u-1 only inside the integration chart.
+inline void ReferenceCubePolynomialToChart(const std::vector<long double>& coefficient, std::vector<long double>& chart) {
+  const unsigned size = SurfacePolynomialCubeSize(static_cast<unsigned>(coefficient.size()));
+  std::vector<std::vector<long double>> transform(size,std::vector<long double>(size,0.0L));
+  for(unsigned power = 0; power < size; ++power) {
+    for(unsigned source = power; source < size; ++source) transform[power][source] = ((source-power)%2U == 0 ? 1.0L : -1.0L)*Binomial(source,power)*Power(2.0L,power);
+  }
+  chart = coefficient;
+  for(unsigned axis = 0; axis < 3; ++axis) {
+    std::vector<long double> result(chart.size(),0.0L);
+    for(unsigned i = 0; i < size; ++i) {
+      for(unsigned j = 0; j < size; ++j) {
+        for(unsigned k = 0; k < size; ++k) {
+          unsigned index[3] = {i,j,k};
+          const unsigned power = index[axis];
+          long double value = 0.0L;
+          long double correction = 0.0L;
+          for(unsigned source = power; source < size; ++source) {
+            index[axis] = source;
+            const long double term = transform[power][source]*chart[size*size*index[0]+size*index[1]+index[2]]-correction;
+            const long double next = value+term;
+            correction = (next-value)-term;
+            value = next;
+          }
+          if(!std::isfinite(value)) throw std::overflow_error("A reference polynomial chart exceeds long-double range.");
+          result[size*size*i+size*j+k] = value;
+        }
+      }
+    }
+    chart.swap(result);
+  }
+}
+
 inline void Hex27ReferenceSurfaceGradient(const std::vector<long double>& coefficient, long double scale, std::vector<std::vector<long double>>& gradient, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
   gradient.assign(3,std::vector<long double>(27,0.0L));
   for(unsigned i = 0; i < 3; ++i) {
     for(unsigned j = 0; j < 3; ++j) {
       for(unsigned k = 0; k < 3; ++k) {
-        const long double value = 0.5L*scale*coefficient[Hex27Index(i,j,k)];
+        const long double value = scale*coefficient[Hex27Index(i,j,k)];
         if(i != 0) gradient[0][Hex27Index(i-1U,j,k)] = i*value;
         if(j != 0) gradient[1][Hex27Index(i,j-1U,k)] = j*value;
         if(k != 0) gradient[2][Hex27Index(i,j,k-1U)] = k*value;
@@ -113,14 +146,14 @@ inline void Hex27ReferenceSurfaceGradient(const std::vector<long double>& coeffi
       std::vector<double> nodal(27);
       for(unsigned node = 0; node < 27; ++node) nodal[node] = (*geometryCoordinates)[component][node]-(*geometryCoordinates)[component][0];
       std::vector<std::vector<std::vector<double>>> polynomial;
-      Hex27UnitCoefficientsFromNodalValues(nodal,polynomial);
+      Hex27ReferenceCoefficientsFromNodalValues(nodal,polynomial);
       for(unsigned i = 0; i < 3; ++i) {
         for(unsigned j = 0; j < 3; ++j) {
           for(unsigned k = 0; k < 3; ++k) coordinates[component][Hex27Index(i,j,k)] = polynomial[i][j][k];
         }
       }
     }
-    SurfaceGradientCofactor3D(gradient,coordinates,0.5L);
+    SurfaceGradientCofactor3D(gradient,coordinates,1.0L);
   }
 }
 
@@ -172,10 +205,10 @@ inline bool Hex27SurfaceGradientIndependent(const std::vector<std::vector<long d
   return true;
 }
 
-inline void Hex27Slice(const std::vector<long double>& coefficient, unsigned axis, long double point, std::vector<std::vector<double>>& slice) {
+inline void Hex27ChartSlice(const std::vector<long double>& coefficient, unsigned axis, long double point, std::vector<std::vector<long double>>& slice) {
   unsigned first, second;
   Hex27OtherAxes(axis, first, second);
-  slice.assign(3, std::vector<double>(3, 0.));
+  slice.assign(3, std::vector<long double>(3, 0.0L));
   for(unsigned i = 0; i < 3; ++i) {
     for(unsigned j = 0; j < 3; ++j) {
       unsigned powers[3] = {0,0,0};
@@ -186,7 +219,7 @@ inline void Hex27Slice(const std::vector<long double>& coefficient, unsigned axi
         powers[axis] = k - 1U;
         value = std::fma(value, point, coefficient[Hex27Index(powers[0],powers[1],powers[2])]);
       }
-      slice[i][j] = static_cast<double>(value);
+      slice[i][j] = value;
     }
   }
 }
@@ -588,53 +621,6 @@ inline unsigned Hex27GraphAxes(const std::vector<long double>& bernstein) {
     if((lowMaximum < -padding && highMinimum > padding && derivativeMinimum > conditioning) || (lowMinimum > padding && highMaximum < -padding && derivativeMaximum < -conditioning)) mask |= 1U<<axis;
   }
   return mask;
-}
-
-inline void Hex27PlanarMoments(const std::vector<long double>& coefficient, unsigned degree, bool computeDelta, double absoluteTolerance, double relativeTolerance, std::vector<long double>& values) {
-  unsigned count = (degree+1U)*(degree+2U)*(degree+3U)/6U;
-  values.assign(2U*count,0.0L);
-  const long double normal[3] = {coefficient[Hex27Index(1,0,0)],coefficient[Hex27Index(0,1,0)],coefficient[Hex27Index(0,0,1)]};
-  unsigned pivot = 0;
-  for(unsigned d = 1; d < 3; ++d) if(std::abs(normal[d]) > std::abs(normal[pivot])) pivot = d;
-  if(normal[pivot] == 0.0L) {
-    if(coefficient[0] == 0.0L && computeDelta) throw std::domain_error("The delta of an identically zero HEX27 field is undefined.");
-    for(unsigned i = 0; i <= degree; ++i) {
-      for(unsigned j = 0; j <= degree-i; ++j) {
-        for(unsigned k = 0; k <= degree-i-j; ++k) values[HexMomentIndex(i,j,k)] = Heaviside(coefficient[0])/((i+1.0L)*(j+1.0L)*(k+1.0L));
-      }
-    }
-    return;
-  }
-  std::vector<std::vector<std::vector<std::vector<double>>>> faces(3,std::vector<std::vector<std::vector<double>>>(2));
-  for(unsigned axis = 0; axis < 3; ++axis) {
-    for(unsigned side = 0; side < 2; ++side) {
-      std::vector<std::vector<double>> slice, unused;
-      Hex27Slice(coefficient,axis,side,slice);
-      IntegrateQuad9Unit(slice,degree,faces[axis][side],unused,absoluteTolerance,relativeTolerance,false);
-    }
-  }
-  for(unsigned q = 0; q <= degree; ++q) {
-    for(int ii = q; ii >= 0; --ii) {
-      for(int jj = q-static_cast<unsigned>(ii); jj >= 0; --jj) {
-        unsigned i = static_cast<unsigned>(ii), j = static_cast<unsigned>(jj), k = q-i-j;
-        unsigned powers[3] = {i,j,k};
-        unsigned first, second;
-        Hex27OtherAxes(pivot,first,second);
-        long double delta = faces[pivot][1][powers[first]][powers[second]];
-        if(powers[pivot] == 0) delta -= faces[pivot][0][powers[first]][powers[second]];
-        else {
-          --powers[pivot];
-          delta -= (powers[pivot]+1U)*values[HexMomentIndex(powers[0],powers[1],powers[2])];
-          ++powers[pivot];
-        }
-        delta /= normal[pivot];
-        long double boundary = faces[0][1][j][k] + faces[1][1][i][k] + faces[2][1][i][j];
-        unsigned index = HexMomentIndex(i,j,k);
-        values[index] = (boundary+coefficient[0]*delta)/(q+3U);
-        if(computeDelta) values[count+index] = delta;
-      }
-    }
-  }
 }
 
 }

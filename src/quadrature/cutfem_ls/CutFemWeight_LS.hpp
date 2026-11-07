@@ -4,7 +4,6 @@
 #include "GeomElTypeEnum.hpp"
 #include "GaussPoints.hpp"
 #include "gram_smithLS.hpp"
-#include "PlanarMoments_LS.hpp"
 #include "FELevelSetMoments.hpp"
 #include "Hex27LevelSetMoments.hpp"
 #include "Hex27DirectionSelection.hpp"
@@ -16,7 +15,6 @@
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -41,12 +39,6 @@ template <class TypeIO, class TypeA>
 class CutFemWeight_LS {
   public:
     CutFemWeight_LS(const GeomElType &geomElemType, const unsigned &qM, const std::string &gaussType) : _geomElemType(ValidateGeometry(geomElemType)), _qM(qM), _dim(_geomElemType == LINE ? 1U : (_geomElemType == QUAD || _geomElemType == TRI ? 2U : 3U)), _gauss(_geomElemType, 2U * _qM, gaussType.c_str()), _gn(_gauss.GetGaussPointsNumber()), _L(1) {
-      if(_geomElemType == TET) {
-        _obj.reset(new CutFemWeightLSDetail::TTImap<TypeA, TypeA>());
-        _obj->SetBaseType(1);
-      }
-      else if(_geomElemType == TRI) _obj.reset(new CutFemWeightLSDetail::TRImap<TypeA, TypeA>());
-      else _obj.reset(new CutFemWeightLSDetail::HCImap<TypeA, TypeA>());
       for(unsigned d = 0; d < _dim; ++d) {
         _L *= _qM + 1U + d;
         _L /= d + 1U;
@@ -71,7 +63,6 @@ class CutFemWeight_LS {
     }
 
     void ClearCache() {
-      _obj->clear();
       _nodalWeightCacheValid = false;
       _nodalValues.clear();
       _nodalGeometryCoordinates.clear();
@@ -131,18 +122,7 @@ class CutFemWeight_LS {
       std::vector<std::vector<TypeA>> powers(_dim, std::vector<TypeA>(_qM + 1U, TypeA(1)));
       Eigen::Matrix<TypeA, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> basis(_gn, _L);
       for(unsigned ig = 0; ig < _gn; ++ig) {
-        if(_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX) {
-          for(unsigned d = 0; d < _dim; ++d) x[d] = (TypeA(1) + TypeA(xgp[d][ig])) / TypeA(2);
-        }
-        else if(_geomElemType == TRI) {
-          x[0] = TypeA(1) - TypeA(xgp[0][ig]);
-          x[1] = TypeA(xgp[1][ig]);
-        }
-        else {
-          x[0] = TypeA(xgp[0][ig]) + TypeA(xgp[1][ig]) + TypeA(xgp[2][ig]);
-          x[1] = TypeA(xgp[1][ig]) + TypeA(xgp[2][ig]);
-          x[2] = TypeA(xgp[2][ig]);
-        }
+        for(unsigned d = 0; d < _dim; ++d) x[d] = TypeA(xgp[d][ig]);
         for(unsigned d = 0; d < _dim; ++d) {
           for(unsigned i = 1; i <= _qM; ++i) powers[d][i] = powers[d][i - 1U] * x[d];
         }
@@ -216,65 +196,23 @@ class CutFemWeight_LS {
       }
     }
 
-    void IntegratePlanarMomentPair(const std::vector<TypeIO>& normal, const TypeIO& offset) {
-      std::vector<TypeA> a(_dim);
-      for(unsigned d = 0; d < _dim; ++d) a[d] = static_cast<TypeA>(normal[d]);
-      TypeA constant = static_cast<TypeA>(offset);
-      if(_dim == 3) {
-        unsigned count = 0;
-        for(unsigned q = 0; q <= _qM; ++q) {
-          for(int ii = q; ii >= 0; --ii) {
-            for(int jj = q-static_cast<unsigned>(ii); jj >= 0; --jj) {
-              unsigned i = static_cast<unsigned>(ii), j = static_cast<unsigned>(jj);
-              std::vector<unsigned> powers = {i,j,q-i-j};
-              _fPair(count,0) = (*_obj)(0,powers,a,constant);
-              _fPair(count,1) = (*_obj)(-1,powers,a,constant);
-              ++count;
-            }
-          }
-        }
-      }
-      else if(_dim == 2) {
-        unsigned count = 0;
-        for(unsigned q = 0; q <= _qM; ++q) {
-          for(unsigned j = 0; j <= q; ++j) {
-            std::vector<unsigned> powers = {q - j, j};
-            _fPair(count, 0) = (*_obj)(0, powers, a, constant);
-            _fPair(count, 1) = (*_obj)(-1, powers, a, constant);
-            ++count;
-          }
-        }
-      }
-      else {
-        for(unsigned i = 0; i <= _qM; ++i) {
-          std::vector<unsigned> powers(1, i);
-          _fPair(i, 0) = (*_obj)(0, powers, a, constant);
-          _fPair(i, 1) = (*_obj)(-1, powers, a, constant);
-        }
-      }
-    }
-
-    void ScalePlanarReferenceSurfaceMoments(const std::vector<TypeIO>& normal) {
-      TypeA squaredNorm = 0;
-      for(unsigned d = 0; d < _dim; ++d) squaredNorm += static_cast<TypeA>(normal[d])*static_cast<TypeA>(normal[d]);
-      TypeA norm = Eigen::numext::sqrt(squaredNorm);
-      for(unsigned i = 0; i < _L; ++i) _fPair(i,1) *= norm;
-    }
-
-    void IntegrateLineReferenceSurfaceMomentPair(double a, double b, double c, bool zeroLeft, bool zeroRight) {
+    void IntegrateLineMomentPair(const std::vector<double>& nodalValues, bool referenceSurface) {
+      double a = 0.0, b = 0.0, c = 0.0;
+      FELevelSetMoments::Line3ReferenceCoefficientsFromNodalValues(nodalValues,a,b,c);
       long double scale = std::max(std::abs(static_cast<long double>(a)),std::max(std::abs(static_cast<long double>(b)),std::abs(static_cast<long double>(c))));
       if(scale == 0.0L) throw std::domain_error("The delta of an identically zero field is undefined.");
       long double quadratic = static_cast<long double>(a)/scale;
       long double linear = static_cast<long double>(b)/scale;
       long double constant = static_cast<long double>(c)/scale;
-      std::vector<long double> positive;
-      std::vector<long double> delta;
-      FELevelSetMoments::Integrate1DInternal(quadratic,linear,constant,_qM,0.0L,1.0L,false,false,positive,delta);
+      std::vector<long double> positive, delta;
+      FELevelSetMoments::Integrate1DInternal(quadratic,linear,constant,_qM,-1.0L,1.0L,false,false,positive,delta);
       std::vector<long double> roots;
-      if(zeroLeft && zeroRight) roots = {0.0L,1.0L};
+      const bool zeroLeft = nodalValues[0] == 0.0;
+      const bool zeroRight = nodalValues[1] == 0.0;
+      if(zeroLeft && zeroRight) roots = {-1.0L,1.0L};
       else if(zeroLeft) {
-        roots.push_back(0.0L);
-        if(quadratic != 0.0L) roots.push_back(-linear/quadratic);
+        roots.push_back(-1.0L);
+        if(quadratic != 0.0L) roots.push_back(-constant/quadratic);
       }
       else if(zeroRight) {
         roots.push_back(1.0L);
@@ -282,11 +220,12 @@ class CutFemWeight_LS {
       }
       else roots = FELevelSetMoments::QuadraticRoots(quadratic,linear,constant);
       for(unsigned rootIndex = 0; rootIndex < roots.size(); ++rootIndex) {
-        long double point = roots[rootIndex];
-        if(point < 0.0L || point > 1.0L) continue;
-        long double derivative = zeroRight && point == 1.0L ? quadratic-constant : 2.0L*quadratic*point+linear;
-        if(derivative == 0.0L) throw std::domain_error("A repeated 1D zero has no regular surface moment.");
-        long double weight = point == 0.0L || point == 1.0L ? 0.25L : 0.5L;
+        const long double point = roots[rootIndex];
+        if(point < -1.0L || point > 1.0L) continue;
+        const long double derivative = point == -1.0L && zeroLeft ? -quadratic+constant : (point == 1.0L && zeroRight ? quadratic-constant : 2.0L*quadratic*point+linear);
+        if(derivative == 0.0L) throw std::domain_error("A repeated 1D zero has no regular delta moment.");
+        const long double boundary = point == -1.0L || point == 1.0L ? 0.5L : 1.0L;
+        const long double weight = referenceSurface ? boundary : boundary/(scale*std::abs(derivative));
         long double power = 1.0L;
         for(unsigned i = 0; i <= _qM; ++i) {
           delta[i] += weight*power;
@@ -294,117 +233,38 @@ class CutFemWeight_LS {
         }
       }
       for(unsigned i = 0; i <= _qM; ++i) {
-        _fPair(i,0) = static_cast<TypeA>(static_cast<double>(positive[i]));
+        _fPair(i,0) = static_cast<TypeA>(positive[i]);
         _fPair(i,1) = static_cast<TypeA>(delta[i]);
       }
     }
 
     void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
       if(_geomElemType == TET) {
-        std::vector<std::vector<std::vector<double>>> coefficient;
-        FELevelSetMoments::Tet15ReferenceCoefficientsFromNodalValues(nodalValues,coefficient);
-        bool planar = true;
-        for(unsigned i = 0; i < 5; ++i) {
-          for(unsigned j = 0; j < 5; ++j) {
-            for(unsigned k = 0; k < 5; ++k) if(i+j+k > 1 && coefficient[i][j][k] != 0.0) planar = false;
-          }
-        }
-        if(geometryCoordinates == nullptr && planar && (coefficient[1][0][0] != 0.0 || coefficient[0][1][0] != 0.0 || coefficient[0][0][1] != 0.0)) {
-          std::vector<TypeIO> normal = {static_cast<TypeIO>(coefficient[1][0][0]),static_cast<TypeIO>(coefficient[0][1][0]),static_cast<TypeIO>(coefficient[0][0][1])};
-          IntegratePlanarMomentPair(normal,static_cast<TypeIO>(coefficient[0][0][0]));
-          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal);
-        }
-        else {
-          std::vector<std::vector<std::vector<double>>> positive;
-          std::vector<std::vector<std::vector<double>>> delta;
-          FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,24,_integrationDirection,200000,nullptr,_directionValidation,nullptr,referenceSurface,nullptr,geometryCoordinates);
-          StoreNodalMomentPair(positive,delta);
-        }
+        std::vector<std::vector<std::vector<double>>> positive, delta;
+        FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,24,_integrationDirection,200000,nullptr,_directionValidation,nullptr,referenceSurface,nullptr,geometryCoordinates);
+        StoreNodalMomentPair(positive,delta);
       }
       else if(_geomElemType == HEX) {
-        std::vector<std::vector<std::vector<double>>> coefficient;
-        FELevelSetMoments::Hex27UnitCoefficientsFromNodalValues(nodalValues,coefficient);
-        bool planar = true;
-        for(unsigned i = 0; i < 3; ++i) {
-          for(unsigned j = 0; j < 3; ++j) {
-            for(unsigned k = 0; k < 3; ++k) if(i+j+k > 1 && coefficient[i][j][k] != 0.) planar = false;
-          }
-        }
-        if(geometryCoordinates == nullptr && planar && (coefficient[1][0][0] != 0. || coefficient[0][1][0] != 0. || coefficient[0][0][1] != 0.)) {
-          std::vector<TypeIO> normal = {static_cast<TypeIO>(0.5L*coefficient[1][0][0]),static_cast<TypeIO>(0.5L*coefficient[0][1][0]),static_cast<TypeIO>(0.5L*coefficient[0][0][1])};
-          IntegratePlanarMomentPair(normal,static_cast<TypeIO>(static_cast<long double>(coefficient[0][0][0])+0.5L*coefficient[1][0][0]+0.5L*coefficient[0][1][0]+0.5L*coefficient[0][0][1]));
-          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal);
-          return;
-        }
         std::vector<std::vector<std::vector<double>>> positive, delta;
         FELevelSetMoments::IntegrateHex27NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,_directionValidation,_integrationDirection,nullptr,true,nullptr,referenceSurface,nullptr,geometryCoordinates);
         StoreNodalMomentPair(positive,delta);
       }
       else if(_geomElemType == QUAD) {
-        std::vector<std::vector<double>> coefficient;
-        FELevelSetMoments::Quad9UnitCoefficientsFromNodalValues(nodalValues, coefficient);
-        bool planar = true;
-        for(unsigned i = 0; i < 3; ++i) {
-          for(unsigned j = 0; j < 3; ++j) {
-            if(i + j > 1 && coefficient[i][j] != 0.) planar = false;
-          }
-        }
-        if(geometryCoordinates == nullptr && planar && (coefficient[1][0] != 0. || coefficient[0][1] != 0.)) {
-          std::vector<TypeIO> normal = {static_cast<TypeIO>(0.5L * coefficient[1][0]), static_cast<TypeIO>(0.5L * coefficient[0][1])};
-          IntegratePlanarMomentPair(normal, static_cast<TypeIO>(static_cast<long double>(coefficient[0][0]) + 0.5L * coefficient[1][0] + 0.5L * coefficient[0][1]));
-          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal);
-          return;
-        }
-        std::vector<std::vector<double>> positive;
-        std::vector<std::vector<double>> delta;
-        FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues, _qM, positive, delta, absoluteTolerance, relativeTolerance, true, false, _directionValidation, _integrationDirection, nullptr, true, referenceSurface, nullptr, geometryCoordinates);
-        StoreNodalMomentPair(positive, delta);
+        std::vector<std::vector<double>> positive, delta;
+        FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,false,_directionValidation,_integrationDirection,nullptr,true,referenceSurface,nullptr,geometryCoordinates);
+        StoreNodalMomentPair(positive,delta);
       }
       else if(_geomElemType == TRI) {
-        std::vector<double> coefficient;
-        FELevelSetMoments::Tri7ReflectedCoefficientsFromNodalValues(nodalValues, coefficient);
-        if(geometryCoordinates == nullptr && coefficient[3] == 0. && coefficient[4] == 0. && coefficient[5] == 0. && coefficient[6] == 0. && (coefficient[1] != 0. || coefficient[2] != 0.)) {
-          std::vector<TypeIO> normal = {static_cast<TypeIO>(-coefficient[1]), static_cast<TypeIO>(coefficient[2])};
-          IntegratePlanarMomentPair(normal, static_cast<TypeIO>(static_cast<long double>(coefficient[0]) + coefficient[1]));
-          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal);
-          return;
-        }
-        std::vector<std::vector<double>> positive;
-        std::vector<std::vector<double>> delta;
-        FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues, _qM, positive, delta, absoluteTolerance, relativeTolerance, true, false, _directionValidation, _integrationDirection, nullptr, true, referenceSurface, nullptr, geometryCoordinates);
-        StoreNodalMomentPair(positive, delta);
+        std::vector<std::vector<double>> positive, delta;
+        FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,false,_directionValidation,_integrationDirection,nullptr,true,referenceSurface,nullptr,geometryCoordinates);
+        StoreNodalMomentPair(positive,delta);
       }
-      else if(_geomElemType == LINE) {
-        double a = 0.;
-        double b = 0.;
-        double c = 0.;
-        FELevelSetMoments::Line3CoefficientsFromNodalValues(nodalValues, a, b, c);
-        if(a == 0. && b != 0.) {
-          std::vector<TypeIO> normal(1, static_cast<TypeIO>(0.5L * b));
-          IntegratePlanarMomentPair(normal, static_cast<TypeIO>(static_cast<long double>(c) + 0.5L * b));
-          if(referenceSurface) ScalePlanarReferenceSurfaceMoments(normal);
-          return;
-        }
-        if(referenceSurface) {
-          IntegrateLineReferenceSurfaceMomentPair(a,b,c,nodalValues[0] == 0.0,nodalValues[1] == 0.0);
-          return;
-        }
-        std::vector<double> positive;
-        std::vector<double> delta;
-        FELevelSetMoments::Integrate1D(a, b, c, _qM, positive, delta);
-        for(unsigned i = 0; i <= _qM; ++i) {
-          _fPair(i, 0) = static_cast<TypeA>(positive[i]);
-          _fPair(i, 1) = static_cast<TypeA>(delta[i]);
-        }
-      }
-      else {
-        throw std::invalid_argument("Paired nodal weights support LINE3, QUAD9, TRI7, HEX27, and TET15.");
-      }
+      else IntegrateLineMomentPair(nodalValues,referenceSurface);
     }
 
     void EvaluateMomentWeightPair(std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight) {
-      positiveWeight.resize(_gn);
-      deltaWeight.resize(_gn);
+      std::vector<TypeIO> positiveResult(_gn);
+      std::vector<TypeIO> deltaResult(_gn);
       for(unsigned ig = 0; ig < _gn; ++ig) {
         const TypeA* basisRow = _momentToWeight.data()+ig*_L;
         TypeA positive = 0.;
@@ -413,9 +273,12 @@ class CutFemWeight_LS {
           positive += basisRow[i]*_fPair(i,0);
           delta += basisRow[i]*_fPair(i,1);
         }
-        positiveWeight[ig] = static_cast<TypeIO>(positive);
-        deltaWeight[ig] = static_cast<TypeIO>(delta);
+        positiveResult[ig] = static_cast<TypeIO>(positive);
+        deltaResult[ig] = static_cast<TypeIO>(delta);
+        if(!Eigen::numext::isfinite(positiveResult[ig]) || !Eigen::numext::isfinite(deltaResult[ig])) throw std::overflow_error("A level-set quadrature correction exceeds the output range.");
       }
+      positiveWeight.swap(positiveResult);
+      deltaWeight.swap(deltaResult);
     }
 
     const GeomElType _geomElemType;
@@ -424,7 +287,6 @@ class CutFemWeight_LS {
     femus::Gauss _gauss;
     const unsigned _gn;
     unsigned _L;
-    std::unique_ptr<CutFemWeightLSDetail::CutFEMmap<TypeA>> _obj;
     Eigen::Matrix<TypeA, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> _momentToWeight;
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _fPair;
     unsigned _directionValidation = 1;

@@ -184,9 +184,11 @@ inline Rule GetNodalQuadrature(const std::vector<double>& nodalPsi, unsigned ord
   Rule rule;
   if(nodalPsi.size() == 9) {
     std::vector<std::vector<double>> coefficient;
-    FELevelSetMoments::Quad9UnitCoefficientsFromNodalValues(nodalPsi,coefficient);
+    FELevelSetMoments::Quad9ReferenceCoefficientsFromNodalValues(nodalPsi,coefficient);
+    std::vector<std::vector<long double>> chart;
+    FELevelSetMoments::ReferencePolynomialAffine2D(coefficient,-1.0L,2.0L,-1.0L,2.0L,chart);
     std::vector<long double> data(9);
-    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) data[3U*i+j] = coefficient[i][j];
+    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) data[3U*i+j] = chart[i][j];
     detail::BuildTensor<2>(data,algoim::uvector<int,2>(3,3),0,0,0,order,subdivisions,rule);
   }
   else if(nodalPsi.size() == 7) {
@@ -196,12 +198,12 @@ inline Rule GetNodalQuadrature(const std::vector<double>& nodalPsi, unsigned ord
     const bool zero02 = nodalPsi[0] == 0.0 && nodalPsi[2] == 0.0 && nodalPsi[5] == 0.0;
     const bool zero12 = nodalPsi[1] == 0.0 && nodalPsi[2] == 0.0 && nodalPsi[4] == 0.0;
     if(zero01 || zero02 || zero12) throw std::domain_error("AlgoimDirect: exact zero TRI7 edges need boundary quadrature");
-    std::vector<double> coefficient;
-    FELevelSetMoments::Tri7ReflectedCoefficientsFromNodalValues(nodalPsi,coefficient);
+    std::vector<std::vector<double>> coefficient;
+    FELevelSetMoments::Tri7ReferenceCoefficientsFromNodalValues(nodalPsi,coefficient);
+    std::vector<std::vector<long double>> chart;
+    FELevelSetMoments::ReferencePolynomialAffine2D(coefficient,1.0L,-1.0L,0.0L,1.0L,chart);
     std::vector<long double> data(12,0.0L);
-    data[0] = coefficient[0]; data[3] = coefficient[1]; data[4] = coefficient[2];
-    data[6] = coefficient[3]; data[7] = coefficient[4]; data[8] = coefficient[5];
-    data[10] = coefficient[6]; data[11] = -coefficient[6];
+    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if(i+j < 4) data[3U*(i+j)+j] += chart[i][j];
     unsigned removed = 0;
     unsigned rows = 4;
     while(rows > 1 && data[0] == 0.0L && data[1] == 0.0L && data[2] == 0.0L) {
@@ -214,9 +216,10 @@ inline Rule GetNodalQuadrature(const std::vector<double>& nodalPsi, unsigned ord
   }
   else if(nodalPsi.size() == 27) {
     std::vector<std::vector<std::vector<double>>> coefficient;
-    FELevelSetMoments::Hex27UnitCoefficientsFromNodalValues(nodalPsi,coefficient);
-    std::vector<long double> data(27);
-    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) data[9U*i+3U*j+k] = coefficient[i][j][k];
+    FELevelSetMoments::Hex27ReferenceCoefficientsFromNodalValues(nodalPsi,coefficient);
+    std::vector<long double> polynomial(27), data;
+    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) polynomial[9U*i+3U*j+k] = coefficient[i][j][k];
+    FELevelSetMoments::ReferenceCubePolynomialToChart(polynomial,data);
     detail::BuildTensor<3>(data,algoim::uvector<int,3>(3,3,3),0,0,0,order,subdivisions,rule);
   }
   else if(nodalPsi.size() == 15) {

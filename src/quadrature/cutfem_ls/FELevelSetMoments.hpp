@@ -4,14 +4,13 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <iomanip>
-#include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <vector>
 #include "ReferenceSurfaceMoments.hpp"
+#include "ReferenceElementLS.hpp"
 
-// Native moments use [0,1] for LINE3, [0,1]^2 for QUAD9, and 0<=y<=x<=1 for TRI7.
+// Normalized coordinates below are local integration charts; nodal entries use FEMuS reference elements.
 
 namespace FELevelSetMoments {
 
@@ -289,28 +288,6 @@ namespace FELevelSetMoments {
       for (unsigned j = 0; j <= degree; ++j) {
         delta[j] += weight * power / derivative;
         power *= root;
-      }
-    }
-  }
-
-  inline void Integrate1D(double a, double b, double c, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, double left = 0.0, double right = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false) {
-    if (!std::isfinite(a) || !std::isfinite(b) || !std::isfinite(c) || !std::isfinite(left) || !std::isfinite(right) || degree == std::numeric_limits<unsigned>::max()) {
-      throw std::invalid_argument("Invalid 1D input.");
-    }
-    long double scale = std::max(std::abs(static_cast<long double>(a)), std::max(std::abs(static_cast<long double>(b)), std::abs(static_cast<long double>(c))));
-    if (scale == 0.0L) {
-      scale = 1.0L;
-    }
-    std::vector<long double> positiveInternal;
-    std::vector<long double> deltaInternal;
-    Integrate1DInternal(a / scale, b / scale, c / scale, degree, left, right, computeDelta, fullBoundaryDelta, positiveInternal, deltaInternal);
-    positive.resize(degree + 1U);
-    delta.resize(degree + 1U);
-    for (unsigned j = 0; j <= degree; ++j) {
-      positive[j] = static_cast<double>(positiveInternal[j]);
-      delta[j] = static_cast<double>(deltaInternal[j] / scale);
-      if (!std::isfinite(positive[j]) || !std::isfinite(delta[j])) {
-        throw std::overflow_error("A 1D moment exceeds double precision range.");
       }
     }
   }
@@ -1059,52 +1036,6 @@ namespace FELevelSetMoments {
     }
   }
 
-  inline void NormalizeCanonicalPolynomial(const std::vector<std::vector<double>>& coefficient, std::vector<std::vector<long double>>& normalized, long double& scale) {
-    if (coefficient.size() != 3) {
-      throw std::invalid_argument("The coefficient matrix must be 3 by 3.");
-    }
-    scale = 0.0L;
-    for (unsigned i = 0; i < 3; ++i) {
-      if (coefficient[i].size() != 3) {
-        throw std::invalid_argument("The coefficient matrix must be 3 by 3.");
-      }
-      for (unsigned j = 0; j < 3; ++j) {
-        if (!std::isfinite(coefficient[i][j])) {
-          throw std::invalid_argument("A level-set coefficient is not finite.");
-        }
-        scale = std::max(scale, std::abs(static_cast<long double>(coefficient[i][j])));
-      }
-    }
-    if (scale == 0.0L) {
-      scale = 1.0L;
-    }
-    normalized.assign(3, std::vector<long double>(3, 0.0L));
-    for (unsigned i = 0; i < 3; ++i) {
-      for (unsigned j = 0; j < 3; ++j) {
-        normalized[i][j] = coefficient[i][j] / scale;
-      }
-    }
-  }
-
-  inline long double CanonicalFullMoment(unsigned i, unsigned j, bool triangle) {
-    return triangle ? 1.0L / (static_cast<long double>(j + 1U) * (i + j + 2U)) : 1.0L / (static_cast<long double>(i + 1U) * (j + 1U));
-  }
-
-  inline void CanonicalBoundaryMoments(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, std::vector<long double>& right, std::vector<long double>& top) {
-    std::vector<long double> unused;
-    long double a = coefficient[0][2] + coefficient[1][2] + coefficient[2][2];
-    long double b = coefficient[0][1] + coefficient[1][1] + coefficient[2][1];
-    long double c = coefficient[0][0] + coefficient[1][0] + coefficient[2][0];
-    Integrate1DInternal(a, b, c, degree, 0.0L, 1.0L, false, false, right, unused);
-    top.assign(degree + 1U, 0.0L);
-    if (!triangle) {
-      a = coefficient[2][0] + coefficient[2][1] + coefficient[2][2];
-      b = coefficient[1][0] + coefficient[1][1] + coefficient[1][2];
-      c = coefficient[0][0] + coefficient[0][1] + coefficient[0][2];
-      Integrate1DInternal(a, b, c, degree, 0.0L, 1.0L, false, false, top, unused);
-    }
-  }
-
   inline void CanonicalBernstein(const std::vector<std::vector<long double>>& coefficient, long double bernstein[3][3]) {
     for(unsigned i = 0; i < 3; ++i) {
       for(unsigned j = 0; j < 3; ++j) {
@@ -1376,303 +1307,15 @@ namespace FELevelSetMoments {
     return true;
   }
 
-  inline void IntegrateCanonicalPolynomial(const std::vector<std::vector<double>>& coefficient, unsigned degree, bool triangle, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance, double relativeTolerance, bool computeDelta, bool fullBoundaryDelta, unsigned seriesOrder, unsigned maximumDepth, unsigned integrationOrder, bool useBoundaryRecurrence, std::vector<double>* estimatedError, std::vector<long double>* momentErrors = nullptr) {
-    if (degree > std::numeric_limits<unsigned>::max() - 6U || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || seriesOrder < 24U || seriesOrder > 256U || maximumDepth > 60U || integrationOrder > 2U) {
-      throw std::invalid_argument("Invalid canonical integration input.");
-    }
-    std::vector<std::vector<long double>> normalized;
-    long double scale = 1.0L;
-    NormalizeCanonicalPolynomial(coefficient, normalized, scale);
-    unsigned extraDegree = 0;
-    long double coefficientWeight = 0.0L;
-    for (unsigned i = 0; i < 3; ++i) {
-      for (unsigned j = 0; j < 3; ++j) {
-        if (i + j != 2U && normalized[i][j] != 0.0L) {
-          extraDegree = std::max(extraDegree, i + j);
-          coefficientWeight += std::abs((2.0L - i - j) * normalized[i][j]);
-        }
-      }
-    }
-    unsigned internalDegree = useBoundaryRecurrence ? degree + extraDegree : degree;
-    unsigned long long check = (static_cast<unsigned long long>(internalDegree) + 1ULL) * (static_cast<unsigned long long>(internalDegree) + 2ULL) / 2ULL;
-    if (check > std::numeric_limits<unsigned>::max() / 2U) {
-      throw std::length_error("The requested moment table is too large.");
-    }
-    std::vector<long double> domain = {0.0L, 1.0L, 0.0L, 1.0L};
-    unsigned shape = triangle ? 2U : 0U;
-    unsigned count = (degree + 1U) * (degree + 2U) / 2U;
-    std::vector<long double> values(2U * count, 0.0L);
-    std::vector<long double> valueError(2U * count, 0.0L);
-    std::vector<long double> high;
-    std::vector<long double> highError;
-    unsigned acceptedIntervals = 0;
-    bool usedRecurrence = false;
-    bool completed = false;
-    int phase = 0;
-    long double graphDerivative = 0.0L;
-    unsigned graphOrder = CanonicalGraphOrder(normalized, integrationOrder, phase, &graphDerivative);
-    if(phase != 0) {
-      if(phase > 0) {
-        for(unsigned i = 0; i <= degree; ++i) {
-          for(unsigned j = 0; j <= degree - i; ++j) values[MomentIndex(degree, i, j)] = CanonicalFullMoment(i, j, triangle);
-        }
-      }
-      completed = true;
-    }
-    else if(!useBoundaryRecurrence && graphOrder != 0) {
-      try {
-        completed = IntegrateCanonicalGraph(normalized, degree, graphOrder, triangle, computeDelta, graphDerivative, absoluteTolerance, static_cast<long double>(absoluteTolerance) * scale, relativeTolerance, maximumDepth, values, valueError, acceptedIntervals);
-      }
-      catch(const std::runtime_error&) {
-      }
-      if(!completed) {
-        std::fill(values.begin(), values.end(), 0.0L);
-        std::fill(valueError.begin(), valueError.end(), 0.0L);
-        acceptedIntervals = 0;
-      }
-    }
-    if (!completed && useBoundaryRecurrence) {
-      try {
-        long double deltaTolerance = std::min(static_cast<long double>(absoluteTolerance) * scale, absoluteTolerance / (1.0L + coefficientWeight));
-        IntegrateNormalizedCell(normalized, internalDegree, shape, domain, false, true, false, absoluteTolerance, deltaTolerance, relativeTolerance / 8.0L, seriesOrder, maximumDepth, integrationOrder, high, highError, acceptedIntervals);
-        usedRecurrence = true;
-      }
-      catch (const std::domain_error&) {
-        if (computeDelta) {
-          throw;
-        }
-      }
-      catch (const std::runtime_error&) {
-        usedRecurrence = false;
-      }
-    }
-    if (!completed && !usedRecurrence) {
-      IntegrateNormalizedCell(normalized, degree, shape, domain, true, computeDelta, fullBoundaryDelta, absoluteTolerance, absoluteTolerance * scale, relativeTolerance, seriesOrder, maximumDepth, integrationOrder, values, valueError, acceptedIntervals);
-    }
-    else if(!completed) {
-      unsigned highCount = (internalDegree + 1U) * (internalDegree + 2U) / 2U;
-      std::vector<long double> right;
-      std::vector<long double> top;
-      CanonicalBoundaryMoments(normalized, degree, triangle, right, top);
-      bool recomputePositive = false;
-      for (unsigned i = 0; i <= degree; ++i) {
-        for (unsigned j = 0; j <= degree - i; ++j) {
-          unsigned index = MomentIndex(degree, i, j);
-          long double value = right[j] + top[i];
-          long double norm = std::abs(right[j]) + std::abs(top[i]);
-          long double error = 0.0L;
-          long double correction = 0.0L;
-          for (unsigned r = 0; r < 3; ++r) {
-            for (unsigned s = 0; s < 3; ++s) {
-              long double factor = (2.0L - r - s) * normalized[r][s];
-              if (factor != 0.0L) {
-                unsigned source = highCount + MomentIndex(internalDegree, i + r, j + s);
-                long double term = factor * high[source];
-                long double corrected = term - correction;
-                long double next = value + corrected;
-                correction = (next - value) - corrected;
-                value = next;
-                norm += std::abs(term);
-                error += std::abs(factor) * highError[source];
-              }
-            }
-          }
-          values[index] = value / (i + j + 2U);
-          valueError[index] = (error + 128.0L * std::numeric_limits<long double>::epsilon() * norm) / (i + j + 2U);
-          long double tolerance = absoluteTolerance + relativeTolerance * std::abs(values[index]);
-          long double full = CanonicalFullMoment(i, j, triangle);
-          recomputePositive = recomputePositive || valueError[index] > tolerance || values[index] < -tolerance || values[index] > full + tolerance;
-          if (computeDelta) {
-            unsigned source = highCount + MomentIndex(internalDegree, i, j);
-            values[count + index] = high[source];
-            valueError[count + index] = highError[source];
-          }
-        }
-      }
-      if (recomputePositive) {
-        std::vector<long double> direct;
-        std::vector<long double> directError;
-        IntegrateNormalizedCell(normalized, degree, shape, domain, true, false, false, absoluteTolerance, absoluteTolerance * scale, relativeTolerance, seriesOrder, maximumDepth, integrationOrder, direct, directError, acceptedIntervals);
-        for (unsigned k = 0; k < count; ++k) {
-          values[k] = direct[k];
-          valueError[k] = directError[k];
-        }
-      }
-      if (computeDelta && fullBoundaryDelta) {
-        std::vector<long double> full;
-        std::vector<long double> fullError;
-        IntegrateNormalizedCell(normalized, degree, shape, domain, false, true, true, absoluteTolerance, absoluteTolerance * scale, relativeTolerance, seriesOrder, maximumDepth, integrationOrder, full, fullError, acceptedIntervals);
-        for (unsigned k = count; k < 2U * count; ++k) {
-          values[k] = full[k];
-          valueError[k] = fullError[k];
-        }
-      }
-    }
-    positive.resize(degree + 1U);
-    delta.resize(degree + 1U);
-    long double positiveError = 0.0L;
-    long double deltaError = 0.0L;
-    for (unsigned i = 0; i <= degree; ++i) {
-      positive[i].resize(degree - i + 1U);
-      delta[i].resize(degree - i + 1U);
-      for (unsigned j = 0; j <= degree - i; ++j) {
-        unsigned index = MomentIndex(degree, i, j);
-        positive[i][j] = static_cast<double>(values[index]);
-        delta[i][j] = computeDelta ? static_cast<double>(values[count + index] / scale) : 0.0;
-        if (!std::isfinite(positive[i][j]) || !std::isfinite(delta[i][j])) {
-          throw std::overflow_error("A canonical moment exceeds double precision range.");
-        }
-        positiveError = std::max(positiveError, valueError[index]);
-        if (computeDelta) {
-          deltaError = std::max(deltaError, valueError[count + index] / scale);
-        }
-      }
-    }
-    if(momentErrors != nullptr) {
-      *momentErrors = valueError;
-      for(unsigned k = count; k < 2U * count; ++k) {
-        (*momentErrors)[k] = computeDelta ? valueError[k] / scale : 0.0L;
-      }
-    }
-    if (estimatedError != nullptr) {
-      estimatedError->assign(3, 0.0);
-      (*estimatedError)[0] = static_cast<double>(positiveError);
-      (*estimatedError)[1] = static_cast<double>(deltaError);
-      (*estimatedError)[2] = acceptedIntervals;
-    }
-  }
-
-  inline void IntegrateQuad9Unit(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = false, std::vector<double>* estimatedError = nullptr) {
-    IntegrateCanonicalPolynomial(coefficient, degree, false, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, integrationOrder, useBoundaryRecurrence, estimatedError);
-  }
-
-  inline void IntegrateTri7Reflected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = false, std::vector<double>* estimatedError = nullptr) {
-    if (coefficient.size() != 7) {
-      throw std::invalid_argument("Reflected TRI7 requires coefficients of 1,x,y,x*x,x*y,y*y,x*y*(x-y).");
-    }
-    std::vector<std::vector<double>> polynomial(3, std::vector<double>(3, 0.0));
-    polynomial[0][0] = coefficient[0];
-    polynomial[1][0] = coefficient[1];
-    polynomial[0][1] = coefficient[2];
-    polynomial[2][0] = coefficient[3];
-    polynomial[1][1] = coefficient[4];
-    polynomial[0][2] = coefficient[5];
-    polynomial[2][1] = coefficient[6];
-    polynomial[1][2] = -coefficient[6];
-    IntegrateCanonicalPolynomial(polynomial, degree, true, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, integrationOrder, useBoundaryRecurrence, estimatedError);
-  }
-
-  inline void Line3CoefficientsFromNodalValues(const std::vector<double>& nodalValues, double& a, double& b, double& c, double left = 0.0, double right = 1.0) {
-    if (nodalValues.size() != 3 || !(right > left) || !std::isfinite(left) || !std::isfinite(right)) {
-      throw std::invalid_argument("LINE3 requires values at the left endpoint, right endpoint, and midpoint.");
-    }
-    for (unsigned k = 0; k < 3; ++k) {
-      if (!std::isfinite(nodalValues[k])) {
-        throw std::invalid_argument("A nodal value is not finite.");
-      }
-    }
-    long double width = static_cast<long double>(right) - left;
-    long double quadratic = 2.0L * (static_cast<long double>(nodalValues[0]) + nodalValues[1] - 2.0L * nodalValues[2]);
-    long double linear = 4.0L * nodalValues[2] - 3.0L * nodalValues[0] - nodalValues[1];
-    long double aa = quadratic / (width * width);
-    long double bb = linear / width - 2.0L * aa * left;
-    long double cc = nodalValues[0] - linear * left / width + aa * left * left;
-    a = static_cast<double>(aa);
-    b = static_cast<double>(bb);
-    c = static_cast<double>(cc);
-    if (!std::isfinite(a) || !std::isfinite(b) || !std::isfinite(c)) {
-      throw std::overflow_error("A LINE3 coefficient exceeds double precision range.");
-    }
-  }
-
-  inline void Quad9UnitCoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<std::vector<double>>& coefficient) {
-    if (nodalValues.size() != 9) {
-      throw std::invalid_argument("QUAD9 requires nine nodal values in FEMuS order.");
-    }
-    for (unsigned k = 0; k < 9; ++k) {
-      if (!std::isfinite(nodalValues[k])) {
-        throw std::invalid_argument("A nodal value is not finite.");
-      }
-    }
-    const unsigned node[3][3] = {{0, 3, 7}, {1, 2, 5}, {4, 6, 8}};
-    const long double interpolation[3][3] = {{1.0L, 0.0L, 0.0L}, {-3.0L, -1.0L, 4.0L}, {2.0L, 2.0L, -4.0L}};
-    long double intermediate[3][3] = {};
-    for (unsigned i = 0; i < 3; ++i) {
-      for (unsigned sampleY = 0; sampleY < 3; ++sampleY) {
-        for (unsigned sampleX = 0; sampleX < 3; ++sampleX) {
-          intermediate[i][sampleY] += interpolation[i][sampleX] * nodalValues[node[sampleX][sampleY]];
-        }
-      }
-    }
-    std::vector<std::vector<double>> result(3, std::vector<double>(3, 0.0));
-    for (unsigned i = 0; i < 3; ++i) {
-      for (unsigned j = 0; j < 3; ++j) {
-        long double value = 0.0L;
-        for (unsigned sampleY = 0; sampleY < 3; ++sampleY) {
-          value += interpolation[j][sampleY] * intermediate[i][sampleY];
-        }
-        result[i][j] = static_cast<double>(value);
-        if (!std::isfinite(result[i][j])) {
-          throw std::overflow_error("A unit-square QUAD9 coefficient exceeds double precision range.");
-        }
-      }
-    }
-    coefficient.swap(result);
-  }
-
-  inline void Tri7ReflectedCoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<double>& coefficient) {
-    if (nodalValues.size() != 7) {
-      throw std::invalid_argument("TRI7 requires seven nodal values in FEMuS order.");
-    }
-    for (unsigned k = 0; k < 7; ++k) {
-      if (!std::isfinite(nodalValues[k])) {
-        throw std::invalid_argument("A nodal value is not finite.");
-      }
-    }
-    const long double interpolation[7][7] = {{0.0L, 1.0L, 0.0L, 0.0L, 0.0L, 0.0L, 0.0L}, {-1.0L, -3.0L, 0.0L, 4.0L, 0.0L, 0.0L, 0.0L}, {1.0L, 0.0L, -1.0L, -4.0L, 4.0L, 0.0L, 0.0L}, {2.0L, 2.0L, 0.0L, -4.0L, 0.0L, 0.0L, 0.0L}, {-1.0L, 3.0L, 3.0L, -8.0L, -16.0L, -8.0L, 27.0L}, {-1.0L, -3.0L, -1.0L, 12.0L, 12.0L, 8.0L, -27.0L}, {-3.0L, -3.0L, -3.0L, 12.0L, 12.0L, 12.0L, -27.0L}};
-    std::vector<double> result(7, 0.0);
-    for (unsigned i = 0; i < 7; ++i) {
-      long double value = 0.0L;
-      for (unsigned k = 0; k < 7; ++k) {
-        value += interpolation[i][k] * nodalValues[k];
-      }
-      result[i] = static_cast<double>(value);
-      if (!std::isfinite(result[i])) {
-        throw std::overflow_error("A reflected TRI7 coefficient exceeds double precision range.");
-      }
-    }
-    coefficient.swap(result);
+  inline void Line3ReferenceCoefficientsFromNodalValues(const std::vector<double>& nodalValues, double& a, double& b, double& c) {
+    if(nodalValues.size() != 3) throw std::invalid_argument("LINE3 requires endpoint and midpoint values in FEMuS order.");
+    for(unsigned i = 0; i < 3; ++i) if(!std::isfinite(nodalValues[i])) throw std::invalid_argument("A nodal value is not finite.");
+    a = static_cast<double>(0.5L*(static_cast<long double>(nodalValues[0])+nodalValues[1])-nodalValues[2]);
+    b = static_cast<double>(0.5L*(static_cast<long double>(nodalValues[1])-nodalValues[0]));
+    c = nodalValues[2];
+    if(!std::isfinite(a) || !std::isfinite(b)) throw std::overflow_error("A LINE3 coefficient exceeds double range.");
   }
 
 }
 
-#ifdef FE_LEVEL_SET_MOMENTS_DEMO
-int main() {
-  try {
-    std::vector<double> linePositive;
-    std::vector<double> lineDelta;
-    FELevelSetMoments::Integrate1D(1.0, -1.0, 0.16, 4, linePositive, lineDelta);
-    std::vector<double> quadNodes = {-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.0};
-    std::vector<std::vector<double>> coefficient;
-    FELevelSetMoments::Quad9UnitCoefficientsFromNodalValues(quadNodes, coefficient);
-    std::vector<std::vector<double>> positive;
-    std::vector<std::vector<double>> delta;
-    FELevelSetMoments::IntegrateQuad9Unit(coefficient, 4, positive, delta);
-    std::cout << std::setprecision(16) << "1D H[0] = " << linePositive[0] << ", delta[0] = " << lineDelta[0] << '\n';
-    std::cout << "QUAD9 canonical H[0][0] = " << positive[0][0] << ", delta[0][0] = " << delta[0][0] << '\n';
-    std::vector<double> triangleNodes = {-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 0.8};
-    std::vector<double> triangleCoefficient;
-    FELevelSetMoments::Tri7ReflectedCoefficientsFromNodalValues(triangleNodes, triangleCoefficient);
-    FELevelSetMoments::IntegrateTri7Reflected(triangleCoefficient, 4, positive, delta);
-    std::cout << "TRI7 H[0][0] = " << positive[0][0] << ", delta[0][0] = " << delta[0][0] << '\n';
-  }
-  catch (const std::exception& error) {
-    std::cerr << error.what() << '\n';
-    return 1;
-  }
-  return 0;
-}
 #endif
-
-#endif
-

@@ -4,7 +4,7 @@
 #include "AdaptiveLineSliceMoments.hpp"
 #include "FELevelSetMoments.hpp"
 
-// Ordered-triangle TRI7 moments: direction 0 is automatic, 1 is y-first, 2 is x-first, and 3 follows x-y constant.
+// TRI7 uses ordered triangular charts internally and returns moments on the standard FEMuS reference triangle.
 namespace FELevelSetMoments {
 
 inline void Tri7SelectedDerivativeBounds(const std::vector<std::vector<long double>>& coefficient, unsigned direction, long double& lower, long double& upper) {
@@ -173,20 +173,15 @@ inline void Tri7SurfaceCoordinatePolynomials(const std::vector<std::vector<doubl
   for(unsigned component = 0; component < 2; ++component) {
     std::vector<double> shifted(7);
     for(unsigned node = 0; node < 7; ++node) shifted[node] = geometryCoordinates[component][node]-geometryCoordinates[component][0];
-    std::vector<double> coefficient;
-    LineSliceUtilities::Tri7ReflectedCoefficientsFromNodalValues(shifted,coefficient);
-    coordinatePolynomials[component][0][0] = coefficient[0];
-    coordinatePolynomials[component][1][0] = coefficient[1];
-    coordinatePolynomials[component][0][1] = coefficient[2];
-    coordinatePolynomials[component][2][0] = coefficient[3];
-    coordinatePolynomials[component][1][1] = coefficient[4];
-    coordinatePolynomials[component][0][2] = coefficient[5];
-    coordinatePolynomials[component][2][1] = coefficient[6];
-    coordinatePolynomials[component][1][2] = -coefficient[6];
+    std::vector<std::vector<double>> coefficient;
+    Tri7ReferenceCoefficientsFromNodalValues(shifted,coefficient);
+    for(unsigned i = 0; i < 3; ++i) {
+      for(unsigned j = 0; j < 3; ++j) coordinatePolynomials[component][i][j] = coefficient[i][j];
+    }
   }
 }
 
-inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationDirection = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationDirection = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
   if(geometryCoordinates != nullptr) {
     if(!referenceSurface || inverseJacobian != nullptr) throw std::invalid_argument("Surface geometry requires surface moments without an inverse Jacobian.");
     ValidateSurfaceGeometryCoordinates(*geometryCoordinates,2,7);
@@ -195,45 +190,37 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
     if(!referenceSurface) throw std::invalid_argument("A surface inverse Jacobian requires surface moments.");
     ValidateSurfaceInverseJacobian(*inverseJacobian,2);
   }
-  if(&positive == &delta || coefficient.size() != 7 || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 60 || integrationDirection > 3 || validationMode > 2 || maximumEvaluations < 15) throw std::invalid_argument("Invalid TRI7 selected-direction input.");
+  if(&positive == &delta || coefficient.size() != 3 || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 60 || integrationDirection > 3 || validationMode > 2 || maximumEvaluations < 15) throw std::invalid_argument("Invalid TRI7 selected-direction input.");
+  for(unsigned i = 0; i < 3; ++i) if(coefficient[i].size() != 3) throw std::invalid_argument("The TRI7 coefficient matrix must be 3 by 3.");
+  if(coefficient[2][2] != 0.0 || coefficient[2][1] != coefficient[1][2]) throw std::invalid_argument("The TRI7 coefficients must represent a quadratic polynomial with a barycentric bubble.");
   if(zeroBoundary != nullptr && zeroBoundary->size() != 3) throw std::invalid_argument("TRI7 requires three boundary flags.");
-  long double scale = 0.0L;
-  for(unsigned k = 0; k < 7; ++k) {
-    if(!std::isfinite(coefficient[k])) throw std::invalid_argument("A TRI7 coefficient is not finite.");
-    scale = std::max(scale,std::abs(static_cast<long double>(coefficient[k])));
+  const long double amplification = ReferencePower(2.0L,degree);
+  const long double chartAbsoluteTolerance = absoluteTolerance/amplification;
+  const long double chartRelativeTolerance = relativeTolerance/amplification;
+  std::vector<std::vector<long double>> chartCoefficient;
+  ReferencePolynomialAffine2D(coefficient,1.0L,-1.0L,0.0L,1.0L,chartCoefficient);
+  std::vector<std::vector<long double>> normalized;
+  long double scale;
+  LineSliceUtilities::NormalizeCanonicalPolynomial(chartCoefficient,normalized,scale);
+  long double norm = 0.0L;
+  for(unsigned i = 0; i < 3; ++i) {
+    for(unsigned j = 0; j < 3; ++j) norm += std::abs(normalized[i][j]);
   }
-  const bool zero = scale == 0.0L;
+  const bool zero = norm == 0.0L;
   if(zero && computeDelta) throw std::domain_error("The Dirac delta of an identically zero TRI7 field is undefined.");
-  if(zero) scale = 1.0L;
-  int exponent = 0;
-  std::frexp(scale,&exponent);
-  scale = std::ldexp(1.0L,exponent-1);
-  std::vector<std::vector<long double>> normalized(3,std::vector<long double>(3,0.0L));
-  normalized[0][0] = coefficient[0]/scale;
-  normalized[1][0] = coefficient[1]/scale;
-  normalized[0][1] = coefficient[2]/scale;
-  normalized[2][0] = coefficient[3]/scale;
-  normalized[1][1] = coefficient[4]/scale;
-  normalized[0][2] = coefficient[5]/scale;
-  normalized[2][1] = coefficient[6]/scale;
-  normalized[1][2] = -coefficient[6]/scale;
   std::vector<std::vector<std::vector<long double>>> referenceGradient;
   if(referenceSurface) {
-    std::vector<std::vector<double>> original(3,std::vector<double>(3,0.0));
-    original[0][0] = coefficient[0];
-    original[1][0] = coefficient[1];
-    original[0][1] = coefficient[2];
-    original[2][0] = coefficient[3];
-    original[1][1] = coefficient[4];
-    original[0][2] = coefficient[5];
-    original[2][1] = coefficient[6];
-    original[1][2] = -coefficient[6];
-    SurfaceGradientFromPolynomial(original,-1.0L,1.0L,referenceGradient);
+    SurfaceGradientFromPolynomial(coefficient,1.0L,1.0L,referenceGradient);
     if(inverseJacobian != nullptr) SurfaceGradientPhysical(referenceGradient,*inverseJacobian);
     if(geometryCoordinates != nullptr) {
       std::vector<std::vector<std::vector<long double>>> coordinatePolynomials;
       Tri7SurfaceCoordinatePolynomials(*geometryCoordinates,coordinatePolynomials);
-      SurfaceGradientCofactor2D(referenceGradient,coordinatePolynomials,-1.0L,1.0L);
+      SurfaceGradientCofactor2D(referenceGradient,coordinatePolynomials,1.0L,1.0L);
+    }
+    for(unsigned component = 0; component < referenceGradient.size(); ++component) {
+      std::vector<std::vector<long double>> chartComponent;
+      ReferencePolynomialAffine2D(referenceGradient[component],1.0L,-1.0L,0.0L,1.0L,chartComponent);
+      referenceGradient[component].swap(chartComponent);
     }
   }
   const unsigned count = (degree+1U)*(degree+2U)/2U;
@@ -248,7 +235,11 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
   if(phase != 0 || zero) {
     if(phase > 0 || zero) {
       for(unsigned i = 0; i <= degree; ++i) {
-        for(unsigned j = 0; j <= degree-i; ++j) values[LineSliceUtilities::MomentIndex(degree,i,j)] = (zero ? 0.5L : 1.0L)/((j+1.0L)*(i+j+2.0L));
+        for(unsigned j = 0; j <= degree-i; ++j) {
+          const unsigned k = LineSliceUtilities::MomentIndex(degree,i,j);
+          values[k] = (zero ? 0.5L : 1.0L)*ReferenceTriangleMoment(i,j);
+          errors[k] = (4.0L+2.0L*j)*std::numeric_limits<long double>::epsilon()*std::abs(values[k]);
+        }
       }
     }
   }
@@ -278,7 +269,7 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
       for(unsigned candidate = 0; candidate < number && !completed; ++candidate) {
         ++attempts;
         try {
-          Tri7SelectedOneDirection(normalized,scale,degree,ranked[candidate],lower[ranked[candidate]-1U],computeDelta,fullBoundaryDelta,absoluteTolerance*factor,relativeTolerance*factor,maximumDepth,maximumEvaluations,zeroBoundary,useTaylor,trial[candidate],trialError[candidate],evaluations,trialAccepted[candidate],referenceSurface ? &referenceGradient : nullptr);
+          Tri7SelectedOneDirection(normalized,scale,degree,ranked[candidate],lower[ranked[candidate]-1U],computeDelta,fullBoundaryDelta,chartAbsoluteTolerance*factor,chartRelativeTolerance*factor,maximumDepth,maximumEvaluations,zeroBoundary,useTaylor,trial[candidate],trialError[candidate],evaluations,trialAccepted[candidate],referenceSurface ? &referenceGradient : nullptr);
           success[candidate] = true;
           if(!verify) {
             values.swap(trial[candidate]);
@@ -294,7 +285,7 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
             std::vector<long double> guarded(errors.size());
             for(unsigned k = 0; k < guarded.size(); ++k) {
               guarded[k] = std::max(std::abs(trial[previous][k]-trial[candidate][k]),std::max(trialError[previous][k],trialError[candidate][k]));
-              const long double tolerance = absoluteTolerance*(k < count ? 1.0L : scale)+relativeTolerance*std::abs(trial[previous][k]);
+              const long double tolerance = chartAbsoluteTolerance*(k < count ? 1.0L : scale)+chartRelativeTolerance*std::abs(trial[previous][k]);
               agree = agree && guarded[k] <= tolerance;
             }
             if(agree) {
@@ -311,6 +302,11 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
       }
     }
     if(!completed) throw std::runtime_error("TRI7 direction selection failed: "+failure);
+    std::vector<long double> referenceValues;
+    std::vector<long double> referenceErrors;
+    ReferenceAffineMoments2D(degree,values,errors,1.0L,-1.0L,0.0L,1.0L,1.0L,referenceValues,referenceErrors);
+    values.swap(referenceValues);
+    errors.swap(referenceErrors);
   }
   std::vector<std::vector<double>> resultH(degree+1U), resultD(degree+1U);
   long double errorH = 0.0L, errorD = 0.0L;
@@ -322,8 +318,11 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
       resultH[i][j] = static_cast<double>(values[k]);
       resultD[i][j] = computeDelta ? static_cast<double>(values[count+k]/scale) : 0.0;
       if(!std::isfinite(resultH[i][j]) || !std::isfinite(resultD[i][j])) throw std::overflow_error("A TRI7 selected-direction moment exceeds double range.");
-      errorH = std::max(errorH,errors[k]);
-      if(computeDelta) errorD = std::max(errorD,errors[count+k]/scale);
+      const long double momentErrorH = errors[k]+std::abs(static_cast<long double>(resultH[i][j])-values[k]);
+      const long double momentErrorD = computeDelta ? errors[count+k]/scale+std::abs(static_cast<long double>(resultD[i][j])-values[count+k]/scale) : 0.0L;
+      if(!std::isfinite(momentErrorH) || !std::isfinite(momentErrorD) || momentErrorH > absoluteTolerance+relativeTolerance*std::abs(static_cast<long double>(resultH[i][j])) || momentErrorD > absoluteTolerance+relativeTolerance*std::abs(static_cast<long double>(resultD[i][j]))) throw std::runtime_error("TRI7 reference moment error exceeds tolerance.");
+      errorH = std::max(errorH,momentErrorH);
+      errorD = std::max(errorD,momentErrorD);
     }
   }
   positive.swap(resultH);
@@ -332,10 +331,10 @@ inline void IntegrateTri7ReflectedSelected(const std::vector<double>& coefficien
 }
 
 inline void IntegrateTri7NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
-  std::vector<double> coefficient;
-  LineSliceUtilities::Tri7ReflectedCoefficientsFromNodalValues(nodalValues,coefficient);
+  std::vector<std::vector<double>> coefficient;
+  Tri7ReferenceCoefficientsFromNodalValues(nodalValues,coefficient);
   const std::vector<unsigned> boundary = {static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[3] == 0.0),static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[2] == 0.0 && nodalValues[5] == 0.0),static_cast<unsigned>(nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[4] == 0.0)};
-  IntegrateTri7ReflectedSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationDirection,200000,estimatedError,validationMode,&boundary,useTaylor,referenceSurface,inverseJacobian,geometryCoordinates);
+  IntegrateTri7ReferenceSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationDirection,200000,estimatedError,validationMode,&boundary,useTaylor,referenceSurface,inverseJacobian,geometryCoordinates);
 }
 
 }
