@@ -11,16 +11,8 @@ target_sources(${EXEC_FILE} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/AlgoimQuadrature.
 target_compile_features(${EXEC_FILE} PRIVATE cxx_std_17)
 set_target_properties(${EXEC_FILE} PROPERTIES CXX_EXTENSIONS OFF)
 
-if(NOT TARGET Eigen3::Eigen)
-  find_package(Eigen3 REQUIRED NO_MODULE)
-endif()
-find_path(FEMUS_ALGOIM_LAPACKE_INCLUDE_DIRECTORY NAMES lapacke.h mkl_lapacke.h)
-find_library(FEMUS_ALGOIM_LAPACKE_LIBRARY NAMES lapacke mkl_rt)
-if(NOT FEMUS_ALGOIM_LAPACKE_INCLUDE_DIRECTORY OR NOT FEMUS_ALGOIM_LAPACKE_LIBRARY)
-  message(FATAL_ERROR "ex45 needs LAPACKE headers and a LAPACKE library; install liblapacke-dev or set FEMUS_ALGOIM_LAPACKE_INCLUDE_DIRECTORY and FEMUS_ALGOIM_LAPACKE_LIBRARY")
-endif()
-target_include_directories(${EXEC_FILE} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../../src/quadrature/cutfem" "${FEMUS_ALGOIM_LAPACKE_INCLUDE_DIRECTORY}")
-target_link_libraries(${EXEC_FILE} Eigen3::Eigen "${FEMUS_ALGOIM_LAPACKE_LIBRARY}" ${FEMUS_ALGOIM_EXTRA_LIBRARIES})
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake-modules/FemusAlgoim.cmake")
+femus_enable_algoim(${EXEC_FILE})
 
 find_package(OpenMP QUIET)
 if(OpenMP_CXX_FOUND)

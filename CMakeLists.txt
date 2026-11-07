@@ -316,6 +316,7 @@ list(APPEND USEFEMUS_INCLUDES
   ${CMAKE_SOURCE_DIR}/src/physics
   ${CMAKE_SOURCE_DIR}/src/quadrature
   ${CMAKE_SOURCE_DIR}/src/quadrature/cutfem
+  ${CMAKE_SOURCE_DIR}/src/quadrature/cutfem_ls
   ${CMAKE_SOURCE_DIR}/src/solution
   ${CMAKE_SOURCE_DIR}/src/solution/output
   ${CMAKE_SOURCE_DIR}/src/uq
@@ -381,6 +382,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/utils/input_parser/)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/utils/eigen)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/quadrature)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/quadrature/cutfem)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/quadrature/cutfem_ls)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/quadrature/cutfem/old)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/parallel)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/equations)

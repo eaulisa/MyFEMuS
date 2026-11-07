@@ -13,9 +13,6 @@ SET(EXEC_FILE "${APP_FOLDER_NAME_PARENT}_${MAIN_FILE}") # the name of the execut
 femusMacroBuildApplication(${MAIN_FILE} ${EXEC_FILE})
 
 
-include("${CMAKE_CURRENT_LIST_DIR}/../../../src/quadrature/cutfem/FemusAlgoim.cmake")
-femus_enable_algoim(${EXEC_FILE})
-
 find_package(OpenMP QUIET)
 if (OpenMP_CXX_FOUND)
   message(STATUS "Found OpenMP (GCC): ${OpenMP_CXX_VERSION}")

@@ -6,7 +6,7 @@
 #include "../includeLS/Shape.hpp"
 #include "../includeLS/Boundary.hpp"
 #include "../includeLS/GradientApproximation.hpp"
-#include "CutFemWeightNew.hpp"
+#include "CutFemWeight.hpp"
 #include "CDWeights.hpp"
 #include "MultiLevelProblem.hpp"
 typedef double TypeIO;

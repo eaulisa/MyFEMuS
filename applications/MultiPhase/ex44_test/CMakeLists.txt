@@ -12,7 +12,7 @@ SET(EXEC_FILE "${APP_FOLDER_NAME_PARENT}_${MAIN_FILE}") # the name of the execut
 
 femusMacroBuildApplication(${MAIN_FILE} ${EXEC_FILE})
 
-include("${CMAKE_CURRENT_LIST_DIR}/../../../src/quadrature/cutfem/FemusAlgoim.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake-modules/FemusAlgoim.cmake")
 femus_enable_algoim(${EXEC_FILE})
 
 set_target_properties(${EXEC_FILE} PROPERTIES
