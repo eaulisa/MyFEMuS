@@ -49,14 +49,14 @@ bool printdb = false;
 //const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;
 
 #include "../includeLS/Utils.hpp"
-#include "CutFemWeightLS.hpp"
+#include "CutFemWeight_LS.hpp"
 
-CutFemWeightLS<TypeIO, TypeA> hexLS(HEX, hex.GetCutFEMQuadratureOrder(), "legendre");
-CutFemWeightLS<TypeIO, TypeA> tetLS(TET, tet.GetCutFEMQuadratureOrder(), "legendre");
-CutFemWeightLS<TypeIO, TypeA> quadLS(QUAD, quad.GetCutFEMQuadratureOrder(), "legendre");
-CutFemWeightLS<TypeIO, TypeA> triLS(TRI, tri.GetCutFEMQuadratureOrder(), "legendre");
-CutFemWeightLS<TypeIO, TypeA> lineLS(LINE, line.GetCutFEMQuadratureOrder(), "legendre");
-const std::vector<CutFemWeightLS<TypeIO, TypeA>*> cfwLS = {&hexLS, &tetLS, nullptr, &quadLS, &triLS, &lineLS};
+CutFemWeight_LS<TypeIO, TypeA> hexLS(HEX, hex.GetCutFEMQuadratureOrder(), "legendre");
+CutFemWeight_LS<TypeIO, TypeA> tetLS(TET, tet.GetCutFEMQuadratureOrder(), "legendre");
+CutFemWeight_LS<TypeIO, TypeA> quadLS(QUAD, quad.GetCutFEMQuadratureOrder(), "legendre");
+CutFemWeight_LS<TypeIO, TypeA> triLS(TRI, tri.GetCutFEMQuadratureOrder(), "legendre");
+CutFemWeight_LS<TypeIO, TypeA> lineLS(LINE, line.GetCutFEMQuadratureOrder(), "legendre");
+const std::vector<CutFemWeight_LS<TypeIO, TypeA>*> cfwLS = {&hexLS, &tetLS, nullptr, &quadLS, &triLS, &lineLS};
 
 std::vector<std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > > PMatrix(6); //projection matrix between elements;
 
@@ -925,7 +925,7 @@ int main(int argc, char **argv) {
         if (levelC < levelF) RestrictPWDCField(*mlsol1, cName, levelC, levelF);
 
         for (unsigned i = 0; i < cfw.size(); i++) cfw[i]->ClearMap();
-        for (unsigned i = 0; i < cfwLS.size(); i++) if(cfwLS[i] != nullptr) cfwLS[i]->ClearMap();
+        for (unsigned i = 0; i < cfwLS.size(); i++) if(cfwLS[i] != nullptr) cfwLS[i]->ClearCache();
 
         LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation, cfg, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
         PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
@@ -948,7 +948,7 @@ int main(int argc, char **argv) {
         mlmsh1->resize(numberOfUniformLevels);
 
         for (unsigned i = 0; i < cfw.size(); i++) cfw[i]->clear();
-        for (unsigned i = 0; i < cfwLS.size(); i++) if(cfwLS[i] != nullptr) cfwLS[i]->clear();
+        for (unsigned i = 0; i < cfwLS.size(); i++) if(cfwLS[i] != nullptr) cfwLS[i]->ClearCache();
 
       }
 
@@ -1429,12 +1429,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
         unsigned cut = (fabs(C - 0.5) < 0.1) ? 1 : 0;
 
-        std::vector<double> BX;
-        std::vector<double> BY;
-        bool xSquared = true;
-        std::vector<std::vector<double>> interfacePoints;
-
-
         if (cut == 1) { // this can happen only on l == levelF
           if (l != levelF) throw std::runtime_error("CUT CELL SHOULD BE ONLY AT LEVELF\n");
           femV = fem.GetFiniteElement(ielGeom, solVType);
@@ -1466,55 +1460,19 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           d = a[dim];
           a.resize(dim);
 
-          // BestFitQuadraticInterpolation(xg, psi, BX, BY, xSquared);
-          // BestFitQuadraticInterpolation(xg, psig, BX, BY, xSquared);
-          //BuildQuad9Parabola(psi, BX, BY, xSquared, interfacePoints);
         }
 
         const bool geometrySurfaceWeights = true;
         const bool referenceSurfaceWeights = true;
-        std::vector <TypeIO> weightCF(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
-        std::vector <TypeIO> weightCFInt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
-        std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+        std::vector <TypeIO> weightCF(femV->GetGaussPointNumber(), 0.);
+        std::vector <TypeIO> weightCFInt(femV->GetGaussPointNumber(), 0.);
+        std::vector <TypeIO> weightCFExt(femV->GetGaussPointNumber(), 0.);
 
         if (cut == 1) {
           if(cfwLS[ielGeom] == nullptr) throw std::invalid_argument("Native level-set quadrature does not support WEDGE.");
-          // cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
-          // for(unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
-          // cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
-
-          // std::vector<boost::multiprecision::cpp_bin_float_oct> aParabola(3);
-          // for(unsigned i = 0; i < 3; i++) {
-          //   aParabola[i] = boost::multiprecision::cpp_bin_float_oct(xSquared ? BX[i] : BY[i]);
-          // }
-          //
-          // boost::multiprecision::cpp_bin_float_oct dParabola(xSquared ? BX[3] : BY[3]);
-          //
-          // (*cfwLS[ielGeom])(0, aParabola, dParabola, xSquared, weightCFInt);
-          //
-          // weightCFExt.resize(weightCFInt.size());
-          // for(unsigned i = 0; i < weightCFInt.size(); i++) {
-          //   weightCFExt[i] = 1. - weightCFInt[i];
-          // }
-          //
-          // (*cfwLS[ielGeom])(-1, aParabola, dParabola, xSquared, weightCF);
-
-
-          //for(unsigned i =0;i<psi.size();i++) std::cout<<psi[i] <<" ";
-          //std::cout<<std::endl;
-
-
-
-
-          cfwLS[ielGeom]->SetHex27IntegrationDirection(0);
-          cfwLS[ielGeom]->SetTet15IntegrationDirection(0);
-          cfwLS[ielGeom]->SetQuad9IntegrationDirection(0);
-          cfwLS[ielGeom]->SetTri7IntegrationDirection(0);
-
-          cfwLS[ielGeom]->SetHex27DirectionValidation(0);
-          cfwLS[ielGeom]->SetTet15DirectionValidation(0);
-          cfwLS[ielGeom]->SetQuad9DirectionValidation(0);
-          cfwLS[ielGeom]->SetTri7DirectionValidation(0);
+          if(cfwLS[ielGeom]->GetGaussQuadraturePointNumber() != femV->GetGaussPointNumber()) throw std::runtime_error("LS and assembly Gauss rules do not match.");
+          cfwLS[ielGeom]->SetIntegrationDirection(0);
+          cfwLS[ielGeom]->SetDirectionValidation(0);
 
           if(geometrySurfaceWeights) {
             cfwLS[ielGeom]->GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCF, 1.E-8, 1.E-8);
@@ -1525,10 +1483,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
 
           for (unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
-
-
-
-          //cfwLS[ielGeom]->GetWeightFromNodalValues(-1, psi, weightCF);
 
         }
         else {

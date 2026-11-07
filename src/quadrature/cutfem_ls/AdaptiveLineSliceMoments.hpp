@@ -10,7 +10,7 @@
 #include <vector>
 #include "ReferenceSurfaceMoments.hpp"
 
-// Paired LINE3/QUAD9/TRI7 H/delta moments use analytic segment formulas and adaptive Gauss-Kronrod integration without Taylor integration or divergence recurrence.
+// Adaptive cell moments use analytic segment formulas and Gauss-Kronrod integration without Taylor integration or divergence recurrence.
 
 namespace LineSliceUtilities {
 
@@ -517,83 +517,6 @@ inline unsigned CanonicalGraphOrder(const std::vector<std::vector<long double>>&
   return selected;
 }
 
-inline void Quad9CoefficientsToUnitSquare(const std::vector<std::vector<double>>& coefficient, std::vector<std::vector<double>>& transformed, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0) {
-  if (!(xRight > xLeft) || !(yTop > yBottom) || !std::isfinite(xLeft) || !std::isfinite(xRight) || !std::isfinite(yBottom) || !std::isfinite(yTop)) {
-    throw std::invalid_argument("Invalid QUAD9 coordinate map.");
-  }
-  std::vector<std::vector<long double>> checked;
-  long double scale = 1.0L;
-  NormalizeCanonicalPolynomial(coefficient, checked, scale);
-  std::vector<std::vector<double>> result(3, std::vector<double>(3, 0.0));
-  long double widthX = static_cast<long double>(xRight) - xLeft;
-  long double widthY = static_cast<long double>(yTop) - yBottom;
-  for (unsigned r = 0; r < 3; ++r) {
-    for (unsigned s = 0; s < 3; ++s) {
-      long double value = 0.0L;
-      for (unsigned i = r; i < 3; ++i) {
-        for (unsigned j = s; j < 3; ++j) {
-          value += static_cast<long double>(coefficient[i][j]) * Binomial(i, r) * Binomial(j, s) * Power(xLeft, i - r) * Power(yBottom, j - s);
-        }
-      }
-      value *= Power(widthX, r) * Power(widthY, s);
-      result[r][s] = static_cast<double>(value);
-      if (!std::isfinite(result[r][s])) {
-        throw std::overflow_error("A transformed QUAD9 coefficient exceeds double precision range.");
-      }
-    }
-  }
-  transformed.swap(result);
-}
-
-inline void Tri7CoefficientsToReflectedTriangle(const std::vector<double>& coefficient, std::vector<double>& transformed) {
-  if (coefficient.size() != 7) {
-    throw std::invalid_argument("TRI7 requires seven coefficients.");
-  }
-  for (unsigned k = 0; k < 7; ++k) {
-    if (!std::isfinite(coefficient[k])) {
-      throw std::invalid_argument("A TRI7 coefficient is not finite.");
-    }
-  }
-  std::vector<long double> value(7, 0.0L);
-  value[0] = static_cast<long double>(coefficient[0]) + coefficient[1] + coefficient[3];
-  value[1] = -static_cast<long double>(coefficient[1]) - 2.0L * coefficient[3];
-  value[2] = static_cast<long double>(coefficient[2]) + coefficient[4] + coefficient[6];
-  value[3] = coefficient[3];
-  value[4] = -static_cast<long double>(coefficient[4]) - 2.0L * coefficient[6];
-  value[5] = static_cast<long double>(coefficient[5]) + coefficient[6];
-  value[6] = coefficient[6];
-  transformed.resize(7);
-  for (unsigned k = 0; k < 7; ++k) {
-    transformed[k] = static_cast<double>(value[k]);
-    if (!std::isfinite(transformed[k])) {
-      throw std::overflow_error("A reflected TRI7 coefficient exceeds double precision range.");
-    }
-  }
-}
-
-inline void Line3CoefficientsFromNodalValues(const std::vector<double>& nodalValues, double& a, double& b, double& c, double left = 0.0, double right = 1.0) {
-  if (nodalValues.size() != 3 || !(right > left) || !std::isfinite(left) || !std::isfinite(right)) {
-    throw std::invalid_argument("LINE3 requires values at the left endpoint, right endpoint, and midpoint.");
-  }
-  for (unsigned k = 0; k < 3; ++k) {
-    if (!std::isfinite(nodalValues[k])) {
-      throw std::invalid_argument("A nodal value is not finite.");
-    }
-  }
-  long double width = static_cast<long double>(right) - left;
-  long double quadratic = 2.0L * (static_cast<long double>(nodalValues[0]) + nodalValues[1] - 2.0L * nodalValues[2]);
-  long double linear = 4.0L * nodalValues[2] - 3.0L * nodalValues[0] - nodalValues[1];
-  long double aa = quadratic / (width * width);
-  long double bb = linear / width - 2.0L * aa * left;
-  long double cc = nodalValues[0] - linear * left / width + aa * left * left;
-  a = static_cast<double>(aa);
-  b = static_cast<double>(bb);
-  c = static_cast<double>(cc);
-  if (!std::isfinite(a) || !std::isfinite(b) || !std::isfinite(c)) {
-    throw std::overflow_error("A LINE3 coefficient exceeds double precision range.");
-  }
-}
-
 inline void Quad9UnitCoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<std::vector<double>>& coefficient) {
   if (nodalValues.size() != 9) {
     throw std::invalid_argument("QUAD9 requires nine nodal values in FEMuS order.");
@@ -822,17 +745,6 @@ inline void LineSliceSegmentMoments(long double a, long double b, long double c,
       power *= root;
     }
   }
-}
-
-inline bool LineSliceZeroFiber(const std::vector<std::vector<long double>>& field) {
-  std::vector<long double> candidates = {0.0L,1.0L};
-  for(unsigned k = 0; k < 3; ++k) LineSliceUtilities::PolynomialRoots(field[k],0.0L,1.0L,candidates);
-  for(unsigned r = 0; r < candidates.size(); ++r) {
-    bool zero = true;
-    for(unsigned k = 0; k < 3; ++k) zero = zero && LineSliceUtilities::NearZero(field[k],candidates[r]);
-    if(zero) return true;
-  }
-  return false;
 }
 
 inline std::vector<long double> LineSliceFlatFibers(const std::vector<std::vector<long double>>& field) {
@@ -1386,40 +1298,6 @@ inline void IntegrateNormalizedByLineSlices(const std::vector<std::vector<long d
   if(estimatedError != nullptr) *estimatedError = {static_cast<double>(maxH),static_cast<double>(maxD),static_cast<double>(accepted),static_cast<double>(evaluations),static_cast<double>(selected)};
 }
 
-inline void IntegrateCanonicalByLineSlices(const std::vector<std::vector<double>>& coefficient, unsigned degree, bool triangle, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
-  std::vector<std::vector<long double>> normalized;
-  long double scale;
-  LineSliceUtilities::NormalizeCanonicalPolynomial(coefficient,normalized,scale);
-  IntegrateNormalizedByLineSlices(normalized,scale,degree,triangle,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError,zeroBoundary,surfaceGradient);
-}
-
-inline void IntegrateQuad9UnitByLineSlices(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr) {
-  IntegrateCanonicalByLineSlices(coefficient,degree,false,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError);
-}
-
-inline void IntegrateQuad9NodalByLineSlices(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false) {
-  std::vector<std::vector<double>> coefficient;
-  LineSliceUtilities::Quad9UnitCoefficientsFromNodalValues(nodalValues,coefficient);
-  std::vector<unsigned> zeroBoundary = {static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[3] == 0.0 && nodalValues[7] == 0.0),static_cast<unsigned>(nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[5] == 0.0),static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[4] == 0.0),static_cast<unsigned>(nodalValues[3] == 0.0 && nodalValues[2] == 0.0 && nodalValues[6] == 0.0)};
-  IntegrateCanonicalByLineSlices(coefficient,degree,false,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,28,0,200000,nullptr,&zeroBoundary);
-}
-
-inline void IntegrateTri7ReflectedByLineSlices(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr) {
-  if(coefficient.size() != 7) throw std::invalid_argument("TRI7 requires seven coefficients.");
-  std::vector<std::vector<double>> polynomial(3,std::vector<double>(3,0.0));
-  polynomial[0][0] = coefficient[0]; polynomial[1][0] = coefficient[1]; polynomial[0][1] = coefficient[2];
-  polynomial[2][0] = coefficient[3]; polynomial[1][1] = coefficient[4]; polynomial[0][2] = coefficient[5];
-  polynomial[2][1] = coefficient[6]; polynomial[1][2] = -coefficient[6];
-  IntegrateCanonicalByLineSlices(polynomial,degree,true,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError,zeroBoundary);
-}
-
-inline void IntegrateTri7NodalByLineSlices(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false) {
-  std::vector<double> coefficient;
-  LineSliceUtilities::Tri7ReflectedCoefficientsFromNodalValues(nodalValues,coefficient);
-  std::vector<unsigned> zeroBoundary = {static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[3] == 0.0),static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[2] == 0.0 && nodalValues[5] == 0.0),static_cast<unsigned>(nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[4] == 0.0)};
-  IntegrateTri7ReflectedByLineSlices(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,28,0,200000,nullptr,&zeroBoundary);
-}
-
 inline void IntegrateTri7ReflectedByLineSlicesLongDouble(const std::vector<long double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   if(coefficient.size() != 7) throw std::invalid_argument("TRI7 requires seven coefficients.");
   long double scale = 0.0L;
@@ -1441,46 +1319,6 @@ inline void IntegrateTri7ReflectedByLineSlicesLongDouble(const std::vector<long 
   normalized[2][1] = coefficient[6]/scale;
   normalized[1][2] = -coefficient[6]/scale;
   IntegrateNormalizedByLineSlices(normalized,scale,degree,true,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError,zeroBoundary,surfaceGradient);
-}
-
-inline void IntegrateQuad9CanonicalByLineSlices(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false) {
-  std::vector<std::vector<double>> transformed;
-  LineSliceUtilities::Quad9CoefficientsToUnitSquare(coefficient,transformed,xLeft,xRight,yBottom,yTop);
-  IntegrateQuad9UnitByLineSlices(transformed,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta);
-}
-
-inline void IntegrateTri7CanonicalByLineSlices(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false) {
-  std::vector<double> transformed;
-  LineSliceUtilities::Tri7CoefficientsToReflectedTriangle(coefficient,transformed);
-  IntegrateTri7ReflectedByLineSlices(transformed,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta);
-}
-
-inline void IntegrateSegmentByLineSlices(double a, double b, double c, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, double left = 0.0, double right = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false, bool forceLeftZero = false, bool forceRightZero = false) {
-  if(!std::isfinite(a) || !std::isfinite(b) || !std::isfinite(c) || !std::isfinite(left) || !std::isfinite(right) || !(right > left) || degree > 10000U) throw std::invalid_argument("Invalid analytic segment input.");
-  long double scale = std::max(std::abs(static_cast<long double>(a)),std::max(std::abs(static_cast<long double>(b)),std::abs(static_cast<long double>(c))));
-  if(scale == 0.0L) scale = 1.0L;
-  int exponent = 0;
-  std::frexp(scale,&exponent);
-  scale = std::ldexp(1.0L,exponent-1);
-  long double qa = a/scale, qb = b/scale, qc = c/scale;
-  std::vector<long double> h,d;
-  bool lowerZero = forceLeftZero || std::fma(static_cast<long double>(a),static_cast<long double>(left)*left,std::fma(static_cast<long double>(b),static_cast<long double>(left),static_cast<long double>(c))) == 0.0L;
-  bool upperZero = forceRightZero || std::fma(static_cast<long double>(a),static_cast<long double>(right)*right,std::fma(static_cast<long double>(b),static_cast<long double>(right),static_cast<long double>(c))) == 0.0L;
-  LineSliceSegmentMoments(qa,qb,qc,degree,left,right,computeDelta,fullBoundaryDelta,std::fma(-4.0L*qa,qc,qb*qb),1.0L,std::numeric_limits<long double>::quiet_NaN(),lowerZero,upperZero,h,d);
-  positive.resize(degree+1U);
-  delta.resize(degree+1U);
-  for(unsigned j = 0; j <= degree; ++j) {
-    positive[j] = static_cast<double>(h[j]);
-    delta[j] = static_cast<double>(d[j]/scale);
-    if(!std::isfinite(positive[j]) || !std::isfinite(delta[j])) throw std::overflow_error("An analytic segment moment exceeds double range.");
-  }
-}
-
-inline void IntegrateLine3NodalByLineSlices(const std::vector<double>& nodalValues, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false) {
-  if(!(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance)) throw std::invalid_argument("Invalid line tolerance.");
-  double a,b,c;
-  LineSliceUtilities::Line3CoefficientsFromNodalValues(nodalValues,a,b,c);
-  IntegrateSegmentByLineSlices(a,b,c,degree,positive,delta,0.0,1.0,computeDelta,fullBoundaryDelta,nodalValues[0] == 0.0,nodalValues[1] == 0.0);
 }
 
 }

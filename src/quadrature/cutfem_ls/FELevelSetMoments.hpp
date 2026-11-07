@@ -11,7 +11,7 @@
 #include <vector>
 #include "ReferenceSurfaceMoments.hpp"
 
-// Native moments use [0,1] for LINE3, [0,1]^2 for QUAD9, and 0<=y<=x<=1 for TRI7; legacy entry points retain FEMuS-coordinate monomials.
+// Native moments use [0,1] for LINE3, [0,1]^2 for QUAD9, and 0<=y<=x<=1 for TRI7.
 
 namespace FELevelSetMoments {
 
@@ -420,33 +420,6 @@ namespace FELevelSetMoments {
       sine[k] = halfWidth * cosine[k - 1U] / k;
       cosine[k] = -halfWidth * sine[k - 1U] / k;
     }
-  }
-
-  inline void SeriesIntegral(const std::vector<long double>& coefficients, long double& value, long double& error, bool& converged) {
-    value = 0.0L;
-    long double correction = 0.0L;
-    long double norm = 0.0L;
-    long double tail = 0.0L;
-    long double preceding = 0.0L;
-    unsigned order = static_cast<unsigned>(coefficients.size()) - 1U;
-    unsigned block = std::max(8U, order / 6U);
-    for (unsigned k = 0; k <= order; k += 2U) {
-      long double term = 2.0L * coefficients[k] / (k + 1U);
-      long double corrected = term - correction;
-      long double next = value + corrected;
-      correction = (next - value) - corrected;
-      value = next;
-      norm += std::abs(term);
-      if (k + block > order) {
-        tail += std::abs(term);
-      }
-      else if (k + 2U * block > order) {
-        preceding += std::abs(term);
-      }
-    }
-    long double rounding = 64.0L * std::numeric_limits<long double>::epsilon() * norm;
-    error = 8.0L * tail + rounding;
-    converged = std::isfinite(value) && std::isfinite(error) && (tail <= 0.5L * preceding || tail <= rounding);
   }
 
   inline void SeriesProductIntegral(const std::vector<long double>& first, const std::vector<long double>& second, long double& value, long double& error, bool& converged) {
@@ -1086,105 +1059,6 @@ namespace FELevelSetMoments {
     }
   }
 
-  inline void IntegrateCell(const std::vector<std::vector<double>>& coefficient, unsigned degree, unsigned triangle, const std::vector<long double>& domain, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance, double relativeTolerance, bool computeDelta, bool fullBoundaryDelta, unsigned seriesOrder, unsigned maximumDepth, std::vector<double>* estimatedError, unsigned integrationOrder = 0) {
-    if (coefficient.size() != 3 || triangle > 3U || domain.size() != 4 || degree > std::numeric_limits<unsigned>::max() - 2U || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || seriesOrder < 24 || seriesOrder > 256 || maximumDepth > 60 || integrationOrder > 2U) {
-      throw std::invalid_argument("Invalid cell integration input.");
-    }
-    unsigned long long countCheck = (static_cast<unsigned long long>(degree) + 1ULL) * (static_cast<unsigned long long>(degree) + 2ULL) / 2ULL;
-    if (countCheck > std::numeric_limits<unsigned>::max() / 2U) {
-      throw std::length_error("The requested moment table is too large.");
-    }
-    for (unsigned k = 0; k < domain.size(); ++k) {
-      if (!std::isfinite(domain[k])) {
-        throw std::invalid_argument("Invalid reference domain.");
-      }
-    }
-    if (!(domain[1] > domain[0]) || !(domain[3] > domain[2])) {
-      throw std::invalid_argument("The reference domain must have positive size.");
-    }
-    std::vector<std::vector<long double>> normalized(3, std::vector<long double>(3, 0.0L));
-    long double scale = 0.0L;
-    for (unsigned i = 0; i < 3; ++i) {
-      if (coefficient[i].size() != 3) {
-        throw std::invalid_argument("QUAD9 coefficients must be a 3 by 3 matrix.");
-      }
-      for (unsigned j = 0; j < 3; ++j) {
-        if (!std::isfinite(coefficient[i][j])) {
-          throw std::invalid_argument("A level-set coefficient is not finite.");
-        }
-        scale = std::max(scale, std::abs(static_cast<long double>(coefficient[i][j])));
-      }
-    }
-    if (scale == 0.0L) {
-      if (computeDelta) {
-        throw std::domain_error("The delta of an identically zero field is undefined.");
-      }
-      scale = 1.0L;
-    }
-    for (unsigned i = 0; i < 3; ++i) {
-      for (unsigned j = 0; j < 3; ++j) {
-        normalized[i][j] = coefficient[i][j] / scale;
-      }
-    }
-    std::vector<long double> result;
-    std::vector<long double> errors;
-    unsigned acceptedIntervals = 0;
-    IntegrateNormalizedCell(normalized, degree, triangle, domain, true, computeDelta, fullBoundaryDelta, absoluteTolerance, absoluteTolerance * scale, relativeTolerance, seriesOrder, maximumDepth, integrationOrder, result, errors, acceptedIntervals);
-    unsigned count = static_cast<unsigned>(countCheck);
-    positive.resize(degree + 1U);
-    delta.resize(degree + 1U);
-    long double maximumPositiveError = 0.0L;
-    long double maximumDeltaError = 0.0L;
-    for (unsigned i = 0; i <= degree; ++i) {
-      positive[i].resize(degree - i + 1U);
-      delta[i].resize(degree - i + 1U);
-      for (unsigned j = 0; j <= degree - i; ++j) {
-        unsigned index = MomentIndex(degree, i, j);
-        positive[i][j] = static_cast<double>(result[index]);
-        delta[i][j] = computeDelta ? static_cast<double>(result[count + index] / scale) : 0.0;
-        if (!std::isfinite(positive[i][j]) || !std::isfinite(delta[i][j])) {
-          throw std::overflow_error("A cell moment exceeds double precision range.");
-        }
-        maximumPositiveError = std::max(maximumPositiveError, errors[index]);
-        maximumDeltaError = std::max(maximumDeltaError, errors[count + index] / scale);
-      }
-    }
-    if (estimatedError != nullptr) {
-      estimatedError->resize(3);
-      (*estimatedError)[0] = static_cast<double>(maximumPositiveError);
-      (*estimatedError)[1] = static_cast<double>(maximumDeltaError);
-      (*estimatedError)[2] = acceptedIntervals;
-    }
-  }
-
-  inline void IntegrateQuad9(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, std::vector<double>* estimatedError = nullptr) {
-    std::vector<long double> domain(4, 0.0L);
-    domain[0] = xLeft;
-    domain[1] = xRight;
-    domain[2] = yBottom;
-    domain[3] = yTop;
-    IntegrateCell(coefficient, degree, false, domain, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, estimatedError);
-  }
-
-  inline void IntegrateTri7(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, std::vector<double>* estimatedError = nullptr) {
-    if (coefficient.size() != 7) {
-      throw std::invalid_argument("TRI7 requires coefficients of 1,x,y,x*x,x*y,y*y,x*y*(x+y).");
-    }
-    std::vector<std::vector<double>> polynomial(3, std::vector<double>(3, 0.0));
-    polynomial[0][0] = coefficient[0];
-    polynomial[1][0] = coefficient[1];
-    polynomial[0][1] = coefficient[2];
-    polynomial[2][0] = coefficient[3];
-    polynomial[1][1] = coefficient[4];
-    polynomial[0][2] = coefficient[5];
-    polynomial[2][1] = coefficient[6];
-    polynomial[1][2] = coefficient[6];
-    std::vector<long double> domain(4, 0.0L);
-    domain[1] = 1.0L;
-    domain[3] = 1.0L;
-    IntegrateCell(polynomial, degree, true, domain, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, estimatedError);
-  }
-
   inline void NormalizeCanonicalPolynomial(const std::vector<std::vector<double>>& coefficient, std::vector<std::vector<long double>>& normalized, long double& scale) {
     if (coefficient.size() != 3) {
       throw std::invalid_argument("The coefficient matrix must be 3 by 3.");
@@ -1285,53 +1159,6 @@ namespace FELevelSetMoments {
     if(derivativeBound != nullptr) *derivativeBound = selectedBound;
     return selected;
   }
-
-  // inline void CanonicalGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double point, bool computeDelta, std::vector<long double>& values, bool triangle = false) {
-  //   long double polynomial[3] = {};
-  //   for(unsigned k = 0; k < 3; ++k) {
-  //     if(order == 1) polynomial[k] = std::fma(std::fma(coefficient[2][k], point, coefficient[1][k]), point, coefficient[0][k]);
-  //     else polynomial[k] = std::fma(std::fma(coefficient[k][2], point, coefficient[k][1]), point, coefficient[k][0]);
-  //   }
-  //   std::vector<long double> roots = QuadraticRoots(polynomial[2], polynomial[1], polynomial[0]);
-  //   long double lower = triangle && order == 2 ? point : 0.0L;
-  //   long double upper = triangle && order == 1 ? point : 1.0L;
-  //   long double root = -1.0L;
-  //   for(unsigned k = 0; k < roots.size(); ++k) {
-  //     if(roots[k] > lower && roots[k] < upper) {
-  //       if(root >= 0.0L) throw std::runtime_error("A monotone graph has more than one interior root.");
-  //       root = roots[k];
-  //     }
-  //   }
-  //   if(root < 0.0L) throw std::runtime_error("A monotone graph root was not resolved.");
-  //   long double derivative = std::abs(std::fma(2.0L * polynomial[2], root, polynomial[1]));
-  //   if(!(derivative > 0.0L)) throw std::runtime_error("A monotone graph derivative was not resolved.");
-  //   std::vector<long double> positive(degree + 1U), delta(degree + 1U);
-  //   // bool above = std::fma(polynomial[2],lower*lower,std::fma(polynomial[1],lower,polynomial[0])) < 0.0L;
-  //   bool above = lower == 0.0L ? polynomial[0] < 0.0L : std::fma(polynomial[2], lower * lower, std::fma(polynomial[1], lower, polynomial[0])) < 0.0L;
-  //   long double left = above ? root : lower;
-  //   long double right = above ? upper : root;
-  //   long double power = 1.0L;
-  //   long double rightPower = 1.0L;
-  //   long double geometric = 0.0L;
-  //   for(unsigned j = 0; j <= degree; ++j) {
-  //     geometric = rightPower + left * geometric;
-  //     delta[j] = computeDelta ? power / derivative : 0.0L;
-  //     power *= root;
-  //     rightPower *= right;
-  //     positive[j] = (right - left) * geometric / (j + 1U);
-  //   }
-  //   unsigned count = (degree + 1U) * (degree + 2U) / 2U;
-  //   values.assign(2U * count, 0.0L);
-  //   power = 1.0L;
-  //   for(unsigned i = 0; i <= degree; ++i) {
-  //     for(unsigned j = 0; j <= degree - i; ++j) {
-  //       unsigned index = order == 1 ? MomentIndex(degree, i, j) : MomentIndex(degree, j, i);
-  //       values[index] = power * positive[j];
-  //       values[count + index] = power * delta[j];
-  //     }
-  //     power *= point;
-  //   }
-  // }
 
 
   inline void CanonicalGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double point, bool computeDelta, std::vector<long double>& values, bool triangle = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
@@ -1482,61 +1309,6 @@ namespace FELevelSetMoments {
   }
 
 
-
-  // inline void IntegrateCanonicalGraphInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double left, long double right, bool computeDelta, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, bool triangle = false) {
-  //   const long double nodes[8] = {0.991455371120812639206854697526329L, 0.949107912342758524526189684047851L, 0.864864423359769072789712788640926L, 0.741531185599394439863864773280788L, 0.586087235467691130294144838258730L, 0.405845151377397166906606412076961L, 0.207784955007898467600689403773245L, 0.0L};
-  //   const long double kronrod[8] = {0.022935322010529224963732008058970L, 0.063092092629978553290700663189204L, 0.104790010322250183839876322541518L, 0.140653259715525918745189590510238L, 0.169004726639267902826583426598550L, 0.190350578064785409913256402421014L, 0.204432940075298892414161999234649L, 0.209482141084727828012999174891714L};
-  //   const long double gauss[4] = {0.129484966168869693270611432679082L, 0.279705391489276667901467771423780L, 0.381830050505118944950369775488975L, 0.417959183673469387755102040816327L};
-  //   unsigned count = (degree + 1U) * (degree + 2U) / 2U;
-  //   std::vector<long double> high(2U * count, 0.0L), low(2U * count, 0.0L), absolute(2U * count, 0.0L);
-  //   std::vector<std::vector<long double>> samples;
-  //   std::vector<long double> sampleWeights;
-  //   long double middle = 0.5L * (left + right);
-  //   long double halfWidth = 0.5L * (right - left);
-  //   for(unsigned node = 0; node < 8; ++node) {
-  //     unsigned sides = node == 7 ? 1 : 2;
-  //     for(unsigned side = 0; side < sides; ++side) {
-  //       long double point = middle + (side == 0 ? -1.0L : 1.0L) * halfWidth * nodes[node];
-  //       std::vector<long double> value;
-  //       CanonicalGraphSample(coefficient, degree, order, point, computeDelta, value, triangle);
-  //       for(unsigned k = 0; k < value.size(); ++k) {
-  //         high[k] += kronrod[node] * value[k];
-  //         absolute[k] += kronrod[node] * std::abs(value[k]);
-  //         if((node & 1U) != 0) low[k] += gauss[node / 2U] * value[k];
-  //       }
-  //       samples.push_back(value);
-  //       sampleWeights.push_back(kronrod[node]);
-  //     }
-  //   }
-  //   bool converged = true;
-  //   std::vector<long double> error(high.size());
-  //   for(unsigned k = 0; k < high.size(); ++k) {
-  //     long double variation = 0.0L;
-  //     for(unsigned n = 0; n < samples.size(); ++n) variation += sampleWeights[n] * std::abs(samples[n][k] - 0.5L * high[k]);
-  //     long double estimate = std::abs(high[k] - low[k]);
-  //     if(variation > 0.0L && estimate > 0.0L) {
-  //       const long double ratio = 200.0L * estimate / variation;
-  //       estimate = ratio >= 1.0L ? variation : variation * ratio * std::sqrt(ratio);
-  //     }
-  //     // if(variation > 0.0L && estimate > 0.0L) estimate = variation*std::min(1.0L,std::pow(200.0L*estimate/variation,1.5L));
-  //     estimate = std::max(estimate, 128.0L * std::numeric_limits<long double>::epsilon() * absolute[k]);
-  //     error[k] = halfWidth * estimate;
-  //     high[k] *= halfWidth;
-  //     long double tolerance = (k < count ? absoluteH : absoluteDelta) * (right - left) + relativeTolerance * std::abs(high[k]);
-  //     converged = converged && error[k] <= tolerance;
-  //   }
-  //   if(converged) {
-  //     for(unsigned k = 0; k < high.size(); ++k) {
-  //       total[k] += high[k];
-  //       totalError[k] += error[k];
-  //     }
-  //     ++accepted;
-  //     return;
-  //   }
-  //   if(depth >= maximumDepth || middle == left || middle == right) throw std::runtime_error("Monotone graph integration did not reach the requested tolerance.");
-  //   IntegrateCanonicalGraphInterval(coefficient, degree, order, left, middle, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle);
-  //   IntegrateCanonicalGraphInterval(coefficient, degree, order, middle, right, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle);
-  // }
 
   inline bool IntegrateCanonicalGraph(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, bool triangle, bool computeDelta, long double derivativeBound, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
     const std::vector<long double> domain = {0.0L, 1.0L, 0.0L, 1.0L};
@@ -1770,60 +1542,6 @@ namespace FELevelSetMoments {
     }
   }
 
-  inline void Quad9CoefficientsToUnitSquare(const std::vector<std::vector<double>>& coefficient, std::vector<std::vector<double>>& transformed, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0) {
-    if (!(xRight > xLeft) || !(yTop > yBottom) || !std::isfinite(xLeft) || !std::isfinite(xRight) || !std::isfinite(yBottom) || !std::isfinite(yTop)) {
-      throw std::invalid_argument("Invalid QUAD9 coordinate map.");
-    }
-    std::vector<std::vector<long double>> checked;
-    long double scale = 1.0L;
-    NormalizeCanonicalPolynomial(coefficient, checked, scale);
-    std::vector<std::vector<double>> result(3, std::vector<double>(3, 0.0));
-    long double widthX = static_cast<long double>(xRight) - xLeft;
-    long double widthY = static_cast<long double>(yTop) - yBottom;
-    for (unsigned r = 0; r < 3; ++r) {
-      for (unsigned s = 0; s < 3; ++s) {
-        long double value = 0.0L;
-        for (unsigned i = r; i < 3; ++i) {
-          for (unsigned j = s; j < 3; ++j) {
-            value += static_cast<long double>(coefficient[i][j]) * Binomial(i, r) * Binomial(j, s) * Power(xLeft, i - r) * Power(yBottom, j - s);
-          }
-        }
-        value *= Power(widthX, r) * Power(widthY, s);
-        result[r][s] = static_cast<double>(value);
-        if (!std::isfinite(result[r][s])) {
-          throw std::overflow_error("A transformed QUAD9 coefficient exceeds double precision range.");
-        }
-      }
-    }
-    transformed.swap(result);
-  }
-
-  inline void Tri7CoefficientsToReflectedTriangle(const std::vector<double>& coefficient, std::vector<double>& transformed) {
-    if (coefficient.size() != 7) {
-      throw std::invalid_argument("TRI7 requires seven coefficients.");
-    }
-    for (unsigned k = 0; k < 7; ++k) {
-      if (!std::isfinite(coefficient[k])) {
-        throw std::invalid_argument("A TRI7 coefficient is not finite.");
-      }
-    }
-    std::vector<long double> value(7, 0.0L);
-    value[0] = static_cast<long double>(coefficient[0]) + coefficient[1] + coefficient[3];
-    value[1] = -static_cast<long double>(coefficient[1]) - 2.0L * coefficient[3];
-    value[2] = static_cast<long double>(coefficient[2]) + coefficient[4] + coefficient[6];
-    value[3] = coefficient[3];
-    value[4] = -static_cast<long double>(coefficient[4]) - 2.0L * coefficient[6];
-    value[5] = static_cast<long double>(coefficient[5]) + coefficient[6];
-    value[6] = coefficient[6];
-    transformed.resize(7);
-    for (unsigned k = 0; k < 7; ++k) {
-      transformed[k] = static_cast<double>(value[k]);
-      if (!std::isfinite(transformed[k])) {
-        throw std::overflow_error("A reflected TRI7 coefficient exceeds double precision range.");
-      }
-    }
-  }
-
   inline void IntegrateQuad9Unit(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = false, std::vector<double>* estimatedError = nullptr) {
     IntegrateCanonicalPolynomial(coefficient, degree, false, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, integrationOrder, useBoundaryRecurrence, estimatedError);
   }
@@ -1842,79 +1560,6 @@ namespace FELevelSetMoments {
     polynomial[2][1] = coefficient[6];
     polynomial[1][2] = -coefficient[6];
     IntegrateCanonicalPolynomial(polynomial, degree, true, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, integrationOrder, useBoundaryRecurrence, estimatedError);
-  }
-
-  inline void IntegrateQuad9Canonical(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = false, std::vector<double>* estimatedError = nullptr) {
-    std::vector<std::vector<double>> transformed;
-    Quad9CoefficientsToUnitSquare(coefficient, transformed, xLeft, xRight, yBottom, yTop);
-    IntegrateQuad9Unit(transformed, degree, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, integrationOrder, useBoundaryRecurrence, estimatedError);
-  }
-
-  inline void IntegrateTri7Canonical(const std::vector<double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned seriesOrder = 32, unsigned maximumDepth = 24, unsigned integrationOrder = 0, bool useBoundaryRecurrence = false, std::vector<double>* estimatedError = nullptr) {
-    std::vector<double> transformed;
-    Tri7CoefficientsToReflectedTriangle(coefficient, transformed);
-    IntegrateTri7Reflected(transformed, degree, positive, delta, absoluteTolerance, relativeTolerance, computeDelta, fullBoundaryDelta, seriesOrder, maximumDepth, integrationOrder, useBoundaryRecurrence, estimatedError);
-  }
-
-  inline void Integrate1DCanonical(double a, double b, double c, unsigned degree, std::vector<double>& positive, std::vector<double>& delta, double left = -1.0, double right = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false) {
-    if (!(right > left) || !std::isfinite(a) || !std::isfinite(b) || !std::isfinite(c) || !std::isfinite(left) || !std::isfinite(right) || degree == std::numeric_limits<unsigned>::max()) {
-      throw std::invalid_argument("Invalid 1D canonical input.");
-    }
-    long double width = static_cast<long double>(right) - left;
-    long double aa = static_cast<long double>(a) * width * width;
-    long double bb = (2.0L * a * left + b) * width;
-    long double cc = std::fma(static_cast<long double>(a), static_cast<long double>(left) * left, std::fma(static_cast<long double>(b), left, static_cast<long double>(c)));
-    long double scale = std::max(std::abs(aa), std::max(std::abs(bb), std::abs(cc)));
-    if (scale == 0.0L) {
-      scale = 1.0L;
-    }
-    std::vector<long double> h;
-    std::vector<long double> d;
-    Integrate1DInternal(aa / scale, bb / scale, cc / scale, degree, 0.0L, 1.0L, computeDelta, fullBoundaryDelta, h, d);
-    positive.resize(degree + 1U);
-    delta.resize(degree + 1U);
-    for (unsigned k = 0; k <= degree; ++k) {
-      positive[k] = static_cast<double>(h[k]);
-      delta[k] = static_cast<double>(d[k] / scale);
-      if (!std::isfinite(positive[k]) || !std::isfinite(delta[k])) {
-        throw std::overflow_error("A canonical 1D moment exceeds double precision range.");
-      }
-    }
-  }
-
-  inline std::vector<long double> SolveInterpolation(std::vector<std::vector<long double>> matrix, std::vector<long double> values) {
-    unsigned size = static_cast<unsigned>(values.size());
-    for (unsigned column = 0; column < size; ++column) {
-      unsigned pivot = column;
-      for (unsigned row = column + 1U; row < size; ++row) {
-        if (std::abs(matrix[row][column]) > std::abs(matrix[pivot][column])) {
-          pivot = row;
-        }
-      }
-      if (matrix[pivot][column] == 0.0L) {
-        throw std::invalid_argument("Singular interpolation nodes.");
-      }
-      std::swap(matrix[pivot], matrix[column]);
-      std::swap(values[pivot], values[column]);
-      for (unsigned row = column + 1U; row < size; ++row) {
-        long double multiplier = matrix[row][column] / matrix[column][column];
-        matrix[row][column] = 0.0L;
-        for (unsigned k = column + 1U; k < size; ++k) {
-          matrix[row][k] -= multiplier * matrix[column][k];
-        }
-        values[row] -= multiplier * values[column];
-      }
-    }
-    std::vector<long double> solution(size, 0.0L);
-    for (unsigned row = size; row > 0; --row) {
-      unsigned index = row - 1U;
-      long double value = values[index];
-      for (unsigned column = index + 1U; column < size; ++column) {
-        value -= matrix[index][column] * solution[column];
-      }
-      solution[index] = value / matrix[index][index];
-    }
-    return solution;
   }
 
   inline void Line3CoefficientsFromNodalValues(const std::vector<double>& nodalValues, double& a, double& b, double& c, double left = 0.0, double right = 1.0) {
@@ -1997,65 +1642,6 @@ namespace FELevelSetMoments {
       }
     }
     coefficient.swap(result);
-  }
-
-  inline void Quad9CoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<std::vector<double>>& coefficient, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0) {
-    if (nodalValues.size() != 9 || !(xRight > xLeft) || !(yTop > yBottom) || !std::isfinite(xLeft) || !std::isfinite(xRight) || !std::isfinite(yBottom) || !std::isfinite(yTop)) {
-      throw std::invalid_argument("Invalid QUAD9 nodal input.");
-    }
-    std::vector<std::vector<long double>> nodes(9, std::vector<long double>(2, 0.0L));
-    nodes[0] = {xLeft, yBottom};
-    nodes[1] = {xRight, yBottom};
-    nodes[2] = {xRight, yTop};
-    nodes[3] = {xLeft, yTop};
-    nodes[4] = {0.5L * (xLeft + xRight), yBottom};
-    nodes[5] = {xRight, 0.5L * (yBottom + yTop)};
-    nodes[6] = {0.5L * (xLeft + xRight), yTop};
-    nodes[7] = {xLeft, 0.5L * (yBottom + yTop)};
-    nodes[8] = {0.5L * (xLeft + xRight), 0.5L * (yBottom + yTop)};
-    std::vector<std::vector<long double>> matrix(9, std::vector<long double>(9, 0.0L));
-    std::vector<long double> values(9, 0.0L);
-    for (unsigned row = 0; row < 9; ++row) {
-      if (!std::isfinite(nodalValues[row])) {
-        throw std::invalid_argument("A nodal value is not finite.");
-      }
-      values[row] = nodalValues[row];
-      for (unsigned i = 0; i < 3; ++i) {
-        for (unsigned j = 0; j < 3; ++j) {
-          matrix[row][3U * i + j] = Power(nodes[row][0], i) * Power(nodes[row][1], j);
-        }
-      }
-    }
-    std::vector<long double> solution = SolveInterpolation(matrix, values);
-    coefficient.assign(3, std::vector<double>(3, 0.0));
-    for (unsigned i = 0; i < 3; ++i) {
-      for (unsigned j = 0; j < 3; ++j) {
-        coefficient[i][j] = static_cast<double>(solution[3U * i + j]);
-      }
-    }
-  }
-
-  inline void Tri7CoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<double>& coefficient) {
-    if (nodalValues.size() != 7) {
-      throw std::invalid_argument("TRI7 requires seven nodal values.");
-    }
-    std::vector<std::vector<long double>> nodes = {{0.0L, 0.0L}, {1.0L, 0.0L}, {0.0L, 1.0L}, {0.5L, 0.0L}, {0.5L, 0.5L}, {0.0L, 0.5L}, {1.0L / 3.0L, 1.0L / 3.0L}};
-    std::vector<std::vector<long double>> matrix(7, std::vector<long double>(7, 0.0L));
-    std::vector<long double> values(7, 0.0L);
-    for (unsigned row = 0; row < 7; ++row) {
-      if (!std::isfinite(nodalValues[row])) {
-        throw std::invalid_argument("A nodal value is not finite.");
-      }
-      long double x = nodes[row][0];
-      long double y = nodes[row][1];
-      matrix[row] = {1.0L, x, y, x * x, x * y, y * y, x * y * (x + y)};
-      values[row] = nodalValues[row];
-    }
-    std::vector<long double> solution = SolveInterpolation(matrix, values);
-    coefficient.resize(7);
-    for (unsigned k = 0; k < 7; ++k) {
-      coefficient[k] = static_cast<double>(solution[k]);
-    }
   }
 
 }

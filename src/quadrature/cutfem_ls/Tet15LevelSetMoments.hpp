@@ -156,11 +156,6 @@ inline void Tet15SliceField(const std::vector<double>& nodalValues, unsigned ver
   }
 }
 
-inline void Tet15SliceCoefficients(const std::vector<std::vector<long double>>& unit, long double height, std::vector<double>& coefficient) {
-  coefficient.resize(7);
-  for(unsigned term = 0; term < 7; ++term) coefficient[term] = static_cast<double>(PolynomialValue(unit[term],height));
-}
-
 inline std::vector<long double> Tet15SliceBernstein(const std::vector<std::vector<long double>>& unit) {
   std::vector<std::vector<long double>> power(10,std::vector<long double>(5,0.0L));
   power[Tet15TriangleIndex(3,0,0)] = unit[0];

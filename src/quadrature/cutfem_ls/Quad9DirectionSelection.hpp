@@ -256,23 +256,6 @@ inline void IntegrateQuad9NodalSelected(const std::vector<double>& nodalValues, 
   IntegrateQuad9UnitSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationOrder,200000,estimatedError,validationMode,&boundary,useTaylor,referenceSurface,nullptr,inverseJacobian,geometryCoordinates);
 }
 
-inline void IntegrateQuad9CanonicalSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, double xLeft = -1.0, double xRight = 1.0, double yBottom = -1.0, double yTop = 1.0, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
-  if(geometryCoordinates != nullptr) {
-    if(!referenceSurface || inverseJacobian != nullptr) throw std::invalid_argument("Surface geometry requires surface moments without an inverse Jacobian.");
-    ValidateSurfaceGeometryCoordinates(*geometryCoordinates,2,9);
-  }
-  std::vector<std::vector<double>> transformed;
-  LineSliceUtilities::Quad9CoefficientsToUnitSquare(coefficient,transformed,xLeft,xRight,yBottom,yTop);
-  std::vector<std::vector<std::vector<long double>>> referenceGradient;
-  if(referenceSurface) SurfaceGradientFromPolynomial(transformed,1.0L/(xRight-xLeft),1.0L/(yTop-yBottom),referenceGradient);
-  if(geometryCoordinates != nullptr) {
-    std::vector<std::vector<std::vector<long double>>> coordinatePolynomials;
-    Quad9SurfaceCoordinatePolynomials(*geometryCoordinates,coordinatePolynomials);
-    SurfaceGradientCofactor2D(referenceGradient,coordinatePolynomials,1.0L/(xRight-xLeft),1.0L/(yTop-yBottom));
-  }
-  IntegrateQuad9UnitSelected(transformed,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationOrder,200000,estimatedError,validationMode,nullptr,useTaylor,referenceSurface,referenceSurface ? &referenceGradient : nullptr,inverseJacobian);
-}
-
 }
 
 #endif

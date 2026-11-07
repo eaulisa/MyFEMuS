@@ -6,7 +6,7 @@
 // Based on MyFEMuSTTU/rifat b6932651b2bf42e09e3f36d96e0676485d57fab7.
 // The direct Algoim adapter requires the ex44_test target to compile as C++17.
 
-#include "CutFemWeightLS.hpp"
+#include "CutFemWeight_LS.hpp"
 #include "AlgoimDirectRule.hpp"
 #include "Fem.hpp"
 #include "MultiLevelSolution.hpp"
@@ -29,7 +29,7 @@
 // AlgoimDirectRule.hpp currently returns double-valued nodes and weights.
 typedef double TypeIO;
 // typedef long double TypeA;
-typedef cpp_bin_float_oct TypeA;
+typedef boost::multiprecision::cpp_bin_float_oct TypeA;
 
 enum class IntegrationMode {
   MomentFitting,
@@ -114,20 +114,14 @@ inline bool IsCutElementQuadratic(const std::vector<double>& psi, const unsigned
 namespace ex44_integration_detail {
 
 // Cache each geometry/degree rule to reuse its Gram-Schmidt matrices.
-inline CutFemWeightLS<TypeIO, TypeA>& GetMomentRule(const unsigned geom, const unsigned degree) {
-  static std::map<std::pair<unsigned, unsigned>, std::unique_ptr<CutFemWeightLS<TypeIO, TypeA>>> cache;
+inline CutFemWeight_LS<TypeIO, TypeA>& GetMomentRule(const unsigned geom, const unsigned degree) {
+  static std::map<std::pair<unsigned, unsigned>, std::unique_ptr<CutFemWeight_LS<TypeIO, TypeA>>> cache;
   const std::pair<unsigned, unsigned> key(geom, degree);
-  std::unique_ptr<CutFemWeightLS<TypeIO, TypeA>>& rule = cache[key];
+  std::unique_ptr<CutFemWeight_LS<TypeIO, TypeA>>& rule = cache[key];
   if(!rule) {
-    rule.reset(new CutFemWeightLS<TypeIO, TypeA>(static_cast<GeomElType>(geom), degree, "legendre"));
-    rule->SetHex27IntegrationDirection(0);
-    rule->SetTet15IntegrationDirection(0);
-    rule->SetQuad9IntegrationDirection(0);
-    rule->SetTri7IntegrationDirection(0);
-    rule->SetHex27DirectionValidation(0);
-    rule->SetTet15DirectionValidation(0);
-    rule->SetQuad9DirectionValidation(0);
-    rule->SetTri7DirectionValidation(0);
+    rule.reset(new CutFemWeight_LS<TypeIO, TypeA>(static_cast<GeomElType>(geom), degree, "legendre"));
+    rule->SetIntegrationDirection(0);
+    rule->SetDirectionValidation(0);
   }
   return *rule;
 }
@@ -230,7 +224,7 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
     std::vector<double> weightGamma;
 
     if(isCut && runMoment) {
-      CutFemWeightLS<TypeIO, TypeA>& rule = ex44_integration_detail::GetMomentRule(geom, options.momentDegree);
+      CutFemWeight_LS<TypeIO, TypeA>& rule = ex44_integration_detail::GetMomentRule(geom, options.momentDegree);
       if(nGauss != rule.GetGaussQuadraturePointNumber()) throw std::runtime_error("Integrate: moment-fitting Gauss rules do not match FEMuS");
       // The geometry-corrected surface weights already include
       // |cof(J) * grad_ref(Psi)|. The Gauss reference weight is applied below.
