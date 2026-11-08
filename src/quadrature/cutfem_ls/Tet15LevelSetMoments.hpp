@@ -313,7 +313,7 @@ inline int Tet15SlabPhase(const std::vector<long double>& bernstein, long double
 }
 
 // Lift local triangular moments directly to monomials in the standard FEMuS tetrahedron coordinates.
-inline void Tet15LiftMoments(unsigned degree, unsigned vertex, long double height, long double jacobian, const std::vector<std::vector<double>>& positive, const std::vector<std::vector<double>>& delta, long double positiveError, long double deltaError, std::vector<long double>& values, std::vector<long double>& errors) {
+inline void Tet15LiftMoments(unsigned degree, unsigned vertex, long double height, long double jacobian, const std::vector<long double>& source, const std::vector<long double>& sourceError, std::vector<long double>& values, std::vector<long double>& errors) {
   unsigned count = (degree+1U)*(degree+2U)*(degree+3U)/6U;
   unsigned triangleCount = (degree+1U)*(degree+2U)/2U;
   std::vector<long double> polynomial(count*triangleCount,0.0L);
@@ -353,18 +353,36 @@ inline void Tet15LiftMoments(unsigned degree, unsigned vertex, long double heigh
             }
           }
         }
+        long double absoluteSum[2] = {0.0L,0.0L};
+        long double correction[2] = {0.0L,0.0L};
         for(unsigned a = 0; a <= total; ++a) {
           for(unsigned b = 0; b <= total-a; ++b) {
-            long double multiplier = jacobian*polynomial[index*triangleCount+Tet15TriangleIndex(degree,a,b)];
-            values[index] += multiplier*positive[a][b];
-            values[count+index] += multiplier*delta[a][b];
-            errors[index] += std::abs(multiplier)*(positiveError+std::numeric_limits<double>::epsilon()*std::abs(positive[a][b]));
-            errors[count+index] += std::abs(multiplier)*(deltaError+std::numeric_limits<double>::epsilon()*std::abs(delta[a][b]));
+            const unsigned triangleIndex = Tet15TriangleIndex(degree,a,b);
+            const long double multiplier = jacobian*polynomial[index*triangleCount+triangleIndex];
+            for(unsigned pair = 0; pair < 2; ++pair) {
+              const unsigned destination = pair*count+index;
+              const unsigned origin = pair*triangleCount+triangleIndex;
+              const long double term = multiplier*source[origin];
+              const long double adjusted = term-correction[pair];
+              const long double next = values[destination]+adjusted;
+              correction[pair] = (next-values[destination])-adjusted;
+              values[destination] = next;
+              errors[destination] += std::abs(multiplier)*sourceError[origin];
+              absoluteSum[pair] += std::abs(term);
+            }
           }
         }
+        for(unsigned pair = 0; pair < 2; ++pair) errors[pair*count+index] += (8.0L+4.0L*total+2.0L*triangleCount)*std::numeric_limits<long double>::epsilon()*absoluteSum[pair];
       }
     }
   }
+}
+
+// Bound the triangular moment lift by its largest absolute row sum.
+inline long double Tet15LiftNorm(unsigned degree, long double height, long double jacobian) {
+  const long double bound = std::abs(jacobian)*Power(std::max(1.0L,2.0L*(1.0L-height)),degree);
+  if(!(bound > 0.0L) || !std::isfinite(bound)) throw std::runtime_error("The TET15 slice has an invalid moment-lift bound.");
+  return bound;
 }
 
 inline void Tet15AddHeightRoots(std::vector<long double> polynomial, std::vector<long double>& events) {
@@ -488,24 +506,110 @@ inline void Tet15RemoveZeroFace(std::vector<std::vector<long double>>& field, un
   }
 }
 
-inline void Tet15SliceSample(const std::vector<std::vector<long double>>& unit, const std::vector<long double>& heightFactors, const std::vector<unsigned>& zeroBoundary, unsigned degree, unsigned vertex, long double height, long double jacobian, long double absoluteH, long double absoluteDelta, long double relativeTolerance, bool computeDelta, unsigned& evaluations, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, bool& cut, const std::vector<std::vector<long double>>* surfaceGradient = nullptr) {
+inline void Tet15SliceSample(const std::vector<std::vector<long double>>& unit, const std::vector<long double>& heightFactors, const std::vector<unsigned>& zeroBoundary, unsigned degree, unsigned vertex, long double height, long double jacobian, long double absoluteH, long double absoluteDelta, long double relativeTolerance, bool computeDelta, unsigned& evaluations, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, bool& cut, const std::vector<std::vector<long double>>* surfaceGradient = nullptr, bool* precisionLimited = nullptr) {
   if(evaluations >= maximumEvaluations) throw std::runtime_error("TET15 slice evaluation budget exceeded.");
+  if(precisionLimited != nullptr) *precisionLimited = false;
   ++evaluations;
   std::vector<long double> coefficient(7);
   long double factor = 1.0L;
   for(unsigned n = 0; n < heightFactors.size(); ++n) factor *= height-heightFactors[n];
   for(unsigned term = 0; term < 7; ++term) coefficient[term] = factor*PolynomialValue(unit[term],height);
-  std::vector<std::vector<double>> positive;
-  std::vector<std::vector<double>> delta;
-  std::vector<double> estimated;
+  long double norm = 0.0L;
+  for(unsigned term = 0; term < 7; ++term) norm = std::max(norm,std::abs(coefficient[term]));
+  int exponent = 0;
+  std::frexp(norm,&exponent);
+  norm = norm == 0.0L ? 1.0L : std::ldexp(1.0L,exponent-1);
+  std::vector<std::vector<long double>> normalized(3,std::vector<long double>(3,0.0L));
+  normalized[0][0] = coefficient[0]/norm;
+  normalized[1][0] = coefficient[1]/norm;
+  normalized[0][1] = coefficient[2]/norm;
+  normalized[2][0] = coefficient[3]/norm;
+  normalized[1][1] = coefficient[4]/norm;
+  normalized[0][2] = coefficient[5]/norm;
+  normalized[2][1] = coefficient[6]/norm;
+  normalized[1][2] = -coefficient[6]/norm;
+  const unsigned triangleCount = (degree+1U)*(degree+2U)/2U;
+  std::vector<long double> triangle(2U*triangleCount,0.0L);
+  std::vector<long double> triangleError(2U*triangleCount,0.0L);
   std::vector<std::vector<std::vector<long double>>> sliceGradient;
   if(surfaceGradient != nullptr) Tet15SliceReferenceSurfaceGradient(*surfaceGradient,height,sliceGradient);
-  long double amplification = Power(3.0L,degree);
-  double innerTolerance = static_cast<double>(0.002L*std::min(absoluteH,computeDelta ? absoluteDelta : absoluteH)/amplification);
-  if(!(innerTolerance > 0.0)) innerTolerance = std::numeric_limits<double>::min();
-  IntegrateTri7ReflectedByLineSlicesLongDouble(coefficient,degree,positive,delta,innerTolerance,static_cast<double>(0.02L*relativeTolerance),computeDelta,false,32,0,200000,&estimated,&zeroBoundary,surfaceGradient == nullptr ? nullptr : &sliceGradient);
-  Tet15LiftMoments(degree,vertex,height,jacobian*(1.0L-height)*(1.0L-height),positive,delta,estimated[0],estimated[1],values,errors);
-  cut = (positive[0][0] > 0.0 && positive[0][0] < 0.5) || (computeDelta && delta[0][0] != 0.0);
+  const long double measure = jacobian*(1.0L-height)*(1.0L-height);
+  long double innerTolerance = absoluteH/Tet15LiftNorm(degree,height,measure);
+  const long double deltaBudgetScale = norm*(absoluteDelta/absoluteH);
+  if(!(innerTolerance > 0.0L) || !std::isfinite(innerTolerance) || !(deltaBudgetScale > 0.0L) || !std::isfinite(deltaBudgetScale)) throw std::runtime_error("The TET15 inner error allocation exceeds floating point range.");
+  int phase = 0;
+  LineSliceUtilities::CanonicalGraphOrder(normalized,0,phase);
+  if(computeDelta) {
+    for(unsigned side = 0; side < zeroBoundary.size(); ++side) {
+      if(zeroBoundary[side] != 0) phase = 0;
+    }
+  }
+  unsigned innerEvaluations = 0;
+  unsigned innerAccepted = 0;
+  unsigned selected = 0;
+  long double innerRelative = 0.02L*relativeTolerance;
+  long double previousRatio = std::numeric_limits<long double>::infinity();
+  long double bestRatio = previousRatio;
+  std::vector<long double> bestValues;
+  std::vector<long double> bestErrors;
+  bool bestCut = false;
+  const unsigned count = (degree+1U)*(degree+2U)*(degree+3U)/6U;
+  for(unsigned refinement = 0; refinement < 4; ++refinement) {
+    if(phase > 0) {
+      for(unsigned i = 0; i <= degree; ++i) {
+        for(unsigned j = 0; j <= degree-i; ++j) triangle[Tet15TriangleIndex(degree,i,j)] = 1.0L/((i+j+2U)*(j+1U));
+      }
+    }
+    else if(phase == 0) {
+      try { LineSliceTriangleDirections(normalized,deltaBudgetScale,degree,computeDelta,false,innerTolerance,innerRelative,32,0,200000,&zeroBoundary,triangle,triangleError,innerEvaluations,innerAccepted,selected,surfaceGradient == nullptr ? nullptr : &sliceGradient); }
+      catch(const std::runtime_error&) {
+        if(bestValues.empty()) throw;
+        break;
+      }
+    }
+    for(unsigned index = 0; index < triangleCount; ++index) {
+      triangle[triangleCount+index] /= norm;
+      triangleError[triangleCount+index] /= norm;
+      if(!std::isfinite(triangle[triangleCount+index]) || !std::isfinite(triangleError[triangleCount+index])) throw std::overflow_error("A TET15 inner moment exceeds floating point range.");
+    }
+    Tet15LiftMoments(degree,vertex,height,measure,triangle,triangleError,values,errors);
+    long double ratio = 0.0L;
+    // Reserve one quarter of the native relative budget for propagated inner errors.
+    for(unsigned index = 0; index < values.size(); ++index) {
+      if(!std::isfinite(values[index]) || !std::isfinite(errors[index])) throw std::overflow_error("A TET15 lifted moment exceeds floating point range.");
+      const long double tolerance = (index < count ? absoluteH : absoluteDelta)+0.25L*relativeTolerance*std::abs(values[index]);
+      ratio = std::max(ratio,errors[index]/tolerance);
+    }
+    if(ratio <= 1.0L) {
+      cut = (triangle[0] > 0.0L && triangle[0] < 0.5L) || (computeDelta && triangle[triangleCount] != 0.0L);
+      return;
+    }
+    if(ratio < bestRatio) {
+      bestValues = values;
+      bestErrors = errors;
+      bestRatio = ratio;
+      bestCut = (triangle[0] > 0.0L && triangle[0] < 0.5L) || (computeDelta && triangle[triangleCount] != 0.0L);
+    }
+    if(phase != 0 || ratio >= previousRatio) break;
+    std::vector<long double> zeroError(triangleError.size(),0.0L);
+    std::vector<long double> rounded;
+    std::vector<long double> roundoff;
+    Tet15LiftMoments(degree,vertex,height,measure,triangle,zeroError,rounded,roundoff);
+    bool limited = false;
+    for(unsigned index = 0; index < values.size(); ++index) {
+      const long double tolerance = (index < count ? absoluteH : absoluteDelta)+0.25L*relativeTolerance*std::abs(values[index]);
+      if(roundoff[index] > tolerance) limited = true;
+    }
+    if(limited) break;
+    previousRatio = ratio;
+    innerTolerance /= 2.0L*ratio;
+    innerRelative /= 2.0L*ratio;
+  }
+  if(bestValues.empty()) throw std::runtime_error("The TET15 native slice did not produce a bounded result.");
+  values.swap(bestValues);
+  errors.swap(bestErrors);
+  cut = bestCut;
+  if(precisionLimited != nullptr) *precisionLimited = true;
 }
 
 inline void Tet15IntegrateInterval(const std::vector<std::vector<long double>>& unit, const std::vector<long double>& heightFactors, const std::vector<long double>& bernstein, const std::vector<unsigned>& zeroBoundary, unsigned degree, unsigned vertex, long double left, long double right, long double parameterLeft, long double parameterRight, long double absoluteH, long double absoluteDelta, long double relativeTolerance, bool computeDelta, bool projectionComplete, unsigned depth, unsigned maximumDepth, unsigned& evaluations, unsigned maximumEvaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<long double>>* surfaceGradient = nullptr) {
@@ -524,6 +628,9 @@ inline void Tet15IntegrateInterval(const std::vector<std::vector<long double>>& 
   }
   long double middle = 0.5L*(parameterLeft+parameterRight);
   long double halfWidth = 0.5L*(parameterRight-parameterLeft);
+  const long double fraction = std::max(1.0e-3L,width*(parameterRight-parameterLeft)/(0.5L*std::acos(-1.0L)));
+  // Reserve one quarter of this interval's native absolute budget for inner errors.
+  const long double innerFraction = 0.25L*fraction/(parameterRight-parameterLeft);
   std::vector<long double> high(2U*count,0.0L);
   std::vector<long double> low(2U*count,0.0L);
   std::vector<long double> innerError(2U*count,0.0L);
@@ -532,6 +639,7 @@ inline void Tet15IntegrateInterval(const std::vector<std::vector<long double>>& 
   std::vector<long double> weights;
   bool failed = false;
   bool anyCut = false;
+  bool innerLimited = false;
   int uniformConsensus = 2;
   long double split = middle;
   for(unsigned node = 0; node < 8 && !failed; ++node) {
@@ -544,18 +652,18 @@ inline void Tet15IntegrateInterval(const std::vector<std::vector<long double>>& 
       std::vector<long double> value;
       std::vector<long double> error;
       bool sampleCut = false;
+      bool sampleLimited = false;
       try {
         if(phase > 0) {
-          std::vector<std::vector<double>> positive(degree+1U);
-          std::vector<std::vector<double>> delta(degree+1U);
+          const unsigned triangleCount = (degree+1U)*(degree+2U)/2U;
+          std::vector<long double> triangle(2U*triangleCount,0.0L);
+          std::vector<long double> triangleError(2U*triangleCount,0.0L);
           for(unsigned i = 0; i <= degree; ++i) {
-            positive[i].resize(degree-i+1U);
-            delta[i].assign(degree-i+1U,0.0);
-            for(unsigned j = 0; j <= degree-i; ++j) positive[i][j] = static_cast<double>(1.0L/((i+j+2U)*(j+1U)));
+            for(unsigned j = 0; j <= degree-i; ++j) triangle[Tet15TriangleIndex(degree,i,j)] = 1.0L/((i+j+2U)*(j+1U));
           }
-          Tet15LiftMoments(degree,vertex,height,jacobian*(1.0L-height)*(1.0L-height),positive,delta,0.0L,0.0L,value,error);
+          Tet15LiftMoments(degree,vertex,height,jacobian*(1.0L-height)*(1.0L-height),triangle,triangleError,value,error);
         }
-        else Tet15SliceSample(unit,heightFactors,zeroBoundary,degree,vertex,height,jacobian,absoluteH,absoluteDelta,relativeTolerance,computeDelta,evaluations,maximumEvaluations,value,error,sampleCut,surfaceGradient);
+        else Tet15SliceSample(unit,heightFactors,zeroBoundary,degree,vertex,height,jacobian,absoluteH*innerFraction,absoluteDelta*innerFraction,relativeTolerance,computeDelta,evaluations,maximumEvaluations,value,error,sampleCut,surfaceGradient,&sampleLimited);
       }
       catch(const std::domain_error&) {
         failed = true;
@@ -563,6 +671,7 @@ inline void Tet15IntegrateInterval(const std::vector<std::vector<long double>>& 
         break;
       }
       anyCut = anyCut || sampleCut;
+      innerLimited = innerLimited || sampleLimited;
       if(!sampleCut) {
         int samplePhase = value[0] == 0.0L ? -1 : 1;
         if(uniformConsensus == 2) uniformConsensus = samplePhase;
@@ -580,8 +689,8 @@ inline void Tet15IntegrateInterval(const std::vector<std::vector<long double>>& 
   }
   // Height events isolate topology changes before a uniformly sampled open interval is accepted.
   bool converged = !failed && (phase != 0 || anyCut || (projectionComplete && (uniformConsensus == 1 || uniformConsensus == -1)));
+  bool innerUnresolved = false;
   std::vector<long double> errors(2U*count,0.0L);
-  long double fraction = std::max(1.0e-3L,width*(parameterRight-parameterLeft)/(0.5L*std::acos(-1.0L)));
   if(!failed) {
     for(unsigned k = 0; k < high.size(); ++k) {
       long double variation = 0.0L;
@@ -592,6 +701,7 @@ inline void Tet15IntegrateInterval(const std::vector<std::vector<long double>>& 
       errors[k] = halfWidth*(error+innerError[k]);
       high[k] *= halfWidth;
       long double tolerance = (k < count ? absoluteH : absoluteDelta)*fraction+relativeTolerance*std::abs(high[k]);
+      if(innerLimited && halfWidth*innerError[k] > tolerance) innerUnresolved = true;
       if(errors[k] > tolerance) converged = false;
     }
   }
@@ -603,6 +713,7 @@ inline void Tet15IntegrateInterval(const std::vector<std::vector<long double>>& 
     ++accepted;
     return;
   }
+  if(innerUnresolved) throw std::runtime_error("The TET15 inner error exceeds the interval budget at working precision.");
   if(depth >= maximumDepth || !(split > parameterLeft && split < parameterRight)) throw std::runtime_error("TET15 integration did not resolve the requested tolerance or slice topology.");
   Tet15IntegrateInterval(unit,heightFactors,bernstein,zeroBoundary,degree,vertex,left,right,parameterLeft,split,absoluteH,absoluteDelta,relativeTolerance,computeDelta,projectionComplete,depth+1U,maximumDepth,evaluations,maximumEvaluations,accepted,total,totalError,surfaceGradient);
   Tet15IntegrateInterval(unit,heightFactors,bernstein,zeroBoundary,degree,vertex,left,right,split,parameterRight,absoluteH,absoluteDelta,relativeTolerance,computeDelta,projectionComplete,depth+1U,maximumDepth,evaluations,maximumEvaluations,accepted,total,totalError,surfaceGradient);
@@ -612,31 +723,32 @@ inline void Tet15PlaneSample(const std::vector<long double>& derivative, unsigne
   long double a = derivative[5]-derivative[6]*point;
   long double b = derivative[2]+derivative[4]*point+derivative[6]*point*point;
   long double c = derivative[0]+derivative[1]*point+derivative[3]*point*point;
+  long double weight = (1.0L-height)*(1.0L-height);
+  if(height == 0.0L) weight *= 0.5L;
+  const long double innerTolerance = 0.25L*absoluteTolerance/Tet15LiftNorm(degree,height,weight);
+  if(!(innerTolerance > 0.0L) || !std::isfinite(innerTolerance)) throw std::runtime_error("The TET15 plane error allocation exceeds floating point range.");
   std::vector<long double> segment;
   std::vector<long double> segmentError;
-  if(surfaceGradient == nullptr) LineSliceUtilities::RationalSegmentMoments(a,b,c,0.0L,point,degree,0.002L*absoluteTolerance/Power(3.0L,degree),0,segment,segmentError);
+  if(surfaceGradient == nullptr) LineSliceUtilities::RationalSegmentMoments(a,b,c,0.0L,point,degree,innerTolerance,0,segment,segmentError);
   else {
     segment.assign(degree+1U,0.0L);
     segmentError.assign(degree+1U,0.0L);
     unsigned innerEvaluations = 0;
     const unsigned budget = evaluations == nullptr ? maximumEvaluations : maximumEvaluations-*evaluations;
-    LineSliceSurfaceFiberMoments(a,b,c,point,0.0L,point,degree,*surfaceGradient,0.002L*absoluteTolerance/Power(3.0L,degree),0.02L*relativeTolerance,0,maximumDepth,budget,innerEvaluations,segment,segmentError);
+    LineSliceSurfaceFiberMoments(a,b,c,point,0.0L,point,degree,*surfaceGradient,innerTolerance,0.02L*relativeTolerance,0,maximumDepth,budget,innerEvaluations,segment,segmentError);
     if(evaluations != nullptr) *evaluations += innerEvaluations;
   }
-  std::vector<std::vector<double>> positive(degree+1U);
-  std::vector<std::vector<double>> delta(degree+1U);
-  long double maximumError = 0.0L;
+  const unsigned triangleCount = (degree+1U)*(degree+2U)/2U;
+  std::vector<long double> triangle(2U*triangleCount,0.0L);
+  std::vector<long double> triangleError(2U*triangleCount,0.0L);
   for(unsigned i = 0; i <= degree; ++i) {
-    positive[i].assign(degree-i+1U,0.0);
-    delta[i].resize(degree-i+1U);
     for(unsigned j = 0; j <= degree-i; ++j) {
-      delta[i][j] = static_cast<double>(Power(point,i)*segment[j]);
-      maximumError = std::max(maximumError,Power(point,i)*segmentError[j]);
+      const unsigned index = triangleCount+Tet15TriangleIndex(degree,i,j);
+      triangle[index] = Power(point,i)*segment[j];
+      triangleError[index] = Power(point,i)*segmentError[j];
     }
   }
-  long double weight = (1.0L-height)*(1.0L-height);
-  if(height == 0.0L) weight *= 0.5L;
-  Tet15LiftMoments(degree,vertex,height,weight,positive,delta,0.0L,maximumError,value,error);
+  Tet15LiftMoments(degree,vertex,height,weight,triangle,triangleError,value,error);
 }
 
 inline void Tet15PlaneInterval(const std::vector<long double>& derivative, unsigned degree, unsigned vertex, long double height, long double left, long double right, long double absoluteTolerance, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned& evaluations, unsigned maximumEvaluations, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
@@ -698,12 +810,11 @@ inline void Tet15PlaneDelta(const std::vector<std::vector<long double>>& field, 
     for(unsigned term = 0; term < 7; ++term) derivative[term] = -derivative[term];
   }
   if(referenceSurface && surfaceGradient == nullptr) {
-    std::vector<std::vector<double>> positive(degree+1U);
-    std::vector<std::vector<double>> delta(degree+1U);
+    const unsigned triangleCount = (degree+1U)*(degree+2U)/2U;
+    std::vector<long double> triangle(2U*triangleCount,0.0L);
+    std::vector<long double> triangleError(2U*triangleCount,0.0L);
     for(unsigned i = 0; i <= degree; ++i) {
-      positive[i].assign(degree-i+1U,0.0);
-      delta[i].resize(degree-i+1U);
-      for(unsigned j = 0; j <= degree-i; ++j) delta[i][j] = static_cast<double>(1.0L/((i+j+2U)*(j+1U)));
+      for(unsigned j = 0; j <= degree-i; ++j) triangle[triangleCount+Tet15TriangleIndex(degree,i,j)] = 1.0L/((i+j+2U)*(j+1U));
     }
     long double normalNorm = vertex == 0 ? std::sqrt(3.0L) : 1.0L;
     if(inverseJacobian != nullptr) {
@@ -717,7 +828,7 @@ inline void Tet15PlaneDelta(const std::vector<std::vector<long double>>& field, 
     if(height == 0.0L) weight *= 0.5L;
     std::vector<long double> value;
     std::vector<long double> error;
-    Tet15LiftMoments(degree,vertex,height,weight,positive,delta,0.0L,0.0L,value,error);
+    Tet15LiftMoments(degree,vertex,height,weight,triangle,triangleError,value,error);
     for(unsigned k = 0; k < values.size(); ++k) {
       values[k] += value[k];
       errors[k] += error[k]+128.0L*std::numeric_limits<long double>::epsilon()*std::abs(value[k]);
@@ -944,26 +1055,33 @@ inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodal
     }
   }
   if(!complete) throw std::runtime_error("TET15 triangle-slice integration failed: "+failure);
-  positive.resize(degree+1U);
-  delta.resize(degree+1U);
+  std::vector<std::vector<std::vector<double>>> positiveOutput(degree+1U);
+  std::vector<std::vector<std::vector<double>>> deltaOutput(degree+1U);
   long double maxH = 0.0L;
   long double maxDelta = 0.0L;
   for(unsigned i = 0; i <= degree; ++i) {
-    positive[i].resize(degree-i+1U);
-    delta[i].resize(degree-i+1U);
+    positiveOutput[i].resize(degree-i+1U);
+    deltaOutput[i].resize(degree-i+1U);
     for(unsigned j = 0; j <= degree-i; ++j) {
-      positive[i][j].resize(degree-i-j+1U);
-      delta[i][j].resize(degree-i-j+1U);
+      positiveOutput[i][j].resize(degree-i-j+1U);
+      deltaOutput[i][j].resize(degree-i-j+1U);
       for(unsigned k = 0; k <= degree-i-j; ++k) {
         unsigned index = Tet15MomentIndex(i,j,k);
-        positive[i][j][k] = static_cast<double>(values[index]);
-        delta[i][j][k] = computeDelta ? static_cast<double>(values[count+index]/scale) : 0.0;
-        if(!std::isfinite(positive[i][j][k]) || !std::isfinite(delta[i][j][k])) throw std::overflow_error("A TET15 moment exceeds double precision range.");
-        maxH = std::max(maxH,errors[index]);
-        maxDelta = std::max(maxDelta,errors[count+index]/scale);
+        const long double h = values[index];
+        const long double d = computeDelta ? values[count+index]/scale : 0.0L;
+        positiveOutput[i][j][k] = static_cast<double>(h);
+        deltaOutput[i][j][k] = static_cast<double>(d);
+        if(!std::isfinite(positiveOutput[i][j][k]) || !std::isfinite(deltaOutput[i][j][k])) throw std::overflow_error("A TET15 moment exceeds double precision range.");
+        const long double errorH = errors[index]+std::abs(static_cast<long double>(positiveOutput[i][j][k])-h);
+        const long double errorDelta = errors[count+index]/scale+std::abs(static_cast<long double>(deltaOutput[i][j][k])-d);
+        if(!std::isfinite(errorH) || !std::isfinite(errorDelta) || errorH > absoluteTolerance+relativeTolerance*std::abs(h) || errorDelta > absoluteTolerance+relativeTolerance*std::abs(d)) throw std::runtime_error("TET15 output rounding exceeds the requested error budget.");
+        maxH = std::max(maxH,errorH);
+        maxDelta = std::max(maxDelta,errorDelta);
       }
     }
   }
+  positive.swap(positiveOutput);
+  delta.swap(deltaOutput);
   if(estimatedError != nullptr) *estimatedError = {static_cast<double>(maxH),static_cast<double>(maxDelta),static_cast<double>(totalAccepted),static_cast<double>(totalEvaluations),static_cast<double>(selected)};
   if(directionInfo != nullptr) *directionInfo = {static_cast<double>(attemptedDirections),static_cast<double>(successfulDirections),static_cast<double>(crossDiscrepancy)};
 }

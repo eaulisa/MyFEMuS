@@ -20,7 +20,6 @@
 #include <vector>
 #include <boost/multiprecision/cpp_bin_float.hpp>
 
-
 namespace boost {
   namespace multiprecision {
     typedef number < backends::cpp_bin_float < 24, backends::digit_base_2, void, boost::int16_t, -126, 127 >, et_off >         cpp_bin_float_single;
@@ -33,7 +32,6 @@ namespace boost {
 
 using boost::multiprecision::cpp_bin_float_oct;
 using boost::multiprecision::cpp_bin_float_quad;
-
 
 template <class TypeIO, class TypeA>
 class CutFemWeight_LS {

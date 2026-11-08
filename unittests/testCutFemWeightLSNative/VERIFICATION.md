@@ -2,95 +2,175 @@
 
 ## Outcome
 
-The final native-reference implementation passes all 386 cases in the explicitly documented regular set, with 36,860 numerical, finite-element, and cache checks. The unchanged original comparison matrix contains 386 cases: 385 pass with 36,463 checks, and its strict degree-5 tetrahedral tiny-cap case exceeds the 45-second process budget in both the original and final implementations. The same cap at a requested tolerance of 1e-10 passes 397 additional checks in 0.31 seconds. The strict timeout is retained as a failed stress result and is not counted as a pass.
+The final implementation passes the unchanged 386-case numerical matrix, all eight required supplemental cases, all 13 focused executable runs, and all 147 comparisons with the unchanged planar class. The main and supplemental matrices contain 40,036 numerical, finite-element, and cache assertions. There are no failed cases, integration exceptions, or timeouts in these final results.
 
-Seven scaling failures found in the first candidate sweep were corrected and all pass in the final sweep. Standalone compilation, API contracts, multiprecision, native coefficient extraction, focused element moments, extended degree-8/10 simplex checks, and the separate original planar-class comparisons pass.
+The original degree-5 tetrahedral tiny-cap request now passes at its original absolute and relative tolerances of 1e-13. The scaled degree-5 plane passes at both 1e-12 and 1e-13. The separately named relaxed cap remains supplementary evidence and never replaces a strict request.
 
-The exact original source is commit `cb19f37a14a7601b103da176bc44e30195d6f667`. The final header SHA-256 manifest is `build/sources_candidate.json`; the same manifest is saved with the portable suite. The delivered headers match the complete validated source snapshot byte for byte. The full 14-translation-unit build, original numerical matrix, focused checks, and planar comparisons reported here all refer to that matching implementation. The saved source manifest and the `before_tet_budget` snapshot retain its exact provenance; discarded experimental results are excluded from the final numerical results.
+The final complete build contains 16 test translation units and uses 19 actual FEMuS finite-element and Gauss-table object sources. Every build, final numerical result, and isolated timing reported below uses the same frozen implementation. The complete SHA-256 manifest is `build/source_manifest.json`; the two headers changed during the defect correction have these final hashes:
 
-## Native coordinates and monomial formulation
+| Header | SHA-256 |
+| --- | --- |
+| `AdaptiveLineSliceMoments.hpp` | `cdc7b416804a68d6ba0ec43bc473418a2b45c45879511f8574fccbf1bba554f8` |
+| `Tet15LevelSetMoments.hpp` | `20e407c6601f3ce8f497b31dd3446d15db7566494e38464e331c7abc9fcff7a4` |
 
-The tests evaluate monomials, G, and grad G directly on the standard FEMuS cells: [-1,1] for LINE, [-1,1]^2 for QUAD, [-1,1]^3 for HEX, and the standard nonnegative unit simplexes for TRI and TET. The fitting space remains the full total-degree space P_qM. The unchanged FEMuS `Basis.hpp` and actual element definitions provide the independent double-precision interpolation checks.
+The original comparison snapshot is commit `cb19f37a14a7601b103da176bc44e30195d6f667`. The previously delivered native implementation was also preserved from the git index before any defect edits. Earlier failed attempts, reports, and timings are retained in explicitly labeled historical directories; they are not counted as final passes.
 
-The verified correction has the native-reference formulation `c(x_q) = m(x_q)^T M^-1 f`, with `M_ab = integral_K m_a m_b`. Volume moments use `f_a = integral_K m_a H(G)`. Raw-delta moments use `integral_K m_a delta(G)`. Reference-surface moments include `|grad G|` inside that integral; physical-surface moments include `|cof(J) grad G|`. Ordinary reference Gauss weights multiply the returned correction. The original/final and planar comparisons verify that this coordinate and basis change preserves the fitted integrals without retaining the old planar integration dependency.
+## Regressions for the demonstrated defects
+
+`test_tet_slice_regression.cpp` reconstructs the diagnosed first triangle slice from actual FEMuS TET15 nodes. It retains the small enriched coefficients, checks every degree-5 triangle moment against an independent geometric formula, and tests corrected intervals, final output rounding, and atomic failure behavior.
+
+The exact same test source was compiled against the preserved pre-fix headers and the final headers. Its SHA-256 is `6940528cb8c5e66b4a272ae572bbe92396fb697546f6f6b1224fefd821b7f23a`.
+
+| Same-source direct regression | Before correction | Final implementation |
+| --- | --- | --- |
+| Overall result | 612 checks, 33 failures | 530 checks, no failures |
+| Invalid corrected intervals | Reversed and zero-width intervals accepted | Explicit rejection |
+| Ill-conditioned first chart | False zero interface mass returned | Explicit rejection before returning moments |
+| Maximum observed moment error | 1.95304e-3 | 9.25638e-18 |
+
+The check counts differ because the final implementation rejects the invalid chart before returning the moment table. A completed chart must return nonzero, accurate interface mass; the test does not accept a false zero as an alternative to an exception. Valid one-ULP intervals remain positive. Regular charts and chart selection pass every requested degree-5 moment at the original final tolerance.
+
+The separate `test_root_candidate_regression.cpp` passes 11 checks. It verifies that duplicate candidates for the same simple root are consolidated while retaining a genuine boundary strip of width 1.83173e-20, distinct roots separated by 1e-24 and 1.86265e-9, and separate polynomial provenance. The identical probe fails on the saved pre-consolidation header and passes on the final header. Consolidation does not weaken corrected-width or provenance checks.
+
+The degree-0 output-cast regression uses a full tetrahedron with `G=x+1` and zero relative tolerance. At an absolute tolerance of 8e-18 the double output is rejected without modifying either output table. At 2e-17 it succeeds, and the returned error estimate includes the actual double rounding of 1/6. This protects the final requested budget after the native moment transformation and output cast.
+
+The nested TET correction distinguishes working allocations from the final requested tolerance. Bounded values, their error estimates, and cut state stay together; an unattainable inner working allocation does not discard a usable bounded sample. The outer integrator still checks the full requested tolerance and explicitly rejects an irreducible inner error that alone exceeds that tolerance.
+
+Evidence: `defect_fix_before/test_tet_slice_regression_before_results.json`, `defect_fix_after/test_tet_slice_regression_after_results.json`, `defect_fix_after/test_root_candidate_regression_after_results.json`, and the preserved root-candidate diagnosis records.
 
 ## Main numerical matrix
 
-| Set | Cases | Checks | Result |
+| Set | Cases | Assertions | Result |
 | --- | ---: | ---: | --- |
-| Original implementation, unchanged comparison matrix | 386 | 36,463 | 385 pass; one strict tiny-cap timeout |
-| Final implementation, unchanged comparison matrix | 386 | 36,463 | 385 pass; the same strict tiny-cap timeout |
-| Explicit relaxed tiny-cap follow-up | 1 | 397 | Pass |
-| Documented regular set: 385 original cases plus the named relaxed cap | 386 | 36,860 | All pass |
+| Unchanged original matrix | 386 | 36,860 | All pass |
+| Required supplemental matrix | 8 | 3,176 | All pass |
+| Combined final class tests | 394 | 40,036 | All pass |
+| Preserved original implementation | 386 | 36,463 | 385 pass; strict tiny cap timed out |
 
-The matrix covers LINE3, QUAD9, TRI7, HEX27, and TET15, fitting degrees 0 through 5, and raw delta, reference-surface, and physical-surface modes. Cases include affine axis and oblique cuts, monotone quadratics, coupled tensor polynomials, enriched simplex fields, circles and spheres, two roots on a line, full/empty cells, boundary interfaces, near-affine fields, tiny cuts, sign reversal, and level-set scaling by powers of two. Geometry maps include identity, affine anisotropic scaling, curved shear, and nonconstant-Jacobian stretching.
+The original case definitions and requested tolerances are unchanged. The eight supplemental requests comprise six strict tiny-cap variants covering level-set scale, sign, and affine physical geometry; the separately named relaxed cap; and the scaled degree-5 plane at 1e-13 alongside its original-matrix counterpart at 1e-12.
 
-The main sweep instantiates `CutFemWeight_LS<double,long double>`. Separate tests instantiate `cpp_bin_float_oct` as the arithmetic type and as the output type.
+The class matrix covers LINE3, QUAD9, TRI7, HEX27, and TET15 with fitting degrees 0 through 5. Fields include affine axis and oblique cuts, monotone quadratics, coupled tensor polynomials, enriched simplex fields, circles and spheres, two roots on a line, full and empty cells, boundary interfaces, near-affine fields, tiny cuts, sign reversal, and scaling by powers of two. Geometry maps include identity, affine anisotropic scaling, curved shear, and nonconstant-Jacobian stretching.
 
-For each case the C++ driver evaluates the actual unchanged FEMuS shape functions and their derivatives to independently reconstruct G, grad G, the physical geometry, and its Jacobian. Every fitted monomial through degree qM is integrated. Cache repeats must return exactly the same vectors.
+Each case records positive volume, raw delta, reference surface with the norm inside and outside the moments, physical surface with the cofactor norm inside and outside, and physical volume. Every native monomial through the fitting degree is evaluated. Repeated cache requests must return exactly the same vectors.
 
-Independent Python references use exact interval, simplex, ball, and sphere moments where available. Other curved cuts use independently derived graph roots and Gauss-Legendre quadrature with 40 and 72 points per parameter direction. The largest discrepancy between those two reference quadratures was 7.11e-15. The largest asserted normalized error of the final implementation against these references was 1.55e-12, in the TET15 degree-2 sphere case, whose requested integration tolerance was 1e-9. The largest ratio of any asserted error to its test limit was 0.00199.
+The main matrix instantiates `CutFemWeight_LS<double,long double>`. Separate checks instantiate `cpp_bin_float_oct` as the arithmetic type and as the output type.
 
-The test normalization is `max(1, |zeroth integral|, |target moment|)`. This keeps raw delta results comparable when scaling G changes delta by factors near one million. Final Gauss weights and coordinates are the actual FEMuS double tables.
+Evidence: `candidate_original_summary.json`, `candidate_supplemental_summary.json`, and `results/candidate/`.
 
-## Original/final numerical equivalence
+## Native coordinates and fitting space
 
-For the 385 successful original/final pairs, the comparison checks 70,288 correction values and 38,598 integrated moments. Every pair also passes its independent reference checks.
+Monomials, G, and grad G are evaluated on the standard FEMuS reference cells: [-1,1] for LINE, [-1,1]^2 for QUAD, [-1,1]^3 for HEX, and the standard nonnegative unit simplexes for TRI and TET. The fitting space remains the full total-degree space P_qM. FEMuS `Basis.hpp`, the original finite-element definitions, the planar class, and the Gauss tables remain unchanged.
 
-| Quantity | Maximum normalized original/final difference |
+The verified correction is
+
+\[
+c(x_q)=m(x_q)^T M^{-1}f,\qquad M_{ab}=\int_K m_a m_b.
+\]
+
+Native tensor-cell monomial integrals vanish for an odd exponent and otherwise factor into products of `2/(exponent+1)`. Standard-simplex monomial integrals are `product(exponent!)/(dimension+sum(exponent))!`. These determine the native Gram matrix without a change to the double-valued FEMuS shape-function API.
+
+Volume moments use `f_a = integral_K m_a H(G)`. Raw-delta moments use `integral_K m_a delta(G)`. Reference-surface moments include `|grad G|`; physical-surface moments include `|cof(J) grad G|`. The returned corrections are multiplied by the ordinary reference Gauss weights. Physical surface integration does not introduce a second determinant factor.
+
+The independent driver reconstructs G, grad G, geometry, and its Jacobian directly with the actual FEMuS finite-element basis. The separate coefficient test makes 15,360 such comparisons and has maximum absolute error 7.13492e-15.
+
+## Analytic references and error policy
+
+Independent Python references use exact interval, simplex, ball, and sphere formulas where available. Other curved cuts use independently derived graph roots and Gauss-Legendre quadrature at 40 and 72 points per parameter direction. Those references do not call the implementation's integration kernels. The largest discrepancy between the two reference orders is 7.10543e-15.
+
+The normalized error is the absolute moment error divided by `max(1, |zeroth integral|, |target moment|)`. This distinguishes a raw delta integral magnified by level-set scaling from an unscaled geometric surface integral. The general class-test allowance is `20*requested_tolerance + 3e-11`, allowing for double Gauss tables and the fitting calculation. The strict cap and its strict scaled variants use the tighter limit `2*requested_tolerance`, namely 2e-13. Direct kernel tests additionally assess their reported moment error estimates against the requested budgets.
+
+| Accuracy measurement | Final value |
 | --- | ---: |
-| Positive-volume moment | 6.19e-14 |
-| Raw-delta moment | 1.32e-13 |
-| Reference-surface moment, norm inside | 1.12e-13 |
-| Reference-surface estimate, norm outside | 1.12e-13 |
-| Physical-surface moment, cofactor norm inside | 1.47e-13 |
-| Physical-surface estimate, cofactor norm outside | 1.50e-13 |
-| Physical-volume moment | 1.02e-13 |
+| Largest asserted normalized error in the original 386 cases | 1.18794e-13 |
+| Largest asserted normalized error in all 394 cases | 1.45661e-13 |
+| Largest fraction of a class-test allowance used | 0.72831 |
+| Unscaled strict-cap maximum volume error | 1.48562e-21 |
+| Unscaled strict-cap maximum interface error across both formulations | 1.11385e-18 |
 
-The largest normalized difference in an individual correction value is 1.22e-10, in the degree-5 TET15 zero-face case. Integrated moments are the primary equivalence measure because a change of polynomial basis can alter cancellation in individual correction values.
+The largest normalized error across all cases occurs in the strict cap scaled by 2^-20. Its raw delta mass is approximately 8; the largest absolute raw delta moment error is 1.16529e-12. The corresponding geometric surface errors remain about 1.11e-18. These are reconstructed class moments using double Gauss data; the table does not assert exact arithmetic or a universal equality between an internal estimate and final floating-point reconstruction error.
 
-The largest absolute raw-delta moment difference is 1.61e-7 for the scaled HEX plane. Its zeroth raw-delta integral is approximately 4,194,304, so that difference is approximately 3.85e-14 relative. This is not an unscaled surface error.
+### The two surface formulations
 
-The separate original planar class comparison passes 147 affine rules, including tetrahedral bases 0, 1, and 2: 16,258 correction comparisons and 4,552 moment comparisons. Its maximum normalized moment difference is 1.57e-13. The three tiny-cap planar comparisons explicitly use the successful relaxed native request; their records include the actual candidate case identifier and requested tolerance.
+A raw delta correction multiplied by the pointwise FEMuS gradient or cofactor norm is asserted equivalent to including that norm inside the moments only when the complete integrand belongs to the fitting space. For a nonpolynomial norm, the outside formulation is recorded as a finite-degree approximation against the independent surface reference. Variable-Jacobian volume tests apply the corresponding degree rule to the determinant.
 
-## The two surface formulations
+For the degree-5 coupled QUAD graph, the reference interface length is 2.049993397776071. Including the norm inside gives maximum weighted surface-moment error 1.63203e-14. Multiplying the norm outside gives a constant surface estimate differing by 2.54880e-5. For the degree-5 circle, the outside estimate has approximately 4.054% relative error, while the inside surface moments agree within 1.12799e-13. These approximation differences are recorded openly and are not turned into inappropriate exactness assertions.
 
-The suite checks both the raw-delta correction multiplied by a pointwise FEMuS gradient/cofactor norm and the correction obtained with that norm inside the moment integral. It demands equality only when the complete integrand is in the fitted polynomial space. Nonpolynomial norms multiplied outside the projection are recorded as approximations against the independent surface reference.
+Evidence: `defect_fix_after/final_fixed_results.json` and the individual case assessments.
 
-For example, on the degree-5 coupled QUAD graph, the reference interface length is approximately 2.049993397776071. The norm-inside rule has maximum weighted surface-moment error 1.64e-14. The outside formulation's constant surface estimate differs by approximately 2.55e-5. For the degree-5 circle, the outside formulation has about 4.05% relative surface error while the norm-inside surface moments agree to about 1.13e-13. These finite-degree differences are expected projection behavior; the tests do not hide them by asserting an inappropriate equivalence.
+## Original and final numerical equivalence
 
-Physical surface tests use the cofactor metric and reference Gauss weights, without multiplying a second geometry determinant. Variable-Jacobian volume checks account for the degree of the determinant in the integrand.
+The comparison was regenerated from the final fixed records and the preserved original records. It contains 385 successful pairs, 70,288 correction values, and 38,598 integrated moments. The original strict tiny-cap timeout is excluded from paired comparison because it has no successful original result; the final case passes independently.
 
-## Additional completed checks
+| Quantity | Maximum normalized original/final moment difference |
+| --- | ---: |
+| Positive volume | 6.18522e-14 |
+| Raw delta | 1.52611e-12 |
+| Reference surface, norm inside | 3.81528e-13 |
+| Reference surface estimate, norm outside | 4.34874e-13 |
+| Physical surface, cofactor norm inside | 3.81500e-13 |
+| Physical surface estimate, cofactor norm outside | 4.34847e-13 |
+| Physical volume | 1.01030e-13 |
 
-| Check | Result |
+The largest normalized difference in an individual correction is 1.21152e-10, for the degree-5 TET zero-face volume rule. Integrated moments are the primary equivalence measurement because the polynomial basis change and floating-point cancellation can change individual corrections more than their integrated moments.
+
+The largest absolute raw delta moment difference is 1.61119e-7 for the scaled HEX plane. Its zeroth raw delta integral is approximately 4,194,304, so the difference is about 3.85e-14 relative. Both implementations also pass their independent reference checks on every successful pair.
+
+The separate planar comparison passes all 147 affine rules, including tetrahedral bases 0, 1, and 2. It checks 16,258 correction values and 4,552 moments; the largest normalized moment difference is 1.56783e-13. All three tiny-cap tetrahedral comparisons use the successful native request at the original tolerance of 1e-13.
+
+Evidence: `baseline_candidate_comparison.json` and `planar_comparison_results.json`.
+
+## Complete-request timings
+
+These final timings were collected one request at a time after compilation and preceding checks had finished. Each includes the complete class sequence: raw delta, reference surface, physical identity surface, correction construction, and a cached repeat. Each request passes 397 assertions.
+
+| Request | Requested absolute and relative tolerance | Final isolated time |
+| --- | ---: | ---: |
+| TET degree 5, `G=x-(1-1/256)` | 1e-13 | 0.320 s |
+| TET degree 5, `G=2^-20*(x-0.25)` | 1e-12 | 0.493 s |
+| Same scaled plane | 1e-13 | 0.620 s |
+
+The preserved original and previous native implementations exceeded the 45-second limit for the strict cap. The previous native scaled-plane request at 1e-12 took 27.45 seconds during concurrent verification. That older timing is diagnostic rather than a controlled benchmark, so it is not used to claim a precise speedup factor. The final timings are complete class requests, distinct from the much smaller direct-kernel timings in the diagnostic records.
+
+The intermediate 1e-13 success and 1e-12 failure were different requested tolerances. A later preflight also exposed an explicit 1e-13 root-bracket rejection. Both exact requests remain required final cases and now pass; neither was removed or relaxed.
+
+Evidence: `defect_fix_after/strict_cap_full_class_isolated.json`, `scaled_plane_full_class_isolated.json`, and `scaled_plane_1e13_full_class_isolated.json`.
+
+## Additional completed checks and scope
+
+| Check | Final result |
 | --- | --- |
-| Standalone portable compilation | 14 test translation units; 19 actual FE/Gauss object sources; all pass |
-| LS dependency isolation | No planar, old cut-FEM, or Algoim headers in standalone LS dependency lists |
-| Both include orders | Compile successfully; LS has no planar inheritance/conversion |
+| Standalone compilation | All 16 translation units pass; 19 actual FE/Gauss object sources |
+| LS dependency isolation | No planar, old cut-FEM, or Algoim headers in standalone LS dependencies |
+| Include orders | Both orders compile; no planar inheritance or conversion |
 | API contracts | 157 runtime checks; 29 removed signatures inaccessible |
-| Native G/grad G extraction | 15,360 comparisons against actual FEMuS evaluations; max error 7.14e-15 |
-| QUAD/TRI direct native moments | 2,654 checks in 128 cases; max error 4.11e-16 |
-| Degree-10 QUAD quadrant integration | 8,448 checks; max error 7.41e-17 |
-| Scaled QUAD plane and curved graph | 216 checks; error below 0.00184 of requested per-moment budget |
-| TET native moments/directions/metrics | 640 checks in 28 cases; max error 1.05e-16 |
-| Degree-8/10 TRI/TET probes | 3,372 checks; max error 5.66e-17 |
-| HEX degree-5/10 planes and curved geometry | All probes pass; reported plane/geometry errors below 3.81e-16 |
-| Multiprecision and output range | Standalone cpp_bin_float_oct arithmetic, wider output type, atomic overflow rejection, recovery, and cache checks pass |
-| Optional direct Algoim application caller | Eight analytic volume/delta checks across QUAD/TRI/HEX/TET; max error 4.45e-16 |
+| Native G and grad G | 15,360 comparisons; maximum absolute error 7.13492e-15 |
+| QUAD/TRI direct moments | 2,654 checks in 128 cases; maximum error 4.10262e-16 |
+| Degree-10 QUAD quadrants | 8,448 checks; maximum error 7.40510e-17 |
+| Scaled QUAD plane and graph | 216 checks; maximum error 0.00183529 of the requested budget |
+| TET directions and metrics | 640 checks in 28 cases; maximum error 1.04409e-16 |
+| Degree-8/10 TRI/TET kernels | 3,372 checks; maximum error 9.25638e-18 |
+| HEX degree-5/10 kernels and geometry | All probes pass; plane and curved-geometry errors below 3.81e-16 |
+| First-slice and root-candidate regressions | 530 and 11 checks pass |
+| Multiprecision and output range | Arithmetic/output instantiation, atomic rejection, recovery, and cache checks pass |
 
-The optional Algoim caller check was built in C++17 separately; it is not a dependency of the portable LS suite. The standalone suite does not claim a full PETSc-based FEMuS application build.
+The direct degree-8/10 results exercise moment kernels. The broad class matrix, including Gram inversion, correction construction, and actual Gauss evaluation, covers degrees 0 through 5. Kernel results are not a degree-10 end-to-end fitting guarantee.
 
-The degree-8/10 probes above exercise the direct moment kernels. The broad end-to-end class tests, including Gram inversion, correction construction, and actual FEMuS Gauss evaluation, cover degrees 0 through 5. The direct high-degree results are not presented as a degree-10 end-to-end fitting guarantee.
+An earlier separate C++17 direct Algoim caller check passed eight analytic volume/delta comparisons across QUAD, TRI, HEX, and TET, with maximum error below 4.45e-16. That caller has no LS dependency and was unchanged by these numerical fixes; this is retained prior evidence, not an extra final LS build.
 
-## Remaining limits and timing observation
+The suite uses actual FEMuS sources without PETSc. It does not claim a full PETSc-based application build, performance guarantees on other machines, or universal accuracy for nonpolynomial outside-norm estimates.
 
-The strict stress case is TET15 degree 5 with `G = x - (1 - 1/256)`, identity geometry, and requested absolute and relative tolerances 1e-13. The 45-second budget covers raw delta, reference surface, physical identity surface, and a cached repeat. Both original and final implementations exceed that budget. At tolerance 1e-10, the final result completes in 0.31 seconds with volume error below 1.49e-21 and interface-moment error below 1.12e-18. The strict case remains available through `run.py --stress`, and `--selection original` reproduces the exact original matrix with a nonzero exit status when it times out.
+## Reproduction and evidence
 
-A separate accuracy-passing performance regression remains for TET15 degree 5 with `G = 2^-20 * (x - 0.25)`, identity geometry, auto direction, validation 0, and tolerances 1e-12. The measured complete request sequence takes 27.45 seconds in the final implementation versus 0.54 seconds in the original. The final unscaled case takes 0.55 seconds. These timings were observed during concurrent verification and are diagnostic measurements rather than controlled benchmarks; individual mode times were not recorded. The exact executable arguments are `4 5 plane identity 9.5367431640625e-07 1e-12 0`.
+The accompanying `README.md` gives portable compiler, Boost, Eigen, Python, and NumPy requirements and commands. The final required sequence is:
 
-## Reproduction and artifacts
+```sh
+python build.py --boost /path/to/boost/include --eigen /path/to/eigen3
+python run.py --selection original
+python run.py --selection supplemental
+python run_focused.py --extended
+python compare_planar.py
+```
 
-The portable suite is `MyFEMuS_LS_native/unittests/testCutFemWeightLSNative`. Its README provides compiler, Boost, Eigen, and NumPy requirements and full commands. It builds actual FE/Gauss sources without PETSc, keeps numerical assertions separate from recorded outside-norm approximations, and returns nonzero for unexpected failures. The slower degree-8/10 simplex probe is available with `run_focused.py --extended`.
+Runners exit nonzero for failed assertions, integration exceptions, nonfinite results, missing executables, or timeouts. The original strict cap is selectable with `python run.py --stress`. Its relaxed counterpart is always separately named.
 
-Key machine-readable artifacts in this verification directory are `baseline_all_summary.json`, `candidate_all_summary.json`, `candidate_regular_summary.json`, `baseline_candidate_comparison.json`, `planar_comparison.json`, `extended_results.json`, `build_results.json`, and `build/sources_candidate.json`. Per-case JSON retains the command, timing, generated correction arrays, weighted moments, independent FE errors, and all failure details. The first failing candidate results remain separately under `results/candidate_initial`; final results are under `results/candidate`.
+Current aggregate evidence is `build_results.json`, `candidate_original_summary.json`, `candidate_supplemental_summary.json`, `extended_results.json`, `planar_comparison_results.json`, and the regenerated `baseline_candidate_comparison.json`. `build/source_manifest.json` and `build/test_source_manifest.json` identify the implementation and test sources. Per-case JSON retains executable arguments, timings, correction arrays, weighted moments, independent finite-element checks, approximation records, and failure details. The external `defect_fix_after/final_fixed_results.json` cross-checks all final gates and ties the same-source regressions and isolated timings to the final manifest.

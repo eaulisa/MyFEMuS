@@ -7,6 +7,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 #include "ReferenceSurfaceMoments.hpp"
 
@@ -402,14 +403,6 @@ inline void IntervalBranches(const std::vector<std::vector<long double>>& field,
   uniformPhase = Heaviside(std::fma(a, y * y, std::fma(b, y, c)));
 }
 
-inline void FactorEndpoint(std::vector<long double>& polynomial, long double root, unsigned& multiplicity) {
-  multiplicity = 0;
-  while (polynomial.size() > 1 && NearZero(polynomial, root)) {
-    polynomial = DivideLinear(polynomial, root);
-    ++multiplicity;
-  }
-}
-
 inline bool PreferReverseOrder(const std::vector<std::vector<long double>>& coefficient, const std::vector<long double>& domain) {
   long double radiusX = std::max(std::abs(domain[0]), std::abs(domain[1]));
   long double radiusY = std::max(std::abs(domain[2]), std::abs(domain[3]));
@@ -547,25 +540,34 @@ inline void RationalSegmentMoments(long double a, long double b, long double c, 
   }
   std::vector<long double> term(1,1.0L);
   long double nextPower = ratio;
-  long double magnitude = 0.0L;
+  const long double radius = std::max(std::abs(left),std::abs(right));
+  std::vector<long double> magnitude(degree+1U,0.0L);
   for(unsigned iteration = 0; iteration < 96; ++iteration) {
     for(unsigned j = 0; j <= degree; ++j) {
       long double contribution = 0.0L;
+      long double absoluteContribution = 0.0L;
       for(unsigned k = 0; k < term.size(); ++k) {
         for(unsigned p = 0; p <= j; ++p) {
-          if((k+p)%2U == 0) contribution += term[k]*monomial[j][p]*2.0L/(k+p+1U);
+          if((k+p)%2U == 0) {
+            const long double value = term[k]*monomial[j][p]*2.0L/(k+p+1U);
+            contribution += value;
+            absoluteContribution += std::abs(value);
+          }
         }
       }
       contribution *= halfWidth/constant;
       values[j] += contribution;
-      magnitude = std::max(magnitude,std::abs(values[j]));
+      magnitude[j] += absoluteContribution*halfWidth/constant;
     }
-    long double remainder = 2.0L*halfWidth*nextPower/(constant*(1.0L-ratio));
-    long double roundoff = 128.0L*std::numeric_limits<long double>::epsilon()*magnitude*(iteration+1U);
-    if(remainder <= std::max(tolerance,roundoff)) {
-      for(unsigned j = 0; j <= degree; ++j) errors[j] = remainder+roundoff;
-      return;
+    const long double remainder = 2.0L*halfWidth*nextPower/(constant*(1.0L-ratio));
+    bool complete = true;
+    for(unsigned j = 0; j <= degree; ++j) {
+      const long double bound = remainder*Power(radius,j);
+      const long double roundoff = 128.0L*std::numeric_limits<long double>::epsilon()*magnitude[j]*(iteration+1U);
+      errors[j] = bound+roundoff;
+      if(bound > std::max(tolerance,roundoff)) complete = false;
     }
+    if(complete) return;
     term = PolynomialProduct(term,{0.0L,-linear,-quadratic});
     nextPower *= ratio;
   }
@@ -592,26 +594,111 @@ inline long double LineSlicePolynomial(const std::vector<long double>& polynomia
   return high+std::fma(derivative,offset,low);
 }
 
-inline long double LineSliceEventOffset(long double point, const std::vector<std::vector<long double>>& polynomials) {
-  if(point == 0.0L || point == 1.0L) return 0.0L;
-  long double offset = 0.0L;
-  long double best = std::numeric_limits<long double>::infinity();
-  for(unsigned p = 0; p < polynomials.size(); ++p) {
-    if(polynomials[p].size() <= 1 || !LineSliceUtilities::NearZero(polynomials[p],point)) continue;
-    std::vector<long double> derivative = LineSliceUtilities::PolynomialDerivative(polynomials[p]);
-    long double slope = LineSliceUtilities::PolynomialValue(derivative,point);
-    if(slope == 0.0L) continue;
-    long double correction = -LineSlicePolynomial(polynomials[p],point)/slope;
-    if(std::abs(correction) > 1024.0L*std::numeric_limits<long double>::epsilon()) continue;
-    long double residual = std::abs(LineSlicePolynomial(polynomials[p],point,correction))/std::abs(slope);
-    if(residual < best) { best = residual; offset = correction; }
+inline long double LineSliceEventOffset(long double point, const std::vector<long double>& polynomial) {
+  const long double residual = LineSlicePolynomial(polynomial,point);
+  if(residual == 0.0L) return 0.0L;
+  const std::vector<long double> derivative = LineSliceUtilities::PolynomialDerivative(polynomial);
+  const long double slope = LineSlicePolynomial(derivative,point);
+  if(slope == 0.0L) throw std::runtime_error("A line-slice event has an unresolved multiple root.");
+  const long double correction = -residual/slope;
+  if(!std::isfinite(correction) || std::abs(correction) > 1024.0L*std::numeric_limits<long double>::epsilon()) throw std::runtime_error("A line-slice event could not be refined within its root bracket.");
+  return correction;
+}
+
+inline void LineSliceInsertEvent(long double point, long double offset, unsigned source, long double uncertainty, std::vector<std::pair<long double,long double>>& events, std::vector<unsigned>& sources, std::vector<long double>& uncertainties) {
+  const long double high = point+offset;
+  const long double second = high-point;
+  const long double low = (point-(high-second))+(offset-second);
+  if(!std::isfinite(high) || !std::isfinite(low) || high < 0.0L || high > 1.0L || (high == 0.0L && low < 0.0L) || (high == 1.0L && low > 0.0L)) throw std::runtime_error("A refined line-slice event lies outside its domain.");
+  const std::pair<long double,long double> event(high,low);
+  unsigned position = 0;
+  while(position < events.size() && events[position] < event) ++position;
+  if(position < events.size() && events[position] == event) {
+    sources[position] |= source;
+    uncertainties[position] = std::max(uncertainties[position],uncertainty);
+    return;
   }
-  return offset;
+  events.insert(events.begin()+position,event);
+  sources.insert(sources.begin()+position,source);
+  uncertainties.insert(uncertainties.begin()+position,uncertainty);
+}
+
+inline void LineSlicePolynomialEvents(const std::vector<long double>& polynomial, unsigned source, std::vector<std::pair<long double,long double>>& events, std::vector<unsigned>& sources, std::vector<long double>& uncertainties) {
+  std::vector<long double> roots;
+  LineSliceUtilities::PolynomialRoots(polynomial,0.0L,1.0L,roots);
+  std::sort(roots.begin(),roots.end());
+  roots.erase(std::unique(roots.begin(),roots.end()),roots.end());
+  const std::vector<long double> derivative = LineSliceUtilities::PolynomialDerivative(polynomial);
+  const std::vector<long double> secondDerivative = LineSliceUtilities::PolynomialDerivative(derivative);
+  const long double epsilon = std::numeric_limits<long double>::epsilon();
+  std::vector<long double> rootOffsets(roots.size());
+  std::vector<long double> rootErrors(roots.size());
+  for(unsigned k = 0; k < roots.size(); ++k) {
+    const long double offset = LineSliceEventOffset(roots[k],polynomial);
+    const long double slope = std::abs(LineSlicePolynomial(derivative,roots[k],offset));
+    const long double residual = std::abs(LineSlicePolynomial(polynomial,roots[k],offset));
+    const long double curvature = LineSliceUtilities::PolynomialBound(secondDerivative,std::abs(roots[k])+std::abs(offset));
+    const long double arithmetic = 32.0L*epsilon*epsilon*LineSliceUtilities::PolynomialBound(polynomial,std::abs(roots[k])+std::abs(offset));
+    rootOffsets[k] = offset;
+    rootErrors[k] = slope > 0.0L ? (residual+arithmetic+0.5L*curvature*offset*offset)/slope : 0.0L;
+  }
+  for(unsigned k = 1; k < roots.size();) {
+    const long double distance = std::abs((roots[k]-roots[k-1U])+(rootOffsets[k]-rootOffsets[k-1U]));
+    const long double radius = std::max(std::abs(roots[k-1U])+std::abs(rootOffsets[k-1U])+4.0L*rootErrors[k-1U],std::abs(roots[k])+std::abs(rootOffsets[k])+4.0L*rootErrors[k]);
+    const long double span = roots[k]-roots[k-1U]+std::abs(rootOffsets[k-1U])+std::abs(rootOffsets[k])+4.0L*(rootErrors[k-1U]+rootErrors[k]);
+    const long double slope = std::abs(LineSlicePolynomial(derivative,roots[k-1U]));
+    const long double variation = LineSliceUtilities::PolynomialBound(secondDerivative,radius)*span+64.0L*epsilon*LineSliceUtilities::PolynomialBound(derivative,radius);
+    if(distance <= 4.0L*(rootErrors[k-1U]+rootErrors[k]) && slope > variation) {
+      if(rootErrors[k] < rootErrors[k-1U]) {
+        roots[k-1U] = roots[k];
+        rootOffsets[k-1U] = rootOffsets[k];
+        rootErrors[k-1U] = rootErrors[k];
+      }
+      roots.erase(roots.begin()+k);
+      rootOffsets.erase(rootOffsets.begin()+k);
+      rootErrors.erase(rootErrors.begin()+k);
+    }
+    else ++k;
+  }
+  for(unsigned k = 0; k < roots.size(); ++k) {
+    const long double offset = rootOffsets[k];
+    if((k > 0 && offset <= -0.5L*(roots[k]-roots[k-1U])) || (k+1U < roots.size() && offset >= 0.5L*(roots[k+1U]-roots[k]))) throw std::runtime_error("A line-slice event correction crosses another root of its polynomial.");
+    LineSliceInsertEvent(roots[k],offset,source,rootErrors[k],events,sources,uncertainties);
+  }
+}
+
+inline void LineSliceFactorEvent(std::vector<long double>& polynomial, long double root, long double offset, unsigned& multiplicity) {
+  multiplicity = 0;
+  do {
+    if(polynomial.size() <= 1) return;
+    std::vector<long double> quotient(polynomial.size()-1U,0.0L);
+    quotient.back() = polynomial.back();
+    for(unsigned k = static_cast<unsigned>(quotient.size())-1U; k > 0; --k) quotient[k-1U] = std::fma(offset,quotient[k],std::fma(root,quotient[k],polynomial[k]));
+    polynomial.swap(quotient);
+    LineSliceUtilities::Trim(polynomial);
+    ++multiplicity;
+  } while(LineSlicePolynomial(polynomial,root,offset) == 0.0L);
+}
+
+inline long double LineSliceMonomialIntegral(long double left, long double right, long double leftOffset, long double rightOffset, unsigned degree) {
+  long double sum = 0.0L;
+  long double correction = 0.0L;
+  for(unsigned k = 0; k <= degree; ++k) {
+    const long double leftPower = k == 0 ? 1.0L : std::fma(k*LineSliceUtilities::Power(left,k-1U),leftOffset,LineSliceUtilities::Power(left,k));
+    const long double rightPower = k == degree ? 1.0L : std::fma((degree-k)*LineSliceUtilities::Power(right,degree-k-1U),rightOffset,LineSliceUtilities::Power(right,degree-k));
+    const long double term = leftPower*rightPower-correction;
+    const long double next = sum+term;
+    correction = (next-sum)-term;
+    sum = next;
+  }
+  return ((right-left)+(rightOffset-leftOffset))*sum/(degree+1U);
 }
 
 inline void LineSliceSegmentMoments(long double a, long double b, long double c, unsigned degree, long double lower, long double upper, bool computeDelta, bool fullBoundaryDelta, long double discriminant, long double jacobian, long double deltaJacobian, bool lowerZero, bool upperZero, std::vector<long double>& positive, std::vector<long double>& delta, long double surfaceFirst = 0.0L, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   positive.assign(degree+1U,0.0L);
   delta.assign(degree+1U,0.0L);
+  if(!std::isfinite(a) || !std::isfinite(b) || !std::isfinite(c) || !std::isfinite(discriminant) || !std::isfinite(jacobian) || !(jacobian > 0.0L)) throw std::runtime_error("A line-slice segment has an invalid polynomial or Jacobian.");
+  if(!std::isnan(deltaJacobian) && (!std::isfinite(deltaJacobian) || !(deltaJacobian > 0.0L))) throw std::runtime_error("A line-slice segment has an invalid delta Jacobian.");
   if(!(upper > lower)) return;
   long double roots[2] = {0.0L,0.0L};
   unsigned numberOfRoots = 0;
@@ -710,6 +797,7 @@ inline std::vector<long double> LineSliceFlatFibers(const std::vector<std::vecto
 
 inline void LineSliceSample(const std::vector<std::vector<long double>>& field, const std::vector<long double>& flat, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameter, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   long double width = (right-left)+(rightOffset-leftOffset);
+  if(!std::isfinite(width) || !(width > 0.0L)) throw std::runtime_error("A line-slice event interval has a nonpositive corrected width.");
   long double sine = linear ? 0.0L : std::sin(parameter);
   long double cosine = linear ? 0.0L : std::cos(parameter);
   long double fromLeft = width*(linear ? parameter : sine*sine);
@@ -720,14 +808,10 @@ inline void LineSliceSample(const std::vector<std::vector<long double>>& field, 
   long double rounded = x-first;
   long double coordinateError = (first-(x-rounded))+(second-rounded)+(fromLeft <= fromRight ? leftOffset : rightOffset);
   long double jacobian = linear ? width : 2.0L*width*sine*cosine;
-  long double a = LineSliceUtilities::PolynomialValue(field[0],x);
-  long double b = LineSliceUtilities::PolynomialValue(field[1],x);
-  long double c = LineSliceUtilities::PolynomialValue(field[2],x);
-  if(std::abs(a)+std::abs(b)+std::abs(c) < 1.0e-5L) {
-    a = LineSlicePolynomial(field[0],x,coordinateError);
-    b = LineSlicePolynomial(field[1],x,coordinateError);
-    c = LineSlicePolynomial(field[2],x,coordinateError);
-  }
+  if(!(fromLeft > 0.0L) || !(fromRight > 0.0L) || !std::isfinite(coordinateError)) throw std::runtime_error("A line-slice sample lies outside its corrected event interval.");
+  long double a = LineSlicePolynomial(field[0],x,coordinateError);
+  long double b = LineSlicePolynomial(field[1],x,coordinateError);
+  long double c = LineSlicePolynomial(field[2],x,coordinateError);
   long double factor = 1.0L;
   for(unsigned n = 0; n < flat.size(); ++n) {
     long double distance = x-flat[n]+coordinateError;
@@ -744,17 +828,25 @@ inline void LineSliceSample(const std::vector<std::vector<long double>>& field, 
   long double discriminant = std::fma(-4.0L*a,c,b*b);
   long double deltaJacobian = std::numeric_limits<long double>::quiet_NaN();
   if(a != 0.0L && !reduced.empty()) {
-    long double reducedValue = LineSliceUtilities::PolynomialValue(reduced,x);
-    if(std::abs(reducedValue) < 1.0e-5L) reducedValue = LineSlicePolynomial(reduced,x,coordinateError);
-    discriminant = reducedValue*LineSliceUtilities::Power(fromLeft,leftMultiplicity)*LineSliceUtilities::Power(fromRight,rightMultiplicity);
-    if(computeDelta && reducedValue > 0.0L && !linear && leftMultiplicity <= 1 && rightMultiplicity <= 1) {
+    const long double reducedValue = LineSlicePolynomial(reduced,x,coordinateError);
+    const long double factoredDiscriminant = reducedValue*LineSliceUtilities::Power(fromLeft,leftMultiplicity)*LineSliceUtilities::Power(fromRight,rightMultiplicity);
+    if(!(reducedValue > 0.0L) || !(factoredDiscriminant > 0.0L) || !std::isfinite(factoredDiscriminant)) throw std::runtime_error("A line-slice discriminant is inconsistent with its event interval.");
+    const long double radius = std::abs(x)+std::abs(coordinateError);
+    const long double boundA = LineSliceUtilities::PolynomialBound(field[0],radius);
+    const long double boundB = LineSliceUtilities::PolynomialBound(field[1],radius);
+    const long double boundC = LineSliceUtilities::PolynomialBound(field[2],radius);
+    const long double epsilon = std::numeric_limits<long double>::epsilon();
+    const long double arithmetic = 256.0L*epsilon*(std::abs(b*b)+4.0L*std::abs(a*c))+256.0L*epsilon*epsilon*(boundB*boundB+4.0L*boundA*boundC);
+    if(std::abs(factoredDiscriminant-discriminant) > arithmetic) throw std::runtime_error("A line-slice discriminant factorization lost its polynomial accuracy.");
+    discriminant = factoredDiscriminant;
+    if(computeDelta && !linear && leftMultiplicity <= 1 && rightMultiplicity <= 1) {
       deltaJacobian = 2.0L*width/std::sqrt(reducedValue*LineSliceUtilities::Power(width,leftMultiplicity+rightMultiplicity));
       if(leftMultiplicity == 0) deltaJacobian *= sine;
       if(rightMultiplicity == 0) deltaJacobian *= cosine;
     }
   }
-  long double lower = shape == 3 ? x : 0.0L;
-  long double upper = shape == 2 ? x : 1.0L;
+  long double lower = shape == 3 ? x+coordinateError : 0.0L;
+  long double upper = shape == 2 ? x+coordinateError : 1.0L;
   std::vector<long double> h,d;
   LineSliceSegmentMoments(a,b,c,degree,lower,upper,computeDelta,fullBoundaryDelta,discriminant,jacobian,deltaJacobian,lowerZero,upperZero,h,d,x+coordinateError,surfaceGradient);
   if(computeDelta) {
@@ -769,7 +861,7 @@ inline void LineSliceSample(const std::vector<std::vector<long double>>& field, 
       values[index] = power*h[j];
       values[count+index] = power*d[j];
     }
-    power *= x;
+    power = std::fma(power,coordinateError,power*x);
   }
 }
 
@@ -916,22 +1008,26 @@ inline void LineSliceDirection(const std::vector<std::vector<long double>>& coef
     if((*zeroBoundary)[lowerIndex] != 0) bottom.assign(1,0.0L);
     if((*zeroBoundary)[upperIndex] != 0) top.assign(1,0.0L);
   }
-  std::vector<long double> events = {0.0L,1.0L};
+  std::vector<std::pair<long double,long double>> eventPoints;
+  std::vector<unsigned> eventSources;
+  std::vector<long double> eventUncertainty;
+  LineSliceInsertEvent(0.0L,0.0L,128U,0.0L,eventPoints,eventSources,eventUncertainty);
+  LineSliceInsertEvent(1.0L,0.0L,128U,0.0L,eventPoints,eventSources,eventUncertainty);
   if(!linear) {
-    LineSliceUtilities::PolynomialRoots(discriminant,0.0L,1.0L,events);
-    for(unsigned k = 0; k < 3; ++k) LineSliceUtilities::PolynomialRoots(field[k],0.0L,1.0L,events);
+    LineSlicePolynomialEvents(discriminant,1U,eventPoints,eventSources,eventUncertainty);
+    for(unsigned k = 0; k < 3; ++k) LineSlicePolynomialEvents(field[k],2U<<k,eventPoints,eventSources,eventUncertainty);
   }
-  LineSliceUtilities::PolynomialRoots(bottom,0.0L,1.0L,events);
-  LineSliceUtilities::PolynomialRoots(top,0.0L,1.0L,events);
-  for(unsigned n = 0; n < flat.size(); ++n) events.push_back(flat[n]);
-  LineSliceUtilities::SortDistinct(events);
-  const std::vector<std::vector<long double>> eventPolynomials = {discriminant,field[0],field[1],field[2],bottom,top};
-  std::vector<long double> eventOffsets(events.size(),0.0L);
-  for(unsigned k = 0; k < events.size(); ++k) eventOffsets[k] = LineSliceEventOffset(events[k],eventPolynomials);
-  for(unsigned n = 0; n < flat.size(); ++n) {
-    for(unsigned k = 0; k < events.size(); ++k) {
-      if(events[k] == flat[n]) eventOffsets[k] = 0.0L;
-    }
+  LineSlicePolynomialEvents(bottom,16U,eventPoints,eventSources,eventUncertainty);
+  LineSlicePolynomialEvents(top,32U,eventPoints,eventSources,eventUncertainty);
+  for(unsigned n = 0; n < flat.size(); ++n) LineSliceInsertEvent(flat[n],0.0L,64U,0.0L,eventPoints,eventSources,eventUncertainty);
+  std::vector<long double> events(eventPoints.size());
+  std::vector<long double> eventOffsets(eventPoints.size());
+  for(unsigned k = 0; k < eventPoints.size(); ++k) {
+    events[k] = eventPoints[k].first;
+    eventOffsets[k] = eventPoints[k].second;
+    if(k == 0) continue;
+    const long double width = (events[k]-events[k-1U])+(eventOffsets[k]-eventOffsets[k-1U]);
+    if(!std::isfinite(width) || !(width > 4.0L*(eventUncertainty[k]+eventUncertainty[k-1U]))) throw std::runtime_error("The ordering of line-slice events could not be resolved.");
   }
   if(computeDelta && !linear) LineSliceUtilities::CheckSingularZeros(originalField,events,shape,domain);
   bool lowerZero = LineSliceUtilities::PolynomialNorm(bottom) == 0.0L;
@@ -971,24 +1067,36 @@ inline void LineSliceDirection(const std::vector<std::vector<long double>>& coef
   }
   for(unsigned interval = 1; interval < events.size(); ++interval) {
     long double left = events[interval-1U], right = events[interval];
-    if(!(right > left)) continue;
-    long double middle = 0.5L*(left+right);
+    const long double leftOffset = eventOffsets[interval-1U];
+    const long double rightOffset = eventOffsets[interval];
+    const long double width = (right-left)+(rightOffset-leftOffset);
+    if(!std::isfinite(width) || !(width > 0.0L)) throw std::runtime_error("A line-slice event interval has a nonpositive corrected width.");
+    const long double halfWidth = 0.5L*width;
+    const long double middle = left+halfWidth;
+    const long double rounded = middle-left;
+    const long double middleOffset = (left-(middle-rounded))+(halfWidth-rounded)+leftOffset;
     std::vector<int> signs,boundary;
     std::vector<long double> segments;
     long double uniform = 0.0L;
     long double factor = 1.0L;
-    for(unsigned n = 0; n < flat.size(); ++n) factor *= middle-flat[n];
-    std::vector<std::vector<long double>> signedField = field;
-    if(factor < 0.0L) {
-      for(unsigned term = 0; term < 3; ++term) {
-        for(unsigned k = 0; k < signedField[term].size(); ++k) signedField[term][k] = -signedField[term][k];
-      }
-    }
-    LineSliceUtilities::IntervalBranches(signedField,middle,shape,domain,lowerZero,upperZero,computeDelta,signs,boundary,segments,uniform);
+    for(unsigned n = 0; n < flat.size(); ++n) factor *= (middle-flat[n])+middleOffset;
+    if(factor == 0.0L) throw std::runtime_error("A line-slice midpoint reached an unresolved zero fiber.");
+    std::vector<std::vector<long double>> signedField(3,std::vector<long double>(1,0.0L));
+    for(unsigned term = 0; term < 3; ++term) signedField[term][0] = (factor < 0.0L ? -1.0L : 1.0L)*LineSlicePolynomial(field[term],middle,middleOffset);
+    LineSliceUtilities::IntervalBranches(signedField,middle+middleOffset,shape,domain,lowerZero,upperZero,computeDelta,signs,boundary,segments,uniform);
     if(signs.empty() && uniform != 0.5L && !(computeDelta && (lowerZero || upperZero))) {
       if(uniform > 0.0L) {
         for(unsigned i = 0; i <= degree; ++i) {
-          for(unsigned j = 0; j <= degree-i; ++j) values[LineSliceUtilities::MomentIndex(degree,i,j)] += LineSliceUtilities::FullStripMoment(left,right,i,j,shape,domain);
+          for(unsigned j = 0; j <= degree-i; ++j) {
+            const unsigned index = LineSliceUtilities::MomentIndex(degree,i,j);
+            if(leftOffset == 0.0L && rightOffset == 0.0L) values[index] += LineSliceUtilities::FullStripMoment(left,right,i,j,shape,domain);
+            else {
+              const long double firstMoment = LineSliceMonomialIntegral(left,right,leftOffset,rightOffset,shape == 2 ? i+j+1U : i)/(j+1U);
+              const long double secondMoment = shape == 3 ? LineSliceMonomialIntegral(left,right,leftOffset,rightOffset,i+j+1U)/(j+1U) : 0.0L;
+              values[index] += firstMoment-secondMoment;
+              errors[index] += 64.0L*std::numeric_limits<long double>::epsilon()*(i+j+2U)*(std::abs(firstMoment)+std::abs(secondMoment));
+            }
+          }
         }
       }
       ++accepted;
@@ -998,14 +1106,12 @@ inline void LineSliceDirection(const std::vector<std::vector<long double>>& coef
     unsigned leftMultiplicity = 0, rightMultiplicity = 0;
     if(!linear && LineSliceUtilities::PolynomialNorm(field[0]) != 0.0L) {
       reduced = discriminant;
-      if(!linear) {
-        LineSliceUtilities::FactorEndpoint(reduced,left,leftMultiplicity);
-        LineSliceUtilities::FactorEndpoint(reduced,right,rightMultiplicity);
-      }
+      if((eventSources[interval-1U]&1U) != 0) LineSliceFactorEvent(reduced,left,leftOffset,leftMultiplicity);
+      if((eventSources[interval]&1U) != 0) LineSliceFactorEvent(reduced,right,rightOffset,rightMultiplicity);
       if((rightMultiplicity&1U) != 0) {
         for(unsigned k = 0; k < reduced.size(); ++k) reduced[k] = -reduced[k];
       }
-      if(!(LineSliceUtilities::PolynomialValue(reduced,middle) > 0.0L)) {
+      if(!(LineSlicePolynomial(reduced,middle,middleOffset) > 0.0L)) {
         if(LineSliceUtilities::PolynomialNorm(discriminant) == 0.0L && !computeDelta) reduced.clear();
         else throw std::runtime_error("A line-slice discriminant chart could not be resolved.");
       }
@@ -1146,15 +1252,37 @@ inline void LineSliceTriangleDirections(const std::vector<std::vector<long doubl
     std::vector<long double> trialError;
     unsigned trialAccepted = 0;
     try {
-      LineSliceDirection(charts[chart],degree,true,1,computeDelta,fullBoundaryDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,trial,trialError,evaluations,trialAccepted,lower[chart] > 0.0L ? 1U : 0U,zeroBoundary == nullptr ? nullptr : &boundary,surfaceGradient == nullptr ? nullptr : &chartGradient);
-      LineSliceTriangleRestoreMoments(degree,chart,trial,trialError,values,errors);
-      for(unsigned k = 0; k < values.size(); ++k) {
-        const long double tolerance = (k < count ? absoluteTolerance : absoluteTolerance*scale)+relativeTolerance*std::abs(values[k]);
-        if(!std::isfinite(values[k]) || !std::isfinite(errors[k]) || errors[k] > tolerance) throw std::runtime_error("Triangle chart conversion exceeds the requested error budget.");
+      long double workingAbsolute = absoluteTolerance/amplification;
+      const long double roundoffRelative = 256.0L*std::numeric_limits<long double>::epsilon();
+      long double workingRelative = std::max(relativeTolerance,roundoffRelative);
+      for(unsigned refinement = 0; refinement < 4; ++refinement) {
+        if(!(workingAbsolute > 0.0L) || !std::isfinite(workingAbsolute) || !(workingAbsolute*scale > 0.0L) || !std::isfinite(workingAbsolute*scale)) throw std::runtime_error("Triangle chart error allocation exceeds floating point range.");
+        trialAccepted = 0;
+        LineSliceDirection(charts[chart],degree,true,1,computeDelta,fullBoundaryDelta,workingAbsolute,workingAbsolute*scale,workingRelative,maximumDepth,maximumEvaluations,trial,trialError,evaluations,trialAccepted,lower[chart] > 0.0L ? 1U : 0U,zeroBoundary == nullptr ? nullptr : &boundary,surfaceGradient == nullptr ? nullptr : &chartGradient);
+        LineSliceTriangleRestoreMoments(degree,chart,trial,trialError,values,errors);
+        long double ratio = 0.0L;
+        for(unsigned k = 0; k < values.size(); ++k) {
+          const long double tolerance = (k < count ? absoluteTolerance : absoluteTolerance*scale)+relativeTolerance*std::abs(values[k]);
+          if(!std::isfinite(values[k]) || !std::isfinite(errors[k])) throw std::runtime_error("Triangle chart conversion exceeds floating point range.");
+          ratio = std::max(ratio,errors[k]/tolerance);
+        }
+        if(ratio <= 1.0L) {
+          accepted = trialAccepted;
+          selected = chart+1U;
+          return;
+        }
+        std::vector<long double> zeroError(trialError.size(),0.0L);
+        std::vector<long double> restored;
+        std::vector<long double> roundoff;
+        LineSliceTriangleRestoreMoments(degree,chart,trial,zeroError,restored,roundoff);
+        for(unsigned k = 0; k < values.size(); ++k) {
+          const long double tolerance = (k < count ? absoluteTolerance : absoluteTolerance*scale)+relativeTolerance*std::abs(values[k]);
+          if(roundoff[k] > tolerance) throw std::runtime_error("Triangle chart conversion roundoff exceeds the requested error budget.");
+        }
+        workingAbsolute /= 2.0L*ratio;
+        workingRelative = std::max(roundoffRelative,workingRelative/(2.0L*ratio));
       }
-      accepted = trialAccepted;
-      selected = chart+1U;
-      return;
+      throw std::runtime_error("Triangle chart conversion exceeds the requested error budget.");
     }
     catch(const std::runtime_error& exception) {
       failure = exception.what();
@@ -1237,29 +1365,6 @@ inline void IntegrateNormalizedByLineSlices(const std::vector<std::vector<long d
     }
   }
   if(estimatedError != nullptr) *estimatedError = {static_cast<double>(maxH),static_cast<double>(maxD),static_cast<double>(accepted),static_cast<double>(evaluations),static_cast<double>(selected)};
-}
-
-inline void IntegrateTri7ReflectedByLineSlicesLongDouble(const std::vector<long double>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, const std::vector<unsigned>* zeroBoundary = nullptr, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
-  if(coefficient.size() != 7) throw std::invalid_argument("TRI7 requires seven coefficients.");
-  long double scale = 0.0L;
-  for(unsigned term = 0; term < 7; ++term) {
-    if(!std::isfinite(coefficient[term])) throw std::invalid_argument("A TRI7 coefficient is not finite.");
-    scale = std::max(scale,std::abs(coefficient[term]));
-  }
-  if(scale == 0.0L) scale = 1.0L;
-  int exponent = 0;
-  std::frexp(scale,&exponent);
-  scale = std::ldexp(1.0L,exponent-1);
-  std::vector<std::vector<long double>> normalized(3,std::vector<long double>(3,0.0L));
-  normalized[0][0] = coefficient[0]/scale;
-  normalized[1][0] = coefficient[1]/scale;
-  normalized[0][1] = coefficient[2]/scale;
-  normalized[2][0] = coefficient[3]/scale;
-  normalized[1][1] = coefficient[4]/scale;
-  normalized[0][2] = coefficient[5]/scale;
-  normalized[2][1] = coefficient[6]/scale;
-  normalized[1][2] = -coefficient[6]/scale;
-  IntegrateNormalizedByLineSlices(normalized,scale,degree,true,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,maximumDepth,integrationOrder,maximumEvaluations,estimatedError,zeroBoundary,surfaceGradient);
 }
 
 }

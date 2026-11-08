@@ -9,6 +9,7 @@ From this directory:
 ```sh
 python build.py --boost /path/to/boost/include --eigen /path/to/eigen3
 python run.py
+python run.py --selection supplemental
 python run_focused.py
 python compare_planar.py
 python run_focused.py --extended
@@ -36,23 +37,25 @@ The independent Python references use exact interval, simplex, ball, and sphere 
 
 The fitting space is the full total-degree polynomial space P_qM. Consequently, multiplying a raw delta correction by a nonpolynomial gradient norm after fitting does not generally give the same finite-degree result as including that norm inside the moments. The suite asserts equality only when the complete polynomial integrand is within the degree budget. Otherwise it records the outside formulation's error against the independent surface reference. Variable-Jacobian volume tests use the same degree-budget rule. Physical surface tests use reference Gauss weights and the cofactor metric without a second determinant factor.
 
-## Strict small-cut stress case
+## Strict small-cut regression
 
-The original comparison matrix contains 386 cases. Its TET15 degree-5 cap `x > 1 - 1/256` requests absolute and relative tolerances of 1e-13. That case exceeded the 45-second process budget in both the original and native-reference implementations during the initial comparison. A run includes raw delta, reference surface, and physical surface in that budget.
+The default original matrix contains 386 cases, including the TET15 degree-5 cap `x > 1 - 1/256` at requested absolute and relative tolerances of 1e-13. This is a required regression. Its 45-second process budget covers raw delta, reference surface, physical surface, and a cached repeat. A failure or timeout is reported with a nonzero exit status.
 
-The default portable suite keeps the other 385 cases and runs this same cap separately at a requested tolerance of 1e-10, giving 386 regular cases. The relaxed case has a distinct `_relaxed_1e-10` identifier. The strict case is retained and can be run explicitly:
+The strict cap's normalized weighted-moment limit is 2e-13, including all representable inside/outside formulations. It can be selected alone or as part of the complete matrix:
 
 ```sh
 python run.py --stress
 python run.py --selection original
 ```
 
-`--stress` runs the strict case alone. `--selection original` runs the unchanged original 386-case matrix. A timeout remains a reported failure and produces a nonzero exit status; it is never counted as a passing test. The initial relaxed run completed in approximately 0.31 seconds for each implementation, with native volume error below 1.5e-21 and surface-moment error below 1.2e-18.
+`--selection supplemental` runs eight additional cases: six degree-5 cap variants at 1e-13 covering level-set scaling by 2^-20 and 2^20, sign reversal, and affine physical geometry; the separately named `_relaxed_1e-10` cap request; and the scaled degree-5 plane at 1e-13 alongside its original-matrix counterpart at 1e-12. The relaxed request never substitutes for a failed strict request. `regular` is retained as an alias for the original strict matrix.
+
+`test_tet_slice_regression.cpp` reconstructs the diagnosed first slice from actual FEMuS nodes and calls the existing line/triangle kernels. It rejects invalid corrected intervals, preserves valid thin intervals, checks every degree-5 moment, and requires nonzero accurate interface mass from every completed chart. An ill-conditioned chart may explicitly reject; regular charts and chart selection must succeed at the original final tolerance. The same test can be compiled against the preserved pre-fix headers. `test_root_candidate_regression.cpp` separately checks consolidation of duplicate candidates for the same simple root while preserving genuinely distinct nearby roots, independent polynomial identities, and the positive strip next to a boundary.
 
 ## Focused checks
 
-`run_focused.py` runs API contracts, output range rejection, standalone multiprecision, native coefficient agreement with actual FEMuS values and gradients, and direct QUAD/TRI/TET/HEX moment probes. QUAD and HEX probes include degree 10. `--extended` also runs the slower degree-8/10 TRI/TET checks, with a five-minute process budget. The build checks both planar/LS include orders and rejects accidental dependencies on the planar or Algoim headers from the standalone LS tests.
+`run_focused.py` runs API contracts, output range rejection, standalone multiprecision, native coefficient agreement with actual FEMuS values and gradients, and direct QUAD/TRI/TET/HEX moment probes. QUAD and HEX probes include degree 10. `--extended` also runs the degree-8/10 TRI/TET checks, with a five-minute process budget. The build checks both planar/LS include orders and rejects accidental dependencies on the planar or Algoim headers from the standalone LS tests.
 
-`compare_planar.py` checks 147 affine rules against the unchanged original `CutFemWeight` class, including tetrahedral base selections 0, 1, and 2. The tiny-cap comparison uses the explicitly named relaxed result when the strict result is unavailable.
+`compare_planar.py` checks 147 affine rules against the unchanged original `CutFemWeight` class, including tetrahedral base selections 0, 1, and 2. Its tiny-cap comparisons require the original strict result.
 
 The exact original-commit snapshots, original/candidate comparison files, and optional direct Algoim application check are external verification artifacts rather than prerequisites for this candidate-only suite.

@@ -12,7 +12,7 @@ from reference import dimension, outside_degree, reference
 
 root = Path(__file__).resolve().parent
 mode = 'candidate'
-selection = 'regular'
+selection = 'original'
 folder = root / 'results' / mode
 methods = ('volume', 'raw_delta', 'surface_inside', 'surface_outside', 'physical_inside', 'physical_outside', 'physical_volume')
 
@@ -56,7 +56,7 @@ def assess(case, data):
                 exact = sum(exponent) + 1 <= case['degree']
             if exact:
                 assertions += 1
-                limit = 20.0 * case['tolerance'] + 3e-11
+                limit = 2.0 * case['tolerance'] if case.get('strict_cap_accuracy') else 20.0 * case['tolerance'] + 3e-11
                 maximum_asserted_normalized_error = max(maximum_asserted_normalized_error, normalized)
                 maximum_error_fraction_of_limit = max(maximum_error_fraction_of_limit, normalized / limit)
                 if not math.isfinite(value) or normalized > limit:
@@ -96,22 +96,32 @@ def run(case):
 def portable_cases(selection):
     strict_id = 'e4_q5_tiny_identity_s1_v0'
     original = selected_cases('all')
+    for case in original:
+        if case['id'] == strict_id:
+            case['strict_cap_accuracy'] = True
     strict = next(case for case in original if case['id'] == strict_id)
     if selection == 'stress':
         return [strict]
-    if selection == 'regular':
-        relaxed = dict(strict, id=strict_id + '_relaxed_1e-10', tolerance=1e-10)
-        return [case for case in original if case['id'] != strict_id] + [relaxed]
-    if selection == 'original':
+    if selection in ('regular', 'original'):
         return original
-    return selected_cases(selection)
+    if selection == 'supplemental':
+        cases = [dict(strict, id=strict_id + '_relaxed_1e-10', tolerance=1e-10)]
+        for mapping, scales in (('identity', (2.0 ** -20, 2.0 ** 20, -3.0)), ('affine', (1.0, 2.0 ** -20, 2.0 ** 20))):
+            for scale in scales:
+                identifier = f'e4_q5_tiny_{mapping}_s{scale:g}_v0'
+                cases.append(dict(strict, id=identifier, mapping=mapping, scale=scale, group='strict_cap_scaling'))
+        scaled_plane = next(case for case in original if case['id'] == 'e4_q5_plane_identity_s9.53674e-07_v0')
+        cases.append(dict(scaled_plane, id=scaled_plane['id'] + '_tol1e-13', tolerance=1e-13, group='tolerance_regression'))
+        return cases
+    identifiers = {case['id'] for case in selected_cases(selection)}
+    return [case for case in original if case['id'] in identifiers]
 
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(description='Run independent native-reference integration checks.')
-    parser.add_argument('--selection', default='regular', choices=['regular', 'original', 'quick', 'coupled', 'edge', 'scale', 'physical', 'validation', 'closed'])
-    parser.add_argument('--stress', action='store_true', help='Run the strict TET tiny-cut case, including its timeout as a failure.')
+    parser.add_argument('--selection', default='original', choices=['original', 'regular', 'supplemental', 'quick', 'coupled', 'edge', 'scale', 'physical', 'validation', 'closed'])
+    parser.add_argument('--stress', action='store_true', help='Run only the strict TET tiny-cut case at its original tolerance.')
     parser.add_argument('--jobs', type=int, default=3)
     parser.add_argument('--element', choices=['LINE', 'QUAD', 'TRI', 'HEX', 'TET'])
     args = parser.parse_args()

@@ -19,13 +19,7 @@ def planar_case(arguments):
             raise RuntimeError(process.stderr[-2000:])
         planar = json.loads(process.stdout)
         path = root / 'results/candidate' / (case['id'] + '.json')
-        if not path.exists() and case['id'] == 'e4_q5_tiny_identity_s1_v0':
-            path = path.with_name(case['id'] + '_relaxed_1e-10.json')
         candidate = json.loads(path.read_text())
-        if candidate['assessment']['failures'] and case['id'] == 'e4_q5_tiny_identity_s1_v0':
-            relaxed = path.with_name(case['id'] + '_relaxed_1e-10.json')
-            if relaxed.exists():
-                candidate = json.loads(relaxed.read_text())
         record['candidate_case_used'] = candidate['case']['id']
         record['candidate_request_tolerance'] = candidate['case']['tolerance']
         if candidate['assessment']['failures']:

@@ -25,6 +25,7 @@ includes = [repo / 'src/quadrature/cutfem_ls', repo / 'src/quadrature', repo / '
 if args.boost:
     includes.append(args.boost)
 common = [args.cxx, '-std=c++14', '-O2', *['-I' + str(path) for path in includes]]
+starting_manifest = {str(path.relative_to(repo)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted((repo / 'src/quadrature/cutfem_ls').glob('*.hpp'))}
 
 
 def execute(name, command):
@@ -50,7 +51,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
 groups = {
     'regression': ['native_suite', 'planar_suite'],
     'contracts': ['test_contract', 'test_ls_multiprecision', 'test_ls_output_range', 'test_order_ls_first', 'test_order_planar_first'],
-    'geometry': ['test_reference_coefficients', 'tet_standard_moments', 'quad_tri_standard_moments', 'quad_native_quadrants', 'quad_scaled_plane', 'simplex_high_degree', 'test_hex_native'],
+    'geometry': ['test_reference_coefficients', 'tet_standard_moments', 'test_tet_slice_regression', 'test_root_candidate_regression', 'quad_tri_standard_moments', 'quad_native_quadrants', 'quad_scaled_plane', 'simplex_high_degree', 'test_hex_native'],
 }
 names = [name for group in groups.values() for name in group] if args.target == 'all' else groups[args.target]
 if args.tests:
@@ -92,7 +93,10 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
         except Exception as error:
             results.append({'test': futures[future], 'exit': 1, 'message': str(error)})
             print(str(error), flush=True)
-(root / ('build_results_selected.json' if args.tests else 'build_results.json')).write_text(json.dumps(results, indent=2) + '\n')
 manifest = {str(path.relative_to(repo)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted((repo / 'src/quadrature/cutfem_ls').glob('*.hpp'))}
+if manifest != starting_manifest:
+    results.append({'test': 'source_snapshot', 'exit': 1, 'message': 'Implementation headers changed during compilation; rebuild before running tests.'})
+(root / ('build_results_selected.json' if args.tests else 'build_results.json')).write_text(json.dumps(results, indent=2) + '\n')
 (build / 'source_manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+(build / 'test_source_manifest.json').write_text(json.dumps({name + '.cpp': hashlib.sha256((root / (name + '.cpp')).read_bytes()).hexdigest() for name in names}, indent=2) + '\n')
 sys.exit(any(result['exit'] for result in results))
