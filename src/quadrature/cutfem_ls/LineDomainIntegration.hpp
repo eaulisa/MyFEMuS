@@ -607,6 +607,48 @@ public:
     return polynomial;
   }
 
+  static long double FiberDiscriminantValue(const std::vector<std::vector<long double>>& coefficient, long double x) {
+    const std::vector<long double> polynomial = FiberPolynomial(coefficient,x);
+    return std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
+  }
+
+  static long double FiberDiscriminantDerivative(const std::vector<std::vector<long double>>& coefficient, long double x) {
+    long double a = 0.0L;
+    long double b = 0.0L;
+    long double c = 0.0L;
+    long double da = 0.0L;
+    long double db = 0.0L;
+    long double dc = 0.0L;
+    long double power = 1.0L;
+    for(unsigned i = 0; i < 3; ++i) {
+      a += coefficient[i][2]*power;
+      b += coefficient[i][1]*power;
+      c += coefficient[i][0]*power;
+      if(i > 0) {
+        const long double derivativePower = i == 1 ? 1.0L : x;
+        da += static_cast<long double>(i)*coefficient[i][2]*derivativePower;
+        db += static_cast<long double>(i)*coefficient[i][1]*derivativePower;
+        dc += static_cast<long double>(i)*coefficient[i][0]*derivativePower;
+      }
+      power *= x;
+    }
+    return 2.0L*b*db-4.0L*(da*c+a*dc);
+  }
+
+  static long double RefineDiscriminantEvent(const std::vector<std::vector<long double>>& coefficient, long double root, long double left, long double right) {
+    long double current = root;
+    for(unsigned iteration = 0; iteration < 12; ++iteration) {
+      const long double value = FiberDiscriminantValue(coefficient,current);
+      const long double derivative = FiberDiscriminantDerivative(coefficient,current);
+      if(derivative == 0.0L || !std::isfinite(value) || !std::isfinite(derivative)) break;
+      const long double next = current-value/derivative;
+      if(!(next >= left && next <= right) || !std::isfinite(next)) break;
+      if(next == current) break;
+      current = next;
+    }
+    return current;
+  }
+
   static void CollectEvents(const std::vector<std::vector<long double>>& coefficient, const LineIntegrationStrip& strip, std::vector<long double>& events) {
     events = {strip.left,strip.right};
     std::vector<long double> lower = BoundaryPolynomial(coefficient,strip.lowerConstant,strip.lowerSlope);
@@ -622,7 +664,9 @@ public:
       c[i] = coefficient[i][0];
     }
     std::vector<long double> discriminant = LineSliceUtilities::PolynomialSum(LineSliceUtilities::PolynomialProduct(b,b),LineSliceUtilities::PolynomialProduct(a,c),-4.0L);
-    LineSliceUtilities::PolynomialRoots(discriminant,strip.left,strip.right,events);
+    std::vector<long double> discriminantEvents;
+    LineSliceUtilities::PolynomialRoots(discriminant,strip.left,strip.right,discriminantEvents);
+    for(unsigned k = 0; k < discriminantEvents.size(); ++k) events.push_back(RefineDiscriminantEvent(coefficient,discriminantEvents[k],strip.left,strip.right));
     LineSliceUtilities::SortDistinct(events);
   }
 
