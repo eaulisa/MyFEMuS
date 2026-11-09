@@ -106,7 +106,49 @@ void CheckLocalSplitDirections() {
   ++quadrantChecks;
 }
 
+void CheckRecursiveGraphSplitting() {
+  const long double radius = 0.65L;
+  const long double pi = std::acos(-1.0L);
+  std::vector<std::vector<double>> coefficient(3,std::vector<double>(3,0.0));
+  coefficient[0][0] = static_cast<double>(-radius*radius);
+  coefficient[2][0] = 1.0;
+  coefficient[0][2] = 1.0;
+  std::vector<std::vector<long double>> chart;
+  FELevelSetMoments::ReferencePolynomialAffine2D(coefficient,-1.0L,2.0L,-1.0L,2.0L,chart);
+  std::vector<std::vector<long double>> normalized;
+  long double scale = 0.0L;
+  LineSliceUtilities::NormalizeCanonicalPolynomial(chart,normalized,scale);
+  long double lower[2] = {};
+  long double upper[2] = {};
+  FELevelSetMoments::Quad9SelectedOrder(normalized,lower,upper);
+  if(lower[0] != 0.0L || lower[1] != 0.0L) throw std::runtime_error("Circle regression unexpectedly has a global graph direction.");
+  std::vector<std::vector<double>> positive;
+  std::vector<std::vector<double>> delta;
+  std::vector<double> estimate;
+  FELevelSetMoments::IntegrateQuad9ReferenceSelected(coefficient,2,positive,delta,1.0e-10,1.0e-10,true,false,28,0,200000,&estimate,0,nullptr,true);
+  const long double expectedArea = 4.0L-pi*radius*radius;
+  const long double expectedSecond = 4.0L/3.0L-pi*radius*radius*radius*radius/4.0L;
+  const long double expectedDelta = pi;
+  const long double expectedDeltaSecond = 0.5L*pi*radius*radius;
+  const long double errors[8] = {
+    std::abs(static_cast<long double>(positive[0][0])-expectedArea),
+    std::abs(static_cast<long double>(positive[1][0])),
+    std::abs(static_cast<long double>(positive[0][1])),
+    std::abs(static_cast<long double>(positive[2][0])-expectedSecond),
+    std::abs(static_cast<long double>(positive[0][2])-expectedSecond),
+    std::abs(static_cast<long double>(delta[0][0])-expectedDelta),
+    std::abs(static_cast<long double>(delta[2][0])-expectedDeltaSecond),
+    std::abs(static_cast<long double>(delta[0][2])-expectedDeltaSecond)
+  };
+  for(unsigned k = 0; k < 8; ++k) {
+    quadrantError = std::max(quadrantError,errors[k]);
+    if(errors[k] > 2.0e-10L) throw std::runtime_error("Recursive QUAD graph splitting failed the circle regression.");
+    ++quadrantChecks;
+  }
+}
+
 int main() {
+  CheckRecursiveGraphSplitting();
   CheckLocalSplitDirections();
   for(unsigned direction = 1; direction <= 2; ++direction) {
     for(unsigned taylor = 0; taylor < 2; ++taylor) {
