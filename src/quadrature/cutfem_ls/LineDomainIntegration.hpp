@@ -273,6 +273,55 @@ public:
     return remaining;
   }
 
+  static bool MappedGaussPairPanel(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool computeDelta, bool lowerZero, bool upperZero, const std::vector<unsigned char>& active, unsigned maximumEvaluations, unsigned& evaluations, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient) {
+    const unsigned size = active.size();
+    values.assign(size,0.0L);
+    errors.assign(size,std::numeric_limits<long double>::infinity());
+    std::vector<long double> low(size,0.0L);
+    std::vector<long double> absolute(size,0.0L);
+    std::vector<long double> lowPoints;
+    std::vector<long double> lowWeights;
+    std::vector<long double> highPoints;
+    std::vector<long double> highWeights;
+    GaussRule(16,lowPoints,lowWeights);
+    GaussRule(32,highPoints,highWeights);
+    const long double parameterWidth = parameterRight-parameterLeft;
+    const long double pi = std::acos(-1.0L);
+    try {
+      for(unsigned pass = 0; pass < 2; ++pass) {
+        const std::vector<long double>& points = pass == 0 ? lowPoints : highPoints;
+        const std::vector<long double>& weights = pass == 0 ? lowWeights : highWeights;
+        std::vector<long double>& result = pass == 0 ? low : values;
+        for(unsigned q = 0; q < points.size(); ++q) {
+          if(evaluations >= maximumEvaluations) throw std::runtime_error("LINE mapped graph evaluation budget exhausted.");
+          ++evaluations;
+          ++Statistics().fastSamples;
+          const long double parameter = parameterLeft+parameterWidth*points[q];
+          const long double point = MappedPoint(left,right,parameter,true);
+          const long double jacobian = 0.5L*pi*(right-left)*std::sin(pi*parameter);
+          const long double weight = parameterWidth*weights[q]*jacobian;
+          std::vector<long double> sample;
+          FastGraphSample(coefficient,degree,strip,point,computeDelta,lowerZero,upperZero,sample,surfaceGradient,active);
+          for(unsigned k = 0; k < size; ++k) {
+            if(!active[k]) continue;
+            const long double term = weight*sample[k];
+            result[k] += term;
+            if(pass == 1) absolute[k] += std::abs(term);
+          }
+        }
+      }
+    }
+    catch(const std::runtime_error&) {
+      std::fill(errors.begin(),errors.end(),std::numeric_limits<long double>::infinity());
+      return false;
+    }
+    for(unsigned k = 0; k < size; ++k) {
+      if(!active[k]) continue;
+      errors[k] = std::max(std::abs(values[k]-low[k]),256.0L*std::numeric_limits<long double>::epsilon()*absolute[k]);
+    }
+    return true;
+  }
+
   static void Adaptive(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool mapped, bool graph, bool useTaylor, bool computeDelta, bool lowerZero, bool upperZero, long double absoluteH, long double absoluteD, long double relative, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& requested) {
     std::vector<unsigned char> active(requested);
     std::vector<long double> values;
@@ -282,6 +331,13 @@ public:
     if(!Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
       ++accepted;
       return;
+    }
+    if(graph && mapped && sampled) {
+      const bool paired = MappedGaussPairPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient);
+      if(paired && !Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
+        ++accepted;
+        return;
+      }
     }
     const long double middle = 0.5L*(parameterLeft+parameterRight);
     const unsigned fastDepthLimit = mapped ? maximumDepth : std::min(maximumDepth,8U);
