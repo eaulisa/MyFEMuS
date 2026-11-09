@@ -38,6 +38,8 @@ jobs:
         run: python3 run_focused.py --extended
       - name: Compare direct parent moments with the previous graph implementation
         run: python3 unittests/testCutFemWeightLSNative/run_direct_moment_benchmark.py
+      - name: Compare certified single-root integration with the previous version
+        run: python3 unittests/testCutFemWeightLSNative/run_direct_moment_benchmark.py --baseline 188a0034139361a1772fc0d8a5c0151c2cba8469 --folder single_root --summary single_root_summary.json --rounds 3
       - name: Run native and planar matrices
         working-directory: unittests/testCutFemWeightLSNative
         run: |

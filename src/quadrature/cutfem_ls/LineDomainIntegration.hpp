@@ -21,6 +21,7 @@ struct LineIntegrationStatistics {
   unsigned long long fullSamples = 0;
   unsigned long long taylorPanels = 0;
   unsigned long long rootSolves = 0;
+  unsigned long long singleRootSamples = 0;
   unsigned long long inactiveSkipped = 0;
   unsigned long long fallbackComponents = 0;
   unsigned long long mappedPanels = 0;
@@ -163,7 +164,7 @@ public:
     }
   }
 
-  static void FastGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double x, bool computeDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& active, long double mappedDerivative = -1.0L, const std::array<long double,5>* coordinates = nullptr) {
+  static void FastGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double x, bool computeDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& active, long double mappedDerivative = -1.0L, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0) {
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     values.assign(2U*count,0.0L);
     const long double parentX = coordinates == nullptr ? x : (*coordinates)[0]+(*coordinates)[1]*x;
@@ -172,40 +173,69 @@ public:
     const long double upper = StripUpper(strip,x);
     std::array<long double,3> polynomial;
     for(unsigned j = 0; j < 3; ++j) polynomial[j] = coefficient[2][j] == 0.0L ? coefficient[0][j]+coefficient[1][j]*x : std::fma(std::fma(coefficient[2][j],x,coefficient[1][j]),x,coefficient[0][j]);
-    std::array<long double,2> roots;
-    unsigned rootsCount = 0;
-    if(lowerZero || upperZero) {
-      roots[rootsCount++] = lowerZero ? lower : upper;
-      if(polynomial[2] != 0.0L) {
-        const long double other = -polynomial[1]/polynomial[2]-roots[0];
-        if(other != roots[0]) roots[rootsCount++] = other;
-      }
-    }
-    else if(polynomial[2] == 0.0L) {
-      if(polynomial[1] != 0.0L) roots[rootsCount++] = -polynomial[0]/polynomial[1];
-    }
-    else {
-      const long double discriminant = std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
-      if(discriminant == 0.0L) roots[rootsCount++] = -polynomial[1]/(2.0L*polynomial[2]);
-      else if(discriminant > 0.0L) {
-        const long double numerator = -0.5L*(polynomial[1]+std::copysign(std::sqrt(discriminant),polynomial[1]));
-        roots[rootsCount++] = numerator/polynomial[2];
-        roots[rootsCount++] = polynomial[0]/numerator;
-      }
-    }
     ++Statistics().rootSolves;
     const long double tolerance = 256.0L*std::numeric_limits<long double>::epsilon()*std::max(1.0L,std::max(std::abs(lower),std::abs(upper)));
     long double root = 0.0L;
+    long double derivative = 0.0L;
+    long double signedDerivative = 0.0L;
     unsigned number = 0;
-    for(unsigned r = 0; r < rootsCount; ++r) if(roots[r] >= lower-tolerance && roots[r] <= upper+tolerance) { root = std::max(lower,std::min(upper,roots[r])); ++number; }
-    if(number > 1) throw std::runtime_error("The cached graph branch is not a single root.");
+    if(derivativeSign != 0) {
+      ++Statistics().singleRootSamples;
+      bool available = false;
+      if(lowerZero || upperZero) {
+        root = lowerZero ? lower : upper;
+        derivative = std::abs(polynomial[2] == 0.0L ? polynomial[1] : std::fma(2.0L*polynomial[2],root,polynomial[1]));
+        available = true;
+      }
+      else if(polynomial[2] == 0.0L) {
+        if(polynomial[1] != 0.0L) { root = -polynomial[0]/polynomial[1]; derivative = std::abs(polynomial[1]); available = true; }
+      }
+      else {
+        const long double discriminant = std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
+        if(discriminant >= 0.0L) {
+          derivative = std::sqrt(discriminant);
+          const long double denominator = polynomial[1]+derivativeSign*derivative;
+          root = derivativeSign*polynomial[1] >= 0.0L && denominator != 0.0L ? -2.0L*polynomial[0]/denominator : 0.5L*(-polynomial[1]+derivativeSign*derivative)/polynomial[2];
+          available = true;
+        }
+      }
+      if(available && root >= lower-tolerance && root <= upper+tolerance) { root = std::max(lower,std::min(upper,root)); number = 1; }
+      signedDerivative = derivativeSign;
+    }
+    else {
+      std::array<long double,2> roots;
+      unsigned rootsCount = 0;
+      if(lowerZero || upperZero) {
+        roots[rootsCount++] = lowerZero ? lower : upper;
+        if(polynomial[2] != 0.0L) {
+          const long double other = -polynomial[1]/polynomial[2]-roots[0];
+          if(other != roots[0]) roots[rootsCount++] = other;
+        }
+      }
+      else if(polynomial[2] == 0.0L) {
+        if(polynomial[1] != 0.0L) roots[rootsCount++] = -polynomial[0]/polynomial[1];
+      }
+      else {
+        const long double discriminant = std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
+        if(discriminant == 0.0L) roots[rootsCount++] = -polynomial[1]/(2.0L*polynomial[2]);
+        else if(discriminant > 0.0L) {
+          const long double numerator = -0.5L*(polynomial[1]+std::copysign(std::sqrt(discriminant),polynomial[1]));
+          roots[rootsCount++] = numerator/polynomial[2];
+          roots[rootsCount++] = polynomial[0]/numerator;
+        }
+      }
+      for(unsigned r = 0; r < rootsCount; ++r) if(roots[r] >= lower-tolerance && roots[r] <= upper+tolerance) { root = std::max(lower,std::min(upper,roots[r])); ++number; }
+      if(number > 1) throw std::runtime_error("The cached graph branch is not a single root.");
+      if(number == 1) {
+        signedDerivative = polynomial[2] == 0.0L ? polynomial[1] : std::fma(2.0L*polynomial[2],root,polynomial[1]);
+        const long double discriminant = polynomial[2] == 0.0L ? polynomial[1]*polynomial[1] : std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
+        derivative = polynomial[2] == 0.0L ? std::abs(polynomial[1]) : (discriminant >= 0.0L ? std::sqrt(discriminant) : std::abs(signedDerivative));
+      }
+    }
     long double positiveLeft = lower;
     long double positiveRight = lower;
-    long double derivative = 0.0L;
     if(number == 1) {
-      const long double signedDerivative = polynomial[2] == 0.0L ? polynomial[1] : std::fma(2.0L*polynomial[2],root,polynomial[1]);
-      const long double discriminant = polynomial[2] == 0.0L ? polynomial[1]*polynomial[1] : std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
-      derivative = mappedDerivative >= 0.0L ? mappedDerivative : (polynomial[2] == 0.0L ? std::abs(polynomial[1]) : (discriminant >= 0.0L ? std::sqrt(discriminant) : std::abs(signedDerivative)));
+      if(mappedDerivative >= 0.0L) derivative = mappedDerivative;
       if(!(derivative > 0.0L)) throw std::runtime_error("A singular fiber has no regular graph delta weight.");
       positiveLeft = signedDerivative > 0.0L ? root : lower;
       positiveRight = signedDerivative > 0.0L ? upper : root;
@@ -291,7 +321,7 @@ public:
     return value >= 0.0L ? std::sqrt(value) : -1.0L;
   }
 
-  static bool GaussKronrodPanel(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool mapped, bool graph, bool computeDelta, bool lowerZero, bool upperZero, const std::vector<unsigned char>& active, unsigned maximumEvaluations, unsigned& evaluations, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const LineIntegrationDiscriminant* cachedDiscriminant = nullptr, const std::array<long double,5>* coordinates = nullptr) {
+  static bool GaussKronrodPanel(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool mapped, bool graph, bool computeDelta, bool lowerZero, bool upperZero, const std::vector<unsigned char>& active, unsigned maximumEvaluations, unsigned& evaluations, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const LineIntegrationDiscriminant* cachedDiscriminant = nullptr, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0) {
     static const long double nodes[8] = {0.991455371120812639206854697526329L,0.949107912342758524526189684047851L,0.864864423359769072789712788640926L,0.741531185599394439863864773280788L,0.586087235467691130294144838258730L,0.405845151377397166906606412076961L,0.207784955007898467600689403773245L,0.0L};
     static const long double kronrod[8] = {0.022935322010529224963732008058970L,0.063092092629978553290700663189204L,0.104790010322250183839876322541518L,0.140653259715525918745189590510238L,0.169004726639267902826583426598550L,0.190350578064785409913256402421014L,0.204432940075298892414161999234649L,0.209482141084727828012999174891714L};
     static const long double gauss[4] = {0.129484966168869693270611432679082L,0.279705391489276667901467771423780L,0.381830050505118944950369775488975L,0.417959183673469387755102040816327L};
@@ -317,7 +347,7 @@ public:
         const long double point = MappedPoint(left,right,parameter,mapped);
         const long double jacobian = mapped ? 0.5L*pi*(right-left)*std::sin(pi*parameter) : right-left;
         const long double mappedDerivative = mapped ? MappedDerivativeMagnitude(discriminant,parameter) : -1.0L;
-        if(graph) FastGraphSample(coefficient,degree,strip,point,computeDelta,lowerZero,upperZero,samples[sample],surfaceGradient,active,mappedDerivative,coordinates);
+        if(graph) FastGraphSample(coefficient,degree,strip,point,computeDelta,lowerZero,upperZero,samples[sample],surfaceGradient,active,mappedDerivative,coordinates,derivativeSign);
         else Sample(coefficient,degree,strip,point,computeDelta,false,lowerZero,upperZero,samples[sample],surfaceGradient,active,mappedDerivative,coordinates);
         for(unsigned k = 0; k < size; ++k) {
           if(!active[k]) continue;
@@ -364,7 +394,7 @@ public:
     return remaining;
   }
 
-  static bool GraphGaussPairPanel(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool mapped, bool computeDelta, bool lowerZero, bool upperZero, const std::vector<unsigned char>& active, unsigned maximumEvaluations, unsigned& evaluations, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const LineIntegrationDiscriminant* cachedDiscriminant = nullptr, const std::array<long double,5>* coordinates = nullptr) {
+  static bool GraphGaussPairPanel(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool mapped, bool computeDelta, bool lowerZero, bool upperZero, const std::vector<unsigned char>& active, unsigned maximumEvaluations, unsigned& evaluations, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const LineIntegrationDiscriminant* cachedDiscriminant = nullptr, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0) {
     const unsigned size = active.size();
     values.assign(size,0.0L);
     errors.assign(size,std::numeric_limits<long double>::infinity());
@@ -395,7 +425,7 @@ public:
           const long double weight = parameterWidth*weights[q]*jacobian;
           std::vector<long double> sample;
           const long double mappedDerivative = mapped ? MappedDerivativeMagnitude(discriminant,parameter) : -1.0L;
-          FastGraphSample(coefficient,degree,strip,point,computeDelta,lowerZero,upperZero,sample,surfaceGradient,active,mappedDerivative,coordinates);
+          FastGraphSample(coefficient,degree,strip,point,computeDelta,lowerZero,upperZero,sample,surfaceGradient,active,mappedDerivative,coordinates,derivativeSign);
           for(unsigned k = 0; k < size; ++k) {
             if(!active[k]) continue;
             const long double term = weight*sample[k];
@@ -416,7 +446,7 @@ public:
     return true;
   }
 
-  static void Adaptive(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool mapped, bool graph, bool useTaylor, bool computeDelta, bool lowerZero, bool upperZero, long double absoluteH, long double absoluteD, long double relative, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& requested, const LineIntegrationDiscriminant* cachedDiscriminant = nullptr, const std::array<long double,5>* coordinates = nullptr) {
+  static void Adaptive(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool mapped, bool graph, bool useTaylor, bool computeDelta, bool lowerZero, bool upperZero, long double absoluteH, long double absoluteD, long double relative, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& requested, const LineIntegrationDiscriminant* cachedDiscriminant = nullptr, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0) {
     const LineIntegrationDiscriminant localDiscriminant = mapped && cachedDiscriminant == nullptr ? MappedDiscriminant(coefficient,left,right) : LineIntegrationDiscriminant();
     if(cachedDiscriminant == nullptr) cachedDiscriminant = &localDiscriminant;
     std::vector<unsigned char> active(requested);
@@ -429,14 +459,14 @@ public:
       if(mapped) ++Statistics().mappedPanels;
       else ++Statistics().regularGraphPanels;
     }
-    const bool sampled = GaussKronrodPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,graph,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient,cachedDiscriminant,coordinates);
+    const bool sampled = GaussKronrodPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,graph,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient,cachedDiscriminant,coordinates,derivativeSign);
     if(!Accept(values,errors,absoluteH*fractionH,absoluteD*fractionD,relative,active,total,totalError)) {
       ++accepted;
       return;
     }
     if(graph && sampled && (coordinates == nullptr || mapped || degree > 5)) {
       ++Statistics().pairPanels;
-      const bool paired = GraphGaussPairPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient,cachedDiscriminant,coordinates);
+      const bool paired = GraphGaussPairPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient,cachedDiscriminant,coordinates,derivativeSign);
       if(paired) {
         const unsigned pairCount = active.size()/2U;
         for(unsigned k = 0; k < active.size(); ++k) {
@@ -464,8 +494,8 @@ public:
     const long double middle = 0.5L*(parameterLeft+parameterRight);
     const unsigned fastDepthLimit = mapped ? maximumDepth : std::min(maximumDepth,8U);
     if(graph && sampled && depth < fastDepthLimit && middle != parameterLeft && middle != parameterRight) {
-      Adaptive(coefficient,degree,strip,left,right,parameterLeft,middle,mapped,true,useTaylor,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates);
-      Adaptive(coefficient,degree,strip,left,right,middle,parameterRight,mapped,true,useTaylor,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates);
+      Adaptive(coefficient,degree,strip,left,right,parameterLeft,middle,mapped,true,useTaylor,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
+      Adaptive(coefficient,degree,strip,left,right,middle,parameterRight,mapped,true,useTaylor,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
       return;
     }
     if(graph && useTaylor) {
@@ -486,15 +516,15 @@ public:
       catch(const std::runtime_error&) {}
     }
     if(graph) {
-      GaussKronrodPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,false,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient,cachedDiscriminant,coordinates);
+      GaussKronrodPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,false,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient,cachedDiscriminant,coordinates,derivativeSign);
       if(!Accept(values,errors,absoluteH*fractionH,absoluteD*fractionD,relative,active,total,totalError)) {
         ++accepted;
         return;
       }
     }
     if(depth >= maximumDepth || middle == parameterLeft || middle == parameterRight || evaluations >= maximumEvaluations) throw std::runtime_error("LINE domain integration did not reach the requested tolerance.");
-    Adaptive(coefficient,degree,strip,left,right,parameterLeft,middle,mapped,false,false,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates);
-    Adaptive(coefficient,degree,strip,left,right,middle,parameterRight,mapped,false,false,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates);
+    Adaptive(coefficient,degree,strip,left,right,parameterLeft,middle,mapped,false,false,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
+    Adaptive(coefficient,degree,strip,left,right,middle,parameterRight,mapped,false,false,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
   }
 
   static void GaussRule(unsigned number, std::vector<long double>& points, std::vector<long double>& weights) {
@@ -581,14 +611,17 @@ public:
       const std::vector<long double> polynomial = FiberPolynomial(coefficient,middle);
       const std::vector<long double> roots = LineSliceUtilities::QuadraticRoots(polynomial[2],polynomial[1],polynomial[0]);
       unsigned number = 0;
-      for(unsigned r = 0; r < roots.size(); ++r) if(roots[r] >= lower && roots[r] <= upper) ++number;
+      long double middleRoot = 0.0L;
+      for(unsigned r = 0; r < roots.size(); ++r) if(roots[r] >= lower && roots[r] <= upper) { middleRoot = roots[r]; ++number; }
+      const long double middleDerivative = graph && !mapped && number == 1 ? std::fma(2.0L*polynomial[2],middleRoot,polynomial[1]) : 0.0L;
+      const int derivativeSign = middleDerivative > 0.0L ? 1 : (middleDerivative < 0.0L ? -1 : 0);
       if(number == 0 && !lowerZero && !upperZero) {
         if(Evaluate(coefficient,middle,0.5L*(lower+upper)) > 0.0L) FullStripMoments(degree,strip,left,right,values,errors,coordinates,&active);
         ++accepted;
         continue;
       }
       const LineIntegrationDiscriminant discriminant = mapped ? MappedDiscriminant(coefficient,left,right,std::find(tangencies.begin(),tangencies.end(),left) != tangencies.end(),std::find(tangencies.begin(),tangencies.end(),right) != tangencies.end()) : LineIntegrationDiscriminant();
-      Adaptive(coefficient,degree,strip,left,right,0.0L,1.0L,mapped,graph && number == 1,useTaylor,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors,surfaceGradient,active,&discriminant,coordinates);
+      Adaptive(coefficient,degree,strip,left,right,0.0L,1.0L,mapped,graph && number == 1,useTaylor,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors,surfaceGradient,active,&discriminant,coordinates,derivativeSign);
     }
   }
 

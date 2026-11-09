@@ -23,6 +23,8 @@ Every executable is built from these test sources and FEMuS's `src/fe` and `src/
 
 Direct parent-coordinate moments are checked by `direct_parent_moments` and compared with the pinned previous implementation by `python run_direct_moment_benchmark.py`; the latter writes `review_results/direct_moment_summary.json`.
 
+The certified single-root comparison is reproduced with `python run_direct_moment_benchmark.py --baseline 188a0034139361a1772fc0d8a5c0151c2cba8469 --folder single_root --summary single_root_summary.json --rounds 3`; `single_graph_root` verifies both root branches and certificate forwarding.
+
 ## Coverage and independent references
 
 | Coverage | Cases |

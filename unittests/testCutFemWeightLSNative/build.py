@@ -51,7 +51,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
 groups = {
     'regression': ['native_suite', 'planar_suite'],
     'contracts': ['test_contract', 'test_ls_multiprecision', 'test_ls_output_range', 'test_order_ls_first', 'test_order_planar_first'],
-    'geometry': ['review_regressions', 'line_integration', 'tri_domain_splitting', 'tri_circle_probe', 'test_reference_coefficients', 'tet_standard_moments', 'test_tet_slice_regression', 'test_root_candidate_regression', 'quad_tri_standard_moments', 'quad_native_quadrants', 'quad_scaled_plane', 'simplex_high_degree', 'test_hex_native', 'graph_cell_splitting', 'hex_tet_validation', 'enriched_3d', 'direct_parent_moments', 'benchmark_graph_dimensions'],
+    'geometry': ['review_regressions', 'line_integration', 'tri_domain_splitting', 'tri_circle_probe', 'test_reference_coefficients', 'tet_standard_moments', 'test_tet_slice_regression', 'test_root_candidate_regression', 'quad_tri_standard_moments', 'quad_native_quadrants', 'quad_scaled_plane', 'simplex_high_degree', 'test_hex_native', 'graph_cell_splitting', 'hex_tet_validation', 'enriched_3d', 'direct_parent_moments', 'single_graph_root', 'benchmark_graph_dimensions'],
 }
 names = [name for group in groups.values() for name in group] if args.target == 'all' else groups[args.target]
 if args.tests:
