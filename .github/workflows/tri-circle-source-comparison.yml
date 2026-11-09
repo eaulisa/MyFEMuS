@@ -5,6 +5,10 @@ on:
     branches:
       - rifat-cutfem-fastgraph-result
     paths:
+      - 'src/quadrature/cutfem_ls/LineDomainIntegration.hpp'
+      - 'src/quadrature/cutfem_ls/TriangleIntegration.hpp'
+      - 'src/quadrature/cutfem_ls/Tri7DirectionSelection.hpp'
+      - 'unittests/testCutFemWeightLSNative/tri_circle_probe.cpp'
       - '.github/workflows/tri-circle-source-comparison.yml'
   workflow_dispatch:
 
