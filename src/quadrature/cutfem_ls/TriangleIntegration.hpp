@@ -263,12 +263,14 @@ private:
     strips.push_back(strip);
   }
 
+  static bool VertexLess(const TriangleDomainVertex& first, const TriangleDomainVertex& second) {
+    if(first.x != second.x) return first.x < second.x;
+    return first.y < second.y;
+  }
+
   static void BuildStrips(const std::vector<TriangleDomainVertex>& input, std::vector<TriangleDomainStrip>& strips) {
     std::vector<TriangleDomainVertex> vertices(input);
-    std::sort(vertices.begin(),vertices.end(),[](const TriangleDomainVertex& first, const TriangleDomainVertex& second) {
-      if(first.x != second.x) return first.x < second.x;
-      return first.y < second.y;
-    });
+    std::sort(vertices.begin(),vertices.end(),VertexLess);
     strips.clear();
     if(vertices[0].x == vertices[2].x) return;
     if(vertices[0].x != vertices[1].x) AddStrip(vertices[0],vertices[1],vertices[0],vertices[2],strips);
@@ -525,11 +527,11 @@ private:
     }
     std::vector<std::vector<long double>> lowerPowers(degree+2U,SeriesConstant(1.0L,order));
     std::vector<std::vector<long double>> upperPowers(degree+2U,SeriesConstant(1.0L,order));
-    std::vector<std::vector<long double>> rootPowers(degree+1U,SeriesConstant(1.0L,order));
+    std::vector<std::vector<long double>> rootPowers(degree+2U,SeriesConstant(1.0L,order));
     for(unsigned j = 1; j <= degree+1U; ++j) {
       lowerPowers[j] = SeriesProduct(lowerPowers[j-1U],lowerSeries);
       upperPowers[j] = SeriesProduct(upperPowers[j-1U],upperSeries);
-      if(j <= degree) rootPowers[j] = SeriesProduct(rootPowers[j-1U],root);
+      rootPowers[j] = SeriesProduct(rootPowers[j-1U],root);
     }
     std::vector<std::vector<long double>> xPowers(degree+1U,SeriesConstant(1.0L,order));
     for(unsigned i = 1; i <= degree; ++i) xPowers[i] = SeriesProduct(xPowers[i-1U],x);
@@ -736,7 +738,7 @@ private:
               std::fill(local.begin(),local.end(),0.0L);
               std::fill(localError.begin(),localError.end(),0.0L);
               try {
-                GraphTaylorInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance,relativeTolerance,0,maximumDepth,local,localError,accepted,gradient);
+                GraphTaylorInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance*(right-left),relativeTolerance,0,maximumDepth,local,localError,accepted,gradient);
                 completed = true;
               }
               catch(const std::runtime_error&) {}
