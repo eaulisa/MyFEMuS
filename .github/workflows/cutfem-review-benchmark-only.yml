@@ -1,0 +1,49 @@
+name: CutFEM review benchmark only
+
+on:
+  push:
+    branches:
+      - review-rerun-degree10-32c0e94
+    paths:
+      - '.github/workflows/cutfem-review-benchmark-only.yml'
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: candidate
+          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with:
+          ref: 0ff0669494e603be248d02c44c0a2e9b81f72b4d
+          path: baseline
+      - uses: actions/checkout@v4
+        with:
+          ref: 39bdedb4b93e6e5f7a21ab4a154eaf3e3538fdaa
+          path: reviewed
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ python3 libboost-dev libeigen3-dev
+      - name: Build identical benchmark against all three revisions
+        run: |
+          COMMON="-std=c++14 -O3 -DNDEBUG -march=x86-64 -mtune=generic"
+          SRC=candidate/unittests/testCutFemWeightLSNative/benchmark_quad_tri.cpp
+          g++ $COMMON -Icandidate/src/quadrature/cutfem_ls -Icandidate/src/quadrature -Icandidate/src/enums -Icandidate/src/fe -I/usr/include/eigen3 $SRC -o benchmark_candidate
+          g++ $COMMON -Ibaseline/src/quadrature/cutfem_ls -Ibaseline/src/quadrature -Ibaseline/src/enums -Ibaseline/src/fe -I/usr/include/eigen3 $SRC -o benchmark_baseline
+          g++ $COMMON -Ireviewed/src/quadrature/cutfem_ls -Ireviewed/src/quadrature -Ireviewed/src/enums -Ireviewed/src/fe -I/usr/include/eigen3 $SRC -o benchmark_reviewed
+      - name: Run interleaved benchmark
+        run: |
+          taskset -c 0 ./benchmark_baseline > baseline_a.csv
+          taskset -c 0 ./benchmark_reviewed > reviewed_a.csv
+          taskset -c 0 ./benchmark_candidate > candidate_a.csv
+          taskset -c 0 ./benchmark_candidate > candidate_b.csv
+          taskset -c 0 ./benchmark_reviewed > reviewed_b.csv
+          taskset -c 0 ./benchmark_baseline > baseline_b.csv
+      - name: Compare candidate to rifat baseline
+        run: python3 candidate/unittests/testCutFemWeightLSNative/compare_quad_tri_benchmark.py baseline_a.csv candidate_a.csv candidate_b.csv baseline_b.csv | tee compare_baseline.txt
+      - name: Compare candidate to prior reviewed commit
+        run: python3 candidate/unittests/testCutFemWeightLSNative/compare_quad_tri_benchmark.py reviewed_a.csv candidate_a.csv candidate_b.csv reviewed_b.csv | tee compare_reviewed.txt
