@@ -1092,7 +1092,7 @@ namespace FELevelSetMoments {
   }
 
 
-  inline void CanonicalGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double point, bool computeDelta, std::vector<long double>& values, bool triangle = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
+  inline void CanonicalGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double point, bool computeDelta, std::vector<long double>& values, bool triangle = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<unsigned char>* active = nullptr) {
   long double polynomial[3];
   for(unsigned k = 0; k < 3; ++k) {
     const long double quadratic = order == 1 ? coefficient[2][k] : coefficient[k][2];
@@ -1138,7 +1138,7 @@ namespace FELevelSetMoments {
     const long double right = above ? upper : root;
     const long double width = right - left;
     const unsigned count = (degree + 1U) * (degree + 2U) / 2U;
-    values.resize(2U * count);
+    values.assign(2U * count, 0.0L);
 
     long double rootPower = 1.0L;
     long double rightPower = 1.0L;
@@ -1158,6 +1158,7 @@ namespace FELevelSetMoments {
       for(unsigned j = 0; j <= degree - i; ++j) {
         const unsigned source = order == 1 ? MomentIndex(degree, 0, j) : MomentIndex(degree, j, 0);
         const unsigned target = order == 1 ? MomentIndex(degree, i, j) : MomentIndex(degree, j, i);
+        if(active != nullptr && (*active)[target] == 0 && (*active)[count + target] == 0) continue;
         values[target] = pointPower * values[source];
         values[count + target] = computeDelta ? pointPower * values[count + source] : 0.0L;
       }
@@ -1166,7 +1167,7 @@ namespace FELevelSetMoments {
 
 
 
-  inline void IntegrateCanonicalGraphInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double left, long double right, bool computeDelta, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, bool triangle = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
+  inline void IntegrateCanonicalGraphInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, long double left, long double right, bool computeDelta, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, bool triangle = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<unsigned char>* active = nullptr) {
     static const long double nodes[8] = {0.991455371120812639206854697526329L, 0.949107912342758524526189684047851L, 0.864864423359769072789712788640926L, 0.741531185599394439863864773280788L, 0.586087235467691130294144838258730L, 0.405845151377397166906606412076961L, 0.207784955007898467600689403773245L, 0.0L};
     static const long double kronrod[8] = {0.022935322010529224963732008058970L, 0.063092092629978553290700663189204L, 0.104790010322250183839876322541518L, 0.140653259715525918745189590510238L, 0.169004726639267902826583426598550L, 0.190350578064785409913256402421014L, 0.204432940075298892414161999234649L, 0.209482141084727828012999174891714L};
     static const long double gauss[4] = {0.129484966168869693270611432679082L, 0.279705391489276667901467771423780L, 0.381830050505118944950369775488975L, 0.417959183673469387755102040816327L};
@@ -1188,9 +1189,10 @@ namespace FELevelSetMoments {
         const unsigned sample = 2U * node + side;
         const long double point = middle + (side == 0 ? -1.0L : 1.0L) * halfWidth * nodes[node];
 
-        CanonicalGraphSample(coefficient, degree, order, point, computeDelta, samples[sample], triangle, surfaceGradient);
+        CanonicalGraphSample(coefficient, degree, order, point, computeDelta, samples[sample], triangle, surfaceGradient, active);
 
         for(unsigned k = 0; k < size; ++k) {
+          if(active != nullptr && (*active)[k] == 0) continue;
           high[k] += kronrod[node] * samples[sample][k];
           absolute[k] += kronrod[node] * std::abs(samples[sample][k]);
           if((node & 1U) != 0) low[k] += gauss[node / 2U] * samples[sample][k];
@@ -1198,10 +1200,12 @@ namespace FELevelSetMoments {
       }
     }
 
-    bool converged = true;
-    std::vector<long double> error(size);
+    std::vector<long double> error(size, 0.0L);
+    std::vector<unsigned char> failed(size, 0);
+    bool anyFailed = false;
 
     for(unsigned k = 0; k < size; ++k) {
+      if(active != nullptr && (*active)[k] == 0) continue;
       const long double mean = 0.5L * high[k];
       long double variation = 0.0L;
 
@@ -1221,22 +1225,25 @@ namespace FELevelSetMoments {
       high[k] *= halfWidth;
 
       const long double tolerance = (k < count ? absoluteH : absoluteDelta) * width + relativeTolerance * std::abs(high[k]);
-      converged = converged && error[k] <= tolerance;
-    }
-
-    if(converged) {
-      for(unsigned k = 0; k < size; ++k) {
+      if(error[k] <= tolerance) {
         total[k] += high[k];
         totalError[k] += error[k];
       }
+      else {
+        failed[k] = 1;
+        anyFailed = true;
+      }
+    }
+
+    if(!anyFailed) {
       ++accepted;
       return;
     }
 
     if(depth >= maximumDepth || middle == left || middle == right) throw std::runtime_error("Monotone graph integration did not reach the requested tolerance.");
 
-    IntegrateCanonicalGraphInterval(coefficient, degree, order, left, middle, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle, surfaceGradient);
-    IntegrateCanonicalGraphInterval(coefficient, degree, order, middle, right, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle, surfaceGradient);
+    IntegrateCanonicalGraphInterval(coefficient, degree, order, left, middle, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle, surfaceGradient, &failed);
+    IntegrateCanonicalGraphInterval(coefficient, degree, order, middle, right, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle, surfaceGradient, &failed);
   }
 
 
