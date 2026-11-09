@@ -264,17 +264,7 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
     bool useStandardIntegration = useTaylor && validationMode != 2 && integrationDirection == 0 && !fullBoundaryDelta;
     if(zeroBoundary != nullptr) for(unsigned side = 0; side < 3; ++side) useStandardIntegration = useStandardIntegration && (*zeroBoundary)[side] == 0;
     if(useStandardIntegration) {
-      bool fast = false;
-      if(lower[ranked[0]-1U] > 0.0L) {
-        ++attempts;
-        try {
-          Tri7SelectedOneDirection(normalized,scale,degree,ranked[0],lower[ranked[0]-1U],computeDelta,false,chartAbsoluteTolerance,chartRelativeTolerance,std::min(maximumDepth,8U),maximumEvaluations,zeroBoundary,true,values,errors,evaluations,accepted,referenceSurface ? &referenceGradient : nullptr,true);
-          selected = ranked[0];
-          fast = true;
-        }
-        catch(const std::runtime_error&) {}
-      }
-      if(!fast) {
+      {
         std::vector<std::vector<long double>> standardCoefficient(3,std::vector<long double>(3,0.0L));
         for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) standardCoefficient[i][j] = static_cast<long double>(coefficient[i][j])/scale;
         const std::vector<TriangleDomainVertex> vertices = {{0.0L,0.0L},{1.0L,0.0L},{0.0L,1.0L}};

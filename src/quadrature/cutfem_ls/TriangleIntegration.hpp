@@ -15,7 +15,7 @@ struct TriangleDomainVertex {
 class TriangleIntegration {
 public:
   // Integrates the unchanged parent level-set polynomial over an arbitrary triangular subregion.
-  static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const std::vector<TriangleDomainVertex>& vertices, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, unsigned splitDepth, unsigned maximumSplitDepth, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selectedDirection, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
+  static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const std::vector<TriangleDomainVertex>& vertices, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, unsigned splitDepth, unsigned maximumSplitDepth, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selectedDirection, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned certifiedDirection = 0) {
     if(vertices.size() != 3 || coefficient.size() != 3) throw std::invalid_argument("Triangle integration requires three vertices and a 3 by 3 coefficient tensor.");
     for(unsigned i = 0; i < 3; ++i) if(coefficient[i].size() != 3) throw std::invalid_argument("Triangle integration requires a 3 by 3 coefficient tensor.");
     const unsigned count = (degree+1U)*(degree+2U)/2U;
@@ -27,7 +27,7 @@ public:
     const long double norm = PolynomialNorm(coefficient);
     const long double padding = 1024.0L*std::numeric_limits<long double>::epsilon()*std::max(1.0L,norm);
     if(minimum > padding || maximum < -padding) {
-      if(minimum > padding) FillFullTriangle(vertices,degree,values,errors);
+      if(minimum > padding) FillFullTriangle(vertices,degree,values,errors,coordinates,requested);
       ++accepted;
       selectedDirection = 0;
       CheckErrors(values,errors,degree,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance);
@@ -35,8 +35,8 @@ public:
     }
     long double lower[2] = {0.0L,0.0L};
     long double upper[2] = {0.0L,0.0L};
-    DerivativeBounds(coefficient,vertices,0,lower[0],upper[0]);
-    DerivativeBounds(coefficient,vertices,1,lower[1],upper[1]);
+    if(certifiedDirection == 0) { DerivativeBounds(coefficient,vertices,0,lower[0],upper[0]); DerivativeBounds(coefficient,vertices,1,lower[1],upper[1]); }
+    else lower[certifiedDirection == 1 ? 1 : 0] = 1.0L;
     unsigned direction = lower[1] > lower[0] || (lower[1] == lower[0] && upper[1] > upper[0]) ? 1U : 2U;
     const long double selectedLower = direction == 1 ? lower[1] : lower[0];
     const unsigned weakDirection = selectedLower == 0.0L ? WeakDerivativeDirection(coefficient,vertices) : 0U;
@@ -65,7 +65,7 @@ public:
             std::vector<long double> childErrors;
             unsigned childDirection = 0;
             const long double fraction = budgetPass == 0 ? 1.0L : 1.0L/static_cast<long double>(children.size());
-            Integrate(coefficient,degree,children[child],computeDelta,fraction*absoluteTolerance,fraction*absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,splitDepth+1U,maximumSplitDepth,childValues,childErrors,evaluations,accepted,childDirection,surfaceGradient);
+            Integrate(coefficient,degree,children[child],computeDelta,fraction*absoluteTolerance,fraction*absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,splitDepth+1U,maximumSplitDepth,childValues,childErrors,evaluations,accepted,childDirection,surfaceGradient,coordinates,requested,certifiedDirection);
             if(child == 0) commonDirection = childDirection;
             else if(commonDirection != childDirection) commonDirection = 3U;
             for(unsigned k = 0; k < values.size(); ++k) {
@@ -92,13 +92,13 @@ public:
     selectedDirection = direction;
     if(selectedLower > 0.0L || weakDirection != 0) {
       try {
-        IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,true,true,weakDirection != 0);
+        IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,true,true,weakDirection != 0,coordinates,requested);
       }
       catch(const std::runtime_error&) {
-        IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,false,false,false);
+        IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,false,false,false,coordinates,requested);
       }
     }
-    else IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,false,false,false);
+    else IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,false,false,false,coordinates,requested);
     CheckErrors(values,errors,degree,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance);
   }
 
@@ -394,12 +394,17 @@ private:
     return factor*value;
   }
 
-  static void FillFullTriangle(const std::vector<TriangleDomainVertex>& vertices, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors) {
+  static void FillFullTriangle(const std::vector<TriangleDomainVertex>& vertices, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr) {
+    std::vector<TriangleDomainVertex> parent = vertices;
+    if(coordinates != nullptr) for(unsigned n = 0; n < parent.size(); ++n) { parent[n].x = std::fma((*coordinates)[1],parent[n].x,(*coordinates)[0]); parent[n].y = std::fma((*coordinates)[3],parent[n].y,(*coordinates)[2]); }
+    const long double measure = coordinates == nullptr ? 1.0L : (*coordinates)[4]/std::abs((*coordinates)[1]*(*coordinates)[3]);
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     for(unsigned i = 0; i <= degree; ++i) {
       for(unsigned j = 0; j <= degree-i; ++j) {
         const unsigned index = LineSliceUtilities::MomentIndex(degree,i,j);
-        values[index] = TriangleMoment(vertices,i,j,&errors[index]);
+        if(requested != nullptr && (*requested)[index] == 0) continue;
+        values[index] = measure*TriangleMoment(parent,i,j,&errors[index]);
+        errors[index] *= measure;
       }
     }
     for(unsigned k = count; k < 2U*count; ++k) {
@@ -459,7 +464,7 @@ private:
     if(vertices[1].x != vertices[2].x) AddStrip(vertices[1],vertices[2],vertices[0],vertices[2],strips);
   }
 
-  static void IntegrateDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const std::vector<TriangleDomainVertex>& inputVertices, unsigned direction, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, bool requireGraph, bool useTaylor, bool mappedGraph) {
+  static void IntegrateDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const std::vector<TriangleDomainVertex>& inputVertices, unsigned direction, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, bool requireGraph, bool useTaylor, bool mappedGraph, const std::array<long double,5>* coordinates, const std::vector<unsigned char>* requested) {
     std::vector<std::vector<long double>> workingCoefficient = coefficient;
     std::vector<TriangleDomainVertex> vertices = inputVertices;
     std::vector<std::vector<std::vector<long double>>> workingGradient;
@@ -472,13 +477,15 @@ private:
         gradient = &workingGradient;
       }
     }
+    const std::array<long double,5> parent = LineIntegration::MomentCoordinates(coordinates,direction);
+    const std::vector<unsigned char> active = LineIntegration::MomentRequest(degree,requested,direction,computeDelta);
     std::vector<LineIntegrationStrip> strips;
     BuildStrips(vertices,strips);
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     std::vector<long double> raw(2U*count,0.0L);
     std::vector<long double> rawError(2U*count,0.0L);
     std::vector<long double> correction(2U*count,0.0L);
-    for(unsigned stripIndex = 0; stripIndex < strips.size(); ++stripIndex) LineIntegration::IntegrateStrip(workingCoefficient,degree,strips[stripIndex],requireGraph,mappedGraph,useTaylor,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,evaluations,accepted,raw,rawError,gradient);
+    for(unsigned stripIndex = 0; stripIndex < strips.size(); ++stripIndex) LineIntegration::IntegrateStrip(workingCoefficient,degree,strips[stripIndex],requireGraph,mappedGraph,useTaylor,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,evaluations,accepted,raw,rawError,gradient,&parent,&active);
     if(direction == 1) {
       values.swap(raw);
       errors.swap(rawError);

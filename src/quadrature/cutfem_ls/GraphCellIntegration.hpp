@@ -443,9 +443,14 @@ public:
     unsigned degree = 0;
     for(unsigned n = 0; n < count; ++n) if(active[n] || active[count+n]) degree = std::max(degree,data.powers[n][first]+data.powers[n][second]);
     const unsigned sliceCount = (degree+1U)*(degree+2U)/2U;
+    std::vector<unsigned char> required(2U*sliceCount,0);
+    for(unsigned n = 0; n < count; ++n) for(unsigned pair = 0; pair < 2; ++pair) if(active[pair*count+n]) required[pair*sliceCount+ReferenceMomentIndex2D(degree,data.powers[n][first],data.powers[n][second])] = 1;
+
     const std::vector<std::vector<long double>> coefficient = SlicePolynomial(data.coefficient,axis,coordinate);
     std::vector<std::vector<std::vector<long double>>> gradient;
     for(unsigned n = 0; n < data.gradient.size(); ++n) gradient.push_back(SlicePolynomial(data.gradient[n],axis,coordinate));
+    required[0] = 1;
+    if(data.computeDelta) required[sliceCount] = 1;
     std::vector<long double> moments(2U*sliceCount,0.0L);
     std::vector<long double> momentErrors(2U*sliceCount,0.0L);
     long double area = 0.0L;
@@ -507,10 +512,11 @@ public:
         unsigned accepted = 0;
         unsigned selected = 0;
         ++Statistics().triCalls;
+        const std::array<long double,5> parent = {firstMinimum,firstScale,secondMinimum,secondScale,jacobian};
         long double relaxation = 1.0L;
         for(unsigned retry = 0; retry < 5; ++retry) {
           try {
-            TriangleIntegration::Integrate(chart,degree,triangle,data.computeDelta,relaxation*allocation*data.absoluteH/jacobian,relaxation*allocation*data.absoluteD/jacobian,0.02L*data.relative,std::min(data.maximumDepth,8U),data.maximumEvaluations,0,10,native,nativeErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &chartGradient);
+            TriangleIntegration::Integrate(chart,degree,triangle,data.computeDelta,relaxation*allocation*data.absoluteH,relaxation*allocation*data.absoluteD,0.02L*data.relative,std::min(data.maximumDepth,8U),data.maximumEvaluations,0,10,native,nativeErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &chartGradient,&parent,&required,data.graphAxis == first ? 2U : 1U);
             break;
           }
           catch(const std::runtime_error&) {
@@ -522,7 +528,8 @@ public:
         }
         std::vector<long double> triangleMoments;
         std::vector<long double> triangleErrors;
-        ReferenceAffineMoments2D(degree,native,nativeErrors,firstMinimum,firstScale,secondMinimum,secondScale,jacobian,triangleMoments,triangleErrors);
+        triangleMoments.swap(native);
+        triangleErrors.swap(nativeErrors);
         for(unsigned k = 0; k < moments.size(); ++k) {
           moments[k] += triangleMoments[k];
           momentErrors[k] += triangleErrors[k]+8.0L*std::numeric_limits<long double>::epsilon()*std::abs(triangleMoments[k]);
@@ -547,9 +554,11 @@ public:
       unsigned evaluations = 0;
       unsigned accepted = 0;
       ++Statistics().quadCalls;
-      const long double allocation = allocatedArea > 0.0L ? allocatedArea/area : 1.0L;
-      Quad9SelectedReferenceOneDirection(chart,data.absoluteD/data.absoluteH,degree,selected,lower[2U-selected],data.computeDelta,false,0.08L*data.absoluteH*allocation,0.02L*data.relative,data.maximumDepth,data.maximumEvaluations,nullptr,native,nativeErrors,evaluations,accepted,true,gradient.empty() ? nullptr : &chartGradient);
-      ReferenceAffineMoments2D(degree,native,nativeErrors,firstOrigin,firstScale,secondOrigin,secondScale,firstScale*secondScale,moments,momentErrors);
+      const long double allocation = allocatedArea > 0.0L ? allocatedArea : area;
+      const std::array<long double,5> parent = {cell.vertices[0][first],2.0L*firstScale,cell.vertices[0][second],2.0L*secondScale,area};
+      Quad9SelectedReferenceOneDirection(chart,data.absoluteD/data.absoluteH,degree,selected,lower[2U-selected],data.computeDelta,false,0.02L*data.absoluteH*allocation,0.02L*data.relative,data.maximumDepth,data.maximumEvaluations,nullptr,native,nativeErrors,evaluations,accepted,true,gradient.empty() ? nullptr : &chartGradient,true,&parent,&required,data.graphAxis == first ? 2U : 1U);
+      moments.swap(native);
+      momentErrors.swap(nativeErrors);
     }
     cut = data.computeDelta ? moments[sliceCount] > 0.0L : (moments[0] > 0.0L && moments[0] < area);
     values.assign(2U*count,0.0L);

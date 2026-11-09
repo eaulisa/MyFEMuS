@@ -36,6 +36,8 @@ jobs:
       - name: Run focused native suite
         working-directory: unittests/testCutFemWeightLSNative
         run: python3 run_focused.py --extended
+      - name: Compare direct parent moments with the previous graph implementation
+        run: python3 unittests/testCutFemWeightLSNative/run_direct_moment_benchmark.py
       - name: Run native and planar matrices
         working-directory: unittests/testCutFemWeightLSNative
         run: |

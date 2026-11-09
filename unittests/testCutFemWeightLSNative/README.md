@@ -21,6 +21,8 @@ For a targeted rerun, `build.py --tests native_suite tet_standard_moments` rebui
 
 Every executable is built from these test sources and FEMuS's `src/fe` and `src/quadrature` sources. Build commands, logs, dependency lists, and implementation hashes are written to `build/`. Per-case numerical results are written to `results/candidate/`; aggregate results are JSON files beside the scripts. The runners return a nonzero exit status for failed checks, integration exceptions, missing executables, or timeouts.
 
+Direct parent-coordinate moments are checked by `direct_parent_moments` and compared with the pinned previous implementation by `python run_direct_moment_benchmark.py`; the latter writes `review_results/direct_moment_summary.json`.
+
 ## Coverage and independent references
 
 | Coverage | Cases |
