@@ -227,14 +227,20 @@ inline void Quad9SelectedSplitCanonical(const std::vector<std::vector<long doubl
   errors.assign(2U*count,0.0L);
   std::vector<long double> correction(2U*count,0.0L);
   long double splitCoordinate[2] = {0.5L,0.5L};
-  Quad9SelectedDerivativeSplitCoordinate(coefficient,0,splitCoordinate[0]);
-  Quad9SelectedDerivativeSplitCoordinate(coefficient,1,splitCoordinate[1]);
-  for(unsigned firstSide = 0; firstSide < 2; ++firstSide) {
-    const long double firstOrigin = firstSide == 0 ? 0.0L : splitCoordinate[0];
-    const long double firstScale = firstSide == 0 ? splitCoordinate[0] : 1.0L-splitCoordinate[0];
-    for(unsigned secondSide = 0; secondSide < 2; ++secondSide) {
-      const long double secondOrigin = secondSide == 0 ? 0.0L : splitCoordinate[1];
-      const long double secondScale = secondSide == 0 ? splitCoordinate[1] : 1.0L-splitCoordinate[1];
+  const bool splitAvailable[2] = {Quad9SelectedDerivativeSplitCoordinate(coefficient,0,splitCoordinate[0]),Quad9SelectedDerivativeSplitCoordinate(coefficient,1,splitCoordinate[1])};
+  long double splitLower[2] = {};
+  long double splitUpper[2] = {};
+  const unsigned preferredOrder = Quad9SelectedOrder(coefficient,splitLower,splitUpper);
+  const unsigned preferredAxis = preferredOrder == 2 ? 0U : 1U;
+  unsigned splitAxis = splitAvailable[preferredAxis] ? preferredAxis : (splitAvailable[1U-preferredAxis] ? 1U-preferredAxis : 2U);
+  const unsigned firstCount = splitAxis == 0 || splitAxis == 2 ? 2U : 1U;
+  const unsigned secondCount = splitAxis == 1 || splitAxis == 2 ? 2U : 1U;
+  for(unsigned firstSide = 0; firstSide < firstCount; ++firstSide) {
+    const long double firstOrigin = firstCount == 1 ? 0.0L : (firstSide == 0 ? 0.0L : splitCoordinate[0]);
+    const long double firstScale = firstCount == 1 ? 1.0L : (firstSide == 0 ? splitCoordinate[0] : 1.0L-splitCoordinate[0]);
+    for(unsigned secondSide = 0; secondSide < secondCount; ++secondSide) {
+      const long double secondOrigin = secondCount == 1 ? 0.0L : (secondSide == 0 ? 0.0L : splitCoordinate[1]);
+      const long double secondScale = secondCount == 1 ? 1.0L : (secondSide == 0 ? splitCoordinate[1] : 1.0L-splitCoordinate[1]);
       std::vector<std::vector<long double>> childCoefficient;
       ReferencePolynomialAffine2D(coefficient,firstOrigin,firstScale,secondOrigin,secondScale,childCoefficient);
       std::vector<std::vector<long double>> childNormalized;
@@ -253,9 +259,17 @@ inline void Quad9SelectedSplitCanonical(const std::vector<std::vector<long doubl
         boundary[3] = boundary[3] != 0 && (childNormalized[i][0]+childNormalized[i][1])+childNormalized[i][2] == 0.0L;
       }
       if(zeroBoundary != nullptr) {
-        if(firstSide == 0) boundary[0] = boundary[0] != 0 || (*zeroBoundary)[0] != 0;
+        if(firstCount == 1) {
+          boundary[0] = boundary[0] != 0 || (*zeroBoundary)[0] != 0;
+          boundary[1] = boundary[1] != 0 || (*zeroBoundary)[1] != 0;
+        }
+        else if(firstSide == 0) boundary[0] = boundary[0] != 0 || (*zeroBoundary)[0] != 0;
         else boundary[1] = boundary[1] != 0 || (*zeroBoundary)[1] != 0;
-        if(secondSide == 0) boundary[2] = boundary[2] != 0 || (*zeroBoundary)[2] != 0;
+        if(secondCount == 1) {
+          boundary[2] = boundary[2] != 0 || (*zeroBoundary)[2] != 0;
+          boundary[3] = boundary[3] != 0 || (*zeroBoundary)[3] != 0;
+        }
+        else if(secondSide == 0) boundary[2] = boundary[2] != 0 || (*zeroBoundary)[2] != 0;
         else boundary[3] = boundary[3] != 0 || (*zeroBoundary)[3] != 0;
       }
       int phase = 0;
