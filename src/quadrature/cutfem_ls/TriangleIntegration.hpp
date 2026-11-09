@@ -48,22 +48,33 @@ public:
     const unsigned weakDirection = selectedLower == 0.0L ? WeakDerivativeDirection(coefficient,vertices) : 0U;
     if(weakDirection != 0) direction = weakDirection;
     if(selectedLower == 0.0L && weakDirection == 0 && splitDepth < maximumSplitDepth) {
-      std::vector<TriangleDomainVertex> first;
-      std::vector<TriangleDomainVertex> second;
-      SplitLongestEdge(vertices,first,second);
-      std::vector<long double> firstValues;
-      std::vector<long double> firstErrors;
-      std::vector<long double> secondValues;
-      std::vector<long double> secondErrors;
-      unsigned firstDirection = 0;
-      unsigned secondDirection = 0;
-      Integrate(coefficient,degree,first,computeDelta,0.5L*absoluteTolerance,0.5L*absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,splitDepth+1U,maximumSplitDepth,firstValues,firstErrors,evaluations,accepted,firstDirection,surfaceGradient);
-      Integrate(coefficient,degree,second,computeDelta,0.5L*absoluteTolerance,0.5L*absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,splitDepth+1U,maximumSplitDepth,secondValues,secondErrors,evaluations,accepted,secondDirection,surfaceGradient);
-      for(unsigned k = 0; k < values.size(); ++k) {
-        values[k] = firstValues[k]+secondValues[k];
-        errors[k] = firstErrors[k]+secondErrors[k]+8.0L*std::numeric_limits<long double>::epsilon()*(std::abs(firstValues[k])+std::abs(secondValues[k]));
+      std::vector<std::vector<TriangleDomainVertex>> children;
+      if(!SplitAtDerivativeChange(coefficient,vertices,children)) {
+        std::vector<TriangleDomainVertex> first;
+        std::vector<TriangleDomainVertex> second;
+        SplitLongestEdge(vertices,first,second);
+        children.push_back(first);
+        children.push_back(second);
       }
-      selectedDirection = firstDirection == secondDirection ? firstDirection : 3U;
+      std::vector<long double> correction(values.size(),0.0L);
+      unsigned commonDirection = 0;
+      for(unsigned child = 0; child < children.size(); ++child) {
+        std::vector<long double> childValues;
+        std::vector<long double> childErrors;
+        unsigned childDirection = 0;
+        const long double fraction = 1.0L/static_cast<long double>(children.size());
+        Integrate(coefficient,degree,children[child],computeDelta,fraction*absoluteTolerance,fraction*absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,splitDepth+1U,maximumSplitDepth,childValues,childErrors,evaluations,accepted,childDirection,surfaceGradient);
+        if(child == 0) commonDirection = childDirection;
+        else if(commonDirection != childDirection) commonDirection = 3U;
+        for(unsigned k = 0; k < values.size(); ++k) {
+          const long double adjusted = childValues[k]-correction[k];
+          const long double next = values[k]+adjusted;
+          correction[k] = (next-values[k])-adjusted;
+          values[k] = next;
+          errors[k] += childErrors[k]+8.0L*std::numeric_limits<long double>::epsilon()*std::abs(childValues[k]);
+        }
+      }
+      selectedDirection = commonDirection;
       CheckErrors(values,errors,degree,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance);
       return;
     }
@@ -203,6 +214,105 @@ private:
     const long double padding = 64.0L*std::sqrt(std::numeric_limits<long double>::epsilon())*std::max(1.0L,magnitude);
     lower = minimum > padding ? minimum-padding : (maximum < -padding ? -maximum-padding : 0.0L);
     upper = magnitude+padding;
+  }
+
+  static long double Coordinate(const TriangleDomainVertex& vertex, unsigned axis) {
+    return axis == 0 ? vertex.x : vertex.y;
+  }
+
+  static long double DerivativeValue(const std::vector<std::vector<long double>>& coefficient, unsigned axis, const TriangleDomainVertex& vertex) {
+    long double value = 0.0L;
+    if(axis == 0) {
+      for(unsigned i = 1; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) value += static_cast<long double>(i)*coefficient[i][j]*Power(vertex.x,i-1U)*Power(vertex.y,j);
+    }
+    else {
+      for(unsigned i = 0; i < 3; ++i) for(unsigned j = 1; j < 3; ++j) value += static_cast<long double>(j)*coefficient[i][j]*Power(vertex.x,i)*Power(vertex.y,j-1U);
+    }
+    return value;
+  }
+
+  static TriangleDomainVertex InterpolateToCoordinate(const TriangleDomainVertex& first, const TriangleDomainVertex& second, unsigned axis, long double coordinate) {
+    const long double firstCoordinate = Coordinate(first,axis);
+    const long double secondCoordinate = Coordinate(second,axis);
+    const long double parameter = (coordinate-firstCoordinate)/(secondCoordinate-firstCoordinate);
+    TriangleDomainVertex point;
+    point.x = first.x+parameter*(second.x-first.x);
+    point.y = first.y+parameter*(second.y-first.y);
+    return point;
+  }
+
+  static void ClipByCoordinate(const std::vector<TriangleDomainVertex>& input, unsigned axis, long double coordinate, bool lowerSide, std::vector<TriangleDomainVertex>& output) {
+    output.clear();
+    if(input.empty()) return;
+    TriangleDomainVertex previous = input.back();
+    bool previousInside = lowerSide ? Coordinate(previous,axis) <= coordinate : Coordinate(previous,axis) >= coordinate;
+    for(unsigned index = 0; index < input.size(); ++index) {
+      const TriangleDomainVertex current = input[index];
+      const bool currentInside = lowerSide ? Coordinate(current,axis) <= coordinate : Coordinate(current,axis) >= coordinate;
+      if(currentInside != previousInside && Coordinate(current,axis) != Coordinate(previous,axis)) output.push_back(InterpolateToCoordinate(previous,current,axis,coordinate));
+      if(currentInside) output.push_back(current);
+      previous = current;
+      previousInside = currentInside;
+    }
+  }
+
+  static void TriangulatePolygon(const std::vector<TriangleDomainVertex>& polygon, std::vector<std::vector<TriangleDomainVertex>>& triangles) {
+    if(polygon.size() < 3) return;
+    for(unsigned index = 1; index+1U < polygon.size(); ++index) {
+      std::vector<TriangleDomainVertex> triangle = {polygon[0],polygon[index],polygon[index+1U]};
+      const long double determinant = (triangle[1].x-triangle[0].x)*(triangle[2].y-triangle[0].y)-(triangle[2].x-triangle[0].x)*(triangle[1].y-triangle[0].y);
+      if(std::abs(determinant) > 256.0L*std::numeric_limits<long double>::epsilon()) triangles.push_back(triangle);
+    }
+  }
+
+  static bool SplitAtDerivativeChange(const std::vector<std::vector<long double>>& coefficient, const std::vector<TriangleDomainVertex>& vertices, std::vector<std::vector<TriangleDomainVertex>>& children) {
+    unsigned bestAxis = 2;
+    long double bestCoordinate = 0.0L;
+    long double bestScore = std::numeric_limits<long double>::infinity();
+    for(unsigned axis = 0; axis < 2; ++axis) {
+      long double derivative[3];
+      for(unsigned vertex = 0; vertex < 3; ++vertex) derivative[vertex] = DerivativeValue(coefficient,axis,vertices[vertex]);
+      std::vector<long double> crossings;
+      for(unsigned edge = 0; edge < 3; ++edge) {
+        const unsigned next = (edge+1U)%3U;
+        if(derivative[edge] == 0.0L) crossings.push_back(Coordinate(vertices[edge],axis));
+        if(derivative[edge]*derivative[next] < 0.0L) {
+          const long double parameter = derivative[edge]/(derivative[edge]-derivative[next]);
+          crossings.push_back(Coordinate(vertices[edge],axis)+parameter*(Coordinate(vertices[next],axis)-Coordinate(vertices[edge],axis)));
+        }
+      }
+      if(crossings.size() < 2) continue;
+      long double minimumCoordinate = Coordinate(vertices[0],axis);
+      long double maximumCoordinate = minimumCoordinate;
+      for(unsigned vertex = 1; vertex < 3; ++vertex) {
+        minimumCoordinate = std::min(minimumCoordinate,Coordinate(vertices[vertex],axis));
+        maximumCoordinate = std::max(maximumCoordinate,Coordinate(vertices[vertex],axis));
+      }
+      const long double width = maximumCoordinate-minimumCoordinate;
+      if(!(width > 0.0L)) continue;
+      long double coordinate = 0.0L;
+      for(unsigned crossing = 0; crossing < crossings.size(); ++crossing) coordinate += crossings[crossing];
+      coordinate /= static_cast<long double>(crossings.size());
+      const long double margin = 0.05L*width;
+      coordinate = std::max(minimumCoordinate+margin,std::min(maximumCoordinate-margin,coordinate));
+      long double spread = 0.0L;
+      for(unsigned crossing = 0; crossing < crossings.size(); ++crossing) spread = std::max(spread,std::abs(crossings[crossing]-coordinate));
+      const long double score = spread/width;
+      if(score < bestScore) {
+        bestScore = score;
+        bestAxis = axis;
+        bestCoordinate = coordinate;
+      }
+    }
+    if(bestAxis > 1) return false;
+    std::vector<TriangleDomainVertex> lowerPolygon;
+    std::vector<TriangleDomainVertex> upperPolygon;
+    ClipByCoordinate(vertices,bestAxis,bestCoordinate,true,lowerPolygon);
+    ClipByCoordinate(vertices,bestAxis,bestCoordinate,false,upperPolygon);
+    children.clear();
+    TriangulatePolygon(lowerPolygon,children);
+    TriangulatePolygon(upperPolygon,children);
+    return children.size() >= 2;
   }
 
   static void SplitLongestEdge(const std::vector<TriangleDomainVertex>& vertices, std::vector<TriangleDomainVertex>& first, std::vector<TriangleDomainVertex>& second) {
