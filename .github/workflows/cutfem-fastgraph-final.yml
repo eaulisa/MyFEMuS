@@ -1,0 +1,37 @@
+name: CutFEM fastgraph final validation
+
+on:
+  push:
+    branches:
+      - rifat-cutfem-fastgraph-result
+    paths:
+      - 'src/quadrature/cutfem_ls/**'
+      - 'unittests/testCutFemWeightLSNative/**'
+      - '.github/workflows/cutfem-fastgraph-final.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ python3 python3-numpy python3-mpmath libboost-dev libeigen3-dev
+      - name: Build native suite
+        working-directory: unittests/testCutFemWeightLSNative
+        run: python3 build.py --jobs 2
+      - name: Run focused native suite
+        working-directory: unittests/testCutFemWeightLSNative
+        run: python3 run_focused.py --extended
+      - name: Run original native matrix
+        working-directory: unittests/testCutFemWeightLSNative
+        run: python3 run.py --selection original
+      - name: Run degree-10 review, sanitizers, and pinned benchmarks
+        run: python3 unittests/testCutFemWeightLSNative/run_review_validation.py
+      - name: Print acceptance
+        if: always()
+        run: cat unittests/testCutFemWeightLSNative/review_results/acceptance.json || true
