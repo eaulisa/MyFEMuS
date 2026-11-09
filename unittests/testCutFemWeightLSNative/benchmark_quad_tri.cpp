@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-// Benchmark stage: whole-element graph plus derivative-informed and boundary-tangent splitting.
+// Benchmark stage: optimized whole-element graphs, boundary tangencies, and derivative-zero splits.
 
 struct BenchmarkCase {
   std::string element;
