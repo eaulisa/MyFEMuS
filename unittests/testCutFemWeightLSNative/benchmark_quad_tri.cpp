@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+// Benchmark stage: whole-element graph before splitting.
+
 struct BenchmarkCase {
   std::string element;
   std::string name;
