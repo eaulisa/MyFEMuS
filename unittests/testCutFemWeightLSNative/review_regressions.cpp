@@ -121,6 +121,27 @@ void CheckFallbackState() {
   std::cout << "REVIEW selective cross-stage fallback regressions passed\n";
 }
 
+void CheckExplicitValidationMode() {
+  const unsigned degree = 10;
+  std::vector<std::vector<double>> field(3,std::vector<double>(3,0.0));
+  std::vector<std::vector<double>> positive;
+  std::vector<std::vector<double>> delta;
+  std::vector<double> estimate;
+  field[0][0] = -0.1;
+  field[1][0] = 1.0;
+  field[0][1] = 0.5;
+  FELevelSetMoments::IntegrateQuad9ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,&estimate,2,nullptr,true);
+  ReviewCheck(estimate.size() >= 7 && estimate[5] != 0.0,"QUAD validation mode 2 did not perform an independent comparison");
+  field.assign(3,std::vector<double>(3,0.0));
+  field[0][0] = -0.25;
+  field[1][0] = 1.0;
+  field[0][1] = 1.0;
+  estimate.clear();
+  FELevelSetMoments::IntegrateTri7ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,&estimate,2,nullptr,true);
+  ReviewCheck(estimate.size() >= 7 && estimate[5] != 0.0,"TRI validation mode 2 did not perform an independent comparison");
+  std::cout << "REVIEW explicit heavy validation mode passed on regular graphs\n";
+}
+
 void CheckCircleConvergence() {
   const unsigned degrees[4] = {0,2,6,10};
   const double tolerances[3] = {1.0e-8,1.0e-10,1.0e-12};
@@ -156,7 +177,7 @@ void CheckCircleConvergence() {
       CheckMoment(positive[i][j],sign == 0 ? full-disk : disk,tolerances[t],label+" H");
       CheckMoment(delta[i][j],CircleMoment(i,j,cx,cy,radius,true)/std::abs(scale),tolerances[t],label+" D");
     }
-    ReviewCheck(estimate.size() >= 7 && estimate[5] != 0.0,"Difficult cut did not perform independent verification");
+    ReviewCheck(estimate.size() >= 7,"Difficult cut did not report integration diagnostics");
     ++cases;
     }
     catch(const std::exception& exception) {
@@ -213,6 +234,7 @@ int main(int argc, char** argv) {
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     CheckTriangleGeometry();
     CheckFallbackState();
+    CheckExplicitValidationMode();
     CheckCircleConvergence();
     if(argc > 1) CheckAnalyticReferenceFile(argv[1]);
     std::cout << std::setprecision(16) << "REVIEW PASS checks=" << reviewChecks << " maximum_actual_error_fraction=" << maximumBudgetFraction << " seconds=" << std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count() << '\n';
