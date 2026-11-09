@@ -25,6 +25,9 @@ struct LineIntegrationStatistics {
   unsigned long long mappedPanels = 0;
   unsigned long long regularGraphPanels = 0;
   unsigned long long pairPanels = 0;
+  unsigned firstFallbackIndex = std::numeric_limits<unsigned>::max();
+  long double worstPairRatio = 0.0L;
+  unsigned worstPairIndex = std::numeric_limits<unsigned>::max();
 };
 
 class LineDomainIntegration {
@@ -342,9 +345,23 @@ public:
     if(graph && sampled) {
       ++Statistics().pairPanels;
       const bool paired = GraphGaussPairPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient);
-      if(paired && !Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
-        ++accepted;
-        return;
+      if(paired) {
+        const unsigned pairCount = active.size()/2U;
+        for(unsigned k = 0; k < active.size(); ++k) {
+          if(!active[k]) continue;
+          const long double tolerance = (k < pairCount ? absoluteH : absoluteD)*fraction+relative*std::abs(values[k]);
+          if(tolerance > 0.0L && std::isfinite(errors[k])) {
+            const long double ratio = errors[k]/tolerance;
+            if(ratio > Statistics().worstPairRatio) {
+              Statistics().worstPairRatio = ratio;
+              Statistics().worstPairIndex = k;
+            }
+          }
+        }
+        if(!Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
+          ++accepted;
+          return;
+        }
       }
     }
     const long double middle = 0.5L*(parameterLeft+parameterRight);
@@ -356,7 +373,12 @@ public:
     }
     if(graph && useTaylor) {
       ++Statistics().taylorPanels;
-      for(unsigned k = 0; k < active.size(); ++k) Statistics().fallbackComponents += active[k] != 0;
+      for(unsigned k = 0; k < active.size(); ++k) {
+        if(active[k]) {
+          ++Statistics().fallbackComponents;
+          if(Statistics().firstFallbackIndex == std::numeric_limits<unsigned>::max()) Statistics().firstFallbackIndex = k;
+        }
+      }
       try {
         TaylorPanel(coefficient,degree,strip,MappedPoint(left,right,parameterLeft,mapped),MappedPoint(left,right,parameterRight,mapped),computeDelta,values,errors,surfaceGradient,&active);
         if(!Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
