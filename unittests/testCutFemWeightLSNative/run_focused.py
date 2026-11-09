@@ -13,7 +13,7 @@ parser.add_argument('--jobs', type=int, default=2)
 parser.add_argument('--extended', action='store_true', help='Also run degree-8/10 simplex probes, with a five-minute process budget.')
 parser.add_argument('--tests', nargs='+', help='Run only named focused tests.')
 args = parser.parse_args()
-tests = [('line_integration', []), ('test_contract', []), ('test_ls_multiprecision', []), ('test_ls_output_range', []), ('test_reference_coefficients', []), ('tet_standard_moments', []), ('test_tet_slice_regression', []), ('test_root_candidate_regression', []), ('quad_tri_standard_moments', []), ('quad_native_quadrants', []), ('quad_scaled_plane', []), ('simplex_high_degree', []), ('test_hex_native', ['5', '1e-12']), ('test_hex_native', ['10', '1e-12'])]
+tests = [('line_integration', []), ('tri_domain_splitting', []), ('test_contract', []), ('test_ls_multiprecision', []), ('test_ls_output_range', []), ('test_reference_coefficients', []), ('tet_standard_moments', []), ('test_tet_slice_regression', []), ('test_root_candidate_regression', []), ('quad_tri_standard_moments', []), ('quad_native_quadrants', []), ('quad_scaled_plane', []), ('simplex_high_degree', []), ('test_hex_native', ['5', '1e-12']), ('test_hex_native', ['10', '1e-12'])]
 if args.tests:
     if any(name not in [test[0] for test in tests] for name in args.tests):
         parser.error('Unknown focused test name.')
