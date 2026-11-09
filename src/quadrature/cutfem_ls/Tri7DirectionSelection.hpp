@@ -126,21 +126,8 @@ inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>
   const long double absoluteH = absoluteTolerance/amplification;
   const long double absoluteD = (absoluteTolerance*scale)/amplification;
   const long double relative = relativeTolerance/amplification;
-  bool line = !useTaylor || zeroEdge;
-  if(!line) {
-    bool completed = false;
-    if(derivativeBound > 0.0L && !fullBoundaryDelta) {
-      try { completed = LineIntegration::IntegrateFastGraph(coefficient,degree,order,true,computeDelta,derivativeBound,absoluteH,absoluteD,relative,maximumDepth,raw,rawError,accepted,surfaceGradient); }
-      catch(const std::runtime_error&) { completed = false; }
-    }
-    if(!completed) {
-      accepted = 0;
-      const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
-      try { LineIntegration::IntegrateTaylor(coefficient,degree,2,domain,true,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,32,maximumDepth,order,raw,rawError,accepted,surfaceGradient); }
-      catch(const std::runtime_error&) { line = true; }
-    }
-    if(computeDelta && raw[count] == 0.0L) line = true;
-  }
+  bool line = !useTaylor || zeroEdge || fullBoundaryDelta;
+  if(!line) LineIntegration::IntegrateCell(coefficient,degree,order,true,computeDelta,derivativeBound,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,raw,rawError,evaluations,accepted,surfaceGradient);
   if(line) {
     accepted = 0;
     LineIntegration::IntegrateFullGaussKronrod(coefficient,degree,true,order,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,raw,rawError,evaluations,accepted,derivativeBound > 0.0L ? order : 0U,zeroBoundary == nullptr ? nullptr : &boundary,surfaceGradient);
@@ -252,13 +239,40 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
         if(lower[ranked[j]-1U] > lower[ranked[i]-1U] || (lower[ranked[j]-1U] == lower[ranked[i]-1U] && upper[ranked[j]-1U] > upper[ranked[i]-1U])) std::swap(ranked[i],ranked[j]);
       }
     }
-    bool useSplitIntegration = integrationDirection == 0 && validationMode != 2 && !fullBoundaryDelta && lower[ranked[0]-1U] == 0.0L;
+    bool useSplitIntegration = integrationDirection == 0 && !fullBoundaryDelta && lower[ranked[0]-1U] == 0.0L;
     if(zeroBoundary != nullptr) {
       for(unsigned side = 0; side < 3; ++side) useSplitIntegration = useSplitIntegration && (*zeroBoundary)[side] == 0;
     }
     if(useSplitIntegration) {
       const std::vector<TriangleDomainVertex> vertices = {{0.0L,0.0L},{1.0L,0.0L},{1.0L,1.0L}};
       TriangleIntegration::Integrate(normalized,degree,vertices,computeDelta,chartAbsoluteTolerance,chartAbsoluteTolerance*scale,chartRelativeTolerance,maximumDepth,maximumEvaluations,0,10,values,errors,evaluations,accepted,selected,referenceSurface ? &referenceGradient : nullptr);
+      if(validationMode != 0) {
+        bool verified = false;
+        std::string failure = "TRI split and independent direction did not agree.";
+        for(unsigned candidate = 0; candidate < 3 && !verified; ++candidate) {
+          std::vector<long double> independent;
+          std::vector<long double> independentError;
+          unsigned independentAccepted = 0;
+          unsigned independentEvaluations = 0;
+          ++attempts;
+          try {
+            Tri7SelectedOneDirection(normalized,scale,degree,ranked[candidate],lower[ranked[candidate]-1U],computeDelta,fullBoundaryDelta,chartAbsoluteTolerance,chartRelativeTolerance,maximumDepth,maximumEvaluations,zeroBoundary,false,independent,independentError,independentEvaluations,independentAccepted,referenceSurface ? &referenceGradient : nullptr);
+            verified = true;
+            for(unsigned k = 0; k < values.size(); ++k) {
+              const long double estimate = std::max(std::abs(values[k]-independent[k]),std::max(errors[k],independentError[k]));
+              const long double tolerance = chartAbsoluteTolerance*(k < count ? 1.0L : scale)+chartRelativeTolerance*std::abs(values[k]);
+              if(!std::isfinite(estimate) || estimate > tolerance) verified = false;
+            }
+            if(verified) {
+              for(unsigned k = 0; k < values.size(); ++k) errors[k] = std::max(std::abs(values[k]-independent[k]),std::max(errors[k],independentError[k]));
+              compared = ranked[candidate];
+              evaluations += independentEvaluations;
+            }
+          }
+          catch(const std::runtime_error& exception) { failure = exception.what(); }
+        }
+        if(!verified) throw std::runtime_error(failure);
+      }
     }
     else {
     if(integrationDirection != 0) {

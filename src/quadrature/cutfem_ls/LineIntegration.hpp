@@ -3,10 +3,11 @@
 
 #include "AdaptiveLineSliceMoments.hpp"
 #include "FELevelSetMoments.hpp"
+#include "LineDomainIntegration.hpp"
 
 namespace FELevelSetMoments {
 
-class LineIntegration {
+class LineIntegration : public LineDomainIntegration {
 public:
   // Centralizes the one-dimensional integration kernels reused by higher-dimensional cut elements.
   static void IntegratePolynomial(long double a, long double b, long double c, unsigned degree, long double left, long double right, bool computeDelta, bool fullBoundaryDelta, std::vector<long double>& positive, std::vector<long double>& delta) {

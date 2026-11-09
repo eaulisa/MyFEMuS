@@ -801,11 +801,13 @@ namespace FELevelSetMoments {
         bool converged = true;
         if (computePositive && (active == nullptr || (*active)[index] != 0)) {
           SeriesProductIntegral(xPower, positiveSlice[j], values[index], errors[index], converged);
+          if(!converged) errors[index] = std::numeric_limits<long double>::infinity();
           allConverged = allConverged && converged;
         }
         converged = true;
         if (computeDelta && (active == nullptr || (*active)[count + index] != 0)) {
           SeriesProductIntegral(xPower, deltaSlice[j], values[count + index], errors[count + index], converged);
+          if(!converged) errors[count + index] = std::numeric_limits<long double>::infinity();
           allConverged = allConverged && converged;
         }
       }

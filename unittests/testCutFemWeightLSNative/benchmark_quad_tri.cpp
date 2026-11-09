@@ -19,6 +19,7 @@ struct BenchmarkCase {
   unsigned degree;
   std::vector<std::vector<double>> coefficient;
   bool nodal;
+  std::vector<double> nodalValues;
 };
 
 struct CaseResult {
@@ -89,11 +90,11 @@ std::vector<double> NodalValues(const BenchmarkCase& test) {
 
 void RunIntegration(const BenchmarkCase& test, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta) {
   if(!test.nodal) {
-    if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,28,0,200000,nullptr,0,nullptr,true);
-    else FELevelSetMoments::IntegrateTri7ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,28,0,200000,nullptr,0,nullptr,true);
+    if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,24,0,200000,nullptr,1,nullptr,true);
+    else FELevelSetMoments::IntegrateTri7ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,24,0,200000,nullptr,1,nullptr,true);
     return;
   }
-  const std::vector<double> nodalValues = NodalValues(test);
+  const std::vector<double>& nodalValues = test.nodalValues;
   if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,1,0,nullptr,true);
   else FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,1,0,nullptr,true);
 }
@@ -178,6 +179,10 @@ void AddTimingCases(std::vector<BenchmarkCase>& tests) {
   }
 }
 
+void DumpMoments(const BenchmarkCase& test, const std::vector<std::vector<double>>& positive, const std::vector<std::vector<double>>& delta) {
+  for(unsigned i = 0; i < positive.size(); ++i) for(unsigned j = 0; j < positive[i].size(); ++j) std::cout << "MOMENT," << test.element << "," << test.name << "," << test.degree << "," << i << "," << j << "," << positive[i][j] << "," << delta[i][j] << "\n";
+}
+
 void RunStress(const std::string& element) {
   std::mt19937_64 generator(element == "QUAD" ? 918273645ULL : 564738291ULL);
   std::uniform_real_distribution<double> distribution(-0.45,0.45);
@@ -204,6 +209,7 @@ void RunStress(const std::string& element) {
       std::vector<std::vector<double>> positive;
       std::vector<std::vector<double>> delta;
       RunIntegration(test,positive,delta);
+      DumpMoments(test,positive,delta);
       std::cout << "STRESS," << element << "," << testIndex << ",OK," << std::setprecision(18) << static_cast<double>(WeightedChecksum(positive,delta)) << "," << positive[0][0] << "," << delta[0][0] << "," << static_cast<double>(MaximumMagnitude(positive,delta)) << "\n";
     }
     catch(const std::exception& exception) {
@@ -223,10 +229,22 @@ int main() {
     BenchmarkCase nodal = tests[k];
     nodal.name = "nodal_"+nodal.name;
     nodal.nodal = true;
+    nodal.nodalValues = NodalValues(nodal);
     tests.push_back(nodal);
+    BenchmarkCase matched = tests[k];
+    matched.name = "reconstructed_"+matched.name;
+    if(matched.element == "QUAD") FELevelSetMoments::Quad9ReferenceCoefficientsFromNodalValues(nodal.nodalValues,matched.coefficient);
+    else FELevelSetMoments::Tri7ReferenceCoefficientsFromNodalValues(nodal.nodalValues,matched.coefficient);
+    tests.push_back(matched);
   }
   for(unsigned k = 0; k < tests.size(); ++k) {
     const CaseResult result = Measure(tests[k]);
+    if(result.success) {
+      std::vector<std::vector<double>> positive;
+      std::vector<std::vector<double>> delta;
+      RunIntegration(tests[k],positive,delta);
+      DumpMoments(tests[k],positive,delta);
+    }
     if(result.success) std::cout << "TIMING," << tests[k].element << "," << tests[k].name << "," << tests[k].degree << ",OK," << result.medianSeconds << "," << result.calls << "," << static_cast<double>(result.checksum) << "," << static_cast<double>(result.h00) << "," << static_cast<double>(result.d00) << "," << static_cast<double>(result.maximumMagnitude) << "\n";
     else {
       std::string error = result.error;
