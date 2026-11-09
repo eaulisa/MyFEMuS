@@ -45,7 +45,9 @@ public:
     DerivativeBounds(coefficient,vertices,1,lower[1],upper[1]);
     unsigned direction = lower[1] > lower[0] || (lower[1] == lower[0] && upper[1] > upper[0]) ? 1U : 2U;
     const long double selectedLower = direction == 1 ? lower[1] : lower[0];
-    if(selectedLower == 0.0L && splitDepth < maximumSplitDepth) {
+    const unsigned weakDirection = selectedLower == 0.0L ? WeakDerivativeDirection(coefficient,vertices) : 0U;
+    if(weakDirection != 0) direction = weakDirection;
+    if(selectedLower == 0.0L && weakDirection == 0 && splitDepth < maximumSplitDepth) {
       std::vector<TriangleDomainVertex> first;
       std::vector<TriangleDomainVertex> second;
       SplitLongestEdge(vertices,first,second);
@@ -66,19 +68,54 @@ public:
       return;
     }
     selectedDirection = direction;
-    if(selectedLower > 0.0L) {
+    if(selectedLower > 0.0L || weakDirection != 0) {
       try {
-        IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,true,true);
+        IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,true,true,weakDirection != 0);
       }
       catch(const std::runtime_error&) {
-        IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,false,false);
+        IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,false,false,false);
       }
     }
-    else IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,false,false);
+    else IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,false,false,false);
     CheckErrors(values,errors,degree,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance);
   }
 
 private:
+  static unsigned WeakDerivativeDirection(const std::vector<std::vector<long double>>& coefficient, const std::vector<TriangleDomainVertex>& vertices) {
+    unsigned selected = 0;
+    long double selectedMagnitude = 0.0L;
+    for(unsigned axis = 0; axis < 2; ++axis) {
+      std::vector<std::vector<long double>> derivative(3,std::vector<long double>(3,0.0L));
+      long double norm = 0.0L;
+      if(axis == 0) {
+        for(unsigned i = 1; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) {
+          derivative[i-1U][j] = static_cast<long double>(i)*coefficient[i][j];
+          norm += std::abs(derivative[i-1U][j]);
+        }
+      }
+      else {
+        for(unsigned i = 0; i < 3; ++i) for(unsigned j = 1; j < 3; ++j) {
+          derivative[i][j-1U] = static_cast<long double>(j)*coefficient[i][j];
+          norm += std::abs(derivative[i][j-1U]);
+        }
+      }
+      long double minimum = 0.0L;
+      long double maximum = 0.0L;
+      PolynomialBounds(derivative,vertices,minimum,maximum);
+      const long double padding = 1024.0L*std::numeric_limits<long double>::epsilon()*std::max(1.0L,norm);
+      const bool nonnegative = minimum >= -padding && maximum > padding;
+      const bool nonpositive = maximum <= padding && minimum < -padding;
+      if(nonnegative || nonpositive) {
+        const long double magnitude = std::max(std::abs(minimum),std::abs(maximum));
+        if(magnitude > selectedMagnitude) {
+          selectedMagnitude = magnitude;
+          selected = axis == 0 ? 2U : 1U;
+        }
+      }
+    }
+    return selected;
+  }
+
   static long double Power(long double value, unsigned degree) {
     long double result = 1.0L;
     for(unsigned k = 0; k < degree; ++k) result *= value;
@@ -458,6 +495,71 @@ private:
     GraphGaussKronrodInterval(coefficient,degree,strip,middle,right,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
   }
 
+  static void GraphMappedGaussKronrodInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const TriangleDomainStrip& strip, long double outerLeft, long double outerRight, long double parameterLeft, long double parameterRight, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>* active = nullptr) {
+    static const long double nodes[8] = {0.991455371120812639206854697526329L,0.949107912342758524526189684047851L,0.864864423359769072789712788640926L,0.741531185599394439863864773280788L,0.586087235467691130294144838258730L,0.405845151377397166906606412076961L,0.207784955007898467600689403773245L,0.0L};
+    static const long double kronrod[8] = {0.022935322010529224963732008058970L,0.063092092629978553290700663189204L,0.104790010322250183839876322541518L,0.140653259715525918745189590510238L,0.169004726639267902826583426598550L,0.190350578064785409913256402421014L,0.204432940075298892414161999234649L,0.209482141084727828012999174891714L};
+    static const long double gauss[4] = {0.129484966168869693270611432679082L,0.279705391489276667901467771423780L,0.381830050505118944950369775488975L,0.417959183673469387755102040816327L};
+    const unsigned count = (degree+1U)*(degree+2U)/2U;
+    const unsigned size = 2U*count;
+    const long double middle = 0.5L*(parameterLeft+parameterRight);
+    const long double halfWidth = 0.5L*(parameterRight-parameterLeft);
+    const long double outerWidth = outerRight-outerLeft;
+    const long double pi = std::acos(-1.0L);
+    std::vector<long double> high(size,0.0L);
+    std::vector<long double> low(size,0.0L);
+    std::vector<long double> absolute(size,0.0L);
+    std::vector<std::vector<long double>> samples(15);
+    unsigned sampleNumber = 0;
+    for(unsigned node = 0; node < 8; ++node) {
+      const unsigned sides = node == 7 ? 1U : 2U;
+      for(unsigned side = 0; side < sides; ++side) {
+        if(evaluations >= maximumEvaluations) throw std::runtime_error("Triangle mapped graph evaluation budget exhausted.");
+        ++evaluations;
+        const long double parameter = middle+(side == 0 ? -1.0L : 1.0L)*halfWidth*nodes[node];
+        const long double sine = std::sin(0.5L*pi*parameter);
+        const long double point = outerLeft+outerWidth*sine*sine;
+        const long double jacobian = 0.5L*pi*outerWidth*std::sin(pi*parameter);
+        GraphSample(coefficient,degree,strip,point,computeDelta,samples[sampleNumber],surfaceGradient,active);
+        for(unsigned k = 0; k < size; ++k) {
+          if(active != nullptr && (*active)[k] == 0) continue;
+          samples[sampleNumber][k] *= jacobian;
+          high[k] += kronrod[node]*samples[sampleNumber][k];
+          absolute[k] += kronrod[node]*std::abs(samples[sampleNumber][k]);
+          if((node&1U) != 0) low[k] += gauss[node/2U]*samples[sampleNumber][k];
+        }
+        ++sampleNumber;
+      }
+    }
+    std::vector<unsigned char> failed(size,0);
+    bool anyFailed = false;
+    for(unsigned k = 0; k < size; ++k) {
+      if(active != nullptr && (*active)[k] == 0) continue;
+      long double variation = 0.0L;
+      for(unsigned n = 0; n < sampleNumber; ++n) variation += kronrod[n/2U]*std::abs(samples[n][k]-0.5L*high[k]);
+      long double estimate = std::abs(high[k]-low[k]);
+      if(variation > 0.0L && estimate > 0.0L) estimate = variation*std::min(1.0L,std::pow(200.0L*estimate/variation,1.5L));
+      const long double error = halfWidth*std::max(estimate,128.0L*std::numeric_limits<long double>::epsilon()*absolute[k]);
+      const long double value = halfWidth*high[k];
+      const long double tolerance = (k < count ? absoluteTolerance : absoluteDeltaTolerance)*outerWidth*(parameterRight-parameterLeft)+relativeTolerance*std::abs(value);
+      if(error <= tolerance) {
+        total[k] += value;
+        totalError[k] += error;
+      }
+      else {
+        failed[k] = 1;
+        anyFailed = true;
+      }
+    }
+    if(!anyFailed) {
+      ++accepted;
+      return;
+    }
+    const long double parameterMiddle = 0.5L*(parameterLeft+parameterRight);
+    if(depth >= maximumDepth || parameterMiddle == parameterLeft || parameterMiddle == parameterRight) throw std::runtime_error("Triangle mapped graph GK did not reach tolerance.");
+    GraphMappedGaussKronrodInterval(coefficient,degree,strip,outerLeft,outerRight,parameterLeft,parameterMiddle,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
+    GraphMappedGaussKronrodInterval(coefficient,degree,strip,outerLeft,outerRight,parameterMiddle,parameterRight,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
+  }
+
   static void GraphTaylorInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const TriangleDomainStrip& strip, long double left, long double right, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>* active = nullptr) {
     const unsigned order = 32;
     const unsigned count = (degree+1U)*(degree+2U)/2U;
@@ -684,7 +786,7 @@ private:
     FullGaussKronrodInterval(coefficient,degree,strip,middle,right,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
   }
 
-  static void IntegrateDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const std::vector<TriangleDomainVertex>& inputVertices, unsigned direction, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, bool requireGraph, bool useTaylor) {
+  static void IntegrateDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const std::vector<TriangleDomainVertex>& inputVertices, unsigned direction, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, bool requireGraph, bool useTaylor, bool mappedGraph) {
     std::vector<std::vector<long double>> workingCoefficient = coefficient;
     std::vector<TriangleDomainVertex> vertices = inputVertices;
     std::vector<std::vector<std::vector<long double>>> workingGradient;
@@ -735,7 +837,8 @@ private:
         bool completed = false;
         if(requireGraph) {
           try {
-            GraphGaussKronrodInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,accepted,local,localError,gradient);
+            if(mappedGraph) GraphMappedGaussKronrodInterval(workingCoefficient,degree,strips[stripIndex],left,right,0.0L,1.0L,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,accepted,local,localError,gradient);
+            else GraphGaussKronrodInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,accepted,local,localError,gradient);
             completed = true;
           }
           catch(const std::runtime_error&) {
@@ -743,7 +846,8 @@ private:
               std::fill(local.begin(),local.end(),0.0L);
               std::fill(localError.begin(),localError.end(),0.0L);
               try {
-                GraphTaylorInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance*(right-left),absoluteDeltaTolerance*(right-left),relativeTolerance,0,maximumDepth,local,localError,accepted,gradient);
+                const unsigned taylorDepth = mappedGraph ? std::min(maximumDepth,2U) : maximumDepth;
+                GraphTaylorInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance*(right-left),absoluteDeltaTolerance*(right-left),relativeTolerance,0,taylorDepth,local,localError,accepted,gradient);
                 completed = true;
               }
               catch(const std::runtime_error&) {}
