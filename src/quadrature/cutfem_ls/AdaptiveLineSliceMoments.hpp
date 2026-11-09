@@ -694,7 +694,7 @@ inline long double LineSliceMonomialIntegral(long double left, long double right
   return ((right-left)+(rightOffset-leftOffset))*sum/(degree+1U);
 }
 
-inline void LineSliceSegmentMoments(long double a, long double b, long double c, unsigned degree, long double lower, long double upper, bool computeDelta, bool fullBoundaryDelta, long double discriminant, long double jacobian, long double deltaJacobian, bool lowerZero, bool upperZero, std::vector<long double>& positive, std::vector<long double>& delta, long double surfaceFirst = 0.0L, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
+inline void LineSliceSegmentMoments(long double a, long double b, long double c, unsigned degree, long double lower, long double upper, bool computeDelta, bool fullBoundaryDelta, long double discriminant, long double jacobian, long double deltaJacobian, bool lowerZero, bool upperZero, std::vector<long double>& positive, std::vector<long double>& delta, long double surfaceFirst = 0.0L, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<unsigned char>* neededPositive = nullptr, const std::vector<unsigned char>* neededDelta = nullptr) {
   positive.assign(degree+1U,0.0L);
   delta.assign(degree+1U,0.0L);
   if(!std::isfinite(a) || !std::isfinite(b) || !std::isfinite(c) || !std::isfinite(discriminant) || !std::isfinite(jacobian) || !(jacobian > 0.0L)) throw std::runtime_error("A line-slice segment has an invalid polynomial or Jacobian.");
@@ -755,7 +755,7 @@ inline void LineSliceSegmentMoments(long double a, long double b, long double c,
     long double rightPower = 1.0L, geometric = 0.0L;
     for(unsigned j = 0; j <= degree; ++j) {
       geometric = rightPower+left*geometric;
-      positive[j] += phase*jacobian*(right-left)*geometric/(j+1U);
+      if(neededPositive == nullptr || (*neededPositive)[j] != 0) positive[j] += phase*jacobian*(right-left)*geometric/(j+1U);
       rightPower *= right;
     }
   }
@@ -769,7 +769,7 @@ inline void LineSliceSegmentMoments(long double a, long double b, long double c,
     if(!fullBoundaryDelta && (root == lower || root == upper)) weight *= 0.5L;
     long double power = 1.0L;
     for(unsigned j = 0; j <= degree; ++j) {
-      delta[j] += weight*power;
+      if(neededDelta == nullptr || (*neededDelta)[j] != 0) delta[j] += weight*power;
       power *= root;
     }
   }
@@ -795,7 +795,7 @@ inline std::vector<long double> LineSliceFlatFibers(const std::vector<std::vecto
   return roots;
 }
 
-inline void LineSliceSample(const std::vector<std::vector<long double>>& field, const std::vector<long double>& flat, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameter, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
+inline void LineSliceSample(const std::vector<std::vector<long double>>& field, const std::vector<long double>& flat, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameter, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<unsigned char>* active = nullptr) {
   long double width = (right-left)+(rightOffset-leftOffset);
   if(!std::isfinite(width) || !(width > 0.0L)) throw std::runtime_error("A line-slice event interval has a nonpositive corrected width.");
   long double sine = linear ? 0.0L : std::sin(parameter);
@@ -847,19 +847,28 @@ inline void LineSliceSample(const std::vector<std::vector<long double>>& field, 
   }
   long double lower = shape == 3 ? x+coordinateError : 0.0L;
   long double upper = shape == 2 ? x+coordinateError : 1.0L;
+  const unsigned count = (degree+1U)*(degree+2U)/2U;
+  std::vector<unsigned char> neededPositive(degree+1U,0);
+  std::vector<unsigned char> neededDelta(degree+1U,0);
+  for(unsigned i = 0; i <= degree; ++i) {
+    for(unsigned j = 0; j <= degree-i; ++j) {
+      const unsigned index = LineSliceUtilities::MomentIndex(degree,i,j);
+      neededPositive[j] = neededPositive[j] || (active == nullptr || (*active)[index] != 0);
+      neededDelta[j] = neededDelta[j] || (computeDelta && (active == nullptr || (*active)[count+index] != 0));
+    }
+  }
   std::vector<long double> h,d;
-  LineSliceSegmentMoments(a,b,c,degree,lower,upper,computeDelta,fullBoundaryDelta,discriminant,jacobian,deltaJacobian,lowerZero,upperZero,h,d,x+coordinateError,surfaceGradient);
+  LineSliceSegmentMoments(a,b,c,degree,lower,upper,computeDelta,fullBoundaryDelta,discriminant,jacobian,deltaJacobian,lowerZero,upperZero,h,d,x+coordinateError,surfaceGradient,&neededPositive,&neededDelta);
   if(computeDelta) {
     for(unsigned j = 0; j <= degree; ++j) d[j] /= std::abs(factor);
   }
-  unsigned count = (degree+1U)*(degree+2U)/2U;
   values.assign(2U*count,0.0L);
   long double power = 1.0L;
   for(unsigned i = 0; i <= degree; ++i) {
     for(unsigned j = 0; j <= degree-i; ++j) {
       unsigned index = LineSliceUtilities::MomentIndex(degree,i,j);
-      values[index] = power*h[j];
-      values[count+index] = power*d[j];
+      if(active == nullptr || (*active)[index] != 0) values[index] = power*h[j];
+      if(active == nullptr || (*active)[count+index] != 0) values[count+index] = power*d[j];
     }
     power = std::fma(power,coordinateError,power*x);
   }
@@ -881,7 +890,7 @@ inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>
       if(evaluations >= maximumEvaluations) throw std::runtime_error("The line-slice evaluation budget was exhausted.");
       ++evaluations;
       long double point = middle+(side == 0 ? -1.0L : 1.0L)*halfWidth*nodes[node];
-      LineSliceSample(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,point,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,samples[numberOfSamples],surfaceGradient);
+      LineSliceSample(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,point,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,samples[numberOfSamples],surfaceGradient,active);
       const std::vector<long double>& value = samples[numberOfSamples];
       sampleWeights[numberOfSamples++] = kronrod[node];
       for(unsigned k = 0; k < value.size(); ++k) {
