@@ -1,8 +1,7 @@
 #ifndef FEMUS_TRI7_DIRECTION_SELECTION_HPP
 #define FEMUS_TRI7_DIRECTION_SELECTION_HPP
 
-#include "AdaptiveLineSliceMoments.hpp"
-#include "FELevelSetMoments.hpp"
+#include "LineIntegration.hpp"
 
 // TRI7 uses ordered triangular charts internally and returns moments on the standard FEMuS reference triangle.
 namespace FELevelSetMoments {
@@ -130,20 +129,20 @@ inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>
   if(!line) {
     bool completed = false;
     if(derivativeBound > 0.0L && !fullBoundaryDelta) {
-      try { completed = IntegrateCanonicalGraph(coefficient,degree,order,true,computeDelta,derivativeBound,absoluteH,absoluteD,relative,maximumDepth,raw,rawError,accepted,surfaceGradient); }
+      try { completed = LineIntegration::IntegrateFastGraph(coefficient,degree,order,true,computeDelta,derivativeBound,absoluteH,absoluteD,relative,maximumDepth,raw,rawError,accepted,surfaceGradient); }
       catch(const std::runtime_error&) { completed = false; }
     }
     if(!completed) {
       accepted = 0;
       const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
-      try { IntegrateNormalizedCell(coefficient,degree,2,domain,true,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,32,maximumDepth,order,raw,rawError,accepted,surfaceGradient); }
+      try { LineIntegration::IntegrateTaylor(coefficient,degree,2,domain,true,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,32,maximumDepth,order,raw,rawError,accepted,surfaceGradient); }
       catch(const std::runtime_error&) { line = true; }
     }
     if(computeDelta && raw[count] == 0.0L) line = true;
   }
   if(line) {
     accepted = 0;
-    LineSliceDirection(coefficient,degree,true,order,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,raw,rawError,evaluations,accepted,derivativeBound > 0.0L ? order : 0U,zeroBoundary == nullptr ? nullptr : &boundary,surfaceGradient);
+    LineIntegration::IntegrateFullGaussKronrod(coefficient,degree,true,order,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,raw,rawError,evaluations,accepted,derivativeBound > 0.0L ? order : 0U,zeroBoundary == nullptr ? nullptr : &boundary,surfaceGradient);
     if(order == 2) {
       for(unsigned i = 0; i <= degree; ++i) {
         for(unsigned j = i+1U; j <= degree-i; ++j) {
