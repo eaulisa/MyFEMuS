@@ -22,7 +22,7 @@ struct TriangleDomainStrip {
 class TriangleIntegration {
 public:
   // Integrates the unchanged parent level-set polynomial over an arbitrary triangular subregion.
-  static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const std::vector<TriangleDomainVertex>& vertices, bool computeDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, unsigned splitDepth, unsigned maximumSplitDepth, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selectedDirection, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
+  static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const std::vector<TriangleDomainVertex>& vertices, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, unsigned splitDepth, unsigned maximumSplitDepth, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selectedDirection, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
     if(vertices.size() != 3 || coefficient.size() != 3) throw std::invalid_argument("Triangle integration requires three vertices and a 3 by 3 coefficient tensor.");
     for(unsigned i = 0; i < 3; ++i) if(coefficient[i].size() != 3) throw std::invalid_argument("Triangle integration requires a 3 by 3 coefficient tensor.");
     const unsigned count = (degree+1U)*(degree+2U)/2U;
@@ -55,19 +55,19 @@ public:
       std::vector<long double> secondErrors;
       unsigned firstDirection = 0;
       unsigned secondDirection = 0;
-      Integrate(coefficient,degree,first,computeDelta,0.5L*absoluteTolerance,relativeTolerance,maximumDepth,maximumEvaluations,splitDepth+1U,maximumSplitDepth,firstValues,firstErrors,evaluations,accepted,firstDirection,surfaceGradient);
-      Integrate(coefficient,degree,second,computeDelta,0.5L*absoluteTolerance,relativeTolerance,maximumDepth,maximumEvaluations,splitDepth+1U,maximumSplitDepth,secondValues,secondErrors,evaluations,accepted,secondDirection,surfaceGradient);
+      Integrate(coefficient,degree,first,computeDelta,0.5L*absoluteTolerance,0.5L*absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,splitDepth+1U,maximumSplitDepth,firstValues,firstErrors,evaluations,accepted,firstDirection,surfaceGradient);
+      Integrate(coefficient,degree,second,computeDelta,0.5L*absoluteTolerance,0.5L*absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,splitDepth+1U,maximumSplitDepth,secondValues,secondErrors,evaluations,accepted,secondDirection,surfaceGradient);
       for(unsigned k = 0; k < values.size(); ++k) {
         values[k] = firstValues[k]+secondValues[k];
         errors[k] = firstErrors[k]+secondErrors[k]+8.0L*std::numeric_limits<long double>::epsilon()*(std::abs(firstValues[k])+std::abs(secondValues[k]));
       }
       selectedDirection = firstDirection == secondDirection ? firstDirection : 3U;
-      CheckErrors(values,errors,degree,absoluteTolerance,relativeTolerance);
+      CheckErrors(values,errors,degree,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance);
       return;
     }
     selectedDirection = direction;
     try {
-      IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,true,true);
+      IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,true,true);
     }
     catch(const std::runtime_error&) {
       IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,false,false);
@@ -397,7 +397,7 @@ private:
     }
   }
 
-  static void GraphGaussKronrodInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const TriangleDomainStrip& strip, long double left, long double right, bool computeDelta, long double absoluteTolerance, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>* active = nullptr) {
+  static void GraphGaussKronrodInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const TriangleDomainStrip& strip, long double left, long double right, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>* active = nullptr) {
     static const long double nodes[8] = {0.991455371120812639206854697526329L,0.949107912342758524526189684047851L,0.864864423359769072789712788640926L,0.741531185599394439863864773280788L,0.586087235467691130294144838258730L,0.405845151377397166906606412076961L,0.207784955007898467600689403773245L,0.0L};
     static const long double kronrod[8] = {0.022935322010529224963732008058970L,0.063092092629978553290700663189204L,0.104790010322250183839876322541518L,0.140653259715525918745189590510238L,0.169004726639267902826583426598550L,0.190350578064785409913256402421014L,0.204432940075298892414161999234649L,0.209482141084727828012999174891714L};
     static const long double gauss[4] = {0.129484966168869693270611432679082L,0.279705391489276667901467771423780L,0.381830050505118944950369775488975L,0.417959183673469387755102040816327L};
@@ -436,7 +436,7 @@ private:
       if(variation > 0.0L && estimate > 0.0L) estimate = variation*std::min(1.0L,std::pow(200.0L*estimate/variation,1.5L));
       const long double error = halfWidth*std::max(estimate,128.0L*std::numeric_limits<long double>::epsilon()*absolute[k]);
       const long double value = halfWidth*high[k];
-      const long double tolerance = absoluteTolerance*(right-left)+relativeTolerance*std::abs(value);
+      const long double tolerance = (k < count ? absoluteTolerance : absoluteDeltaTolerance)*(right-left)+relativeTolerance*std::abs(value);
       if(error <= tolerance) {
         total[k] += value;
         totalError[k] += error;
@@ -451,11 +451,11 @@ private:
       return;
     }
     if(depth >= maximumDepth || middle == left || middle == right) throw std::runtime_error("Triangle fast graph GK did not reach tolerance.");
-    GraphGaussKronrodInterval(coefficient,degree,strip,left,middle,computeDelta,absoluteTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
-    GraphGaussKronrodInterval(coefficient,degree,strip,middle,right,computeDelta,absoluteTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
+    GraphGaussKronrodInterval(coefficient,degree,strip,left,middle,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
+    GraphGaussKronrodInterval(coefficient,degree,strip,middle,right,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
   }
 
-  static void GraphTaylorInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const TriangleDomainStrip& strip, long double left, long double right, bool computeDelta, long double absoluteTolerance, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>* active = nullptr) {
+  static void GraphTaylorInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const TriangleDomainStrip& strip, long double left, long double right, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>* active = nullptr) {
     const unsigned order = 32;
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     const unsigned size = 2U*count;
@@ -562,7 +562,7 @@ private:
     bool anyFailed = false;
     for(unsigned k = 0; k < size; ++k) {
       if(active != nullptr && (*active)[k] == 0) continue;
-      const long double tolerance = absoluteTolerance+relativeTolerance*std::abs(values[k]);
+      const long double tolerance = (k < count ? absoluteTolerance : absoluteDeltaTolerance)+relativeTolerance*std::abs(values[k]);
       if(errors[k] <= tolerance) {
         total[k] += values[k];
         totalError[k] += errors[k];
@@ -578,8 +578,8 @@ private:
     }
     const long double middle = 0.5L*(left+right);
     if(depth >= maximumDepth || middle == left || middle == right) throw std::runtime_error("Triangle Taylor graph did not reach tolerance.");
-    GraphTaylorInterval(coefficient,degree,strip,left,middle,computeDelta,0.5L*absoluteTolerance,relativeTolerance,depth+1U,maximumDepth,total,totalError,accepted,surfaceGradient,&failed);
-    GraphTaylorInterval(coefficient,degree,strip,middle,right,computeDelta,0.5L*absoluteTolerance,relativeTolerance,depth+1U,maximumDepth,total,totalError,accepted,surfaceGradient,&failed);
+    GraphTaylorInterval(coefficient,degree,strip,left,middle,computeDelta,0.5L*absoluteTolerance,0.5L*absoluteDeltaTolerance,relativeTolerance,depth+1U,maximumDepth,total,totalError,accepted,surfaceGradient,&failed);
+    GraphTaylorInterval(coefficient,degree,strip,middle,right,computeDelta,0.5L*absoluteTolerance,0.5L*absoluteDeltaTolerance,relativeTolerance,depth+1U,maximumDepth,total,totalError,accepted,surfaceGradient,&failed);
   }
 
   static void FullGaussKronrodSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const TriangleDomainStrip& strip, long double x, bool computeDelta, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>* active) {
@@ -621,7 +621,7 @@ private:
     }
   }
 
-  static void FullGaussKronrodInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const TriangleDomainStrip& strip, long double left, long double right, bool computeDelta, long double absoluteTolerance, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>* active = nullptr) {
+  static void FullGaussKronrodInterval(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const TriangleDomainStrip& strip, long double left, long double right, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>* active = nullptr) {
     static const long double nodes[8] = {0.991455371120812639206854697526329L,0.949107912342758524526189684047851L,0.864864423359769072789712788640926L,0.741531185599394439863864773280788L,0.586087235467691130294144838258730L,0.405845151377397166906606412076961L,0.207784955007898467600689403773245L,0.0L};
     static const long double kronrod[8] = {0.022935322010529224963732008058970L,0.063092092629978553290700663189204L,0.104790010322250183839876322541518L,0.140653259715525918745189590510238L,0.169004726639267902826583426598550L,0.190350578064785409913256402421014L,0.204432940075298892414161999234649L,0.209482141084727828012999174891714L};
     static const long double gauss[4] = {0.129484966168869693270611432679082L,0.279705391489276667901467771423780L,0.381830050505118944950369775488975L,0.417959183673469387755102040816327L};
@@ -660,7 +660,7 @@ private:
       if(variation > 0.0L && estimate > 0.0L) estimate = variation*std::min(1.0L,std::pow(200.0L*estimate/variation,1.5L));
       const long double error = halfWidth*std::max(estimate,128.0L*std::numeric_limits<long double>::epsilon()*absolute[k]);
       const long double value = halfWidth*high[k];
-      const long double tolerance = absoluteTolerance*(right-left)+relativeTolerance*std::abs(value);
+      const long double tolerance = (k < count ? absoluteTolerance : absoluteDeltaTolerance)*(right-left)+relativeTolerance*std::abs(value);
       if(error <= tolerance) {
         total[k] += value;
         totalError[k] += error;
@@ -675,11 +675,11 @@ private:
       return;
     }
     if(depth >= maximumDepth || middle == left || middle == right) throw std::runtime_error("Triangle full GK did not reach tolerance.");
-    FullGaussKronrodInterval(coefficient,degree,strip,left,middle,computeDelta,absoluteTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
-    FullGaussKronrodInterval(coefficient,degree,strip,middle,right,computeDelta,absoluteTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
+    FullGaussKronrodInterval(coefficient,degree,strip,left,middle,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
+    FullGaussKronrodInterval(coefficient,degree,strip,middle,right,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
   }
 
-  static void IntegrateDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const std::vector<TriangleDomainVertex>& inputVertices, unsigned direction, bool computeDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, bool requireGraph, bool useTaylor) {
+  static void IntegrateDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const std::vector<TriangleDomainVertex>& inputVertices, unsigned direction, bool computeDelta, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, bool requireGraph, bool useTaylor) {
     std::vector<std::vector<long double>> workingCoefficient = coefficient;
     std::vector<TriangleDomainVertex> vertices = inputVertices;
     std::vector<std::vector<std::vector<long double>>> workingGradient;
@@ -730,7 +730,7 @@ private:
         bool completed = false;
         if(requireGraph) {
           try {
-            GraphGaussKronrodInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance,relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,accepted,local,localError,gradient);
+            GraphGaussKronrodInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,accepted,local,localError,gradient);
             completed = true;
           }
           catch(const std::runtime_error&) {
@@ -738,7 +738,7 @@ private:
               std::fill(local.begin(),local.end(),0.0L);
               std::fill(localError.begin(),localError.end(),0.0L);
               try {
-                GraphTaylorInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance*(right-left),relativeTolerance,0,maximumDepth,local,localError,accepted,gradient);
+                GraphTaylorInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance*(right-left),absoluteDeltaTolerance*(right-left),relativeTolerance,0,maximumDepth,local,localError,accepted,gradient);
                 completed = true;
               }
               catch(const std::runtime_error&) {}
@@ -748,7 +748,7 @@ private:
         if(!completed) {
           std::fill(local.begin(),local.end(),0.0L);
           std::fill(localError.begin(),localError.end(),0.0L);
-          FullGaussKronrodInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance,relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,accepted,local,localError,gradient);
+          FullGaussKronrodInterval(workingCoefficient,degree,strips[stripIndex],left,right,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,0,maximumDepth,maximumEvaluations,evaluations,accepted,local,localError,gradient);
         }
         for(unsigned k = 0; k < raw.size(); ++k) {
           const long double adjusted = local[k]-correction[k];
@@ -778,10 +778,10 @@ private:
     }
   }
 
-  static void CheckErrors(const std::vector<long double>& values, const std::vector<long double>& errors, unsigned degree, long double absoluteTolerance, long double relativeTolerance) {
+  static void CheckErrors(const std::vector<long double>& values, const std::vector<long double>& errors, unsigned degree, long double absoluteTolerance, long double absoluteDeltaTolerance, long double relativeTolerance) {
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     for(unsigned k = 0; k < values.size(); ++k) {
-      const long double tolerance = absoluteTolerance+relativeTolerance*std::abs(values[k]);
+      const long double tolerance = (k < count ? absoluteTolerance : absoluteDeltaTolerance)+relativeTolerance*std::abs(values[k]);
       if(!std::isfinite(values[k]) || !std::isfinite(errors[k]) || errors[k] < 0.0L || errors[k] > tolerance) throw std::runtime_error(k < count ? "Triangle volume moment error exceeds tolerance." : "Triangle interface moment error exceeds tolerance.");
     }
   }
