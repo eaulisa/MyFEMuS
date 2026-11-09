@@ -32,7 +32,7 @@ int main() {
   unsigned accepted = 0;
   unsigned direction = 0;
   const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-  FELevelSetMoments::TriangleIntegration::Integrate(coefficient,1,vertices,true,1.0e-11L,1.0e-11L,28,200000,0,10,values,errors,evaluations,accepted,direction);
+  FELevelSetMoments::TriangleIntegration::Integrate(coefficient,1,vertices,true,1.0e-11L,1.0e-11L,1.0e-11L,28,200000,0,10,values,errors,evaluations,accepted,direction);
   const std::chrono::steady_clock::time_point finish = std::chrono::steady_clock::now();
   if(coefficient != original) throw std::runtime_error("TRI splitting modified the parent level-set polynomial.");
   const long double circleArea = pi*radius*radius;
