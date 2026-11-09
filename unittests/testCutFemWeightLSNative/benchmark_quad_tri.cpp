@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-// Benchmark stage: two-way derivative-aligned QUAD plus TRI derivative splitting.
+// Benchmark stage: bounded tangent Taylor plus two-way derivative-aligned QUAD.
 
 struct BenchmarkCase {
   std::string element;
