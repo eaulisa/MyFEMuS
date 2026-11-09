@@ -561,7 +561,7 @@ inline void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double
     long double upper[2];
     const unsigned automatic = Quad9SelectedOrder(normalized,lower,upper);
     const unsigned preferred = integrationOrder == 0 ? automatic : integrationOrder;
-    const bool checkBoth = validationMode == 2 || (validationMode == 1 && computeDelta && lower[2U-preferred] == 0.0L);
+    const bool checkBoth = validationMode == 2;
     bool completed = false;
     std::string failure = "QUAD9 integration directions did not agree.";
     for(unsigned retry = 0; retry < (checkBoth ? 2U : 1U) && !completed; ++retry) {
