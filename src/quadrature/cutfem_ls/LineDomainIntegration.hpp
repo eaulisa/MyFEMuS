@@ -339,13 +339,15 @@ public:
     std::vector<unsigned char> active(requested);
     std::vector<long double> values;
     std::vector<long double> errors;
-    const long double fraction = (right-left)*(parameterRight-parameterLeft);
+    const long double parameterFraction = parameterRight-parameterLeft;
+    const long double fractionH = (right-left)*parameterFraction;
+    const long double fractionD = parameterFraction;
     if(graph) {
       if(mapped) ++Statistics().mappedPanels;
       else ++Statistics().regularGraphPanels;
     }
     const bool sampled = GaussKronrodPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,graph,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient);
-    if(!Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
+    if(!Accept(values,errors,absoluteH*fractionH,absoluteD*fractionD,relative,active,total,totalError)) {
       ++accepted;
       return;
     }
@@ -356,7 +358,7 @@ public:
         const unsigned pairCount = active.size()/2U;
         for(unsigned k = 0; k < active.size(); ++k) {
           if(!active[k]) continue;
-          const long double tolerance = (k < pairCount ? absoluteH : absoluteD)*fraction+relative*std::abs(values[k]);
+          const long double tolerance = (k < pairCount ? absoluteH*fractionH : absoluteD*fractionD)+relative*std::abs(values[k]);
           if(tolerance > 0.0L && std::isfinite(errors[k])) {
             const long double ratio = errors[k]/tolerance;
             if(ratio > Statistics().worstPairRatio) {
@@ -365,7 +367,7 @@ public:
             }
           }
         }
-        if(!Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
+        if(!Accept(values,errors,absoluteH*fractionH,absoluteD*fractionD,relative,active,total,totalError)) {
           ++accepted;
           return;
         }
@@ -388,7 +390,7 @@ public:
       }
       try {
         TaylorPanel(coefficient,degree,strip,MappedPoint(left,right,parameterLeft,mapped),MappedPoint(left,right,parameterRight,mapped),computeDelta,values,errors,surfaceGradient,&active);
-        if(!Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
+        if(!Accept(values,errors,absoluteH*fractionH,absoluteD*fractionD,relative,active,total,totalError)) {
           ++accepted;
           return;
         }
@@ -397,7 +399,7 @@ public:
     }
     if(graph) {
       GaussKronrodPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,false,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient);
-      if(!Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
+      if(!Accept(values,errors,absoluteH*fractionH,absoluteD*fractionD,relative,active,total,totalError)) {
         ++accepted;
         return;
       }
