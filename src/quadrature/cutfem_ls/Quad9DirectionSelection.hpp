@@ -54,6 +54,41 @@ inline unsigned Quad9SelectedOrder(const std::vector<std::vector<long double>>& 
   return upper[0] > upper[1] ? 2U : 1U;
 }
 
+inline unsigned Quad9SelectedWeakGraphOrder(const std::vector<std::vector<long double>>& coefficient, unsigned requestedOrder = 0) {
+  long double bernstein[3][3];
+  CanonicalBernstein(coefficient,bernstein);
+  long double norm = 0.0L;
+  for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) norm += std::abs(coefficient[i][j]);
+  const long double padding = 1024.0L*std::numeric_limits<long double>::epsilon()*std::max(1.0L,norm);
+  unsigned selected = 0;
+  long double selectedMagnitude = 0.0L;
+  for(unsigned order = 1; order <= 2; ++order) {
+    if(requestedOrder != 0 && requestedOrder != order) continue;
+    long double minimum = std::numeric_limits<long double>::infinity();
+    long double maximum = -minimum;
+    for(unsigned i = 0; i < 3; ++i) {
+      const long double low = order == 1 ? bernstein[i][0] : bernstein[0][i];
+      const long double middle = order == 1 ? bernstein[i][1] : bernstein[1][i];
+      const long double high = order == 1 ? bernstein[i][2] : bernstein[2][i];
+      const long double derivative[3] = {2.0L*(middle-low),high-low,2.0L*(high-middle)};
+      for(unsigned j = 0; j < 3; ++j) {
+        minimum = std::min(minimum,derivative[j]);
+        maximum = std::max(maximum,derivative[j]);
+      }
+    }
+    const bool nonnegative = minimum >= -padding && maximum > padding;
+    const bool nonpositive = maximum <= padding && minimum < -padding;
+    if(nonnegative || nonpositive) {
+      const long double magnitude = std::max(std::abs(minimum),std::abs(maximum));
+      if(magnitude > selectedMagnitude) {
+        selectedMagnitude = magnitude;
+        selected = order;
+      }
+    }
+  }
+  return selected;
+}
+
 inline void Quad9SelectedOneDirection(const std::vector<std::vector<long double>>& coefficient, long double scale, unsigned degree, unsigned order, long double derivativeBound, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, bool useTaylor, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   bool zeroEdge = false;
   if(zeroBoundary != nullptr) {
@@ -202,9 +237,11 @@ inline void Quad9SelectedSplitCanonical(const std::vector<std::vector<long doubl
       else {
         long double lower[2] = {};
         long double upper[2] = {};
-        const unsigned childOrder = Quad9SelectedOrder(childNormalized,lower,upper);
-        const long double derivativeBound = lower[2U-childOrder];
-        if(derivativeBound == 0.0L && splitDepth < maximumSplitDepth) {
+        unsigned childOrder = Quad9SelectedOrder(childNormalized,lower,upper);
+        long double derivativeBound = lower[2U-childOrder];
+        const unsigned weakOrder = derivativeBound == 0.0L ? Quad9SelectedWeakGraphOrder(childNormalized) : 0U;
+        if(derivativeBound == 0.0L && weakOrder != 0) childOrder = weakOrder;
+        if(derivativeBound == 0.0L && weakOrder == 0 && splitDepth < maximumSplitDepth) {
           Quad9SelectedSplitCanonical(childNormalized,scale*childScale,degree,computeDelta,absoluteTolerance,0.25L*relativeTolerance,maximumDepth,maximumEvaluations,&boundary,useTaylor,surfaceGradient == nullptr ? nullptr : &childGradient,splitDepth+1U,maximumSplitDepth,childValues,childErrors,evaluations,childAccepted);
         }
         else {
