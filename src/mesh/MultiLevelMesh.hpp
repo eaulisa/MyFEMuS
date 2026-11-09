@@ -132,13 +132,12 @@ namespace femus {
         const std::array<double, 3>& hi,
         const char GaussOrder[]) ;
 
-      Mesh* GenerateSingleManufacturedBallElementMesh(
-        const GeomElType geometry,
+      Mesh* GenerateSingleAnalyticBallElementMesh(
+        GeomElType geometry,
         const std::array<double, 3>& lo,
         const std::array<double, 3>& hi,
         const std::array<double, 3>& center,
-        double radius,
-        double epsilon,
+        double curvature,
         const char GaussOrder[]);
 
     protected:

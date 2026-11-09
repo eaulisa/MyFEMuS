@@ -1771,64 +1771,135 @@ namespace femus {
     PrintInfo();
   }
 
-  void Mesh::CurveSingleElementManufacturedBall(
-  const std::array<double, 3>& center,
-  double radius,
-  double epsilon) {
+void Mesh::EvaluateAnalyticBallMap(
+    GeomElType geometry,
+    const std::array<double,3>& center,
+    double curvature,
+    const std::array<double,3>& q,
+    std::array<double,3>& x) {
 
-  if(GetNumberOfElements() != 1u) {
-    throw std::runtime_error("Manufactured BALL requires exactly one element");
+  if(geometry!=TRI && geometry!=QUAD &&
+     geometry!=TET && geometry!=HEX)
+    throw std::invalid_argument("Analytic BALL: unsupported geometry");
+  if(!(curvature>=0.) || !std::isfinite(curvature))
+    throw std::invalid_argument("Analytic BALL: invalid curvature");
+
+  const double p0=q[0]-center[0];
+  const double p1=q[1]-center[1];
+  x=q;
+
+  if(geometry==TRI || geometry==QUAD) {
+    // Complex map z -> z + curvature*z^2.
+    x[0]=center[0]+p0+curvature*(p0*p0-p1*p1);
+    x[1]=center[1]+p1+2.*curvature*p0*p1;
+  } else {
+    // Axially symmetric quadratic map.
+    const double p2=q[2]-center[2];
+    const double a=1.+2.*curvature*p2;
+    x[0]=center[0]+a*p0;
+    x[1]=center[1]+a*p1;
+    x[2]=center[2]+p2+curvature*(p2*p2-p0*p0-p1*p1);
+  }
+}
+
+std::array<double,3> Mesh::InvertAnalyticBallMap(
+    GeomElType geometry,
+    const std::array<double,3>& center,
+    double curvature,
+    const std::array<double,3>& x) {
+
+  if(geometry!=TRI && geometry!=QUAD &&
+     geometry!=TET && geometry!=HEX)
+    throw std::invalid_argument("Analytic BALL: unsupported geometry");
+  if(!(curvature>=0.) || !std::isfinite(curvature))
+    throw std::invalid_argument("Analytic BALL: invalid curvature");
+
+  if(curvature==0.) return x;
+
+  std::array<double,3> q=x;
+  if(geometry==TRI || geometry==QUAD) {
+    // Stable inverse of z + curvature*z^2 = w.
+    // Choose the branch continuous with the identity at curvature=0.
+    const std::complex<double> w(x[0]-center[0],x[1]-center[1]);
+    const std::complex<double> z =
+      (2.*w)/(1.+std::sqrt(std::complex<double>(1.,0.)+4.*curvature*w));
+    q[0]=center[0]+z.real();
+    q[1]=center[1]+z.imag();
+  } else {
+    // Let a = 1 + 2*curvature*(q_z-c_z) > 0.
+    // From x_perp = a*q_perp and the z map:
+    //   a^4 - (1+4*curvature*Z)*a^2 - 4*curvature^2*R^2 = 0.
+    const double X=x[0]-center[0];
+    const double Y=x[1]-center[1];
+    const double Z=x[2]-center[2];
+    const double R2=X*X+Y*Y;
+    const double b=1.+4.*curvature*Z;
+    const double discriminant=std::sqrt(b*b+16.*curvature*curvature*R2);
+    const double a2=0.5*(b+discriminant);
+    if(!(a2>0.) || !std::isfinite(a2))
+      throw std::runtime_error("Analytic BALL: non-invertible 3D map");
+    const double a=std::sqrt(a2);
+    q[0]=center[0]+X/a;
+    q[1]=center[1]+Y/a;
+    // Stable form of (a-1)/(2*curvature).
+    q[2]=center[2]+2.*(Z+curvature*R2/a2)/(a+1.);
   }
 
-  const unsigned geom = GetElementType(0);
+  // Detect a point outside the selected invertible branch.
+  std::array<double,3> check;
+  EvaluateAnalyticBallMap(geometry,center,curvature,q,check);
+  const unsigned dim=(geometry==TRI || geometry==QUAD) ? 2u : 3u;
+  for(unsigned d=0;d<dim;++d) {
+    if(!std::isfinite(q[d]) ||
+       std::abs(check[d]-x[d])>1.e-10*std::max(1.,std::abs(x[d])))
+      throw std::runtime_error("Analytic BALL: inverse-map check failed");
+  }
+  return q;
+}
 
-  if(geom != TRI && geom != QUAD && geom != TET && geom != HEX) {
-    throw std::invalid_argument("Unsupported manufactured BALL element");
+void Mesh::CurveSingleElementAnalyticBall(
+    const std::array<double,3>& center,
+    double curvature) {
+
+  if(GetNumberOfElements()!=1u)
+    throw std::runtime_error("Analytic BALL requires exactly one element");
+  const unsigned geometry=GetElementType(0);
+  if(geometry!=TRI && geometry!=QUAD &&
+     geometry!=TET && geometry!=HEX)
+    throw std::invalid_argument("Analytic BALL: unsupported geometry");
+  if(!(curvature>=0.) || !std::isfinite(curvature))
+    throw std::invalid_argument("Analytic BALL: invalid curvature");
+
+  const unsigned dim=(geometry==TET || geometry==HEX) ? 3u : 2u;
+  const unsigned nNodes=GetElementDofNumber(0,2);
+
+  std::vector<std::vector<double>> newCoords(dim);
+  for(unsigned d=0;d<dim;++d) newCoords[d]=_coords[d];
+
+  for(unsigned i=0;i<nNodes;++i) {
+    const unsigned dof=GetSolutionDof(i,0,2);
+    std::array<double,3> q={{0.,0.,0.}},x;
+    for(unsigned d=0;d<dim;++d) q[d]=_coords[d][dof];
+
+    // Sufficient for the chosen quadratic maps on convex input elements:
+    // in 2D the real part of 1+2*k*z stays positive;
+    // in 3D a=1+2*k*p_z stays positive.
+    const unsigned axis=(dim==2u)?0u:2u;
+    const double branch=1.+2.*curvature*(q[axis]-center[axis]);
+    if(!(branch>1.e-8))
+      throw std::runtime_error("Analytic BALL: map is not regular");
+
+    EvaluateAnalyticBallMap(static_cast<GeomElType>(geometry),center,curvature,q,x);
+    for(unsigned d=0;d<dim;++d) newCoords[d][dof]=x[d];
   }
 
-  const unsigned dim = (geom == TET || geom == HEX) ? 3u : 2u;
-  const unsigned nNodes = GetElementDofNumber(0, 2);
-
-  if(!(radius > 0.) || !std::isfinite(radius) || !std::isfinite(epsilon)) {
-    throw std::invalid_argument("Invalid radius or epsilon");
+  // Replace all geometry coordinates and keep topology solution synchronized.
+  static const char* names[3]={"X","Y","Z"};
+  for(unsigned d=0;d<dim;++d) {
+    _coords[d].swap(newCoords[d]);
+    _topology->GetSolutionName(names[d])=_coords[d];
+    _topology->GetSolutionName(names[d]).close();
   }
-
-  for(unsigned d = 0; d < dim; ++d) {
-    if(!std::isfinite(center[d])) {
-      throw std::invalid_argument("Invalid manufactured BALL center");
-    }
-  }
-
-  std::vector<double> newX = _coords[0];
-
-  for(unsigned i = 0; i < nNodes; ++i) {
-
-    const unsigned dof = GetSolutionDof(i, 0, 2);
-
-    // Evaluate the reference quadratic level set.
-    double phi = radius * radius;
-
-    for(unsigned d = 0; d < dim; ++d) {
-      const double delta = _coords[d][dof] - center[d];
-      phi -= delta * delta;
-    }
-
-    // Check invertibility of the manufactured mapping.
-    const double determinant =
-      1. - 2. * epsilon * (_coords[0][dof] - center[0]);
-
-    if(!std::isfinite(determinant) || determinant <= 1.e-10) {
-      throw std::runtime_error("Non-invertible manufactured BALL mapping");
-    }
-
-    // F(q) = q + epsilon * phi(q) * e_1.
-    newX[dof] = _coords[0][dof] + epsilon * phi;
-  }
-
-  _coords[0].swap(newX);
-
-  _topology->GetSolutionName("X") = _coords[0];
-  _topology->GetSolutionName("X").close();
 }
 
 
