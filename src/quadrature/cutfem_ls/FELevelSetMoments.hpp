@@ -612,7 +612,7 @@ namespace FELevelSetMoments {
     }
   }
 
-  inline bool SliceTaylor(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, std::vector<long double>& values, std::vector<long double>& errors, bool fullDeltaChart = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
+  inline bool SliceTaylor(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, std::vector<long double>& values, std::vector<long double>& errors, bool fullDeltaChart = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<unsigned char>* active = nullptr) {
     long double middle = 0.5L * (thetaLeft + thetaRight);
     long double halfWidth = 0.5L * (thetaRight - thetaLeft);
     long double width = xRight - xLeft;
@@ -757,12 +757,22 @@ namespace FELevelSetMoments {
     if (cuts.size() != positiveSegments.size() + 1U) {
       throw std::runtime_error("Unresolved slice topology.");
     }
+    const unsigned count = (degree + 1U) * (degree + 2U) / 2U;
+    std::vector<unsigned char> positiveNeeded(degree + 1U, 0);
+    std::vector<unsigned char> deltaNeeded(degree + 1U, 0);
+    for(unsigned i = 0; i <= degree; ++i) {
+      for(unsigned j = 0; j <= degree-i; ++j) {
+        const unsigned index = MomentIndex(degree,i,j);
+        positiveNeeded[j] = positiveNeeded[j] || (computePositive && (active == nullptr || (*active)[index] != 0));
+        deltaNeeded[j] = deltaNeeded[j] || (computeDelta && (active == nullptr || (*active)[count+index] != 0));
+      }
+    }
     std::vector<std::vector<long double>> positivePowers(cuts.size(), SeriesConstant(1.0L, order));
     std::vector<std::vector<long double>> rootPowers(roots.size(), SeriesConstant(1.0L, order));
     std::vector<std::vector<long double>> positiveSlice(degree + 1U, SeriesConstant(0.0L, order));
     std::vector<std::vector<long double>> deltaSlice(degree + 1U, SeriesConstant(0.0L, order));
     for (unsigned j = 0; j <= degree; ++j) {
-      if (computePositive) {
+      if (positiveNeeded[j] != 0) {
         for (unsigned r = 0; r < cuts.size(); ++r) {
           positivePowers[r] = SeriesProduct(positivePowers[r], cuts[r]);
         }
@@ -775,7 +785,7 @@ namespace FELevelSetMoments {
         }
         positiveSlice[j] = SeriesProduct(positiveSlice[j], jacobian);
       }
-      if (computeDelta) {
+      if (deltaNeeded[j] != 0) {
         for (unsigned r = 0; r < roots.size(); ++r) {
           std::vector<long double> term = SeriesProduct(rootPowers[r], weights[r]);
           for (unsigned k = 0; k <= order; ++k) {
@@ -785,7 +795,6 @@ namespace FELevelSetMoments {
         }
       }
     }
-    unsigned count = (degree + 1U) * (degree + 2U) / 2U;
     values.assign(2U * count, 0.0L);
     errors.assign(2U * count, 0.0L);
     bool allConverged = true;
@@ -794,11 +803,12 @@ namespace FELevelSetMoments {
       for (unsigned j = 0; j <= degree - i; ++j) {
         unsigned index = MomentIndex(degree, i, j);
         bool converged = true;
-        if (computePositive) {
+        if (computePositive && (active == nullptr || (*active)[index] != 0)) {
           SeriesProductIntegral(xPower, positiveSlice[j], values[index], errors[index], converged);
           allConverged = allConverged && converged;
         }
-        if (computeDelta) {
+        converged = true;
+        if (computeDelta && (active == nullptr || (*active)[count + index] != 0)) {
           SeriesProductIntegral(xPower, deltaSlice[j], values[count + index], errors[count + index], converged);
           allConverged = allConverged && converged;
         }
@@ -808,20 +818,26 @@ namespace FELevelSetMoments {
     return allConverged;
   }
 
-  inline void IntegrateTaylorInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absolutePositive, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& sum, std::vector<long double>& sumError, unsigned& acceptedIntervals, bool fullDeltaChart = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
+  inline void IntegrateTaylorInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& reducedDiscriminant, unsigned leftMultiplicity, unsigned rightMultiplicity, long double xLeft, long double xRight, long double thetaLeft, long double thetaRight, const std::vector<int>& signs, const std::vector<int>& boundary, const std::vector<long double>& positiveSegments, unsigned degree, unsigned order, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absolutePositive, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, std::vector<long double>& sum, std::vector<long double>& sumError, unsigned& acceptedIntervals, bool fullDeltaChart = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<unsigned char>* active = nullptr) {
     std::vector<long double> values;
     std::vector<long double> errors;
-    bool accepted = SliceTaylor(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, thetaLeft, thetaRight, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, values, errors, fullDeltaChart, surfaceGradient);
-    unsigned count = (degree + 1U) * (degree + 2U) / 2U;
+    SliceTaylor(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, thetaLeft, thetaRight, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, values, errors, fullDeltaChart, surfaceGradient, active);
+    const unsigned count = (degree + 1U) * (degree + 2U) / 2U;
+    std::vector<unsigned char> failed(values.size(), 0);
+    bool anyFailed = false;
     for (unsigned k = 0; k < values.size(); ++k) {
-      long double tolerance = ((k < count) ? absolutePositive : absoluteDelta) + relativeTolerance * std::abs(values[k]);
-      accepted = accepted && errors[k] <= tolerance;
-    }
-    if (accepted) {
-      for (unsigned k = 0; k < values.size(); ++k) {
+      if(active != nullptr && (*active)[k] == 0) continue;
+      const long double tolerance = ((k < count) ? absolutePositive : absoluteDelta) + relativeTolerance * std::abs(values[k]);
+      if(errors[k] <= tolerance) {
         sum[k] += values[k];
         sumError[k] += errors[k];
       }
+      else {
+        failed[k] = 1;
+        anyFailed = true;
+      }
+    }
+    if (!anyFailed) {
       ++acceptedIntervals;
       return;
     }
@@ -829,8 +845,8 @@ namespace FELevelSetMoments {
     if (depth >= maximumDepth || middle == thetaLeft || middle == thetaRight) {
       throw std::runtime_error("Taylor recurrence did not reach the requested tolerance; increase maximumDepth or relax the tolerance.");
     }
-    IntegrateTaylorInterval(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, thetaLeft, middle, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, 0.5L * absolutePositive, 0.5L * absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, sum, sumError, acceptedIntervals, fullDeltaChart, surfaceGradient);
-    IntegrateTaylorInterval(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, middle, thetaRight, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, 0.5L * absolutePositive, 0.5L * absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, sum, sumError, acceptedIntervals, fullDeltaChart, surfaceGradient);
+    IntegrateTaylorInterval(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, thetaLeft, middle, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, 0.5L * absolutePositive, 0.5L * absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, sum, sumError, acceptedIntervals, fullDeltaChart, surfaceGradient, &failed);
+    IntegrateTaylorInterval(field, reducedDiscriminant, leftMultiplicity, rightMultiplicity, xLeft, xRight, middle, thetaRight, signs, boundary, positiveSegments, degree, order, triangle, domain, computePositive, computeDelta, fullBoundaryDelta, 0.5L * absolutePositive, 0.5L * absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, sum, sumError, acceptedIntervals, fullDeltaChart, surfaceGradient, &failed);
   }
 
   inline void IntegrateDirection(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double deltaTolerance, long double relativeTolerance, unsigned order, unsigned maximumDepth, std::vector<long double>& result, std::vector<long double>& resultError, unsigned& acceptedIntervals, bool fullDeltaChart = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
