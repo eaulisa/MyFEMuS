@@ -1,8 +1,7 @@
 #ifndef FEMUS_QUAD9_DIRECTION_SELECTION_HPP
 #define FEMUS_QUAD9_DIRECTION_SELECTION_HPP
 
-#include "AdaptiveLineSliceMoments.hpp"
-#include "FELevelSetMoments.hpp"
+#include "LineIntegration.hpp"
 
 // QUAD9 uses square charts internally and returns moments on the standard FEMuS reference square.
 namespace FELevelSetMoments {
@@ -67,20 +66,20 @@ inline void Quad9SelectedOneDirection(const std::vector<std::vector<long double>
     errors.assign(totalCount,0.0L);
     bool completed = false;
     if(derivativeBound > 0.0L && !fullBoundaryDelta) {
-      try { completed = IntegrateCanonicalGraph(coefficient,degree,order,false,computeDelta,derivativeBound,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,values,errors,accepted,surfaceGradient); }
+      try { completed = LineIntegration::IntegrateFastGraph(coefficient,degree,order,false,computeDelta,derivativeBound,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,values,errors,accepted,surfaceGradient); }
       catch(const std::runtime_error&) { completed = false; }
     }
     if(!completed) {
       accepted = 0;
       const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
-      IntegrateNormalizedCell(coefficient,degree,0,domain,true,computeDelta,fullBoundaryDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,32,maximumDepth,order,values,errors,accepted,surfaceGradient);
+      LineIntegration::IntegrateTaylor(coefficient,degree,0,domain,true,computeDelta,fullBoundaryDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,32,maximumDepth,order,values,errors,accepted,surfaceGradient);
     }
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     if(computeDelta && values[count] == 0.0L) useLine = true;
   }
   if(useLine) {
     accepted = 0;
-    LineSliceDirection(coefficient,degree,false,order,computeDelta,fullBoundaryDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,derivativeBound > 0.0L ? order : 0U,zeroBoundary,surfaceGradient);
+    LineIntegration::IntegrateFullGaussKronrod(coefficient,degree,false,order,computeDelta,fullBoundaryDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,derivativeBound > 0.0L ? order : 0U,zeroBoundary,surfaceGradient);
   }
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   if(useLine && order == 2) {
