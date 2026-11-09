@@ -2,6 +2,7 @@
 #define FEMUS_TRI7_DIRECTION_SELECTION_HPP
 
 #include "LineIntegration.hpp"
+#include "TriangleIntegration.hpp"
 
 // TRI7 uses ordered triangular charts internally and returns moments on the standard FEMuS reference triangle.
 namespace FELevelSetMoments {
@@ -243,6 +244,15 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
     }
   }
   else {
+    bool useSplitIntegration = integrationDirection == 0 && validationMode != 2 && !fullBoundaryDelta;
+    if(zeroBoundary != nullptr) {
+      for(unsigned side = 0; side < 3; ++side) useSplitIntegration = useSplitIntegration && (*zeroBoundary)[side] == 0;
+    }
+    if(useSplitIntegration) {
+      const std::vector<TriangleDomainVertex> vertices = {{0.0L,0.0L},{1.0L,0.0L},{1.0L,1.0L}};
+      TriangleIntegration::Integrate(normalized,degree,vertices,computeDelta,chartAbsoluteTolerance,chartRelativeTolerance,maximumDepth,maximumEvaluations,0,10,values,errors,evaluations,accepted,selected,referenceSurface ? &referenceGradient : nullptr);
+    }
+    else {
     long double lower[3], upper[3];
     unsigned ranked[3] = {1,2,3};
     for(unsigned k = 0; k < 3; ++k) Tri7SelectedDerivativeBounds(normalized,k+1U,lower[k],upper[k]);
@@ -301,6 +311,7 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
       }
     }
     if(!completed) throw std::runtime_error("TRI7 direction selection failed: "+failure);
+    }
     std::vector<long double> referenceValues;
     std::vector<long double> referenceErrors;
     ReferenceAffineMoments2D(degree,values,errors,1.0L,-1.0L,0.0L,1.0L,1.0L,referenceValues,referenceErrors);
