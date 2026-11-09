@@ -20,6 +20,21 @@ jobs:
         run: |
           python3 unittests/testCutFemWeightLSNative/apply_review_fixes.py
           python3 unittests/testCutFemWeightLSNative/finish_review_fixes.py
+          test ! -f unittests/testCutFemWeightLSNative/polish_review_fixes.py || python3 unittests/testCutFemWeightLSNative/polish_review_fixes.py
+      - name: Export minimal numerical workspace
+        run: |
+          mkdir -p /tmp/cutfem-review-export/candidate/src /tmp/cutfem-review-export/candidate/unittests /tmp/cutfem-review-export/baseline /tmp/cutfem-review-export/reviewed
+          cp -r src/quadrature src/fe src/enums /tmp/cutfem-review-export/candidate/src/
+          cp -r unittests/testCutFemWeightLSNative /tmp/cutfem-review-export/candidate/unittests/
+          cp -r /usr/include/eigen3 /tmp/cutfem-review-export/
+          git fetch --depth=1 origin 0ff0669494e603be248d02c44c0a2e9b81f72b4d 39bdedb4b93e6e5f7a21ab4a154eaf3e3538fdaa
+          git archive 0ff0669494e603be248d02c44c0a2e9b81f72b4d src/quadrature src/fe src/enums | tar -xf - -C /tmp/cutfem-review-export/baseline
+          git archive 39bdedb4b93e6e5f7a21ab4a154eaf3e3538fdaa src/quadrature src/fe src/enums | tar -xf - -C /tmp/cutfem-review-export/reviewed
+          tar -czf /tmp/cutfem-review-workspace.tar.gz -C /tmp cutfem-review-export
+      - uses: actions/upload-artifact@v4
+        with:
+          name: numerical-workspace-${{ github.sha }}
+          path: /tmp/cutfem-review-workspace.tar.gz
       - name: Build native suite
         id: build
         working-directory: unittests/testCutFemWeightLSNative
