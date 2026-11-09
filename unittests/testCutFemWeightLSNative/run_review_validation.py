@@ -1,4 +1,5 @@
 from pathlib import Path
+import argparse
 import csv
 import hashlib
 import importlib.util
@@ -32,7 +33,21 @@ def execute(command, output=None, timeout=600, expected=0):
 
 
 def includes(root):
-    return ['-I' + str(root / path) for path in ['src/quadrature/cutfem_ls', 'src/quadrature', 'src/enums', 'src/fe']] + ['-I/usr/include/eigen3']
+    paths = [root / path for path in ['src/quadrature/cutfem_ls', 'src/quadrature', 'src/enums', 'src/fe']]
+    paths.append(Path(os.environ.get('EIGEN3_INCLUDE_DIR', '/usr/include/eigen3')))
+    if os.environ.get('BOOST_INCLUDEDIR'):
+        paths.append(Path(os.environ['BOOST_INCLUDEDIR']))
+    return ['-I' + str(path) for path in paths]
+
+
+def cpu_description():
+    cpu = subprocess.run(['lscpu'], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if cpu.returncode == 0:
+        return cpu.stdout
+    details = Path('/proc/cpuinfo')
+    if details.exists():
+        return next((line for line in details.read_text().splitlines() if line.startswith('model name')), platform.machine())
+    return platform.machine()
 
 
 def make_references():
@@ -89,30 +104,61 @@ def test_gate():
     print('REVIEW checker rejects corrupt, missing, common-failure and nonfinite results', flush=True)
 
 
-def checkout(sha, name):
-    location = Path(tempfile.gettempdir()) / ('cutfem-review-' + name)
-    execute(['git', 'fetch', '--depth=1', 'origin', sha])
+def checkout(sha, name, existing=None):
+    if existing:
+        location = Path(existing).resolve()
+        if subprocess.check_output(['git', '-C', str(location), 'rev-parse', 'HEAD'], text=True).strip() != sha:
+            raise RuntimeError(f'The {name} checkout is not at the pinned commit {sha}')
+        entries = subprocess.check_output(['git', '-C', str(location), 'ls-tree', '-r', sha, '--', 'src/quadrature/cutfem_ls'], text=True).splitlines()
+        expected = set()
+        for entry in entries:
+            metadata, path = entry.split('\t', 1)
+            expected.add(path)
+            content = (location / path).read_bytes()
+            digest = hashlib.sha1(b'blob ' + str(len(content)).encode() + b'\0' + content).hexdigest()
+            if digest != metadata.split()[2]:
+                raise RuntimeError(f'The pinned {name} header was modified: {path}')
+        if {str(path.relative_to(location)) for path in (location / 'src/quadrature/cutfem_ls').glob('*.hpp')} != expected:
+            raise RuntimeError(f'The {name} checkout contains unexpected CutFEM headers')
+        return location
+    location = Path(tempfile.mkdtemp(prefix='cutfem-review-' + name + '-')) / 'source'
+    if subprocess.run(['git', 'cat-file', '-e', sha + '^{commit}'], cwd=repo, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
+        execute(['git', 'fetch', '--depth=1', 'origin', sha])
     execute(['git', 'worktree', 'add', '--detach', location, sha])
     return location
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Validate degree-10 QUAD/TRI moments and compare pinned revisions.')
+    parser.add_argument('--baseline-repo', type=Path)
+    parser.add_argument('--reviewed-repo', type=Path)
+    args = parser.parse_args()
+    (results / 'acceptance.json').write_text(json.dumps({'accepted': False, 'status': 'running'}, indent=2) + '\n')
     start = time.monotonic()
     manifest = {str(path.relative_to(repo)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted((repo / 'src/quadrature/cutfem_ls').glob('*.hpp'))}
     (results / 'source_manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
-    environment = {'compiler': execute([compiler, '--version']), 'flags': flags, 'platform': platform.platform(), 'cpu': execute(['lscpu']), 'cpu_affinity': sorted(os.sched_getaffinity(0)), 'input_sha': execute(['git', 'rev-parse', 'HEAD']).strip(), 'baseline_sha': '0ff0669494e603be248d02c44c0a2e9b81f72b4d', 'reviewed_sha': '39bdedb4b93e6e5f7a21ab4a154eaf3e3538fdaa'}
+    environment = {'compiler': execute([compiler, '--version']), 'flags': flags, 'platform': platform.platform(), 'cpu': cpu_description(), 'cpu_affinity': sorted(os.sched_getaffinity(0)), 'input_sha': execute(['git', 'rev-parse', 'HEAD']).strip(), 'baseline_sha': '0ff0669494e603be248d02c44c0a2e9b81f72b4d', 'reviewed_sha': '39bdedb4b93e6e5f7a21ab4a154eaf3e3538fdaa'}
+    environment['production_changes'] = subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no', '--', 'src/quadrature/cutfem_ls'], cwd=repo, text=True).strip()
+    environment['production_manifest_sha256'] = hashlib.sha256(json.dumps(manifest, sort_keys=True).encode()).hexdigest()
+    environment['asan_options'] = os.environ.get('ASAN_OPTIONS', 'runtime defaults')
     (results / 'environment.json').write_text(json.dumps(environment, indent=2) + '\n')
     oracle = make_references()
     binary = suite / 'build/review_regressions'
-    if not binary.exists():
-        execute([compiler, *flags, *includes(repo), suite / 'review_regressions.cpp', '-o', binary])
+    binary.parent.mkdir(exist_ok=True)
+    execute([compiler, *flags, *includes(repo), suite / 'review_regressions.cpp', '-o', binary])
     execute([binary, oracle], results / 'review_regressions.log', timeout=600)
     sanitized = suite / 'build/review_regressions_sanitized'
-    execute([compiler, '-std=c++14', '-O1', '-g', '-fsanitize=address,undefined', '-fno-omit-frame-pointer', *includes(repo), suite / 'review_regressions.cpp', '-o', sanitized], results / 'sanitizer_build.log')
+    execute([compiler, '-std=c++14', '-O1', '-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=all', '-fno-omit-frame-pointer', *includes(repo), suite / 'review_regressions.cpp', '-o', sanitized], results / 'sanitizer_build.log')
     execute([sanitized, oracle], results / 'sanitizer_run.log', timeout=600)
     test_gate()
-    baseline = checkout(environment['baseline_sha'], 'baseline')
-    reviewed = checkout(environment['reviewed_sha'], 'reviewed')
+    mesh = suite / 'build/mesh_refinement'
+    execute([compiler, *flags, *includes(repo), suite / 'mesh_refinement.cpp', '-o', mesh], results / 'mesh_refinement_build.log')
+    execute(['taskset', '-c', str(environment['cpu_affinity'][0]), mesh], results / 'mesh_refinement.csv', timeout=300)
+    mesh_rows = list(csv.DictReader((results / 'mesh_refinement.csv').read_text().splitlines()))
+    if len(mesh_rows) != 30 or any(row['status'] != 'PASS' for row in mesh_rows):
+        raise RuntimeError('The QUAD/TRI mesh-refinement matrix is incomplete or failed')
+    baseline = checkout(environment['baseline_sha'], 'baseline', args.baseline_repo)
+    reviewed = checkout(environment['reviewed_sha'], 'reviewed', args.reviewed_repo)
     binaries = {}
     source = suite / 'benchmark_quad_tri.cpp'
     for name, revision in [('baseline', baseline), ('reviewed', reviewed), ('candidate', repo)]:
@@ -127,7 +173,7 @@ def main():
     final_manifest = {str(path.relative_to(repo)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted((repo / 'src/quadrature/cutfem_ls').glob('*.hpp'))}
     if manifest != final_manifest:
         raise RuntimeError('Source changed while testing')
-    status = {'accepted': True, 'input_sha': environment['input_sha'], 'elapsed_seconds': time.monotonic()-start, 'standalone_regressions': 'PASS', 'asan_ubsan': 'PASS', 'checker_self_tests': 'PASS', 'momentwise_baseline_comparison': 'PASS', 'momentwise_reviewed_comparison': 'PASS'}
+    status = {'accepted': True, 'input_sha': environment['input_sha'], 'production_changes': environment['production_changes'], 'production_manifest_sha256': environment['production_manifest_sha256'], 'elapsed_seconds': time.monotonic()-start, 'standalone_regressions': 'PASS', 'asan_ubsan': 'PASS', 'checker_self_tests': 'PASS', 'mesh_refinement': 'PASS', 'mesh_refinement_cases': len(mesh_rows), 'momentwise_baseline_comparison': 'PASS', 'momentwise_reviewed_comparison': 'PASS'}
     (results / 'acceptance.json').write_text(json.dumps(status, indent=2) + '\n')
     print('FINAL_REVIEW_ACCEPTANCE', json.dumps(status, sort_keys=True), flush=True)
 

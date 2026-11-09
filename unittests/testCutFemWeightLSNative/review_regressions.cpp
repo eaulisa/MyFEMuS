@@ -101,7 +101,7 @@ void CheckFallbackState() {
   std::vector<std::vector<long double>> coefficient(3,std::vector<long double>(3,0.0L));
   coefficient[0][0] = -0.25L;
   coefficient[0][1] = 1.0L;
-  coefficient[2][1] = 1.0L;
+  coefficient[2][1] = 100.0L;
   const FELevelSetMoments::LineIntegrationStrip strip = {0.0L,1.0L,0.0L,0.0L,1.0L,0.0L};
   for(unsigned mode = 0; mode < 2; ++mode) {
     std::vector<long double> values(2U*count,0.0L);
@@ -114,7 +114,7 @@ void CheckFallbackState() {
     FELevelSetMoments::LineIntegration::Statistics() = FELevelSetMoments::LineIntegrationStatistics();
     FELevelSetMoments::LineIntegration::Adaptive(coefficient,degree,strip,0.0L,1.0L,0.0L,1.0L,false,true,mode == 0,true,false,false,1.0e-13L,1.0e-13L,1.0e-13L,8,24,200000,evaluations,accepted,values,errors,nullptr,active);
     ReviewCheck(values[0] == 123.0L,"Accepted moment was recomputed during fallback");
-    CheckMoment(values[count],0.25L*std::acos(-1.0L),1.0e-13L,"Selective fallback integral");
+    CheckMoment(values[count],std::atan(10.0L)/10.0L,1.0e-13L,"Selective fallback integral");
     if(mode == 0) ReviewCheck(FELevelSetMoments::LineIntegration::Statistics().taylorPanels > 0,"Taylor fallback was not exercised");
     else ReviewCheck(FELevelSetMoments::LineIntegration::Statistics().fullSamples > 0,"Full GK fallback was not exercised");
   }
@@ -189,6 +189,71 @@ void CheckCircleConvergence() {
   if(failures != 0) throw std::runtime_error("Circle convergence failures="+std::to_string(failures));
 }
 
+void CheckMappedDiscriminant() {
+  std::vector<std::vector<long double>> field(3,std::vector<long double>(3,0.0L));
+  field[1][0] = -1.0L;
+  field[2][0] = 1.0L;
+  field[0][2] = 1.0L;
+  field[2][2] = 1.0L;
+  const FELevelSetMoments::LineIntegrationDiscriminant discriminant = FELevelSetMoments::LineIntegration::MappedDiscriminant(field,0.0L,1.0L);
+  ReviewCheck(discriminant.leftZero && discriminant.rightZero,"Mapped quartic tangencies were not retained");
+  const long double parameters[7] = {std::ldexp(1.0L,-20),0.001L,0.1L,0.5L,0.9L,0.999L,1.0L-std::ldexp(1.0L,-20)};
+  for(unsigned k = 0; k < 7; ++k) {
+    const long double sine = std::sin(0.5L*std::acos(-1.0L)*parameters[k]);
+    const long double cosine = std::cos(0.5L*std::acos(-1.0L)*parameters[k]);
+    const long double point = sine*sine;
+    const long double exact = 2.0L*sine*cosine*std::sqrt(1.0L+point*point);
+    CheckMoment(FELevelSetMoments::LineIntegration::MappedDerivativeMagnitude(discriminant,parameters[k]),exact,1.0e-17L,"Factored mapped quartic discriminant");
+  }
+  std::cout << "REVIEW mapped quartic endpoint arithmetic passed\n";
+}
+
+void CheckTranslatedEllipses() {
+  const unsigned degrees[2] = {6U,10U};
+  unsigned cases = 0;
+  for(unsigned shape = 0; shape < 2; ++shape) for(unsigned geometry = 0; geometry < 6; ++geometry) for(unsigned d = 0; d < 2; ++d) for(unsigned sign = 0; sign < 2; ++sign) {
+    const unsigned degree = degrees[d];
+    const long double centerX = 0.213L+0.017L*geometry;
+    const long double centerY = 0.187L+0.011L*geometry;
+    const long double radius = geometry%2U == 0 ? 0.037L : 0.0037L;
+    const long double a = 0.7L+0.13L*geometry;
+    const long double b = 1.4L+0.17L*geometry;
+    const std::string label = std::string(shape == 0 ? "QUAD" : "TRI")+" ellipse geometry="+std::to_string(geometry)+" degree="+std::to_string(degree)+" sign="+std::to_string(sign);
+    const long double multiplier = sign == 0 ? 1.0L : -8.0L;
+    std::vector<std::vector<double>> field(3,std::vector<double>(3,0.0));
+    field[0][0] = static_cast<double>(multiplier*(a*centerX*centerX+b*centerY*centerY-radius*radius));
+    field[1][0] = static_cast<double>(-2.0L*multiplier*a*centerX);
+    field[0][1] = static_cast<double>(-2.0L*multiplier*b*centerY);
+    field[2][0] = static_cast<double>(multiplier*a);
+    field[0][2] = static_cast<double>(multiplier*b);
+    const long double aa = field[2][0]/multiplier;
+    const long double bb = field[0][2]/multiplier;
+    const long double cx = -field[1][0]/(2.0L*multiplier*aa);
+    const long double cy = -field[0][1]/(2.0L*multiplier*bb);
+    const long double squaredRadius = std::fma(aa*cx,cx,std::fma(bb*cy,cy,-field[0][0]/multiplier));
+    const long double rx = std::sqrt(squaredRadius/aa);
+    const long double ry = std::sqrt(squaredRadius/bb);
+    std::vector<std::vector<double>> positive;
+    std::vector<std::vector<double>> delta;
+    if(shape == 0) FELevelSetMoments::IntegrateQuad9ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,1,nullptr,true);
+    else FELevelSetMoments::IntegrateTri7ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,1,nullptr,true);
+    for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) {
+      long double disk = 0.0L;
+      long double interface = 0.0L;
+      for(unsigned u = 0; u <= i; ++u) for(unsigned v = 0; v <= j; ++v) {
+        const long double term = FELevelSetMoments::ReferenceBinomial(i,u)*FELevelSetMoments::ReferenceBinomial(j,v)*ReviewPower(cx,i-u)*ReviewPower(cy,j-v)*ReviewPower(rx,u)*ReviewPower(ry,v)*AngularMoment(u,v);
+        disk += term*rx*ry/(u+v+2U);
+        interface += term/(2.0L*std::sqrt(aa*bb)*std::abs(multiplier));
+      }
+      const long double full = shape == 0 ? (i%2U == 0 && j%2U == 0 ? 4.0L/((i+1.0L)*(j+1.0L)) : 0.0L) : std::tgamma(i+1.0L)*std::tgamma(j+1.0L)/std::tgamma(i+j+3.0L);
+      CheckMoment(positive[i][j],sign == 0 ? full-disk : disk,1.0e-12L,label+" H");
+      CheckMoment(delta[i][j],interface,1.0e-12L,label+" D");
+    }
+    ++cases;
+  }
+  std::cout << "REVIEW translated ellipse cases=" << cases << " failures=0\n";
+}
+
 void CheckAnalyticReferenceFile(const char* path) {
   std::ifstream input(path);
   if(!input) throw std::runtime_error("Cannot open independent analytic reference table");
@@ -236,6 +301,8 @@ int main(int argc, char** argv) {
     CheckFallbackState();
     CheckExplicitValidationMode();
     CheckCircleConvergence();
+    CheckMappedDiscriminant();
+    CheckTranslatedEllipses();
     if(argc > 1) CheckAnalyticReferenceFile(argv[1]);
     std::cout << std::setprecision(16) << "REVIEW PASS checks=" << reviewChecks << " maximum_actual_error_fraction=" << maximumBudgetFraction << " seconds=" << std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count() << '\n';
     return 0;

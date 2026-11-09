@@ -103,7 +103,7 @@ inline void Tri7SelectedRestoreDiagonal(unsigned degree, const std::vector<long 
   }
 }
 
-inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>& normalized, long double scale, unsigned degree, unsigned direction, long double derivativeBound, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, bool useTaylor, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
+inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>& normalized, long double scale, unsigned degree, unsigned direction, long double derivativeBound, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, bool useTaylor, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, bool fastOnly = false) {
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   const unsigned order = direction == 2 ? 2U : 1U;
   const long double amplification = direction == 3 ? LineSliceUtilities::Power(2.0L,degree) : 1.0L;
@@ -133,6 +133,7 @@ inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>
       try { completed = LineIntegration::IntegrateFastGraph(coefficient,degree,order,true,computeDelta,derivativeBound,absoluteH,absoluteD,relative,maximumDepth,raw,rawError,accepted,surfaceGradient); }
       catch(const std::runtime_error&) { completed = false; }
     }
+    if(!completed && fastOnly) throw std::runtime_error("TRI graph integration requires a parent-coordinate chart.");
     if(!completed) {
       accepted = 0;
       const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
@@ -141,6 +142,7 @@ inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>
     }
     if(computeDelta && raw[count] == 0.0L) line = true;
   }
+  if(fastOnly && (line || (computeDelta && raw[count] == 0.0L))) throw std::runtime_error("TRI graph integration requires a parent-coordinate chart.");
   if(line) {
     accepted = 0;
     LineIntegration::IntegrateFullGaussKronrod(coefficient,degree,true,order,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,raw,rawError,evaluations,accepted,derivativeBound > 0.0L ? order : 0U,zeroBoundary == nullptr ? nullptr : &boundary,surfaceGradient);
@@ -209,6 +211,7 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
   const bool zero = norm == 0.0L;
   if(zero && computeDelta) throw std::domain_error("The Dirac delta of an identically zero TRI7 field is undefined.");
   std::vector<std::vector<std::vector<long double>>> referenceGradient;
+  std::vector<std::vector<std::vector<long double>>> standardGradient;
   if(referenceSurface) {
     SurfaceGradientFromPolynomial(coefficient,1.0L,1.0L,referenceGradient);
     if(inverseJacobian != nullptr) SurfaceGradientPhysical(referenceGradient,*inverseJacobian);
@@ -217,6 +220,7 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
       Tri7SurfaceCoordinatePolynomials(*geometryCoordinates,coordinatePolynomials);
       SurfaceGradientCofactor2D(referenceGradient,coordinatePolynomials,1.0L,1.0L);
     }
+    standardGradient = referenceGradient;
     for(unsigned component = 0; component < referenceGradient.size(); ++component) {
       std::vector<std::vector<long double>> chartComponent;
       ReferencePolynomialAffine2D(referenceGradient[component],1.0L,-1.0L,0.0L,1.0L,chartComponent);
@@ -226,6 +230,7 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   std::vector<long double> values(2U*count,0.0L), errors(2U*count,0.0L);
   unsigned evaluations = 0, accepted = 0, selected = 0, compared = 0, attempts = 0;
+  bool standardMoments = false;
   int phase = Tri7SelectedPhase(normalized,computeDelta);
   if(computeDelta && zeroBoundary != nullptr) {
     for(unsigned side = 0; side < 3; ++side) {
@@ -256,7 +261,30 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
     if(zeroBoundary != nullptr) {
       for(unsigned side = 0; side < 3; ++side) useSplitIntegration = useSplitIntegration && (*zeroBoundary)[side] == 0;
     }
-    if(useSplitIntegration) {
+    bool useStandardIntegration = useTaylor && validationMode != 2 && integrationDirection == 0 && !fullBoundaryDelta;
+    if(zeroBoundary != nullptr) for(unsigned side = 0; side < 3; ++side) useStandardIntegration = useStandardIntegration && (*zeroBoundary)[side] == 0;
+    if(useStandardIntegration) {
+      bool fast = false;
+      if(lower[ranked[0]-1U] > 0.0L) {
+        ++attempts;
+        try {
+          Tri7SelectedOneDirection(normalized,scale,degree,ranked[0],lower[ranked[0]-1U],computeDelta,false,chartAbsoluteTolerance,chartRelativeTolerance,std::min(maximumDepth,8U),maximumEvaluations,zeroBoundary,true,values,errors,evaluations,accepted,referenceSurface ? &referenceGradient : nullptr,true);
+          selected = ranked[0];
+          fast = true;
+        }
+        catch(const std::runtime_error&) {}
+      }
+      if(!fast) {
+        std::vector<std::vector<long double>> standardCoefficient(3,std::vector<long double>(3,0.0L));
+        for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) standardCoefficient[i][j] = static_cast<long double>(coefficient[i][j])/scale;
+        const std::vector<TriangleDomainVertex> vertices = {{0.0L,0.0L},{1.0L,0.0L},{0.0L,1.0L}};
+        accepted = 0;
+        ++attempts;
+        TriangleIntegration::Integrate(standardCoefficient,degree,vertices,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,0,10,values,errors,evaluations,accepted,selected,referenceSurface ? &standardGradient : nullptr);
+        standardMoments = true;
+      }
+    }
+    else if(useSplitIntegration) {
       const std::vector<TriangleDomainVertex> vertices = {{0.0L,0.0L},{1.0L,0.0L},{1.0L,1.0L}};
       TriangleIntegration::Integrate(normalized,degree,vertices,computeDelta,chartAbsoluteTolerance,chartAbsoluteTolerance*scale,chartRelativeTolerance,maximumDepth,maximumEvaluations,0,10,values,errors,evaluations,accepted,selected,referenceSurface ? &referenceGradient : nullptr);
       if(validationMode == 2) {
@@ -339,11 +367,13 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
     }
     if(!completed) throw std::runtime_error("TRI7 direction selection failed: "+failure);
     }
-    std::vector<long double> referenceValues;
-    std::vector<long double> referenceErrors;
-    ReferenceAffineMoments2D(degree,values,errors,1.0L,-1.0L,0.0L,1.0L,1.0L,referenceValues,referenceErrors);
-    values.swap(referenceValues);
-    errors.swap(referenceErrors);
+    if(!standardMoments) {
+      std::vector<long double> referenceValues;
+      std::vector<long double> referenceErrors;
+      ReferenceAffineMoments2D(degree,values,errors,1.0L,-1.0L,0.0L,1.0L,1.0L,referenceValues,referenceErrors);
+      values.swap(referenceValues);
+      errors.swap(referenceErrors);
+    }
   }
   std::vector<std::vector<double>> resultH(degree+1U), resultD(degree+1U);
   long double errorH = 0.0L, errorD = 0.0L;

@@ -40,8 +40,12 @@ jobs:
           g++ $COMMON -Ireviewed/src/quadrature/cutfem_ls -Ireviewed/src/quadrature -Ireviewed/src/enums -Ireviewed/src/fe -I/usr/include/eigen3 $SRC -o probe_reviewed
           g++ $COMMON -Ibaseline/src/quadrature/cutfem_ls -Ibaseline/src/quadrature -Ibaseline/src/enums -Ibaseline/src/fe -I/usr/include/eigen3 $SRC -o probe_baseline
       - name: Run candidate
-        run: ./probe_candidate
-      - name: Run 39bdedb4
-        run: ./probe_reviewed
-      - name: Run rifat
-        run: ./probe_baseline
+        run: ./probe_candidate > candidate.log && cat candidate.log
+      - name: Report historical 39bdedb4 probe
+        if: always()
+        continue-on-error: true
+        run: ./probe_reviewed > reviewed.log && cat reviewed.log
+      - name: Report historical rifat probe
+        if: always()
+        continue-on-error: true
+        run: ./probe_baseline > baseline.log && cat baseline.log

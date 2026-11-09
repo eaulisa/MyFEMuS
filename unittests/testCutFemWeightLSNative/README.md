@@ -1,6 +1,6 @@
 # Native reference CutFemWeight_LS verification
 
-This standalone suite uses the actual FEMuS finite elements and Gauss tables. It does not require PETSc or build the rest of FEMuS. Requirements are a C++14 compiler, Boost headers, Eigen 3 headers, Python 3, and NumPy.
+This standalone suite uses the actual FEMuS finite elements and Gauss tables. It does not require PETSc or build the rest of FEMuS. Requirements are a C++14 compiler, Boost headers, Eigen 3 headers, Python 3, NumPy, and mpmath.
 
 ## Build and run
 
@@ -59,3 +59,13 @@ python run.py --selection original
 `compare_planar.py` checks 147 affine rules against the unchanged original `CutFemWeight` class, including tetrahedral base selections 0, 1, and 2. Its tiny-cap comparisons require the original strict result.
 
 The exact original-commit snapshots, original/candidate comparison files, and optional direct Algoim application check are external verification artifacts rather than prerequisites for this candidate-only suite.
+
+## QUAD/TRI refinement review
+
+`python3 run_review_validation.py` checks moments through total degree 10, 144 circle convergence cases, 48 translated ellipse cases, selective Taylor/full-GK fallback, and independent 60-digit graph references. AddressSanitizer and UndefinedBehaviorSanitizer run with recovery disabled. The runner also checks 30 mesh-refinement configurations: QUAD and TRI, 4 through 64 subdivisions per coordinate, and degrees 2, 6, and 10. The mesh probe reconstructs the same circle from nodal FE values and checks global area and interface length against analytic values.
+
+Timing uses 108 coefficient, nodal, and reconstructed-input cases plus 240 deterministic stress cases. Identical benchmark sources and compiler flags run against pinned `rifat`, the earlier reviewed commit, and the candidate. Runs are pinned to one allowed CPU and interleaved in opposite orders. The comparison rejects failed integrations, missing moments, nonfinite values, and momentwise disagreements. Results, source hashes, environment information, and acceptance are written to `review_results/` and summarized in the final-validation workflow logs.
+
+Existing pinned worktrees can be supplied with `--baseline-repo` and `--reviewed-repo`; their commit identities and CutFEM header contents are verified before use. `BOOST_INCLUDEDIR`, `EIGEN3_INCLUDE_DIR`, and `CXX` configure dependencies consistently with `build.py`. The historical TRI source-comparison workflow treats old revisions as reports; the candidate probe and final-validation workflow enforce failures.
+
+The [2026-11-09 recheck report](review_results/RECHECK_2026-11-09.md) records fixes, accuracy checks, mesh-refinement results, measured speedups, and remaining timing regressions.

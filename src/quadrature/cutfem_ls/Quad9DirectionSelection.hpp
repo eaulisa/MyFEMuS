@@ -104,6 +104,13 @@ inline void Quad9SelectedOneDirection(const std::vector<std::vector<long double>
       try { completed = LineIntegration::IntegrateFastGraph(coefficient,degree,order,false,computeDelta,derivativeBound,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,values,errors,accepted,surfaceGradient); }
       catch(const std::runtime_error&) { completed = false; }
     }
+    if(!completed && !fullBoundaryDelta && Quad9SelectedWeakGraphOrder(coefficient,order) != 0) {
+      try {
+        LineIntegration::IntegrateCell(coefficient,degree,order,false,computeDelta,0.0L,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient);
+        completed = true;
+      }
+      catch(const std::runtime_error&) { completed = false; }
+    }
     if(!completed) {
       accepted = 0;
       const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
@@ -404,7 +411,8 @@ inline void Quad9SelectedReferenceOneDirection(const std::vector<std::vector<lon
         const unsigned automaticQuadrantOrder = Quad9SelectedOrder(normalized,lower,upper);
         const unsigned quadrantOrder = allowSplit ? automaticQuadrantOrder : order;
         unsigned quadrantAccepted = 0;
-        Quad9SelectedOneDirection(normalized,scale*quadrantScale,degree,quadrantOrder,lower[2U-quadrantOrder],computeDelta,false,quadrantTolerance,quadrantRelativeTolerance,maximumDepth,maximumEvaluations,&boundary,quadrantValues,quadrantErrors,evaluations,quadrantAccepted,useTaylor,surfaceGradient == nullptr ? nullptr : &quadrantGradient);
+        if(useTaylor && allowSplit && !fullBoundaryDelta && lower[2U-quadrantOrder] == 0.0L && Quad9SelectedWeakGraphOrder(normalized,quadrantOrder) == 0) Quad9SelectedSplitCanonical(normalized,scale*quadrantScale,degree,computeDelta,quadrantTolerance,quadrantRelativeTolerance,maximumDepth,maximumEvaluations,&boundary,useTaylor,surfaceGradient == nullptr ? nullptr : &quadrantGradient,0,5,quadrantValues,quadrantErrors,evaluations,quadrantAccepted);
+        else Quad9SelectedOneDirection(normalized,scale*quadrantScale,degree,quadrantOrder,lower[2U-quadrantOrder],computeDelta,false,quadrantTolerance,quadrantRelativeTolerance,maximumDepth,maximumEvaluations,&boundary,quadrantValues,quadrantErrors,evaluations,quadrantAccepted,useTaylor,surfaceGradient == nullptr ? nullptr : &quadrantGradient);
         accepted += quadrantAccepted;
       }
       if(computeDelta && fullBoundaryDelta) {

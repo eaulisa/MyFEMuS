@@ -74,7 +74,7 @@ def main():
     parser.add_argument('candidate_a')
     parser.add_argument('candidate_b')
     parser.add_argument('baseline_b')
-    parser.add_argument('--expected-timing', type=int, default=72)
+    parser.add_argument('--expected-timing', type=int, default=108)
     parser.add_argument('--expected-stress', type=int, default=240)
     parser.add_argument('--absolute-tolerance', type=float, default=1e-10)
     parser.add_argument('--relative-tolerance', type=float, default=1e-10)
