@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - rifat-cutfem-fastgraph-result
+      - rifat-cutfem-hex-tet-result
     paths:
       - 'src/quadrature/cutfem_ls/**'
       - 'unittests/testCutFemWeightLSNative/**'
@@ -43,6 +44,13 @@ jobs:
           python3 compare_planar.py
       - name: Run degree-10 review, sanitizers, and pinned benchmarks
         run: python3 unittests/testCutFemWeightLSNative/run_review_validation.py
-      - name: Print acceptance
+      - name: Run HEX/TET graph splitting, refinement, and pinned timings
+        run: python3 unittests/testCutFemWeightLSNative/run_hex_tet_validation.py
+      - name: Run non-graph enriched HEX/TET checks
+        run: python3 unittests/testCutFemWeightLSNative/validate_enriched_3d.py
+      - name: Print validation results
         if: always()
-        run: cat unittests/testCutFemWeightLSNative/review_results/acceptance.json || true
+        run: |
+          cat unittests/testCutFemWeightLSNative/review_results/acceptance.json || true
+          cat unittests/testCutFemWeightLSNative/review_results/hex_tet_summary.json || true
+          cat unittests/testCutFemWeightLSNative/review_results/enriched_3d_summary.json || true

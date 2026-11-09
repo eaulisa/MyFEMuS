@@ -69,3 +69,13 @@ Timing uses 108 coefficient, nodal, and reconstructed-input cases plus 240 deter
 Existing pinned worktrees can be supplied with `--baseline-repo` and `--reviewed-repo`; their commit identities and CutFEM header contents are verified before use. `BOOST_INCLUDEDIR`, `EIGEN3_INCLUDE_DIR`, and `CXX` configure dependencies consistently with `build.py`. The historical TRI source-comparison workflow treats old revisions as reports; the candidate probe and final-validation workflow enforce failures.
 
 The [2026-11-09 recheck report](review_results/RECHECK_2026-11-09.md) records fixes, accuracy checks, mesh-refinement results, measured speedups, and remaining timing regressions.
+
+## HEX/TET graph refinement
+
+`python3 run_hex_tet_validation.py` tests the default HEX/TET local-graph paths at degrees 2, 6, and 10. HEX uses rectangular subregions and the QUAD integrator. TET keeps convex regions clipped from the standard tetrahedron and triangulates each slice for the TRI integrator. Both retain the parent FE polynomial, certify a nonzero graph derivative, and select directions per region. Critical-point splits isolate uncut cores before integrating closed surfaces. Exact TET zero faces retain the endpoint trace rule and its half-weight convention.
+
+The checks cover analytic plane and sphere moments, tetrahedral clipping and parent-polynomial identities, original-face restriction, strict caps, scaling and sign reversal, reference and physical surface weights, 18 sphere mesh-refinement configurations up to 512 HEX / 3,072 TET elements, tolerances 1e-8 through 1e-12, and small enclosed spheres. ASan/UBSan run with recovery disabled. Timings use identical sources and flags against pinned pre-3D and rifat revisions; the summary reports common successful cases and any baseline failures. No requested monomial degree exceeds 10.
+
+The existing CutFemWeight_LS API selects the new paths automatically. `--skip-benchmarks` and `--skip-sanitizers` support focused reruns; the final workflow runs both. Raw local outputs go to `results/hex_tet/`; compact acceptance and source hashes go to `review_results/hex_tet_summary.json`. The separate report records the numerical results and timing limitations.
+
+`python3 validate_enriched_3d.py` adds closed TET15 interior-bubble and coupled non-graph HEX tube fields, with both signs and both raw-delta and reference-area modes at degrees 2, 6, and 10. Every requested moment is compared with independent transformed Gauss quadrature at orders 96 and 160. These tests also require phase certification by Bernstein coefficient refinement when a direct control-net bound is inconclusive.

@@ -1,0 +1,9 @@
+{
+  "accepted": true,
+  "cases": 24,
+  "checks": 6080,
+  "maximum_requested_degree": 10,
+  "maximum_absolute_error": 1.5631940186722204e-13,
+  "independent_reference_discrepancy": 2.2737367544323206e-13,
+  "failures": []
+}

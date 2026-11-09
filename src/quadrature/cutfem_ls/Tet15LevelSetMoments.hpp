@@ -4,6 +4,7 @@
 #include "Tet15LevelSet.hpp"
 #include "AdaptiveLineSliceMoments.hpp"
 #include "Hex27LevelSetMoments.hpp"
+#include "GraphCellIntegration.hpp"
 
 namespace FELevelSetMoments {
 
@@ -58,10 +59,10 @@ inline void Tet15SliceReferenceMap(const std::vector<long double>& reference, un
   }
 }
 
-inline void Tet15ReferenceSurfaceGradientFields(const std::vector<double>& nodalValues, std::vector<std::vector<std::vector<long double>>>& fields, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+inline void Tet15ReferenceSurfaceGradient(const std::vector<double>& nodalValues, std::vector<std::vector<long double>>& gradient, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
   std::vector<long double> coefficient;
   Tet15PolynomialFromNodalValues(nodalValues,false,coefficient);
-  std::vector<std::vector<long double>> gradient(3,std::vector<long double>(125,0.0L));
+  gradient.assign(3,std::vector<long double>(125,0.0L));
   for(unsigned i = 0; i < 5; ++i) {
     for(unsigned j = 0; i+j < 5; ++j) {
       for(unsigned k = 0; i+j+k < 5; ++k) {
@@ -82,6 +83,11 @@ inline void Tet15ReferenceSurfaceGradientFields(const std::vector<double>& nodal
     }
     SurfaceGradientCofactor3D(gradient,coordinates,1.0L);
   }
+}
+
+inline void Tet15ReferenceSurfaceGradientFields(const std::vector<double>& nodalValues, std::vector<std::vector<std::vector<long double>>>& fields, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+  std::vector<std::vector<long double>> gradient;
+  Tet15ReferenceSurfaceGradient(nodalValues,gradient,inverseJacobian,geometryCoordinates);
   fields.assign(4,std::vector<std::vector<long double>>(3));
   for(unsigned vertex = 0; vertex < 4; ++vertex) {
     for(unsigned component = 0; component < 3; ++component) Tet15SliceReferenceMap(gradient[component],vertex,fields[vertex][component]);
@@ -561,7 +567,7 @@ inline void Tet15SliceSample(const std::vector<std::vector<long double>>& unit, 
       }
     }
     else if(phase == 0) {
-      try { LineSliceTriangleDirections(normalized,deltaBudgetScale,degree,computeDelta,false,innerTolerance,innerRelative,32,0,200000,&zeroBoundary,triangle,triangleError,innerEvaluations,innerAccepted,selected,surfaceGradient == nullptr ? nullptr : &sliceGradient); }
+      try { TriangleIntegration::Integrate(normalized,degree,{{0.0L,0.0L},{1.0L,0.0L},{1.0L,1.0L}},computeDelta,innerTolerance,innerTolerance*deltaBudgetScale,innerRelative,32,200000,0,10,triangle,triangleError,innerEvaluations,innerAccepted,selected,surfaceGradient == nullptr ? nullptr : &sliceGradient); }
       catch(const std::runtime_error&) {
         if(bestValues.empty()) throw;
         break;
@@ -929,6 +935,37 @@ inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodal
   int exponent = 0;
   std::frexp(scale,&exponent);
   scale = scale == 0.0L ? 1.0L : std::ldexp(1.0L,exponent-1);
+  const unsigned boundaryNodes[4][7] = {{1,2,3,5,9,8,12},{0,2,3,6,9,7,13},{0,1,3,4,8,7,11},{0,1,2,4,5,6,10}};
+  bool hasZeroFace = false;
+  for(unsigned face = 0; face < 4; ++face) {
+    bool zero = true;
+    for(unsigned node = 0; node < 7; ++node) zero = zero && nodalValues[boundaryNodes[face][node]] == 0.0;
+    hasZeroFace = hasZeroFace || zero;
+  }
+  if(integrationAxis == 0 && directionValidation != 2 && !hasZeroFace) {
+    GraphCellData data;
+    std::vector<long double> original;
+    Tet15PolynomialFromNodalValues(nodalValues,false,original);
+    data.coefficient.assign(27,0.0L);
+    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) data.coefficient[Hex27Index(i,j,k)] = original[Tet15Index(i,j,k)]/scale;
+    data.degree = degree;
+    data.maximumDepth = maximumDepth;
+    data.maximumEvaluations = maximumEvaluations;
+    data.computeDelta = computeDelta;
+    data.absoluteH = absoluteTolerance;
+    data.absoluteD = static_cast<long double>(absoluteTolerance)*scale;
+    data.relative = relativeTolerance;
+    if(referenceSurface && computeDelta) Tet15ReferenceSurfaceGradient(nodalValues,data.gradient,inverseJacobian,geometryCoordinates);
+    std::vector<long double> graphValues;
+    std::vector<long double> graphErrors;
+    GraphCellIntegration::Integrate(data,true,graphValues,graphErrors);
+    GraphCellIntegration::Output(data,scale,graphValues,graphErrors,positive,delta,estimatedError);
+    if(directionInfo != nullptr) {
+      const unsigned attempts = data.innerCounts[0]+data.innerCounts[1]+data.innerCounts[2];
+      *directionInfo = {static_cast<double>(attempts),static_cast<double>(attempts),0.0};
+    }
+    return;
+  }
   unsigned count = (degree+1U)*(degree+2U)*(degree+3U)/6U;
   std::vector<std::vector<std::vector<long double>>> fields(4);
   std::vector<std::vector<std::vector<long double>>> units(4);

@@ -3,6 +3,7 @@
 
 #include "Hex27LevelSetMoments.hpp"
 #include "Quad9DirectionSelection.hpp"
+#include "GraphCellIntegration.hpp"
 
 // Native HEX27 moments use [-1,1]^3; orders 1..6 are xyz, xzy, yxz, yzx, zxy, zyx, from inner to outer.
 namespace FELevelSetMoments {
@@ -378,6 +379,29 @@ inline void IntegrateHex27ReferenceSelected(const std::vector<std::vector<std::v
   std::vector<long double> reference;
   long double scale;
   Hex27Normalize(coefficient,reference,scale);
+  if(integrationOrder == 0 && validationMode != 2 && useTaylor) {
+    GraphCellData data;
+    data.coefficient = reference;
+    data.degree = degree;
+    data.maximumDepth = maximumDepth;
+    data.maximumEvaluations = maximumEvaluations;
+    data.computeDelta = computeDelta;
+    data.absoluteH = absoluteTolerance;
+    data.absoluteD = static_cast<long double>(absoluteTolerance)*scale;
+    data.relative = relativeTolerance;
+    if(referenceSurface && computeDelta) Hex27ReferenceSurfaceGradient(reference,scale,data.gradient,inverseJacobian,geometryCoordinates);
+    std::vector<long double> graphValues;
+    std::vector<long double> graphErrors;
+    GraphCellIntegration::Integrate(data,false,graphValues,graphErrors);
+    GraphCellIntegration::Output(data,scale,graphValues,graphErrors,positive,delta,estimatedError);
+    if(directionInfo != nullptr) {
+      unsigned selected = 0;
+      for(unsigned axis = 1; axis < 3; ++axis) if(data.outerCounts[axis] > data.outerCounts[selected]) selected = axis;
+      const unsigned attempts = data.innerCounts[0]+data.innerCounts[1]+data.innerCounts[2];
+      *directionInfo = {data.evaluations == 0 ? 0.0 : static_cast<double>(selected+1U),0.0,static_cast<double>(attempts),static_cast<double>(attempts),static_cast<double>(data.innerCounts[0]),static_cast<double>(data.innerCounts[1]),static_cast<double>(data.innerCounts[2])};
+    }
+    return;
+  }
   std::vector<long double> normalized;
   ReferenceCubePolynomialToChart(reference,normalized);
   std::vector<std::vector<long double>> surfaceGradient;
