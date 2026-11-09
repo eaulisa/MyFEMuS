@@ -1,120 +1,117 @@
 from pathlib import Path
+import argparse
+import csv
+import json
 import math
 import statistics
 import sys
 
+
 def parse(path):
     timing = {}
     stress = {}
-    for raw in Path(path).read_text().splitlines():
-        row = raw.split(',')
+    moments = {}
+    for row in csv.reader(Path(path).read_text().splitlines()):
         if not row:
             continue
         if row[0] == 'TIMING':
             key = (row[1], row[2], int(row[3]))
-            if row[4] == 'OK':
-                timing[key] = {'ok': True, 'seconds': float(row[5]), 'calls': int(row[6]), 'checksum': float(row[7]), 'h00': float(row[8]), 'd00': float(row[9]), 'max': float(row[10])}
-            else:
-                timing[key] = {'ok': False, 'error': ','.join(row[11:])}
+            if key in timing:
+                raise ValueError(f'Duplicate timing case {key}')
+            timing[key] = {'ok': row[4] == 'OK', 'seconds': float(row[5]) if row[4] == 'OK' else None}
         elif row[0] == 'STRESS':
-            key = (row[1], int(row[2]))
-            if row[3] == 'OK':
-                stress[key] = {'ok': True, 'checksum': float(row[4]), 'h00': float(row[5]), 'd00': float(row[6]), 'max': float(row[7])}
-            else:
-                stress[key] = {'ok': False, 'error': ','.join(row[8:])}
-    return timing, stress
+            key = (row[1], 'stress_' + row[2], 4)
+            if key in stress:
+                raise ValueError(f'Duplicate stress case {key}')
+            stress[key] = {'ok': row[3] == 'OK'}
+        elif row[0] == 'MOMENT':
+            key = (row[1], row[2], int(row[3]))
+            exponent = (int(row[4]), int(row[5]))
+            if exponent in moments.setdefault(key, {}):
+                raise ValueError(f'Duplicate moment {key} {exponent}')
+            values = (float(row[6]), float(row[7]))
+            if not all(math.isfinite(value) for value in values):
+                raise ValueError(f'Nonfinite moment {key} {exponent}')
+            moments[key][exponent] = values
+    for key, result in {**timing, **stress}.items():
+        if not result['ok']:
+            raise ValueError(f'Failed integration {key}')
+        degree = key[2]
+        expected = {(i, j) for i in range(degree + 1) for j in range(degree - i + 1)}
+        if set(moments.get(key, {})) != expected:
+            raise ValueError(f'Missing or surplus moments {key}')
+        if key in timing and (not math.isfinite(result['seconds']) or result['seconds'] <= 0):
+            raise ValueError(f'Invalid timing {key}')
+    if set(moments) != set(timing) | set(stress):
+        raise ValueError('Orphan moment records')
+    return timing, stress, moments
 
-def representative(first, second):
-    keys = set(first) | set(second)
-    output = {}
-    for key in keys:
-        a = first.get(key)
-        b = second.get(key)
-        if a is None:
-            output[key] = b
-        elif b is None:
-            output[key] = a
-        elif a.get('ok') and b.get('ok'):
-            output[key] = dict(a)
-            output[key]['seconds'] = statistics.median([a['seconds'], b['seconds']])
-        else:
-            output[key] = a if not a.get('ok') else b
-    return output
 
-def close(a, b, scale):
-    return abs(a-b) <= 5.0e-8*max(1.0, scale, abs(a), abs(b))
+def compare_moments(reference, candidate, absolute_tolerance, relative_tolerance):
+    if set(reference) != set(candidate):
+        raise ValueError('The case sets differ')
+    checks = 0
+    worst_fraction = 0.0
+    for key in reference:
+        if set(reference[key]) != set(candidate[key]):
+            raise ValueError(f'The moment sets differ for {key}')
+        for exponent in reference[key]:
+            for pair in range(2):
+                a = reference[key][exponent][pair]
+                b = candidate[key][exponent][pair]
+                budget = 2 * absolute_tolerance + relative_tolerance * (abs(a) + abs(b))
+                fraction = abs(a - b) / budget
+                worst_fraction = max(worst_fraction, fraction)
+                checks += 1
+                if fraction > 1.0:
+                    raise ValueError(f'Moment mismatch {key} exponent={exponent} pair={pair}: {a:.18g} vs {b:.18g}; budget={budget:.3g}')
+    return checks, worst_fraction
 
-base_a_t, base_a_s = parse(sys.argv[1])
-cand_a_t, cand_a_s = parse(sys.argv[2])
-cand_b_t, cand_b_s = parse(sys.argv[3])
-base_b_t, base_b_s = parse(sys.argv[4])
-base_t = representative(base_a_t, base_b_t)
-cand_t = representative(cand_a_t, cand_b_t)
 
-print('=== QUAD/TRI TIMING COMPARISON ===')
-print('element,case,degree,rifat_us,rebuild_us,speedup,accuracy_status')
-groups = {'QUAD': [], 'TRI': []}
-for key in sorted(set(base_t) | set(cand_t)):
-    base = base_t.get(key)
-    cand = cand_t.get(key)
-    element, name, degree = key
-    status = 'OK'
-    if base is None or cand is None:
-        status = 'MISSING'
-    elif base.get('ok') != cand.get('ok'):
-        status = 'FAILURE_MISMATCH'
-    elif not base.get('ok'):
-        status = 'BOTH_FAIL'
-    else:
-        scale = max(base['max'], cand['max'])
-        if not all(close(base[field],cand[field],scale) for field in ('checksum','h00','d00','max')):
-            status = 'OUTPUT_MISMATCH'
-    if base and cand and base.get('ok') and cand.get('ok'):
-        speedup = base['seconds']/cand['seconds']
-        groups[element].append(speedup)
-        print(f'{element},{name},{degree},{1e6*base["seconds"]:.3f},{1e6*cand["seconds"]:.3f},{speedup:.3f},{status}')
-    else:
-        print(f'{element},{name},{degree},NA,NA,NA,{status}')
+def main():
+    parser = argparse.ArgumentParser(description='Strict per-moment correctness gate and paired timing report.')
+    parser.add_argument('baseline_a')
+    parser.add_argument('candidate_a')
+    parser.add_argument('candidate_b')
+    parser.add_argument('baseline_b')
+    parser.add_argument('--expected-timing', type=int, default=72)
+    parser.add_argument('--expected-stress', type=int, default=240)
+    parser.add_argument('--absolute-tolerance', type=float, default=1e-10)
+    parser.add_argument('--relative-tolerance', type=float, default=1e-10)
+    parser.add_argument('--json', type=Path)
+    args = parser.parse_args()
+    runs = [parse(path) for path in [args.baseline_a, args.candidate_a, args.candidate_b, args.baseline_b]]
+    for timing, stress, moments in runs:
+        if len(timing) != args.expected_timing or len(stress) != args.expected_stress:
+            raise ValueError(f'Incomplete run: timing={len(timing)}, stress={len(stress)}')
+    checks = 0
+    worst_fraction = 0.0
+    for run in runs[1:]:
+        number, fraction = compare_moments(runs[0][2], run[2], args.absolute_tolerance, args.relative_tolerance)
+        checks += number
+        worst_fraction = max(worst_fraction, fraction)
+    rows = []
+    print('element,case,degree,baseline_us,candidate_us,speedup,accuracy_status')
+    for key in sorted(runs[0][0]):
+        baseline = statistics.median([runs[0][0][key]['seconds'], runs[3][0][key]['seconds']])
+        candidate = statistics.median([runs[1][0][key]['seconds'], runs[2][0][key]['seconds']])
+        row = {'element': key[0], 'case': key[1], 'degree': key[2], 'baseline_us': baseline * 1e6, 'candidate_us': candidate * 1e6, 'speedup': baseline / candidate}
+        rows.append(row)
+        print(f'{key[0]},{key[1]},{key[2]},{baseline*1e6:.6f},{candidate*1e6:.6f},{baseline/candidate:.6f},PASS')
+    summary = {}
+    for element in sorted({row['element'] for row in rows}):
+        values = [row['speedup'] for row in rows if row['element'] == element]
+        summary[element] = {'geometric_mean_speedup': math.exp(statistics.mean(math.log(v) for v in values)), 'median_speedup': statistics.median(values), 'cases': len(values)}
+        print(element, json.dumps(summary[element], sort_keys=True))
+    print(f'PASS per_moment_comparisons={checks} maximum_difference_fraction={worst_fraction:.6g} failures=0')
+    if args.json:
+        args.json.write_text(json.dumps({'accepted': True, 'per_moment_comparisons': checks, 'maximum_difference_fraction': worst_fraction, 'summary': summary, 'timings': rows}, indent=2) + '\n')
+    return 0
 
-print('\n=== TIMING SUMMARY ===')
-for element in ('QUAD','TRI'):
-    values = groups[element]
-    print(f'{element}: cases={len(values)} geometric_mean_speedup={math.exp(sum(math.log(v) for v in values)/len(values)):.3f} median_speedup={statistics.median(values):.3f} min={min(values):.3f} max={max(values):.3f}')
 
-print('\n=== RANDOMIZED STRESS COMPARISON ===')
-mismatch = {'QUAD': 0, 'TRI': 0}
-both_ok = {'QUAD': 0, 'TRI': 0}
-base_fail = {'QUAD': 0, 'TRI': 0}
-cand_fail = {'QUAD': 0, 'TRI': 0}
-for key in sorted(set(base_a_s) | set(cand_a_s)):
-    element, index = key
-    base = base_a_s.get(key)
-    cand = cand_a_s.get(key)
-    if base is None or cand is None:
-        mismatch[element] += 1
-        continue
-    if not base.get('ok'):
-        base_fail[element] += 1
-    if not cand.get('ok'):
-        cand_fail[element] += 1
-    if base.get('ok') and cand.get('ok'):
-        both_ok[element] += 1
-        scale = max(base['max'],cand['max'])
-        if not all(close(base[field],cand[field],scale) for field in ('checksum','h00','d00','max')):
-            mismatch[element] += 1
-    elif base.get('ok') != cand.get('ok'):
-        mismatch[element] += 1
-for element in ('QUAD','TRI'):
-    print(f'{element}: both_ok={both_ok[element]} rifat_fail={base_fail[element]} rebuild_fail={cand_fail[element]} mismatches={mismatch[element]}')
-
-bad_timing = 0
-for key in set(base_t) | set(cand_t):
-    base = base_t.get(key)
-    cand = cand_t.get(key)
-    if base is None or cand is None or base.get('ok') != cand.get('ok'):
-        bad_timing += 1
-    elif base.get('ok'):
-        scale = max(base['max'],cand['max'])
-        if not all(close(base[field],cand[field],scale) for field in ('checksum','h00','d00','max')):
-            bad_timing += 1
-print(f'\nvalidation_mismatches={bad_timing + mismatch["QUAD"] + mismatch["TRI"]}')
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except (ValueError, OSError, IndexError, KeyError) as error:
+        print('FAIL:', error, file=sys.stderr)
+        sys.exit(1)
