@@ -126,8 +126,21 @@ inline void Tri7SelectedOneDirection(const std::vector<std::vector<long double>>
   const long double absoluteH = absoluteTolerance/amplification;
   const long double absoluteD = (absoluteTolerance*scale)/amplification;
   const long double relative = relativeTolerance/amplification;
-  bool line = !useTaylor || zeroEdge || fullBoundaryDelta;
-  if(!line) LineIntegration::IntegrateCell(coefficient,degree,order,true,computeDelta,derivativeBound,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,raw,rawError,evaluations,accepted,surfaceGradient);
+  bool line = !useTaylor || zeroEdge;
+  if(!line) {
+    bool completed = false;
+    if(derivativeBound > 0.0L && !fullBoundaryDelta) {
+      try { completed = LineIntegration::IntegrateFastGraph(coefficient,degree,order,true,computeDelta,derivativeBound,absoluteH,absoluteD,relative,maximumDepth,raw,rawError,accepted,surfaceGradient); }
+      catch(const std::runtime_error&) { completed = false; }
+    }
+    if(!completed) {
+      accepted = 0;
+      const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
+      try { LineIntegration::IntegrateTaylor(coefficient,degree,2,domain,true,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,32,maximumDepth,order,raw,rawError,accepted,surfaceGradient); }
+      catch(const std::runtime_error&) { line = true; }
+    }
+    if(computeDelta && raw[count] == 0.0L) line = true;
+  }
   if(line) {
     accepted = 0;
     LineIntegration::IntegrateFullGaussKronrod(coefficient,degree,true,order,computeDelta,fullBoundaryDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,raw,rawError,evaluations,accepted,derivativeBound > 0.0L ? order : 0U,zeroBoundary == nullptr ? nullptr : &boundary,surfaceGradient);
