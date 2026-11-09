@@ -43,6 +43,13 @@ public:
     return LineSliceUtilities::PolynomialNorm(boundary) == 0.0L;
   }
 
+  static long double RootDerivativeMagnitude(const std::vector<long double>& polynomial, long double root) {
+    if(polynomial[2] == 0.0L) return std::abs(polynomial[1]);
+    const long double discriminant = std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
+    if(discriminant >= 0.0L) return std::sqrt(discriminant);
+    return std::abs(std::fma(2.0L*polynomial[2],root,polynomial[1]));
+  }
+
   static void Sample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double x, bool computeDelta, bool graph, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& active) {
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     values.assign(2U*count,0.0L);
@@ -101,7 +108,7 @@ public:
     }
     if(computeDelta) for(unsigned r = 0; r < inside.size(); ++r) {
       const long double root = inside[r];
-      const long double derivative = std::abs(std::fma(2.0L*polynomial[2],root,polynomial[1]));
+      const long double derivative = RootDerivativeMagnitude(polynomial,root);
       if(!(derivative > 0.0L)) throw std::runtime_error("A singular fiber has no regular delta weight.");
       long double weight = (root == lower || root == upper ? 0.5L : 1.0L)/derivative;
       if(surfaceGradient != nullptr) weight *= SurfaceGradientNorm(*surfaceGradient,x,root);
@@ -162,7 +169,7 @@ public:
     long double derivative = 0.0L;
     if(number == 1) {
       const long double signedDerivative = std::fma(2.0L*polynomial[2],root,polynomial[1]);
-      derivative = std::abs(signedDerivative);
+      derivative = RootDerivativeMagnitude(polynomial,root);
       if(!(derivative > 0.0L)) throw std::runtime_error("A singular fiber has no regular graph delta weight.");
       positiveLeft = signedDerivative > 0.0L ? root : lower;
       positiveRight = signedDerivative > 0.0L ? upper : root;
