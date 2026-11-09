@@ -45,9 +45,7 @@ public:
     DerivativeBounds(coefficient,vertices,1,lower[1],upper[1]);
     unsigned direction = lower[1] > lower[0] || (lower[1] == lower[0] && upper[1] > upper[0]) ? 1U : 2U;
     const long double selectedLower = direction == 1 ? lower[1] : lower[0];
-    const unsigned weakDirection = selectedLower == 0.0L ? WeakDerivativeDirection(coefficient,vertices) : 0U;
-    if(weakDirection != 0) direction = weakDirection;
-    if(selectedLower == 0.0L && weakDirection == 0 && splitDepth < maximumSplitDepth) {
+    if(selectedLower == 0.0L && splitDepth < maximumSplitDepth) {
       std::vector<std::vector<TriangleDomainVertex>> children;
       if(!SplitAtDerivativeChange(coefficient,vertices,children)) {
         std::vector<TriangleDomainVertex> first;
@@ -79,7 +77,7 @@ public:
       return;
     }
     selectedDirection = direction;
-    if(selectedLower > 0.0L || weakDirection != 0) {
+    if(selectedLower > 0.0L) {
       try {
         IntegrateDirection(coefficient,degree,vertices,direction,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,true,true);
       }
@@ -179,45 +177,6 @@ private:
     const long double padding = 64.0L*std::sqrt(std::numeric_limits<long double>::epsilon())*std::max(1.0L,magnitude);
     lower = minimum > padding ? minimum-padding : (maximum < -padding ? -maximum-padding : 0.0L);
     upper = magnitude+padding;
-  }
-
-  static unsigned WeakDerivativeDirection(const std::vector<std::vector<long double>>& coefficient, const std::vector<TriangleDomainVertex>& vertices) {
-    unsigned selected = 0;
-    long double selectedMagnitude = 0.0L;
-    for(unsigned axis = 0; axis < 2; ++axis) {
-      std::vector<std::vector<long double>> derivative(3,std::vector<long double>(3,0.0L));
-      long double norm = 0.0L;
-      if(axis == 0) {
-        for(unsigned i = 1; i < 3; ++i) {
-          for(unsigned j = 0; j < 3; ++j) {
-            derivative[i-1U][j] = static_cast<long double>(i)*coefficient[i][j];
-            norm += std::abs(derivative[i-1U][j]);
-          }
-        }
-      }
-      else {
-        for(unsigned i = 0; i < 3; ++i) {
-          for(unsigned j = 1; j < 3; ++j) {
-            derivative[i][j-1U] = static_cast<long double>(j)*coefficient[i][j];
-            norm += std::abs(derivative[i][j-1U]);
-          }
-        }
-      }
-      long double minimum = 0.0L;
-      long double maximum = 0.0L;
-      PolynomialBounds(derivative,vertices,minimum,maximum);
-      const long double padding = 1024.0L*std::numeric_limits<long double>::epsilon()*std::max(1.0L,norm);
-      const bool nonnegative = minimum >= -padding && maximum > padding;
-      const bool nonpositive = maximum <= padding && minimum < -padding;
-      if(nonnegative || nonpositive) {
-        const long double magnitude = std::max(std::abs(minimum),std::abs(maximum));
-        if(magnitude > selectedMagnitude) {
-          selectedMagnitude = magnitude;
-          selected = axis == 0 ? 2U : 1U;
-        }
-      }
-    }
-    return selected;
   }
 
   static long double Coordinate(const TriangleDomainVertex& vertex, unsigned axis) {
