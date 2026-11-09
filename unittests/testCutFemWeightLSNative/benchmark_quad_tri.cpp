@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-// Benchmark stage: validated TRI splitter plus optimized two-way QUAD splitting.
+// Benchmark stage: mapped Fast GK for tangent TRI graphs plus optimized QUAD.
 
 struct BenchmarkCase {
   std::string element;
