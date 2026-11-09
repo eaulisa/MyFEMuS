@@ -16,6 +16,7 @@ struct BenchmarkCase {
   std::string name;
   unsigned degree;
   std::vector<std::vector<double>> coefficient;
+  bool nodal;
 };
 
 struct CaseResult {
@@ -55,9 +56,44 @@ long double MaximumMagnitude(const std::vector<std::vector<double>>& positive, c
   return value;
 }
 
+double PolynomialValue(const std::vector<std::vector<double>>& coefficient, double x, double y) {
+  long double value = 0.0L;
+  long double xPower = 1.0L;
+  for(unsigned i = 0; i < coefficient.size(); ++i) {
+    long double yPower = 1.0L;
+    for(unsigned j = 0; j < coefficient[i].size(); ++j) {
+      value += static_cast<long double>(coefficient[i][j])*xPower*yPower;
+      yPower *= y;
+    }
+    xPower *= x;
+  }
+  return static_cast<double>(value);
+}
+
+std::vector<double> NodalValues(const BenchmarkCase& test) {
+  std::vector<double> values;
+  if(test.element == "QUAD") {
+    static const double point[9][2] = {{-1.0,-1.0},{1.0,-1.0},{1.0,1.0},{-1.0,1.0},{0.0,-1.0},{1.0,0.0},{0.0,1.0},{-1.0,0.0},{0.0,0.0}};
+    values.resize(9);
+    for(unsigned k = 0; k < 9; ++k) values[k] = PolynomialValue(test.coefficient,point[k][0],point[k][1]);
+  }
+  else {
+    static const double point[7][2] = {{0.0,0.0},{1.0,0.0},{0.0,1.0},{0.5,0.0},{0.5,0.5},{0.0,0.5},{1.0/3.0,1.0/3.0}};
+    values.resize(7);
+    for(unsigned k = 0; k < 7; ++k) values[k] = PolynomialValue(test.coefficient,point[k][0],point[k][1]);
+  }
+  return values;
+}
+
 void RunIntegration(const BenchmarkCase& test, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta) {
-  if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,28,0,200000,nullptr,0,nullptr,true);
-  else FELevelSetMoments::IntegrateTri7ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,28,0,200000,nullptr,0,nullptr,true);
+  if(!test.nodal) {
+    if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,28,0,200000,nullptr,0,nullptr,true);
+    else FELevelSetMoments::IntegrateTri7ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,28,0,200000,nullptr,0,nullptr,true);
+    return;
+  }
+  const std::vector<double> nodalValues = NodalValues(test);
+  if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,0,0,nullptr,true);
+  else FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,0,0,nullptr,true);
 }
 
 CaseResult Measure(const BenchmarkCase& test) {
@@ -161,7 +197,7 @@ void RunStress(const std::string& element) {
       coefficient[2][1] = bubble;
       coefficient[1][2] = bubble;
     }
-    BenchmarkCase test = {element,"stress_"+std::to_string(testIndex),4,coefficient};
+    BenchmarkCase test = {element,"stress_"+std::to_string(testIndex),4,coefficient,false};
     try {
       std::vector<std::vector<double>> positive;
       std::vector<std::vector<double>> delta;
@@ -180,6 +216,13 @@ int main() {
   std::cout << std::setprecision(18);
   std::vector<BenchmarkCase> tests;
   AddTimingCases(tests);
+  const unsigned coefficientCases = static_cast<unsigned>(tests.size());
+  for(unsigned k = 0; k < coefficientCases; ++k) {
+    BenchmarkCase nodal = tests[k];
+    nodal.name = "nodal_"+nodal.name;
+    nodal.nodal = true;
+    tests.push_back(nodal);
+  }
   for(unsigned k = 0; k < tests.size(); ++k) {
     const CaseResult result = Measure(tests[k]);
     if(result.success) std::cout << "TIMING," << tests[k].element << "," << tests[k].name << "," << tests[k].degree << ",OK," << result.medianSeconds << "," << result.calls << "," << static_cast<double>(result.checksum) << "," << static_cast<double>(result.h00) << "," << static_cast<double>(result.d00) << "," << static_cast<double>(result.maximumMagnitude) << "\n";
