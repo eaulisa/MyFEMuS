@@ -22,6 +22,9 @@ struct LineIntegrationStatistics {
   unsigned long long rootSolves = 0;
   unsigned long long inactiveSkipped = 0;
   unsigned long long fallbackComponents = 0;
+  unsigned long long mappedPanels = 0;
+  unsigned long long regularGraphPanels = 0;
+  unsigned long long pairPanels = 0;
 };
 
 class LineDomainIntegration {
@@ -327,12 +330,17 @@ public:
     std::vector<long double> values;
     std::vector<long double> errors;
     const long double fraction = (right-left)*(parameterRight-parameterLeft);
+    if(graph) {
+      if(mapped) ++Statistics().mappedPanels;
+      else ++Statistics().regularGraphPanels;
+    }
     const bool sampled = GaussKronrodPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,graph,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient);
     if(!Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
       ++accepted;
       return;
     }
     if(graph && sampled) {
+      ++Statistics().pairPanels;
       const bool paired = GraphGaussPairPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient);
       if(paired && !Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
         ++accepted;
