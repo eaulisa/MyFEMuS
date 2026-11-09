@@ -183,24 +183,67 @@ inline void Quad9SelectedReferenceParity(const std::vector<std::vector<long doub
   }
 }
 
+inline bool Quad9SelectedDerivativeSplitCoordinate(const std::vector<std::vector<long double>>& coefficient, unsigned axis, long double& coordinate) {
+  std::vector<long double> roots;
+  for(unsigned side = 0; side < 2; ++side) {
+    long double constant = 0.0L;
+    long double linear = 0.0L;
+    if(axis == 0) {
+      long double sidePower = 1.0L;
+      for(unsigned j = 0; j < 3; ++j) {
+        constant += coefficient[1][j]*sidePower;
+        linear += 2.0L*coefficient[2][j]*sidePower;
+        sidePower *= static_cast<long double>(side);
+      }
+    }
+    else {
+      long double sidePower = 1.0L;
+      for(unsigned i = 0; i < 3; ++i) {
+        constant += coefficient[i][1]*sidePower;
+        linear += 2.0L*coefficient[i][2]*sidePower;
+        sidePower *= static_cast<long double>(side);
+      }
+    }
+    const long double scale = std::abs(constant)+std::abs(linear);
+    const long double padding = 1024.0L*std::numeric_limits<long double>::epsilon()*std::max(1.0L,scale);
+    if(std::abs(linear) <= padding) continue;
+    const long double root = -constant/linear;
+    if(root > 0.02L && root < 0.98L) roots.push_back(root);
+  }
+  if(roots.empty()) return false;
+  coordinate = 0.0L;
+  for(unsigned k = 0; k < roots.size(); ++k) coordinate += roots[k];
+  coordinate /= static_cast<long double>(roots.size());
+  long double spread = 0.0L;
+  for(unsigned k = 0; k < roots.size(); ++k) spread = std::max(spread,std::abs(roots[k]-coordinate));
+  if(roots.size() > 1 && spread > 0.30L) return false;
+  coordinate = std::max(0.05L,std::min(0.95L,coordinate));
+  return true;
+}
+
 inline void Quad9SelectedSplitCanonical(const std::vector<std::vector<long double>>& coefficient, long double scale, unsigned degree, bool computeDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, bool useTaylor, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, unsigned splitDepth, unsigned maximumSplitDepth, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted) {
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   values.assign(2U*count,0.0L);
   errors.assign(2U*count,0.0L);
   std::vector<long double> correction(2U*count,0.0L);
+  long double splitCoordinate[2] = {0.5L,0.5L};
+  Quad9SelectedDerivativeSplitCoordinate(coefficient,0,splitCoordinate[0]);
+  Quad9SelectedDerivativeSplitCoordinate(coefficient,1,splitCoordinate[1]);
   for(unsigned firstSide = 0; firstSide < 2; ++firstSide) {
+    const long double firstOrigin = firstSide == 0 ? 0.0L : splitCoordinate[0];
+    const long double firstScale = firstSide == 0 ? splitCoordinate[0] : 1.0L-splitCoordinate[0];
     for(unsigned secondSide = 0; secondSide < 2; ++secondSide) {
-      const long double firstOrigin = 0.5L*firstSide;
-      const long double secondOrigin = 0.5L*secondSide;
+      const long double secondOrigin = secondSide == 0 ? 0.0L : splitCoordinate[1];
+      const long double secondScale = secondSide == 0 ? splitCoordinate[1] : 1.0L-splitCoordinate[1];
       std::vector<std::vector<long double>> childCoefficient;
-      ReferencePolynomialAffine2D(coefficient,firstOrigin,0.5L,secondOrigin,0.5L,childCoefficient);
+      ReferencePolynomialAffine2D(coefficient,firstOrigin,firstScale,secondOrigin,secondScale,childCoefficient);
       std::vector<std::vector<long double>> childNormalized;
       long double childScale = 1.0L;
       LineSliceUtilities::NormalizeCanonicalPolynomial(childCoefficient,childNormalized,childScale);
       std::vector<std::vector<std::vector<long double>>> childGradient;
       if(surfaceGradient != nullptr) {
         childGradient.resize(surfaceGradient->size());
-        for(unsigned component = 0; component < surfaceGradient->size(); ++component) ReferencePolynomialAffine2D((*surfaceGradient)[component],firstOrigin,0.5L,secondOrigin,0.5L,childGradient[component]);
+        for(unsigned component = 0; component < surfaceGradient->size(); ++component) ReferencePolynomialAffine2D((*surfaceGradient)[component],firstOrigin,firstScale,secondOrigin,secondScale,childGradient[component]);
       }
       std::vector<unsigned> boundary(4,1);
       for(unsigned i = 0; i < 3; ++i) {
@@ -255,7 +298,7 @@ inline void Quad9SelectedSplitCanonical(const std::vector<std::vector<long doubl
       }
       std::vector<long double> mappedValues;
       std::vector<long double> mappedErrors;
-      ReferenceAffineMoments2D(degree,childValues,childErrors,firstOrigin,0.5L,secondOrigin,0.5L,0.25L,mappedValues,mappedErrors);
+      ReferenceAffineMoments2D(degree,childValues,childErrors,firstOrigin,firstScale,secondOrigin,secondScale,firstScale*secondScale,mappedValues,mappedErrors);
       for(unsigned k = 0; k < values.size(); ++k) {
         const long double adjusted = mappedValues[k]-correction[k];
         const long double next = values[k]+adjusted;
