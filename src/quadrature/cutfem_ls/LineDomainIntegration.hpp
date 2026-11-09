@@ -273,7 +273,7 @@ public:
     return remaining;
   }
 
-  static bool MappedGaussPairPanel(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool computeDelta, bool lowerZero, bool upperZero, const std::vector<unsigned char>& active, unsigned maximumEvaluations, unsigned& evaluations, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient) {
+  static bool GraphGaussPairPanel(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool mapped, bool computeDelta, bool lowerZero, bool upperZero, const std::vector<unsigned char>& active, unsigned maximumEvaluations, unsigned& evaluations, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient) {
     const unsigned size = active.size();
     values.assign(size,0.0L);
     errors.assign(size,std::numeric_limits<long double>::infinity());
@@ -297,8 +297,8 @@ public:
           ++evaluations;
           ++Statistics().fastSamples;
           const long double parameter = parameterLeft+parameterWidth*points[q];
-          const long double point = MappedPoint(left,right,parameter,true);
-          const long double jacobian = 0.5L*pi*(right-left)*std::sin(pi*parameter);
+          const long double point = MappedPoint(left,right,parameter,mapped);
+          const long double jacobian = mapped ? 0.5L*pi*(right-left)*std::sin(pi*parameter) : right-left;
           const long double weight = parameterWidth*weights[q]*jacobian;
           std::vector<long double> sample;
           FastGraphSample(coefficient,degree,strip,point,computeDelta,lowerZero,upperZero,sample,surfaceGradient,active);
@@ -332,8 +332,8 @@ public:
       ++accepted;
       return;
     }
-    if(graph && mapped && sampled) {
-      const bool paired = MappedGaussPairPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient);
+    if(graph && sampled) {
+      const bool paired = GraphGaussPairPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient);
       if(paired && !Accept(values,errors,absoluteH*fraction,absoluteD*fraction,relative,active,total,totalError)) {
         ++accepted;
         return;
