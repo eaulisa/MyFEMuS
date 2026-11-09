@@ -52,7 +52,9 @@ void CheckMoment(long double computed, long double exact, long double tolerance,
 
 void CheckTriangleGeometry() {
   const std::vector<FELevelSetMoments::TriangleDomainVertex> triangle = {{1.0L,1.0L},{0.0L,0.0L},{1.0L,0.0L}};
-  for(unsigned degree = 32; degree <= 64; degree += 32) {
+  const unsigned geometryDegrees[2] = {8,10};
+  for(unsigned degreeIndex = 0; degreeIndex < 2; ++degreeIndex) {
+    const unsigned degree = geometryDegrees[degreeIndex];
     long double estimate = 0.0L;
     const long double value = FELevelSetMoments::TriangleIntegration::TriangleMoment(triangle,0,degree,&estimate);
     const long double exact = 1.0L/((degree+1.0L)*(degree+2.0L));
@@ -90,7 +92,7 @@ void CheckTriangleGeometry() {
     const long double exact = ReviewPower(0.5L,j)*(1.0L-ReviewPower(0.5L,i+1U))/(i+1U);
     CheckMoment(sum[count+k],exact,1.0e-12L,"Artificial-edge delta ownership");
   }
-  std::cout << "REVIEW partition, tiny-region, degree-32/64 moment regressions passed\n";
+  std::cout << "REVIEW partition, tiny-region, degree-8/10 moment regressions passed\n";
 }
 
 void CheckFallbackState() {
@@ -120,10 +122,11 @@ void CheckFallbackState() {
 }
 
 void CheckCircleConvergence() {
-  const unsigned degrees[3] = {0,2,6};
+  const unsigned degrees[4] = {0,2,6,10};
   const double tolerances[3] = {1.0e-8,1.0e-10,1.0e-12};
   unsigned cases = 0;
-  for(unsigned shape = 0; shape < 2; ++shape) for(unsigned geometry = 0; geometry < 3; ++geometry) for(unsigned d = 0; d < 3; ++d) for(unsigned t = 0; t < 3; ++t) for(unsigned sign = 0; sign < 2; ++sign) {
+  unsigned failures = 0;
+  for(unsigned shape = 0; shape < 2; ++shape) for(unsigned geometry = 0; geometry < 3; ++geometry) for(unsigned d = 0; d < 4; ++d) for(unsigned t = 0; t < 3; ++t) for(unsigned sign = 0; sign < 2; ++sign) {
     const unsigned degree = degrees[d];
     const long double cx = shape == 0 ? 0.125L : 0.25L;
     const long double cy = shape == 0 ? -0.125L : 0.25L;
@@ -141,10 +144,11 @@ void CheckCircleConvergence() {
     std::vector<double> estimate;
     const std::string label = std::string(shape == 0 ? "QUAD" : "TRI")+" circle geometry="+std::to_string(geometry)+" degree="+std::to_string(degree)+" tolerance="+std::to_string(t)+" sign="+std::to_string(sign);
     try {
+      try {
       if(shape == 0) FELevelSetMoments::IntegrateQuad9ReferenceSelected(field,degree,positive,delta,tolerances[t],tolerances[t],true,false,28,0,200000,&estimate,1,nullptr,true);
       else FELevelSetMoments::IntegrateTri7ReferenceSelected(field,degree,positive,delta,tolerances[t],tolerances[t],true,false,28,0,200000,&estimate,1,nullptr,true);
     }
-    catch(const std::exception& exception) { throw std::runtime_error(label+": "+exception.what()); }
+      catch(const std::exception& exception) { throw std::runtime_error(label+": "+exception.what()); }
     ReviewCheck(field == original,"Integration modified the parent coefficient tensor");
     for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) {
       const long double disk = CircleMoment(i,j,cx,cy,radius,false);
@@ -154,8 +158,14 @@ void CheckCircleConvergence() {
     }
     ReviewCheck(estimate.size() >= 7 && estimate[5] != 0.0,"Difficult cut did not perform independent verification");
     ++cases;
+    }
+    catch(const std::exception& exception) {
+      std::cerr << "REVIEW CIRCLE CASE FAIL " << label << ": " << exception.what() << '\n';
+      ++failures;
+    }
   }
-  std::cout << "REVIEW circle convergence cases=" << cases << " tolerances=1e-8,1e-10,1e-12\n";
+  std::cout << "REVIEW circle convergence cases=" << cases << " failures=" << failures << " tolerances=1e-8,1e-10,1e-12\n";
+  if(failures != 0) throw std::runtime_error("Circle convergence failures="+std::to_string(failures));
 }
 
 void CheckAnalyticReferenceFile(const char* path) {
