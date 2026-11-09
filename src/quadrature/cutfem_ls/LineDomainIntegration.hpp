@@ -118,6 +118,84 @@ public:
     }
   }
 
+  static void FastGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double x, bool computeDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& active) {
+    const unsigned count = (degree+1U)*(degree+2U)/2U;
+    values.assign(2U*count,0.0L);
+    const long double lower = StripLower(strip,x);
+    const long double upper = StripUpper(strip,x);
+    const std::vector<long double> polynomial = FiberPolynomial(coefficient,x);
+    std::vector<long double> roots;
+    if(lowerZero) {
+      roots.push_back(lower);
+      if(polynomial[2] != 0.0L) {
+        const long double other = -polynomial[1]/polynomial[2]-lower;
+        if(other != lower) roots.push_back(other);
+      }
+    }
+    else if(upperZero) {
+      roots.push_back(upper);
+      if(polynomial[2] != 0.0L) {
+        const long double other = -polynomial[1]/polynomial[2]-upper;
+        if(other != upper) roots.push_back(other);
+      }
+    }
+    else roots = LineSliceUtilities::QuadraticRoots(polynomial[2],polynomial[1],polynomial[0]);
+    ++Statistics().rootSolves;
+    const long double tolerance = 256.0L*std::numeric_limits<long double>::epsilon()*std::max(1.0L,std::max(std::abs(lower),std::abs(upper)));
+    long double root = 0.0L;
+    unsigned number = 0;
+    for(unsigned r = 0; r < roots.size(); ++r) {
+      if(roots[r] >= lower-tolerance && roots[r] <= upper+tolerance) {
+        root = std::max(lower,std::min(upper,roots[r]));
+        ++number;
+      }
+    }
+    if(number > 1) throw std::runtime_error("The cached graph branch is not a single root.");
+    long double positiveLeft = lower;
+    long double positiveRight = lower;
+    long double derivative = 0.0L;
+    if(number == 1) {
+      const long double signedDerivative = std::fma(2.0L*polynomial[2],root,polynomial[1]);
+      derivative = std::abs(signedDerivative);
+      if(!(derivative > 0.0L)) throw std::runtime_error("A singular fiber has no regular graph delta weight.");
+      positiveLeft = signedDerivative > 0.0L ? root : lower;
+      positiveRight = signedDerivative > 0.0L ? upper : root;
+    }
+    else if(Evaluate(coefficient,x,0.5L*(lower+upper)) > 0.0L) {
+      positiveLeft = lower;
+      positiveRight = upper;
+    }
+    std::vector<long double> h(degree+1U,0.0L);
+    std::vector<long double> d(degree+1U,0.0L);
+    long double leftPower = 1.0L;
+    long double rightPower = 1.0L;
+    for(unsigned j = 0; j <= degree; ++j) {
+      leftPower *= positiveLeft;
+      rightPower *= positiveRight;
+      h[j] = (rightPower-leftPower)/(j+1U);
+    }
+    if(computeDelta && number == 1) {
+      long double weight = (root == lower || root == upper ? 0.5L : 1.0L)/derivative;
+      if(surfaceGradient != nullptr) weight *= SurfaceGradientNorm(*surfaceGradient,x,root);
+      long double rootPower = 1.0L;
+      for(unsigned j = 0; j <= degree; ++j) {
+        d[j] = rootPower*weight;
+        rootPower *= root;
+      }
+    }
+    long double xPower = 1.0L;
+    for(unsigned i = 0; i <= degree; ++i) {
+      for(unsigned j = 0; j <= degree-i; ++j) {
+        const unsigned k = LineSliceUtilities::MomentIndex(degree,i,j);
+        if(active[k]) values[k] = xPower*h[j];
+        else ++Statistics().inactiveSkipped;
+        if(active[count+k]) values[count+k] = xPower*d[j];
+        else ++Statistics().inactiveSkipped;
+      }
+      xPower *= x;
+    }
+  }
+
   static long double MappedPoint(long double left, long double right, long double parameter, bool mapped) {
     if(!mapped) return left+(right-left)*parameter;
     const long double angle = 0.5L*std::acos(-1.0L)*parameter;
@@ -148,7 +226,8 @@ public:
         const long double parameter = middle+(side == 0 ? -1.0L : 1.0L)*halfWidth*nodes[node];
         const long double point = MappedPoint(left,right,parameter,mapped);
         const long double jacobian = mapped ? 0.5L*pi*(right-left)*std::sin(pi*parameter) : right-left;
-        Sample(coefficient,degree,strip,point,computeDelta,graph,lowerZero,upperZero,samples[sample],surfaceGradient,active);
+        if(graph) FastGraphSample(coefficient,degree,strip,point,computeDelta,lowerZero,upperZero,samples[sample],surfaceGradient,active);
+        else Sample(coefficient,degree,strip,point,computeDelta,false,lowerZero,upperZero,samples[sample],surfaceGradient,active);
         for(unsigned k = 0; k < size; ++k) {
           if(!active[k]) continue;
           samples[sample][k] *= jacobian;
@@ -205,7 +284,8 @@ public:
       return;
     }
     const long double middle = 0.5L*(parameterLeft+parameterRight);
-    if(graph && sampled && depth < std::min(maximumDepth,8U) && middle != parameterLeft && middle != parameterRight) {
+    const unsigned fastDepthLimit = mapped ? maximumDepth : std::min(maximumDepth,8U);
+    if(graph && sampled && depth < fastDepthLimit && middle != parameterLeft && middle != parameterRight) {
       Adaptive(coefficient,degree,strip,left,right,parameterLeft,middle,mapped,true,useTaylor,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active);
       Adaptive(coefficient,degree,strip,left,right,middle,parameterRight,mapped,true,useTaylor,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active);
       return;
