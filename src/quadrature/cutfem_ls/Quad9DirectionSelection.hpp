@@ -219,9 +219,9 @@ inline void Quad9SelectedReferenceOneDirection(const std::vector<std::vector<lon
       else {
         long double lower[2];
         long double upper[2];
-        Quad9SelectedOrder(normalized,lower,upper);
+        const unsigned quadrantOrder = Quad9SelectedOrder(normalized,lower,upper);
         unsigned quadrantAccepted = 0;
-        Quad9SelectedOneDirection(normalized,scale*quadrantScale,degree,order,lower[2U-order],computeDelta,false,quadrantTolerance,quadrantRelativeTolerance,maximumDepth,maximumEvaluations,&boundary,quadrantValues,quadrantErrors,evaluations,quadrantAccepted,useTaylor,surfaceGradient == nullptr ? nullptr : &quadrantGradient);
+        Quad9SelectedOneDirection(normalized,scale*quadrantScale,degree,quadrantOrder,lower[2U-quadrantOrder],computeDelta,false,quadrantTolerance,quadrantRelativeTolerance,maximumDepth,maximumEvaluations,&boundary,quadrantValues,quadrantErrors,evaluations,quadrantAccepted,useTaylor,surfaceGradient == nullptr ? nullptr : &quadrantGradient);
         accepted += quadrantAccepted;
       }
       if(computeDelta && fullBoundaryDelta) {
