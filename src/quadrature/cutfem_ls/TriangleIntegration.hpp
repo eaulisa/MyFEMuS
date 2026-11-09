@@ -484,11 +484,13 @@ private:
     std::vector<long double> b = SeriesPolynomial(bPolynomial,x);
     std::vector<long double> c = SeriesPolynomial(cPolynomial,x);
     std::vector<long double> root(order+1U,0.0L);
-    if(a[0] == 0.0L) {
+    const bool quadratic = LineSliceUtilities::PolynomialNorm(aPolynomial) != 0.0L;
+    if(!quadratic) {
       root = SeriesQuotient(c,b);
       for(unsigned k = 0; k <= order; ++k) root[k] = -root[k];
     }
     else {
+      if(a[0] == 0.0L) throw std::runtime_error("Triangle Taylor quadratic coefficient vanishes at the expansion point.");
       std::vector<long double> discriminant = SeriesProduct(b,b);
       std::vector<long double> term = SeriesProduct(a,c);
       for(unsigned k = 0; k <= order; ++k) discriminant[k] -= 4.0L*term[k];
