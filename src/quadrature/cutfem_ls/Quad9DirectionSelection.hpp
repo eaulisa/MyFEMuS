@@ -107,10 +107,16 @@ inline void Quad9SelectedOneDirection(const std::vector<std::vector<long double>
     if(!completed) {
       accepted = 0;
       const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
-      LineIntegration::IntegrateTaylor(coefficient,degree,0,domain,true,computeDelta,fullBoundaryDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,32,maximumDepth,order,values,errors,accepted,surfaceGradient);
+      const unsigned taylorDepth = derivativeBound > 0.0L ? maximumDepth : std::min(maximumDepth,2U);
+      try {
+        LineIntegration::IntegrateTaylor(coefficient,degree,0,domain,true,computeDelta,fullBoundaryDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,32,taylorDepth,order,values,errors,accepted,surfaceGradient);
+      }
+      catch(const std::runtime_error&) {
+        useLine = true;
+      }
     }
     const unsigned count = (degree+1U)*(degree+2U)/2U;
-    if(computeDelta && values[count] == 0.0L) useLine = true;
+    if(!useLine && computeDelta && values[count] == 0.0L) useLine = true;
   }
   if(useLine) {
     accepted = 0;
