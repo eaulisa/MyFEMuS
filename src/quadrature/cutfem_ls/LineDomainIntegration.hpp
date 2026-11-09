@@ -28,6 +28,11 @@ struct LineIntegrationStatistics {
   unsigned firstFallbackIndex = std::numeric_limits<unsigned>::max();
   long double worstPairRatio = 0.0L;
   unsigned worstPairIndex = std::numeric_limits<unsigned>::max();
+  long double worstPairValue = 0.0L;
+  long double worstPairError = 0.0L;
+  long double worstPairTolerance = 0.0L;
+  long double worstPairLeft = 0.0L;
+  long double worstPairRight = 0.0L;
 };
 
 class LineDomainIntegration {
@@ -364,6 +369,11 @@ public:
             if(ratio > Statistics().worstPairRatio) {
               Statistics().worstPairRatio = ratio;
               Statistics().worstPairIndex = k;
+              Statistics().worstPairValue = values[k];
+              Statistics().worstPairError = errors[k];
+              Statistics().worstPairTolerance = tolerance;
+              Statistics().worstPairLeft = MappedPoint(left,right,parameterLeft,mapped);
+              Statistics().worstPairRight = MappedPoint(left,right,parameterRight,mapped);
             }
           }
         }
