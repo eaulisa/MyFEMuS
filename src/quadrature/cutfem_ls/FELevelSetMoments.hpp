@@ -772,10 +772,8 @@ namespace FELevelSetMoments {
     std::vector<std::vector<long double>> positiveSlice(degree + 1U, SeriesConstant(0.0L, order));
     std::vector<std::vector<long double>> deltaSlice(degree + 1U, SeriesConstant(0.0L, order));
     for (unsigned j = 0; j <= degree; ++j) {
+      for (unsigned r = 0; r < cuts.size(); ++r) positivePowers[r] = SeriesProduct(positivePowers[r], cuts[r]);
       if (positiveNeeded[j] != 0) {
-        for (unsigned r = 0; r < cuts.size(); ++r) {
-          positivePowers[r] = SeriesProduct(positivePowers[r], cuts[r]);
-        }
         for (unsigned r = 0; r < positiveSegments.size(); ++r) {
           if (positiveSegments[r] != 0.0L) {
             for (unsigned k = 0; k <= order; ++k) {
@@ -785,14 +783,12 @@ namespace FELevelSetMoments {
         }
         positiveSlice[j] = SeriesProduct(positiveSlice[j], jacobian);
       }
-      if (deltaNeeded[j] != 0) {
-        for (unsigned r = 0; r < roots.size(); ++r) {
+      for (unsigned r = 0; r < roots.size(); ++r) {
+        if (deltaNeeded[j] != 0) {
           std::vector<long double> term = SeriesProduct(rootPowers[r], weights[r]);
-          for (unsigned k = 0; k <= order; ++k) {
-            deltaSlice[j][k] += term[k];
-          }
-          rootPowers[r] = SeriesProduct(rootPowers[r], roots[r]);
+          for (unsigned k = 0; k <= order; ++k) deltaSlice[j][k] += term[k];
         }
+        rootPowers[r] = SeriesProduct(rootPowers[r], roots[r]);
       }
     }
     values.assign(2U * count, 0.0L);
