@@ -162,8 +162,9 @@ std::vector<std::vector<double>> Tri(double c00, double c10, double c01, double 
 }
 
 void AddTimingCases(std::vector<BenchmarkCase>& tests) {
-  for(unsigned degreeIndex = 0; degreeIndex < 2; ++degreeIndex) {
-    const unsigned degree = degreeIndex == 0 ? 2U : 6U;
+  const unsigned degrees[3] = {2U,6U,10U};
+  for(unsigned degreeIndex = 0; degreeIndex < 3; ++degreeIndex) {
+    const unsigned degree = degrees[degreeIndex];
     tests.push_back({"QUAD","plane_x_d"+std::to_string(degree),degree,Quad(-0.23,1.0,0.0,0.0,0.0,0.0)});
     tests.push_back({"QUAD","tilted_plane_d"+std::to_string(degree),degree,Quad(-0.15,1.0,0.6,0.0,0.0,0.0)});
     tests.push_back({"QUAD","curved_graph_d"+std::to_string(degree),degree,Quad(-0.12,1.0,0.0,0.0,0.0,-0.28)});
