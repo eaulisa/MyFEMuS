@@ -1,0 +1,4 @@
+{
+  "accepted": false,
+  "error": "Command returned 1, expected 0: [PosixPath('/home/runner/work/MyFEMuS/MyFEMuS/unittests/testCutFemWeightLSNative/build/review_regressions'), PosixPath('/home/runner/work/MyFEMuS/MyFEMuS/unittests/testCutFemWeightLSNative/review_results/independent_reference.txt')]"
+}
