@@ -92,8 +92,8 @@ void RunIntegration(const BenchmarkCase& test, std::vector<std::vector<double>>&
     return;
   }
   const std::vector<double> nodalValues = NodalValues(test);
-  if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,0,0,nullptr,true);
-  else FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,0,0,nullptr,true);
+  if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,1,0,nullptr,true);
+  else FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,1,0,nullptr,true);
 }
 
 CaseResult Measure(const BenchmarkCase& test) {
