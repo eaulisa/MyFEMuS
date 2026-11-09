@@ -244,15 +244,6 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
     }
   }
   else {
-    bool useSplitIntegration = integrationDirection == 0 && validationMode != 2 && !fullBoundaryDelta;
-    if(zeroBoundary != nullptr) {
-      for(unsigned side = 0; side < 3; ++side) useSplitIntegration = useSplitIntegration && (*zeroBoundary)[side] == 0;
-    }
-    if(useSplitIntegration) {
-      const std::vector<TriangleDomainVertex> vertices = {{0.0L,0.0L},{1.0L,0.0L},{1.0L,1.0L}};
-      TriangleIntegration::Integrate(normalized,degree,vertices,computeDelta,chartAbsoluteTolerance,chartAbsoluteTolerance*scale,chartRelativeTolerance,maximumDepth,maximumEvaluations,0,10,values,errors,evaluations,accepted,selected,referenceSurface ? &referenceGradient : nullptr);
-    }
-    else {
     long double lower[3], upper[3];
     unsigned ranked[3] = {1,2,3};
     for(unsigned k = 0; k < 3; ++k) Tri7SelectedDerivativeBounds(normalized,k+1U,lower[k],upper[k]);
@@ -261,6 +252,15 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
         if(lower[ranked[j]-1U] > lower[ranked[i]-1U] || (lower[ranked[j]-1U] == lower[ranked[i]-1U] && upper[ranked[j]-1U] > upper[ranked[i]-1U])) std::swap(ranked[i],ranked[j]);
       }
     }
+    bool useSplitIntegration = integrationDirection == 0 && validationMode != 2 && !fullBoundaryDelta && lower[ranked[0]-1U] == 0.0L;
+    if(zeroBoundary != nullptr) {
+      for(unsigned side = 0; side < 3; ++side) useSplitIntegration = useSplitIntegration && (*zeroBoundary)[side] == 0;
+    }
+    if(useSplitIntegration) {
+      const std::vector<TriangleDomainVertex> vertices = {{0.0L,0.0L},{1.0L,0.0L},{1.0L,1.0L}};
+      TriangleIntegration::Integrate(normalized,degree,vertices,computeDelta,chartAbsoluteTolerance,chartAbsoluteTolerance*scale,chartRelativeTolerance,maximumDepth,maximumEvaluations,0,10,values,errors,evaluations,accepted,selected,referenceSurface ? &referenceGradient : nullptr);
+    }
+    else {
     if(integrationDirection != 0) {
       for(unsigned k = 0; k < 3; ++k) {
         if(ranked[k] == integrationDirection) std::swap(ranked[0],ranked[k]);
