@@ -17,20 +17,25 @@ jobs:
       - name: Install test dependencies
         run: sudo apt-get update && sudo apt-get install -y g++ python3 python3-numpy python3-mpmath libboost-dev libeigen3-dev
       - name: Apply pinned review repairs
-        run: python3 unittests/testCutFemWeightLSNative/apply_review_fixes.py
+        run: |
+          python3 unittests/testCutFemWeightLSNative/apply_review_fixes.py
+          python3 unittests/testCutFemWeightLSNative/finish_review_fixes.py
       - name: Build native suite
+        id: build
         working-directory: unittests/testCutFemWeightLSNative
         run: python3 build.py --jobs 2
       - name: Run native focused and original matrix
+        id: native
+        continue-on-error: true
         working-directory: unittests/testCutFemWeightLSNative
         run: |
           python3 run_focused.py
           python3 run.py --selection original
       - name: Run review regressions and benchmark gate
-        run: |
-          if [ -f unittests/testCutFemWeightLSNative/run_review_validation.py ]; then
-            python3 unittests/testCutFemWeightLSNative/run_review_validation.py
-          fi
+        id: review
+        if: always() && steps.build.outcome == 'success'
+        continue-on-error: true
+        run: python3 unittests/testCutFemWeightLSNative/run_review_validation.py
       - name: Preserve generated source snapshot
         if: always()
         env:
@@ -38,8 +43,11 @@ jobs:
         run: |
           git config user.name 'CutFEM validation'
           git config user.email 'cutfem-validation@users.noreply.github.com'
-          git add src/quadrature/cutfem_ls .github/workflows unittests/testCutFemWeightLSNative
-          git reset -- unittests/testCutFemWeightLSNative/build || true
+          git add src/quadrature/cutfem_ls unittests/testCutFemWeightLSNative/*.cpp unittests/testCutFemWeightLSNative/*.py
+          git reset -- .github/workflows unittests/testCutFemWeightLSNative/build || true
+          for f in acceptance.json environment.json source_manifest.json comparison_baseline.json comparison_reviewed.json; do
+            test ! -f unittests/testCutFemWeightLSNative/review_results/$f || git add -f unittests/testCutFemWeightLSNative/review_results/$f
+          done
           git diff --cached --quiet || git commit -m "Review validation source from ${INPUT_SHA}"
           git push origin HEAD:refs/heads/review-result-${INPUT_SHA:0:12}
       - uses: actions/upload-artifact@v4
@@ -50,3 +58,13 @@ jobs:
             unittests/testCutFemWeightLSNative/*results*.json
             unittests/testCutFemWeightLSNative/review_results/**
             unittests/testCutFemWeightLSNative/build/*.log
+      - name: Final acceptance gate
+        if: always()
+        env:
+          BUILD: ${{ steps.build.outcome }}
+          NATIVE: ${{ steps.native.outcome }}
+          REVIEW: ${{ steps.review.outcome }}
+        run: |
+          test "$BUILD" = success
+          test "$NATIVE" = success
+          test "$REVIEW" = success
