@@ -33,7 +33,7 @@ int main() {
       if(estimate.size() >= 7) std::cout << " accepted=" << estimate[2] << " evaluations=" << estimate[3] << " selected=" << estimate[4] << " compared=" << estimate[5] << " attempts=" << estimate[6];
 #ifdef FEMUS_LINE_DOMAIN_INTEGRATION_HPP
       const FELevelSetMoments::LineIntegrationStatistics& statistics = FELevelSetMoments::LineIntegration::Statistics();
-      std::cout << " fast=" << statistics.fastSamples << " full=" << statistics.fullSamples << " taylor=" << statistics.taylorPanels << " roots=" << statistics.rootSolves << " fallback=" << statistics.fallbackComponents << " mapped=" << statistics.mappedPanels << " regular=" << statistics.regularGraphPanels << " pairs=" << statistics.pairPanels;
+      std::cout << " fast=" << statistics.fastSamples << " full=" << statistics.fullSamples << " taylor=" << statistics.taylorPanels << " roots=" << statistics.rootSolves << " fallback=" << statistics.fallbackComponents << " mapped=" << statistics.mappedPanels << " regular=" << statistics.regularGraphPanels << " pairs=" << statistics.pairPanels << " firstFallback=" << statistics.firstFallbackIndex << " worstPairIndex=" << statistics.worstPairIndex << " worstPairRatio=" << static_cast<double>(statistics.worstPairRatio);
 #endif
       std::cout << "\n";
     }
