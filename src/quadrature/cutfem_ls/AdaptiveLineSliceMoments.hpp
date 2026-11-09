@@ -865,7 +865,7 @@ inline void LineSliceSample(const std::vector<std::vector<long double>>& field, 
   }
 }
 
-inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& flat, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameterLeft, long double parameterRight, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
+inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>>& field, const std::vector<long double>& flat, const std::vector<long double>& reduced, unsigned leftMultiplicity, unsigned rightMultiplicity, long double left, long double right, long double leftOffset, long double rightOffset, long double parameterLeft, long double parameterRight, bool linear, unsigned degree, unsigned shape, bool computeDelta, bool fullBoundaryDelta, bool lowerZero, bool upperZero, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<unsigned char>* active = nullptr) {
   const long double nodes[8] = {0.991455371120812639206854697526329L,0.949107912342758524526189684047851L,0.864864423359769072789712788640926L,0.741531185599394439863864773280788L,0.586087235467691130294144838258730L,0.405845151377397166906606412076961L,0.207784955007898467600689403773245L,0.0L};
   const long double kronrod[8] = {0.022935322010529224963732008058970L,0.063092092629978553290700663189204L,0.104790010322250183839876322541518L,0.140653259715525918745189590510238L,0.169004726639267902826583426598550L,0.190350578064785409913256402421014L,0.204432940075298892414161999234649L,0.209482141084727828012999174891714L};
   const long double gauss[4] = {0.129484966168869693270611432679082L,0.279705391489276667901467771423780L,0.381830050505118944950369775488975L,0.417959183673469387755102040816327L};
@@ -885,6 +885,7 @@ inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>
       const std::vector<long double>& value = samples[numberOfSamples];
       sampleWeights[numberOfSamples++] = kronrod[node];
       for(unsigned k = 0; k < value.size(); ++k) {
+        if(active != nullptr && (*active)[k] == 0) continue;
         if(!std::isfinite(value[k])) throw std::runtime_error("A line-slice sample exceeds floating point range.");
         high[k] += kronrod[node]*value[k];
         absolute[k] += kronrod[node]*std::abs(value[k]);
@@ -893,9 +894,11 @@ inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>
     }
   }
   long double fraction = std::max(1.0e-2L,(right-left)*(parameterRight-parameterLeft)/(linear ? 1.0L : 0.5L*std::acos(-1.0L)));
-  std::vector<long double> error(high.size());
-  bool converged = true;
+  std::vector<long double> error(high.size(),0.0L);
+  std::vector<unsigned char> failed(high.size(),0);
+  bool anyFailed = false;
   for(unsigned k = 0; k < high.size(); ++k) {
+    if(active != nullptr && (*active)[k] == 0) continue;
     long double variation = 0.0L;
     for(unsigned n = 0; n < numberOfSamples; ++n) variation += sampleWeights[n]*std::abs(samples[n][k]-0.5L*high[k]);
     long double estimate = std::abs(high[k]-low[k]);
@@ -903,16 +906,22 @@ inline void LineSliceAdaptiveInterval(const std::vector<std::vector<long double>
     error[k] = halfWidth*std::max(estimate,128.0L*std::numeric_limits<long double>::epsilon()*absolute[k]);
     high[k] *= halfWidth;
     long double tolerance = (k < count ? absoluteH : absoluteDelta)*fraction+relativeTolerance*std::abs(high[k]);
-    converged = converged && error[k] <= tolerance;
+    if(error[k] <= tolerance) {
+      total[k] += high[k];
+      totalError[k] += error[k];
+    }
+    else {
+      failed[k] = 1;
+      anyFailed = true;
+    }
   }
-  if(converged) {
-    for(unsigned k = 0; k < high.size(); ++k) { total[k] += high[k]; totalError[k] += error[k]; }
+  if(!anyFailed) {
     ++accepted;
     return;
   }
   if(depth >= maximumDepth || middle == parameterLeft || middle == parameterRight) throw std::runtime_error("Line-slice quadrature did not reach the requested tolerance.");
-  LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,parameterLeft,middle,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient);
-  LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,middle,parameterRight,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient);
+  LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,parameterLeft,middle,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
+  LineSliceAdaptiveInterval(field,flat,reduced,leftMultiplicity,rightMultiplicity,left,right,leftOffset,rightOffset,middle,parameterRight,linear,degree,shape,computeDelta,fullBoundaryDelta,lowerZero,upperZero,absoluteH,absoluteDelta,relativeTolerance,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,&failed);
 }
 
 inline void LineSliceSurfaceFiberMoments(long double a, long double b, long double c, long double fixed, long double left, long double right, unsigned degree, const std::vector<std::vector<std::vector<long double>>>& gradient, long double absoluteTolerance, long double relativeTolerance, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, std::vector<long double>& values, std::vector<long double>& errors) {
