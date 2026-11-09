@@ -50,27 +50,44 @@ public:
         children.push_back(first);
         children.push_back(second);
       }
-      std::vector<long double> correction(values.size(),0.0L);
-      unsigned commonDirection = 0;
-      for(unsigned child = 0; child < children.size(); ++child) {
-        std::vector<long double> childValues;
-        std::vector<long double> childErrors;
-        unsigned childDirection = 0;
-        const long double fraction = 1.0L/static_cast<long double>(children.size());
-        Integrate(coefficient,degree,children[child],computeDelta,fraction*absoluteTolerance,fraction*absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,splitDepth+1U,maximumSplitDepth,childValues,childErrors,evaluations,accepted,childDirection,surfaceGradient);
-        if(child == 0) commonDirection = childDirection;
-        else if(commonDirection != childDirection) commonDirection = 3U;
-        for(unsigned k = 0; k < values.size(); ++k) {
-          const long double adjusted = childValues[k]-correction[k];
-          const long double next = values[k]+adjusted;
-          correction[k] = (next-values[k])-adjusted;
-          values[k] = next;
-          errors[k] += childErrors[k]+8.0L*std::numeric_limits<long double>::epsilon()*std::abs(childValues[k]);
+      const unsigned acceptedBeforeChildren = accepted;
+      std::runtime_error lastFailure("Triangle child integration did not reach tolerance.");
+      for(unsigned budgetPass = 0; budgetPass < 2; ++budgetPass) {
+        values.assign(2U*count,0.0L);
+        errors.assign(2U*count,0.0L);
+        std::vector<long double> correction(values.size(),0.0L);
+        unsigned commonDirection = 0;
+        accepted = acceptedBeforeChildren;
+        bool completedChildren = true;
+        try {
+          for(unsigned child = 0; child < children.size(); ++child) {
+            std::vector<long double> childValues;
+            std::vector<long double> childErrors;
+            unsigned childDirection = 0;
+            const long double fraction = budgetPass == 0 ? 1.0L : 1.0L/static_cast<long double>(children.size());
+            Integrate(coefficient,degree,children[child],computeDelta,fraction*absoluteTolerance,fraction*absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,splitDepth+1U,maximumSplitDepth,childValues,childErrors,evaluations,accepted,childDirection,surfaceGradient);
+            if(child == 0) commonDirection = childDirection;
+            else if(commonDirection != childDirection) commonDirection = 3U;
+            for(unsigned k = 0; k < values.size(); ++k) {
+              const long double adjusted = childValues[k]-correction[k];
+              const long double next = values[k]+adjusted;
+              correction[k] = (next-values[k])-adjusted;
+              values[k] = next;
+              errors[k] += childErrors[k]+8.0L*std::numeric_limits<long double>::epsilon()*std::abs(childValues[k]);
+            }
+          }
+          CheckErrors(values,errors,degree,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance);
+        }
+        catch(const std::runtime_error& exception) {
+          completedChildren = false;
+          lastFailure = std::runtime_error(exception.what());
+        }
+        if(completedChildren) {
+          selectedDirection = commonDirection;
+          return;
         }
       }
-      selectedDirection = commonDirection;
-      CheckErrors(values,errors,degree,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance);
-      return;
+      throw lastFailure;
     }
     selectedDirection = direction;
     if(selectedLower > 0.0L || weakDirection != 0) {
