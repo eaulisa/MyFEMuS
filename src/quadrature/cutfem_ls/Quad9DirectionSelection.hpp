@@ -148,6 +148,88 @@ inline void Quad9SelectedReferenceParity(const std::vector<std::vector<long doub
   }
 }
 
+inline void Quad9SelectedSplitCanonical(const std::vector<std::vector<long double>>& coefficient, long double scale, unsigned degree, bool computeDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, bool useTaylor, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, unsigned splitDepth, unsigned maximumSplitDepth, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted) {
+  const unsigned count = (degree+1U)*(degree+2U)/2U;
+  values.assign(2U*count,0.0L);
+  errors.assign(2U*count,0.0L);
+  std::vector<long double> correction(2U*count,0.0L);
+  for(unsigned firstSide = 0; firstSide < 2; ++firstSide) {
+    for(unsigned secondSide = 0; secondSide < 2; ++secondSide) {
+      const long double firstOrigin = 0.5L*firstSide;
+      const long double secondOrigin = 0.5L*secondSide;
+      std::vector<std::vector<long double>> childCoefficient;
+      ReferencePolynomialAffine2D(coefficient,firstOrigin,0.5L,secondOrigin,0.5L,childCoefficient);
+      std::vector<std::vector<long double>> childNormalized;
+      long double childScale = 1.0L;
+      LineSliceUtilities::NormalizeCanonicalPolynomial(childCoefficient,childNormalized,childScale);
+      std::vector<std::vector<std::vector<long double>>> childGradient;
+      if(surfaceGradient != nullptr) {
+        childGradient.resize(surfaceGradient->size());
+        for(unsigned component = 0; component < surfaceGradient->size(); ++component) ReferencePolynomialAffine2D((*surfaceGradient)[component],firstOrigin,0.5L,secondOrigin,0.5L,childGradient[component]);
+      }
+      std::vector<unsigned> boundary(4,1);
+      for(unsigned i = 0; i < 3; ++i) {
+        boundary[0] = boundary[0] != 0 && childNormalized[0][i] == 0.0L;
+        boundary[1] = boundary[1] != 0 && (childNormalized[0][i]+childNormalized[1][i])+childNormalized[2][i] == 0.0L;
+        boundary[2] = boundary[2] != 0 && childNormalized[i][0] == 0.0L;
+        boundary[3] = boundary[3] != 0 && (childNormalized[i][0]+childNormalized[i][1])+childNormalized[i][2] == 0.0L;
+      }
+      if(zeroBoundary != nullptr) {
+        if(firstSide == 0) boundary[0] = boundary[0] != 0 || (*zeroBoundary)[0] != 0;
+        else boundary[1] = boundary[1] != 0 || (*zeroBoundary)[1] != 0;
+        if(secondSide == 0) boundary[2] = boundary[2] != 0 || (*zeroBoundary)[2] != 0;
+        else boundary[3] = boundary[3] != 0 || (*zeroBoundary)[3] != 0;
+      }
+      int phase = 0;
+      LineSliceUtilities::CanonicalGraphOrder(childNormalized,0,phase);
+      if(computeDelta) {
+        for(unsigned side = 0; side < 4; ++side) if(boundary[side] != 0) phase = 0;
+      }
+      std::vector<long double> childValues(2U*count,0.0L);
+      std::vector<long double> childErrors(2U*count,0.0L);
+      unsigned childAccepted = 0;
+      if(phase != 0) {
+        if(phase > 0) {
+          for(unsigned i = 0; i <= degree; ++i) {
+            for(unsigned j = 0; j <= degree-i; ++j) {
+              const unsigned k = LineSliceUtilities::MomentIndex(degree,i,j);
+              childValues[k] = 1.0L/((i+1.0L)*(j+1.0L));
+              childErrors[k] = 4.0L*std::numeric_limits<long double>::epsilon()*std::abs(childValues[k]);
+            }
+          }
+        }
+      }
+      else {
+        long double lower[2] = {};
+        long double upper[2] = {};
+        const unsigned childOrder = Quad9SelectedOrder(childNormalized,lower,upper);
+        const long double derivativeBound = lower[2U-childOrder];
+        if(derivativeBound == 0.0L && splitDepth < maximumSplitDepth) {
+          Quad9SelectedSplitCanonical(childNormalized,scale*childScale,degree,computeDelta,absoluteTolerance,0.25L*relativeTolerance,maximumDepth,maximumEvaluations,&boundary,useTaylor,surfaceGradient == nullptr ? nullptr : &childGradient,splitDepth+1U,maximumSplitDepth,childValues,childErrors,evaluations,childAccepted);
+        }
+        else {
+          Quad9SelectedOneDirection(childNormalized,scale*childScale,degree,childOrder,derivativeBound,computeDelta,false,absoluteTolerance,0.25L*relativeTolerance,maximumDepth,maximumEvaluations,&boundary,childValues,childErrors,evaluations,childAccepted,useTaylor,surfaceGradient == nullptr ? nullptr : &childGradient);
+        }
+      }
+      accepted += childAccepted;
+      for(unsigned k = count; k < 2U*count; ++k) {
+        childValues[k] /= childScale;
+        childErrors[k] /= childScale;
+      }
+      std::vector<long double> mappedValues;
+      std::vector<long double> mappedErrors;
+      ReferenceAffineMoments2D(degree,childValues,childErrors,firstOrigin,0.5L,secondOrigin,0.5L,0.25L,mappedValues,mappedErrors);
+      for(unsigned k = 0; k < values.size(); ++k) {
+        const long double adjusted = mappedValues[k]-correction[k];
+        const long double next = values[k]+adjusted;
+        correction[k] = (next-values[k])-adjusted;
+        values[k] = next;
+        errors[k] += mappedErrors[k];
+      }
+    }
+  }
+}
+
 inline void Quad9SelectedReferenceOneDirection(const std::vector<std::vector<long double>>& coefficient, long double scale, unsigned degree, unsigned order, long double derivativeBound, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, bool useTaylor, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   const long double amplification = 4.0L*ReferencePower(3.0L,degree);
@@ -155,7 +237,8 @@ inline void Quad9SelectedReferenceOneDirection(const std::vector<std::vector<lon
     try {
       std::vector<long double> chartValues;
       std::vector<long double> chartErrors;
-      Quad9SelectedOneDirection(coefficient,scale,degree,order,derivativeBound,computeDelta,fullBoundaryDelta,absoluteTolerance/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,zeroBoundary,chartValues,chartErrors,evaluations,accepted,useTaylor,surfaceGradient);
+      if(derivativeBound == 0.0L && !fullBoundaryDelta) Quad9SelectedSplitCanonical(coefficient,scale,degree,computeDelta,absoluteTolerance/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,zeroBoundary,useTaylor,surfaceGradient,0,5,chartValues,chartErrors,evaluations,accepted);
+      else Quad9SelectedOneDirection(coefficient,scale,degree,order,derivativeBound,computeDelta,fullBoundaryDelta,absoluteTolerance/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,zeroBoundary,chartValues,chartErrors,evaluations,accepted,useTaylor,surfaceGradient);
       ReferenceTensorMoments2D(degree,chartValues,chartErrors,values,errors);
       Quad9SelectedReferenceParity(coefficient,degree,values,errors,surfaceGradient);
       bool completed = true;
