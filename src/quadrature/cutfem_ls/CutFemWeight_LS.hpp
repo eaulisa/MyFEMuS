@@ -203,7 +203,7 @@ class CutFemWeight_LS {
       long double linear = static_cast<long double>(b)/scale;
       long double constant = static_cast<long double>(c)/scale;
       std::vector<long double> positive, delta;
-      FELevelSetMoments::Integrate1DInternal(quadratic,linear,constant,_qM,-1.0L,1.0L,false,false,positive,delta);
+      FELevelSetMoments::LineIntegration::IntegratePolynomial(quadratic,linear,constant,_qM,-1.0L,1.0L,false,false,positive,delta);
       std::vector<long double> roots;
       const bool zeroLeft = nodalValues[0] == 0.0;
       const bool zeroRight = nodalValues[1] == 0.0;
