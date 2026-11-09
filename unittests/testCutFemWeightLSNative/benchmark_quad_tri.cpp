@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-// Benchmark stage: TRI derivative-aligned splitting without weak TRI tangency shortcut.
+// Benchmark stage: two-way derivative-aligned QUAD plus TRI derivative splitting.
 
 struct BenchmarkCase {
   std::string element;
