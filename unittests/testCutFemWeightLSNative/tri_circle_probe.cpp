@@ -22,17 +22,29 @@ int main() {
     std::vector<std::vector<double>> positive;
     std::vector<std::vector<double>> delta;
     std::vector<double> estimate;
+#ifdef FEMUS_LINE_DOMAIN_INTEGRATION_HPP
+    FELevelSetMoments::LineIntegration::Statistics() = FELevelSetMoments::LineIntegrationStatistics();
+#endif
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     try {
       FELevelSetMoments::IntegrateTri7ReferenceSelected(field,degrees[d],positive,delta,tolerances[t],tolerances[t],true,false,28,0,200000,&estimate,1,nullptr,true);
       const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
       std::cout << "CASE g=" << g << " degree=" << degrees[d] << " tol=" << tolerances[t] << " sign=" << sign << " OK time=" << seconds;
       if(estimate.size() >= 7) std::cout << " accepted=" << estimate[2] << " evaluations=" << estimate[3] << " selected=" << estimate[4] << " compared=" << estimate[5] << " attempts=" << estimate[6];
+#ifdef FEMUS_LINE_DOMAIN_INTEGRATION_HPP
+      const FELevelSetMoments::LineIntegrationStatistics& statistics = FELevelSetMoments::LineIntegration::Statistics();
+      std::cout << " fast=" << statistics.fastSamples << " full=" << statistics.fullSamples << " taylor=" << statistics.taylorPanels << " roots=" << statistics.rootSolves << " fallback=" << statistics.fallbackComponents;
+#endif
       std::cout << "\n";
     }
     catch(const std::exception& e) {
       const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
-      std::cout << "CASE g=" << g << " degree=" << degrees[d] << " tol=" << tolerances[t] << " sign=" << sign << " FAIL time=" << seconds << " error=" << e.what() << "\n";
+      std::cout << "CASE g=" << g << " degree=" << degrees[d] << " tol=" << tolerances[t] << " sign=" << sign << " FAIL time=" << seconds << " error=" << e.what();
+#ifdef FEMUS_LINE_DOMAIN_INTEGRATION_HPP
+      const FELevelSetMoments::LineIntegrationStatistics& statistics = FELevelSetMoments::LineIntegration::Statistics();
+      std::cout << " fast=" << statistics.fastSamples << " full=" << statistics.fullSamples << " taylor=" << statistics.taylorPanels << " roots=" << statistics.rootSolves << " fallback=" << statistics.fallbackComponents;
+#endif
+      std::cout << "\n";
     }
   }
 }
