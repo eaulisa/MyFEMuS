@@ -40,8 +40,8 @@ enum class IntegrationMode {
 struct IntegrationOptions {
   IntegrationMode mode = IntegrationMode::MomentFitting;
   unsigned momentDegree = 10;
-  double absoluteTolerance = 1.e-6;
-  double relativeTolerance = 1.e-6;
+  double absoluteTolerance = 1.e-8;
+  double relativeTolerance = 1.e-8;
   unsigned algoimOrder = 5;
   unsigned algoimSubdivisions = 0;
 };
@@ -210,11 +210,17 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
 
     std::vector<double> psi(nDofs);
     std::vector<std::vector<double>> coordX(dim, std::vector<double>(nDofs));
+    std::cout<<"IEL "<<iel<<std::endl;
     for(unsigned i = 0; i < nDofs; ++i) {
+        std::cout<<"    NODE "<<i<<std::endl;
       const unsigned dof = msh->GetSolutionDof(i, iel, xType);
       psi[i] = (*sol->_Sol[psiIndex])(dof);
-      for(unsigned d = 0; d < dim; ++d) coordX[d][i] = (*msh->_topology->_Sol[d])(dof);
+      std::cout<<"      psi "<<psi[i]<<std::endl;
+      std::cout<<"      coord ";
+      for(unsigned d = 0; d < dim; ++d) {coordX[d][i] = (*msh->_topology->_Sol[d])(dof); std::cout<<psi[i]<<" ";}
+      std::cout<<std::endl;
     }
+    std::cout<<std::endl;
 
     const bool isCut = IsCutElementQuadratic(psi, geom);
     if(isCut) ++result.cutElements;
