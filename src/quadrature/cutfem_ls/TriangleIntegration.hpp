@@ -42,6 +42,7 @@ public:
     const unsigned weakDirection = selectedLower == 0.0L ? WeakDerivativeDirection(coefficient,vertices) : 0U;
     if(weakDirection != 0) direction = weakDirection;
     if(selectedLower == 0.0L && weakDirection == 0 && splitDepth < maximumSplitDepth) {
+      ++LineIntegration::Statistics().triangleSplitCells;
       std::vector<std::vector<TriangleDomainVertex>> children;
       if(!SplitAtDerivativeChange(coefficient,vertices,children)) {
         std::vector<TriangleDomainVertex> first;
@@ -175,38 +176,22 @@ private:
   }
 
   static void PolynomialBounds(const std::vector<std::vector<long double>>& coefficient, const std::vector<TriangleDomainVertex>& vertices, long double& minimum, long double& maximum) {
-    long double xmin;
-    long double xmax;
-    long double ymin;
-    long double ymax;
-    BoundingBox(vertices,xmin,xmax,ymin,ymax);
-    minimum = 0.0L;
-    maximum = 0.0L;
-    for(unsigned i = 0; i < 3; ++i) {
-      long double xminPower;
-      long double xmaxPower;
-      PowerBounds(xmin,xmax,i,xminPower,xmaxPower);
-      for(unsigned j = 0; j < 3; ++j) {
-        if(coefficient[i][j] == 0.0L) continue;
-        long double yminPower;
-        long double ymaxPower;
-        PowerBounds(ymin,ymax,j,yminPower,ymaxPower);
-        const long double products[4] = {xminPower*yminPower,xminPower*ymaxPower,xmaxPower*yminPower,xmaxPower*ymaxPower};
-        long double termMinimum = products[0];
-        long double termMaximum = products[0];
-        for(unsigned k = 1; k < 4; ++k) {
-          termMinimum = std::min(termMinimum,products[k]);
-          termMaximum = std::max(termMaximum,products[k]);
-        }
-        if(coefficient[i][j] >= 0.0L) {
-          minimum += coefficient[i][j]*termMinimum;
-          maximum += coefficient[i][j]*termMaximum;
-        }
-        else {
-          minimum += coefficient[i][j]*termMaximum;
-          maximum += coefficient[i][j]*termMinimum;
-        }
+    std::vector<std::vector<std::vector<long double>>> local;
+    SurfaceGradientAffine({coefficient},vertices[0].x,vertices[1].x-vertices[0].x,vertices[2].x-vertices[0].x,vertices[0].y,vertices[1].y-vertices[0].y,vertices[2].y-vertices[0].y,local);
+    unsigned degree = 0;
+    for(unsigned i = 0; i < local[0].size(); ++i) for(unsigned j = 0; j < local[0][i].size(); ++j) if(local[0][i][j] != 0) degree = std::max(degree,i+j);
+    minimum = std::numeric_limits<long double>::infinity();
+    maximum = -minimum;
+    for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) {
+      long double value = 0;
+      for(unsigned a = 0; a <= i && a < local[0].size(); ++a) for(unsigned b = 0; b <= j && b < local[0][a].size(); ++b) {
+        long double multiplier = 1;
+        for(unsigned n = 0; n < a; ++n) multiplier *= static_cast<long double>(i-n)/(degree-n);
+        for(unsigned n = 0; n < b; ++n) multiplier *= static_cast<long double>(j-n)/(degree-a-n);
+        value = std::fma(multiplier,local[0][a][b],value);
       }
+      minimum = std::min(minimum,value);
+      maximum = std::max(maximum,value);
     }
   }
 
@@ -278,7 +263,68 @@ private:
     }
   }
 
+  static bool DerivativeAffineFactor(const std::vector<std::vector<long double>>& coefficient, const std::vector<TriangleDomainVertex>& vertices, unsigned axis, std::array<long double,3>& factor) {
+    std::vector<std::vector<long double>> derivative(3,std::vector<long double>(3,0));
+    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if((axis == 0 ? i : j) != 0) derivative[i-(axis == 0 ? 1U : 0U)][j-(axis == 1 ? 1U : 0U)] = (axis == 0 ? i : j)*coefficient[i][j];
+    unsigned first = 3;
+    unsigned second = 3;
+    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if(derivative[i][j] != 0) { first = std::min(first,i); second = std::min(second,j); }
+    if(first == 3) return false;
+    for(unsigned d = 0; d < 2; ++d) if((d == 0 ? first : second)%2U != 0) {
+      long double minimum = Coordinate(vertices[0],d);
+      long double maximum = minimum;
+      for(unsigned n = 1; n < 3; ++n) { minimum = std::min(minimum,Coordinate(vertices[n],d)); maximum = std::max(maximum,Coordinate(vertices[n],d)); }
+      if(minimum < 0 && maximum > 0) { if(d == 0) first = 0; else second = 0; }
+    }
+    factor = {0,0,0};
+    for(unsigned i = first; i < 3; ++i) for(unsigned j = second; j < 3; ++j) if(derivative[i][j] != 0) {
+      if(i+j-first-second > 1) return false;
+      factor[i > first ? 1U : (j > second ? 2U : 0U)] = derivative[i][j];
+    }
+    return factor[1] != 0 || factor[2] != 0;
+  }
+
+  static void ClipByAffineLine(const std::vector<TriangleDomainVertex>& input, const std::array<long double,3>& line, bool lowerSide, std::vector<TriangleDomainVertex>& output) {
+    output.clear();
+    TriangleDomainVertex previous = input.back();
+    long double previousValue = std::fma(line[1],previous.x,std::fma(line[2],previous.y,line[0]));
+    bool previousInside = lowerSide ? previousValue <= 0 : previousValue >= 0;
+    for(unsigned n = 0; n < input.size(); ++n) {
+      const TriangleDomainVertex current = input[n];
+      const long double value = std::fma(line[1],current.x,std::fma(line[2],current.y,line[0]));
+      const bool inside = lowerSide ? value <= 0 : value >= 0;
+      if(inside != previousInside) {
+        const long double parameter = previousValue/(previousValue-value);
+        output.push_back({std::fma(parameter,current.x-previous.x,previous.x),std::fma(parameter,current.y-previous.y,previous.y)});
+      }
+      if(inside) output.push_back(current);
+      previous = current; previousValue = value; previousInside = inside;
+    }
+  }
+
+  static bool SplitAtAffineDerivative(const std::vector<std::vector<long double>>& coefficient, const std::vector<TriangleDomainVertex>& vertices, std::vector<std::vector<TriangleDomainVertex>>& children) {
+    for(unsigned axis = 0; axis < 2; ++axis) {
+      std::array<long double,3> line;
+      if(!DerivativeAffineFactor(coefficient,vertices,axis,line)) continue;
+      long double minimum = std::numeric_limits<long double>::infinity();
+      long double maximum = -minimum;
+      for(unsigned n = 0; n < vertices.size(); ++n) { const long double value = std::fma(line[1],vertices[n].x,std::fma(line[2],vertices[n].y,line[0])); minimum = std::min(minimum,value); maximum = std::max(maximum,value); }
+      const long double padding = 1024*std::numeric_limits<long double>::epsilon()*std::max(1.0L,std::max(std::abs(minimum),std::abs(maximum)));
+      if(!(minimum < -padding && maximum > padding)) continue;
+      std::vector<TriangleDomainVertex> lower;
+      std::vector<TriangleDomainVertex> upper;
+      ClipByAffineLine(vertices,line,true,lower);
+      ClipByAffineLine(vertices,line,false,upper);
+      children.clear();
+      TriangulatePolygon(lower,children);
+      TriangulatePolygon(upper,children);
+      if(children.size() >= 2) return true;
+    }
+    return false;
+  }
+
   static bool SplitAtDerivativeChange(const std::vector<std::vector<long double>>& coefficient, const std::vector<TriangleDomainVertex>& vertices, std::vector<std::vector<TriangleDomainVertex>>& children) {
+    if(SplitAtAffineDerivative(coefficient,vertices,children)) return true;
     unsigned bestAxis = 2;
     long double bestCoordinate = 0.0L;
     long double bestScore = std::numeric_limits<long double>::infinity();
@@ -485,7 +531,7 @@ private:
     std::vector<long double> raw(2U*count,0.0L);
     std::vector<long double> rawError(2U*count,0.0L);
     std::vector<long double> correction(2U*count,0.0L);
-    for(unsigned stripIndex = 0; stripIndex < strips.size(); ++stripIndex) LineIntegration::IntegrateStrip(workingCoefficient,degree,strips[stripIndex],requireGraph,mappedGraph,useTaylor,computeDelta,absoluteTolerance,absoluteDeltaTolerance,relativeTolerance,maximumDepth,maximumEvaluations,evaluations,accepted,raw,rawError,gradient,&parent,&active);
+    for(unsigned stripIndex = 0; stripIndex < strips.size(); ++stripIndex) LineIntegration::IntegrateStrip(workingCoefficient,degree,strips[stripIndex],requireGraph,mappedGraph,useTaylor,computeDelta,absoluteTolerance/strips.size(),absoluteDeltaTolerance/strips.size(),relativeTolerance,maximumDepth,maximumEvaluations,evaluations,accepted,raw,rawError,gradient,&parent,&active);
     if(direction == 1) {
       values.swap(raw);
       errors.swap(rawError);

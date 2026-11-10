@@ -1091,6 +1091,10 @@ inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodal
       failure = exception.what();
     }
   }
+  if(!complete && integrationAxis != 0 && !hasZeroFace) {
+    IntegrateTet15NodalByTriangleSlices(nodalValues,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,maximumDepth,0,maximumEvaluations,estimatedError,1,directionInfo,referenceSurface,inverseJacobian,geometryCoordinates);
+    return;
+  }
   if(!complete) throw std::runtime_error("TET15 triangle-slice integration failed: "+failure);
   std::vector<std::vector<std::vector<double>>> positiveOutput(degree+1U);
   std::vector<std::vector<std::vector<double>>> deltaOutput(degree+1U);

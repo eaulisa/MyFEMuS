@@ -381,6 +381,7 @@ inline void Quad9SelectedDirect(const std::vector<std::vector<long double>>& coe
     return;
   }
   long double split[2] = {0.5L,0.5L};
+  ++LineIntegration::Statistics().splitCells;
   const bool available[2] = {Quad9SelectedDerivativeSplitCoordinate(coefficient,0,split[0]),Quad9SelectedDerivativeSplitCoordinate(coefficient,1,split[1])};
   const unsigned axis = available[0] && !available[1] ? 0U : (available[1] && !available[0] ? 1U : splitDepth%2U);
   for(unsigned side = 0; side < 2; ++side) {

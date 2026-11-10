@@ -1,0 +1,26 @@
+{
+  "accepted": true,
+  "records": [
+    {
+      "degree": 2,
+      "exit": 0,
+      "seconds": 1.6840724880021298,
+      "stdout": "TET oblique cut=0.5 degree=2 passed\nTET oblique cut=1 degree=2 passed\nHEX ball degree=2 radius=0.5 surface=0 scale=1 tolerance=1e-10 milliseconds=72.21376000000001 samples=450 estimated=8.097488724685324e-11,7.327813600103511e-11\nHEX ball degree=2 radius=0.375 surface=1 scale=1 tolerance=1e-10 milliseconds=412.169008 samples=1110 estimated=7.712175374967693e-11,7.520549715560681e-11\nTET ball degree=2 radius=0.125 surface=0 scale=1 tolerance=1e-10 milliseconds=222.507517 samples=540 estimated=3.709878091255931e-11,7.062365838386874e-11\nTET ball degree=2 radius=0.125 surface=1 scale=1 tolerance=1e-10 milliseconds=789.963565 samples=540 estimated=3.709878091255931e-11,6.333718094370668e-11\nline_fast=279885 line_full=8985 taylor_panels=8 bounded_regions=0 relaxed_slices=0\nchecks=1572 cases=44 max_error=4.440892098500626e-16 splits=31 graphs=70 weak=0 quad=1712 tri=2100 accepted_components=2347 skipped_components=7665\n",
+      "stderr": ""
+    },
+    {
+      "degree": 6,
+      "exit": 0,
+      "seconds": 2.3352784989983775,
+      "stdout": "TET oblique cut=0.5 degree=6 passed\nTET oblique cut=1 degree=6 passed\nHEX ball degree=6 radius=0.5 surface=0 scale=1 tolerance=1e-10 milliseconds=282.581662 samples=900 estimated=8.10893278203818e-11,7.346451525869489e-11\nHEX ball degree=6 radius=0.375 surface=1 scale=1 tolerance=1e-10 milliseconds=608.8698340000001 samples=1170 estimated=7.75139783175499e-11,9.161257911696134e-11\nTET ball degree=6 radius=0.125 surface=0 scale=1 tolerance=1e-10 milliseconds=293.594086 samples=540 estimated=3.710963614232447e-11,7.064071398625462e-11\nTET ball degree=6 radius=0.125 surface=1 scale=1 tolerance=1e-10 milliseconds=750.561391 samples=540 estimated=3.710963614232447e-11,6.841379737122299e-11\nline_fast=361944 line_full=8985 taylor_panels=8 bounded_regions=0 relaxed_slices=0\nchecks=7788 cases=44 max_error=1.175264361656956e-13 splits=37 graphs=77 weak=0 quad=2282 tri=2190 accepted_components=17940 skipped_components=161325\n",
+      "stderr": ""
+    },
+    {
+      "degree": 10,
+      "exit": 0,
+      "seconds": 2.9131098959987867,
+      "stdout": "TET oblique cut=0.5 degree=10 passed\nTET oblique cut=1 degree=10 passed\nHEX ball degree=10 radius=0.5 surface=0 scale=1 tolerance=1e-10 milliseconds=323.675777 samples=900 estimated=8.108932868774354e-11,7.346451525869489e-11\nHEX ball degree=10 radius=0.375 surface=1 scale=1 tolerance=1e-10 milliseconds=590.386121 samples=1170 estimated=8.051538797356554e-11,9.161257911696134e-11\nTET ball degree=10 radius=0.125 surface=0 scale=1 tolerance=1e-10 milliseconds=376.744333 samples=540 estimated=6.738136585001621e-11,7.064071398625462e-11\nTET ball degree=10 radius=0.125 surface=1 scale=1 tolerance=1e-10 milliseconds=831.343606 samples=540 estimated=6.738136585001621e-11,6.978481696630583e-11\nline_fast=379104 line_full=8985 taylor_panels=8 bounded_regions=0 relaxed_slices=0\nchecks=24756 cases=44 max_error=1.175264361656956e-13 splits=37 graphs=81 weak=0 quad=2672 tri=2190 accepted_components=59108 skipped_components=697950\n",
+      "stderr": ""
+    }
+  ]
+}

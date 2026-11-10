@@ -310,8 +310,9 @@ def reference_unscaled(element, field, mapping, maximum_degree=6, order=64):
 
 
 def reference(case):
-    low = reference_unscaled(case['element'], case['field'], case['mapping'], 6, 40)
-    high = reference_unscaled(case['element'], case['field'], case['mapping'], 6, 72)
+    degree = max(6, case['degree'])
+    low = reference_unscaled(case['element'], case['field'], case['mapping'], degree, 40)
+    high = reference_unscaled(case['element'], case['field'], case['mapping'], degree, 72)
     discrepancy = max(abs(a - b) for key in high for a, b in zip(low[key], high[key]))
     if discrepancy > 2e-10:
         raise RuntimeError('Independent reference quadrature did not converge: ' + str(discrepancy))

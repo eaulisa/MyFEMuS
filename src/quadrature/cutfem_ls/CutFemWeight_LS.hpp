@@ -142,38 +142,39 @@ class CutFemWeight_LS {
       if(_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX) { BuildTensorMomentToWeight(); return; }
       std::vector<std::vector<boost::multiprecision::cpp_bin_float_oct>> ATAoct;
       CutFemWeightLSBasis::Get_GS_ATA_Matrix(_geomElemType, _qM, ATAoct);
-      Eigen::Matrix<TypeA, Eigen::Dynamic, Eigen::Dynamic> gramInverse(ATAoct.size(), ATAoct.size());
-      for(unsigned i = 0; i < ATAoct.size(); ++i) {
-        for(unsigned j = 0; j < ATAoct[i].size(); ++j) gramInverse(i, j) = static_cast<TypeA>(ATAoct[i][j]);
-      }
       std::vector<const double*> xgp(_dim);
       for(unsigned d = 0; d < _dim; ++d) xgp[d] = _gauss.GetGaussCoordinatePointer(d);
-      std::vector<TypeA> x(_dim);
-      std::vector<std::vector<TypeA>> powers(_dim, std::vector<TypeA>(_qM + 1U, TypeA(1)));
-      Eigen::Matrix<TypeA, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> basis(_gn, _L);
+      std::vector<boost::multiprecision::cpp_bin_float_oct> x(_dim);
+      std::vector<std::vector<boost::multiprecision::cpp_bin_float_oct>> powers(_dim, std::vector<boost::multiprecision::cpp_bin_float_oct>(_qM + 1U, 1));
+      _momentToWeight.resize(_gn, _L);
       for(unsigned ig = 0; ig < _gn; ++ig) {
-        for(unsigned d = 0; d < _dim; ++d) x[d] = TypeA(xgp[d][ig]);
+        for(unsigned d = 0; d < _dim; ++d) x[d] = boost::multiprecision::cpp_bin_float_oct(xgp[d][ig]);
         for(unsigned d = 0; d < _dim; ++d) {
           for(unsigned i = 1; i <= _qM; ++i) powers[d][i] = powers[d][i - 1U] * x[d];
         }
         unsigned index = 0;
+        std::vector<boost::multiprecision::cpp_bin_float_oct> basis(_L, 0);
         for(unsigned q = 0; q <= _qM; ++q) {
-          if(_dim == 1) basis(ig, index++) = powers[0][q];
+          if(_dim == 1) basis[index++] = powers[0][q];
           else {
             for(int ii = q; ii >= 0; --ii) {
               unsigned i = static_cast<unsigned>(ii);
-              if(_dim == 2) basis(ig, index++) = powers[0][i] * powers[1][q - i];
+              if(_dim == 2) basis[index++] = powers[0][i] * powers[1][q - i];
               else {
                 for(int jj = q - i; jj >= 0; --jj) {
                   unsigned j = static_cast<unsigned>(jj);
-                  basis(ig, index++) = powers[0][i] * powers[1][j] * powers[2][q - i - j];
+                  basis[index++] = powers[0][i] * powers[1][j] * powers[2][q - i - j];
                 }
               }
             }
           }
         }
+        for(unsigned column = 0; column < _L; ++column) {
+          boost::multiprecision::cpp_bin_float_oct value = 0;
+          for(unsigned row = 0; row < _L; ++row) value += basis[row]*ATAoct[row][column];
+          _momentToWeight(ig, column) = static_cast<TypeA>(value);
+        }
       }
-      _momentToWeight.noalias() = basis * gramInverse;
     }
 
     void GetNodalWeightPair(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {

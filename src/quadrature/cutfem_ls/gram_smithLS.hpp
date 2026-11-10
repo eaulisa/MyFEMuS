@@ -42,8 +42,8 @@ void Orthonormalize(const std::vector<std::vector<Type>> &M, std::vector<std::ve
     A[i][i] = Type(1);
   }
 
-  Type vN = pow((CutFemWeightLSBasis::DotProduct(CutFemWeightLSBasis::ExtractRow(A, 0), CutFemWeightLSBasis::MatrixVectorMultiply(M, CutFemWeightLSBasis::ExtractRow(A, 0)))), 0.5);
   Type vNd = (CutFemWeightLSBasis::DotProduct(CutFemWeightLSBasis::ExtractRow(A, 0), CutFemWeightLSBasis::MatrixVectorMultiply(M, CutFemWeightLSBasis::ExtractRow(A, 0))));
+  Type vN = pow(vNd, 0.5);
 
   for(int i = 0; i < size; i++) {
     if(vN != 0) {
@@ -53,15 +53,16 @@ void Orthonormalize(const std::vector<std::vector<Type>> &M, std::vector<std::ve
   }
 
   for(unsigned i = 0; i < size - 1; i++) {
+    const std::vector<Type> massRow = CutFemWeightLSBasis::MatrixVectorMultiply(M, CutFemWeightLSBasis::ExtractRow(A, i));
     for(unsigned j = i + 1; j < size; j++) {
-      DP = CutFemWeightLSBasis::DotProduct(CutFemWeightLSBasis::ExtractRow(A, j), CutFemWeightLSBasis::MatrixVectorMultiply(M, CutFemWeightLSBasis::ExtractRow(A, i)));
+      DP = CutFemWeightLSBasis::DotProduct(CutFemWeightLSBasis::ExtractRow(A, j), massRow);
       for(unsigned k = 0; k < size; k++) {
         A[j][k] = A[j][k] - (DP * A[i][k]);
       }
     }
     c = i + 1;
     vNd = (CutFemWeightLSBasis::DotProduct(CutFemWeightLSBasis::ExtractRow(A, c), CutFemWeightLSBasis::MatrixVectorMultiply(M, CutFemWeightLSBasis::ExtractRow(A, c))));
-    vN = (vNd > 0) ? pow((CutFemWeightLSBasis::DotProduct(CutFemWeightLSBasis::ExtractRow(A, c), CutFemWeightLSBasis::MatrixVectorMultiply(M, CutFemWeightLSBasis::ExtractRow(A, c)))), 0.5) : Type(-1);
+    vN = (vNd > 0) ? pow(vNd, 0.5) : Type(-1);
 
     for(int l = 0; l < size; l++) {
       A[c][l] = A[c][l] / vN;

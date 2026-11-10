@@ -17,6 +17,8 @@ struct LineIntegrationStrip {
 };
 
 struct LineIntegrationStatistics {
+  unsigned long long splitCells = 0;
+  unsigned long long triangleSplitCells = 0;
   unsigned long long fastSamples = 0;
   unsigned long long fullSamples = 0;
   unsigned long long taylorPanels = 0;
@@ -453,7 +455,7 @@ public:
     std::vector<long double> values;
     std::vector<long double> errors;
     const long double parameterFraction = parameterRight-parameterLeft;
-    const long double fractionH = (right-left)*parameterFraction;
+    const long double fractionH = parameterFraction;
     const long double fractionD = parameterFraction;
     if(graph) {
       if(mapped) ++Statistics().mappedPanels;
@@ -596,6 +598,7 @@ public:
     std::vector<long double> events;
     std::vector<long double> tangencies;
     CollectEvents(coefficient,strip,events,&tangencies,graph && !mapped);
+    const long double intervalBudget = events.size() > 1 ? 1.0L/static_cast<long double>(events.size()-1U) : 1.0L;
     const bool lowerZero = BoundaryIsZero(coefficient,strip.lowerConstant,strip.lowerSlope);
     const bool upperZero = BoundaryIsZero(coefficient,strip.upperConstant,strip.upperSlope);
     const unsigned count = (degree+1U)*(degree+2U)/2U;
@@ -605,6 +608,9 @@ public:
       const long double left = events[interval-1U];
       const long double right = events[interval];
       if(!(right > left)) continue;
+      const bool leftTangency = std::find(tangencies.begin(),tangencies.end(),left) != tangencies.end();
+      const bool rightTangency = std::find(tangencies.begin(),tangencies.end(),right) != tangencies.end();
+      const bool intervalMapped = mapped || leftTangency || rightTangency;
       const long double middle = left+0.5L*(right-left);
       const long double lower = StripLower(strip,middle);
       const long double upper = StripUpper(strip,middle);
@@ -613,15 +619,15 @@ public:
       unsigned number = 0;
       long double middleRoot = 0.0L;
       for(unsigned r = 0; r < roots.size(); ++r) if(roots[r] >= lower && roots[r] <= upper) { middleRoot = roots[r]; ++number; }
-      const long double middleDerivative = graph && !mapped && number == 1 ? std::fma(2.0L*polynomial[2],middleRoot,polynomial[1]) : 0.0L;
+      const long double middleDerivative = graph && !intervalMapped && number == 1 ? std::fma(2.0L*polynomial[2],middleRoot,polynomial[1]) : 0.0L;
       const int derivativeSign = middleDerivative > 0.0L ? 1 : (middleDerivative < 0.0L ? -1 : 0);
       if(number == 0 && !lowerZero && !upperZero) {
         if(Evaluate(coefficient,middle,0.5L*(lower+upper)) > 0.0L) FullStripMoments(degree,strip,left,right,values,errors,coordinates,&active);
         ++accepted;
         continue;
       }
-      const LineIntegrationDiscriminant discriminant = mapped ? MappedDiscriminant(coefficient,left,right,std::find(tangencies.begin(),tangencies.end(),left) != tangencies.end(),std::find(tangencies.begin(),tangencies.end(),right) != tangencies.end()) : LineIntegrationDiscriminant();
-      Adaptive(coefficient,degree,strip,left,right,0.0L,1.0L,mapped,graph && number == 1,useTaylor,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors,surfaceGradient,active,&discriminant,coordinates,derivativeSign);
+      const LineIntegrationDiscriminant discriminant = intervalMapped ? MappedDiscriminant(coefficient,left,right,leftTangency,rightTangency) : LineIntegrationDiscriminant();
+      Adaptive(coefficient,degree,strip,left,right,0.0L,1.0L,intervalMapped,graph && number == 1,useTaylor,computeDelta,lowerZero,upperZero,intervalBudget*absoluteH,intervalBudget*absoluteD,relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors,surfaceGradient,active,&discriminant,coordinates,derivativeSign);
     }
   }
 
