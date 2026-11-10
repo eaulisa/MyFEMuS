@@ -224,7 +224,7 @@ void GetMassMatrix(const unsigned &element, const unsigned &degree, std::vector<
           for(unsigned factor = 1; factor <= exponent; ++factor) moment *= Type(factor)/Type(sum+factor);
           sum += exponent;
         }
-        else moment *= exponent%2U == 0 ? Type(2)/Type(exponent+1U) : Type(0);
+        else moment /= Type(exponent+1U);
       }
       if(simplex) {
         for(unsigned factor = 1; factor <= dimension; ++factor) moment /= Type(sum+factor);

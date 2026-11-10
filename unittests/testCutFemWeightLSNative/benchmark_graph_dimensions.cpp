@@ -3,6 +3,9 @@
 #include "Hex27DirectionSelection.hpp"
 #include "Tet15LevelSetMoments.hpp"
 #include "Basis.hpp"
+#ifdef FEMUS_UNIT_COORDINATE_MOMENTS
+#include "UnitElementMoments.hpp"
+#endif
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
@@ -61,6 +64,19 @@ std::vector<double> DimensionNodal(unsigned element, unsigned index) {
 }
 
 double DimensionIntegrate(unsigned element, const std::vector<double>& nodal, unsigned degree) {
+#ifdef FEMUS_UNIT_COORDINATE_MOMENTS
+  if(element == 0 || element == 2) {
+    std::vector<long double> values;
+    std::vector<long double> errors;
+    FELevelSetMoments::IntegrateUnitTensorNodalMoments(nodal,element == 0 ? 2U : 3U,degree,values,errors,1.0e-10L,1.0e-10L,true);
+    const unsigned count = values.size()/2U;
+    if(!(values[0] > 0) || !(values[count] > 0)) throw std::runtime_error("A unit graph benchmark returned an empty cut.");
+    long double checksum = 0;
+    for(unsigned n = 0; n < values.size(); ++n) checksum += (n+1U)*values[n];
+    if(!std::isfinite(checksum)) throw std::runtime_error("A unit graph benchmark returned nonfinite moments.");
+    return static_cast<double>(checksum);
+  }
+#endif
   std::vector<std::vector<double>> positive2;
   std::vector<std::vector<double>> surface2;
   std::vector<std::vector<std::vector<double>>> positive3;

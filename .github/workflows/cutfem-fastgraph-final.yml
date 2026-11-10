@@ -46,6 +46,8 @@ jobs:
           python3 run.py --selection original
           python3 run.py --selection supplemental
           python3 compare_planar.py
+      - name: Compare direct unit-cell reconstruction and moment basis
+        run: python3 unittests/testCutFemWeightLSNative/run_unit_basis_benchmark.py
       - name: Run degree-10 review, sanitizers, and pinned benchmarks
         run: python3 unittests/testCutFemWeightLSNative/run_review_validation.py
       - name: Run HEX/TET graph splitting, refinement, and pinned timings

@@ -12,6 +12,7 @@
 #include "Tri7DirectionSelection.hpp"
 #include "Tet15LevelSet.hpp"
 #include "Tet15LevelSetMoments.hpp"
+#include "UnitElementMoments.hpp"
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
@@ -107,7 +108,38 @@ class CutFemWeight_LS {
       return geomElemType;
     }
 
+    // Evaluates the unit-monomial Gram inverse through its shifted Legendre factorization.
+    void BuildTensorMomentToWeight() {
+      std::vector<std::vector<boost::multiprecision::cpp_bin_float_oct>> coefficient(_qM+1U,std::vector<boost::multiprecision::cpp_bin_float_oct>(_qM+1U,0));
+      coefficient[0][0] = 1;
+      if(_qM != 0) { coefficient[1][0] = -1; coefficient[1][1] = 2; }
+      for(unsigned n = 2; n <= _qM; ++n) for(unsigned k = 0; k <= n; ++k) coefficient[n][k] = ((2U*n-1U)*(2*(k == 0 ? boost::multiprecision::cpp_bin_float_oct(0) : coefficient[n-1U][k-1U])-coefficient[n-1U][k])-(n-1U)*coefficient[n-2U][k])/n;
+      _momentToWeight.resize(_gn,_L);
+      for(unsigned ig = 0; ig < _gn; ++ig) {
+        std::vector<std::vector<boost::multiprecision::cpp_bin_float_oct>> polynomials(_dim,std::vector<boost::multiprecision::cpp_bin_float_oct>(_qM+1U,1));
+        for(unsigned d = 0; d < _dim; ++d) {
+          const boost::multiprecision::cpp_bin_float_oct point(_gauss.GetGaussCoordinatePointer(d)[ig]);
+          if(_qM != 0) polynomials[d][1] = point;
+          for(unsigned n = 2; n <= _qM; ++n) polynomials[d][n] = ((2U*n-1U)*point*polynomials[d][n-1U]-(n-1U)*polynomials[d][n-2U])/n;
+        }
+        std::vector<boost::multiprecision::cpp_bin_float_oct> row(_L,0);
+        for(unsigned i = 0; i <= _qM; ++i) for(unsigned j = 0; j <= (_dim > 1 ? _qM-i : 0U); ++j) for(unsigned k = 0; k <= (_dim > 2 ? _qM-i-j : 0U); ++k) {
+          boost::multiprecision::cpp_bin_float_oct value = (2U*i+1U)*polynomials[0][i];
+          if(_dim > 1) value *= (2U*j+1U)*polynomials[1][j];
+          if(_dim > 2) value *= (2U*k+1U)*polynomials[2][k];
+          for(unsigned a = 0; a <= i; ++a) for(unsigned b = 0; b <= j; ++b) for(unsigned c = 0; c <= k; ++c) {
+            boost::multiprecision::cpp_bin_float_oct term = value*coefficient[i][a];
+            if(_dim > 1) term *= coefficient[j][b];
+            if(_dim > 2) term *= coefficient[k][c];
+            row[FELevelSetMoments::UnitMomentIndex(_dim,a,b,c)] += term;
+          }
+        }
+        for(unsigned n = 0; n < _L; ++n) _momentToWeight(ig,n) = static_cast<TypeA>(row[n]);
+      }
+    }
+
     void BuildMomentToWeight() {
+      if(_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX) { BuildTensorMomentToWeight(); return; }
       std::vector<std::vector<boost::multiprecision::cpp_bin_float_oct>> ATAoct;
       CutFemWeightLSBasis::Get_GS_ATA_Matrix(_geomElemType, _qM, ATAoct);
       Eigen::Matrix<TypeA, Eigen::Dynamic, Eigen::Dynamic> gramInverse(ATAoct.size(), ATAoct.size());
@@ -194,62 +226,17 @@ class CutFemWeight_LS {
       }
     }
 
-    void IntegrateLineMomentPair(const std::vector<double>& nodalValues, bool referenceSurface) {
-      double a = 0.0, b = 0.0, c = 0.0;
-      FELevelSetMoments::Line3ReferenceCoefficientsFromNodalValues(nodalValues,a,b,c);
-      long double scale = std::max(std::abs(static_cast<long double>(a)),std::max(std::abs(static_cast<long double>(b)),std::abs(static_cast<long double>(c))));
-      if(scale == 0.0L) throw std::domain_error("The delta of an identically zero field is undefined.");
-      long double quadratic = static_cast<long double>(a)/scale;
-      long double linear = static_cast<long double>(b)/scale;
-      long double constant = static_cast<long double>(c)/scale;
-      std::vector<long double> positive, delta;
-      FELevelSetMoments::LineIntegration::IntegratePolynomial(quadratic,linear,constant,_qM,-1.0L,1.0L,false,false,positive,delta);
-      std::vector<long double> roots;
-      const bool zeroLeft = nodalValues[0] == 0.0;
-      const bool zeroRight = nodalValues[1] == 0.0;
-      if(zeroLeft && zeroRight) roots = {-1.0L,1.0L};
-      else if(zeroLeft) {
-        roots.push_back(-1.0L);
-        if(quadratic != 0.0L) roots.push_back(-constant/quadratic);
-      }
-      else if(zeroRight) {
-        roots.push_back(1.0L);
-        if(quadratic != 0.0L) roots.push_back(constant/quadratic);
-      }
-      else roots = FELevelSetMoments::QuadraticRoots(quadratic,linear,constant);
-      for(unsigned rootIndex = 0; rootIndex < roots.size(); ++rootIndex) {
-        const long double point = roots[rootIndex];
-        if(point < -1.0L || point > 1.0L) continue;
-        const long double derivative = point == -1.0L && zeroLeft ? -quadratic+constant : (point == 1.0L && zeroRight ? quadratic-constant : 2.0L*quadratic*point+linear);
-        if(derivative == 0.0L) throw std::domain_error("A repeated 1D zero has no regular delta moment.");
-        const long double boundary = point == -1.0L || point == 1.0L ? 0.5L : 1.0L;
-        const long double weight = referenceSurface ? boundary : boundary/(scale*std::abs(derivative));
-        long double power = 1.0L;
-        for(unsigned i = 0; i <= _qM; ++i) {
-          delta[i] += weight*power;
-          power *= point;
-        }
-      }
-      for(unsigned i = 0; i <= _qM; ++i) {
-        _fPair(i,0) = static_cast<TypeA>(positive[i]);
-        _fPair(i,1) = static_cast<TypeA>(delta[i]);
-      }
-    }
-
     void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
-      if(_geomElemType == TET) {
+      if(_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX) {
+        std::vector<long double> values;
+        std::vector<long double> errors;
+        FELevelSetMoments::IntegrateUnitTensorNodalMoments(nodalValues,_dim,_qM,values,errors,absoluteTolerance,relativeTolerance,referenceSurface,geometryCoordinates,_integrationDirection,_directionValidation);
+        const long double surfaceFactor = geometryCoordinates != nullptr ? 1.0L/(1U<<_dim) : (referenceSurface ? 0.5L : 1.0L);
+        for(unsigned n = 0; n < _L; ++n) { _fPair(n,0) = static_cast<TypeA>(values[n]); _fPair(n,1) = static_cast<TypeA>(surfaceFactor*values[_L+n]); }
+      }
+      else if(_geomElemType == TET) {
         std::vector<std::vector<std::vector<double>>> positive, delta;
         FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,24,_integrationDirection,200000,nullptr,_directionValidation,nullptr,referenceSurface,nullptr,geometryCoordinates);
-        StoreNodalMomentPair(positive,delta);
-      }
-      else if(_geomElemType == HEX) {
-        std::vector<std::vector<std::vector<double>>> positive, delta;
-        FELevelSetMoments::IntegrateHex27NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,_directionValidation,_integrationDirection,nullptr,true,nullptr,referenceSurface,nullptr,geometryCoordinates);
-        StoreNodalMomentPair(positive,delta);
-      }
-      else if(_geomElemType == QUAD) {
-        std::vector<std::vector<double>> positive, delta;
-        FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,false,_directionValidation,_integrationDirection,nullptr,true,referenceSurface,nullptr,geometryCoordinates);
         StoreNodalMomentPair(positive,delta);
       }
       else if(_geomElemType == TRI) {
@@ -257,7 +244,6 @@ class CutFemWeight_LS {
         FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,false,_directionValidation,_integrationDirection,nullptr,true,referenceSurface,nullptr,geometryCoordinates);
         StoreNodalMomentPair(positive,delta);
       }
-      else IntegrateLineMomentPair(nodalValues,referenceSurface);
     }
 
     void EvaluateMomentWeightPair(std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight) {
@@ -267,9 +253,17 @@ class CutFemWeight_LS {
         const TypeA* basisRow = _momentToWeight.data()+ig*_L;
         TypeA positive = 0.;
         TypeA delta = 0.;
+        TypeA positiveCorrection = 0.;
+        TypeA deltaCorrection = 0.;
         for(unsigned i = 0; i < _L; ++i) {
-          positive += basisRow[i]*_fPair(i,0);
-          delta += basisRow[i]*_fPair(i,1);
+          const TypeA positiveTerm = basisRow[i]*_fPair(i,0)-positiveCorrection;
+          const TypeA deltaTerm = basisRow[i]*_fPair(i,1)-deltaCorrection;
+          const TypeA positiveNext = positive+positiveTerm;
+          const TypeA deltaNext = delta+deltaTerm;
+          positiveCorrection = (positiveNext-positive)-positiveTerm;
+          deltaCorrection = (deltaNext-delta)-deltaTerm;
+          positive = positiveNext;
+          delta = deltaNext;
         }
         positiveResult[ig] = static_cast<TypeIO>(positive);
         deltaResult[ig] = static_cast<TypeIO>(delta);

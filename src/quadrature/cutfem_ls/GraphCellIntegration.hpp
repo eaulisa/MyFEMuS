@@ -43,6 +43,9 @@ struct GraphCellData {
   unsigned evaluations = 0;
   unsigned accepted = 0;
   unsigned graphAxis = 0;
+  unsigned preferredInner = 3;
+  unsigned preferredOuter = 3;
+  bool unitCube = false;
   long double domainVolume = 1.0L;
   std::vector<unsigned char> requested;
   std::array<unsigned,3> innerCounts = {0,0,0};
@@ -810,7 +813,7 @@ public:
       if(lower == 0.0L) continue;
       const bool monotone = (minimum >= -padding && maximum > padding) || (maximum <= padding && minimum < -padding);
       if(!monotone) continue;
-      const long double score = lower > 0.0L ? 2.0L+lower/std::max(energy[axis],std::numeric_limits<long double>::min()) : energy[axis]/(1.0L+energy[axis]);
+      const long double score = axis == data.preferredInner ? std::numeric_limits<long double>::infinity() : (lower > 0.0L ? 2.0L+lower/std::max(energy[axis],std::numeric_limits<long double>::min()) : energy[axis]/(1.0L+energy[axis]));
       if(score > best) {
         best = score;
         selected = axis;
@@ -1023,6 +1026,7 @@ public:
     if(inner < 3) {
       unsigned outer = inner == 0 ? 1U : 0U;
       for(unsigned axis = 0; axis < 3; ++axis) if(axis != inner && energy[axis] < energy[outer]) outer = axis;
+      if(data.preferredOuter < 3 && data.preferredOuter != inner) outer = data.preferredOuter;
       data.graphAxis = inner;
       ++Statistics().graphCells;
       if(weak) ++Statistics().weakGraphs;
@@ -1117,7 +1121,7 @@ public:
     for(unsigned i = 0; i <= data.degree; ++i) for(unsigned j = 0; j <= data.degree-i; ++j) for(unsigned k = 0; k <= data.degree-i-j; ++k) data.powers[HexMomentIndex(i,j,k)] = {i,j,k};
     GraphCellRegion cell;
     cell.tetrahedron = tetrahedron;
-    cell.vertices = tetrahedron ? std::vector<std::array<long double,3>>{{0,0,0},{1,0,0},{0,1,0},{0,0,1}} : std::vector<std::array<long double,3>>{{-1,-1,-1},{1,1,1}};
+    cell.vertices = tetrahedron ? std::vector<std::array<long double,3>>{{0,0,0},{1,0,0},{0,1,0},{0,0,1}} : (data.unitCube ? std::vector<std::array<long double,3>>{{0,0,0},{1,1,1}} : std::vector<std::array<long double,3>>{{-1,-1,-1},{1,1,1}});
     values.assign(2U*count,0.0L);
     errors.assign(2U*count,0.0L);
     long double norm = 0.0L;
@@ -1142,7 +1146,7 @@ public:
       std::vector<long double> passValues(2U*count,0.0L);
       std::vector<long double> passErrors(2U*count,0.0L);
       Partition(data,cell,passValues,passErrors);
-      if(!tetrahedron) Symmetry(data,passValues,passErrors);
+      if(!tetrahedron && !data.unitCube) Symmetry(data,passValues,passErrors);
       long double worst = 0.0L;
       bool remaining = false;
       for(unsigned n = 0; n < values.size(); ++n) if(data.requested[n]) {

@@ -1,0 +1,215 @@
+{
+  "accepted": true,
+  "baseline_sha": "e2a9c1056812fe568a54b412e39acd3671e07bdd",
+  "maximum_monomial_degree": 10,
+  "graphs_per_element": 10,
+  "degrees": [
+    2,
+    5,
+    10
+  ],
+  "complete_runs_per_version": 3,
+  "cases_per_version_per_run": 120,
+  "absolute_tolerance": 1e-10,
+  "relative_tolerance": 1e-10,
+  "moments": "positive volume and surface; baseline parent monomials, candidate unit monomials for QUAD/HEX; TRI/TET unchanged",
+  "candidate_measure": "unit-cell volume and surface; tolerance applies to these moments",
+  "cpu": 0,
+  "compiler_flags": [
+    "g++",
+    "-std=c++14",
+    "-O3",
+    "-DNDEBUG",
+    "-march=x86-64",
+    "-mtune=generic"
+  ],
+  "comparisons": [
+    {
+      "degree": 2,
+      "element": "QUAD",
+      "baseline_ms": 0.13626273893229165,
+      "candidate_ms": 0.10607509557291667,
+      "speedup": 1.2845874726421889,
+      "baseline_mean_slices": 0,
+      "candidate_mean_slices": 0,
+      "round_speedups": [
+        1.2724472155286755,
+        1.2328312590500303,
+        1.344636876954067
+      ]
+    },
+    {
+      "degree": 2,
+      "element": "TRI",
+      "baseline_ms": 0.10833482395833334,
+      "candidate_ms": 0.10150108932291667,
+      "speedup": 1.0673267122648875,
+      "baseline_mean_slices": 0,
+      "candidate_mean_slices": 0,
+      "round_speedups": [
+        1.0123272440452653,
+        1.0097462689692953,
+        1.182602347621977
+      ]
+    },
+    {
+      "degree": 2,
+      "element": "HEX",
+      "baseline_ms": 4.562590493229167,
+      "candidate_ms": 3.5508488658854165,
+      "speedup": 1.284929509972672,
+      "baseline_mean_slices": 13.6,
+      "candidate_mean_slices": 13.6,
+      "round_speedups": [
+        1.2453986688613592,
+        1.2285027418735908,
+        1.379533033318781
+      ]
+    },
+    {
+      "degree": 2,
+      "element": "TET",
+      "baseline_ms": 7.41227165,
+      "candidate_ms": 7.0467127,
+      "speedup": 1.0518765225095668,
+      "baseline_mean_slices": 40.5,
+      "candidate_mean_slices": 40.5,
+      "round_speedups": [
+        1.0027236209601675,
+        1.0141045822692063,
+        1.1364727437597217
+      ]
+    },
+    {
+      "degree": 5,
+      "element": "QUAD",
+      "baseline_ms": 0.1875872953125,
+      "candidate_ms": 0.11833032018229167,
+      "speedup": 1.585285115628148,
+      "baseline_mean_slices": 0,
+      "candidate_mean_slices": 0,
+      "round_speedups": [
+        1.633526701113202,
+        1.6905997232213656,
+        1.4465174074037752
+      ]
+    },
+    {
+      "degree": 5,
+      "element": "TRI",
+      "baseline_ms": 0.11794371666666667,
+      "candidate_ms": 0.11756776432291667,
+      "speedup": 1.00319775021593,
+      "baseline_mean_slices": 0,
+      "candidate_mean_slices": 0,
+      "round_speedups": [
+        1.0117443803422141,
+        1.0531380437114717,
+        0.9450018797846337
+      ]
+    },
+    {
+      "degree": 5,
+      "element": "HEX",
+      "baseline_ms": 9.408972355989583,
+      "candidate_ms": 4.432268731250001,
+      "speedup": 2.12283436012149,
+      "baseline_mean_slices": 19.6,
+      "candidate_mean_slices": 13.6,
+      "round_speedups": [
+        2.221305923133953,
+        2.1540737800988645,
+        1.9999436490407072
+      ]
+    },
+    {
+      "degree": 5,
+      "element": "TET",
+      "baseline_ms": 9.384955283333333,
+      "candidate_ms": 9.259153816666666,
+      "speedup": 1.0135867131227718,
+      "baseline_mean_slices": 46.5,
+      "candidate_mean_slices": 46.5,
+      "round_speedups": [
+        1.06614817655576,
+        1.021021863795136,
+        0.9557013230979535
+      ]
+    },
+    {
+      "degree": 10,
+      "element": "QUAD",
+      "baseline_ms": 0.4401887255208333,
+      "candidate_ms": 0.23422859817708333,
+      "speedup": 1.8793124705807205,
+      "baseline_mean_slices": 0,
+      "candidate_mean_slices": 0,
+      "round_speedups": [
+        1.8315695637102947,
+        1.8706964825093877,
+        1.9396651154247293
+      ]
+    },
+    {
+      "degree": 10,
+      "element": "TRI",
+      "baseline_ms": 0.15430855208333333,
+      "candidate_ms": 0.1493550375,
+      "speedup": 1.0331660362197916,
+      "baseline_mean_slices": 0,
+      "candidate_mean_slices": 0,
+      "round_speedups": [
+        1.0291312643896582,
+        1.0311506763772236,
+        1.0396487907371355
+      ]
+    },
+    {
+      "degree": 10,
+      "element": "HEX",
+      "baseline_ms": 51.31703260885417,
+      "candidate_ms": 13.5015065703125,
+      "speedup": 3.8008375096221876,
+      "baseline_mean_slices": 69.1,
+      "candidate_mean_slices": 24.1,
+      "round_speedups": [
+        3.711084153764347,
+        3.99057950584033,
+        3.69209300248384
+      ]
+    },
+    {
+      "degree": 10,
+      "element": "TET",
+      "baseline_ms": 15.714191549999999,
+      "candidate_ms": 15.350626916666666,
+      "speedup": 1.023684025109007,
+      "baseline_mean_slices": 58.5,
+      "candidate_mean_slices": 58.5,
+      "round_speedups": [
+        1.0141842893853485,
+        1.0433287643760698,
+        1.0118723690127858
+      ]
+    }
+  ],
+  "source_sha256": {
+    "src/quadrature/cutfem_ls/AdaptiveLineSliceMoments.hpp": "eac9a3d1d654162321a4790f406638d271b4528a8157fa546ceb6fbd6d2f00f3",
+    "src/quadrature/cutfem_ls/CutFemWeight_LS.hpp": "9de35c911f83772f17dc999fa65128643a0c7136b9b41b6c2d94a2e1d50d090b",
+    "src/quadrature/cutfem_ls/FELevelSetMoments.hpp": "2d44666de2c41a2ce45352314fc2b8e79d219969dde3647e2679659a2fbd59e8",
+    "src/quadrature/cutfem_ls/GraphCellIntegration.hpp": "05f705d0fff56fc820e12cf6991e979caeb711b497ed6809edfa6aaba8b2715c",
+    "src/quadrature/cutfem_ls/Hex27DirectionSelection.hpp": "47a4b9e5f76ad99a2bcf6445807572498a8a524dd06acb096797e8aff4c72f02",
+    "src/quadrature/cutfem_ls/Hex27LevelSetMoments.hpp": "1b008e81defbbcd9852c34c083a52fc060fc7ba08d8532dc50afea0b548d6ac4",
+    "src/quadrature/cutfem_ls/LineDomainIntegration.hpp": "97f4104295e8810d6d7ffbec58b24add234dd3fed9cbcbe3ab0c7775ae04e55f",
+    "src/quadrature/cutfem_ls/LineIntegration.hpp": "d7f65f4a59043bd11aefca92461ffe6b545c5a95d3ee2122aa7a28f7d2a68f3a",
+    "src/quadrature/cutfem_ls/Quad9DirectionSelection.hpp": "54c921127ae6f43a3ad6cfb9efefc88e0ebf72ff8a3b9894870ffec33d20fbc6",
+    "src/quadrature/cutfem_ls/ReferenceElementLS.hpp": "107c527ba19b34f992d1f2d1b5f9bf8a04096aec5b58ae08ab426f858d59669d",
+    "src/quadrature/cutfem_ls/ReferenceSurfaceMoments.hpp": "7704f3c72c19e75fec5da70a96dae9f1caf71d3f5501e16d63a19b165cb561fe",
+    "src/quadrature/cutfem_ls/Tet15LevelSet.hpp": "8f0c04d490554627efde7be9ad31d4ac21362080815e69e2b9bf565222db8379",
+    "src/quadrature/cutfem_ls/Tet15LevelSetMoments.hpp": "ac81fbceee08619b3b2c2b1910a872ffb666f35feb9948386389a7a04cbcb1f0",
+    "src/quadrature/cutfem_ls/Tri7DirectionSelection.hpp": "1d7576b2bfc221fd80332a557094c30e31267f056ad9a278e37d68eda6e3a58b",
+    "src/quadrature/cutfem_ls/TriangleIntegration.hpp": "589c8383959cbaddf3b17e6942e573543351efc0571f723fedb4672ff1fe1656",
+    "src/quadrature/cutfem_ls/UnitElementMoments.hpp": "2b53d211816334af55147a6fafebea2180c92d84b97f4907a6e44abf2626628f",
+    "src/quadrature/cutfem_ls/gram_smithLS.hpp": "2c2c778f2ceb72403397a60088fc28633026753bd939f7ab0e561849210b2e08"
+  }
+}
