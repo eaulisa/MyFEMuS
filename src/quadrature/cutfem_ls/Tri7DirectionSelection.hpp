@@ -3,6 +3,7 @@
 
 #include "LineIntegration.hpp"
 #include "TriangleIntegration.hpp"
+#include "EndpointStripQuadrature.hpp"
 
 // TRI7 uses ordered triangular charts internally and returns moments on the standard FEMuS reference triangle.
 namespace FELevelSetMoments {
@@ -270,7 +271,9 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
         const std::vector<TriangleDomainVertex> vertices = {{0.0L,0.0L},{1.0L,0.0L},{0.0L,1.0L}};
         accepted = 0;
         ++attempts;
-        TriangleIntegration::Integrate(standardCoefficient,degree,vertices,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,0,10,values,errors,evaluations,accepted,selected,referenceSurface ? &standardGradient : nullptr);
+        bool endpointIntegrated = false;
+        if(lower[ranked[0]-1U] == 0 && !EndpointStripQuadrature::IsGraph(standardCoefficient,true)) endpointIntegrated = EndpointStripQuadrature::Try(standardCoefficient,degree,true,computeDelta,0.01L*absoluteTolerance,0.01L*absoluteTolerance*scale,0.01L*relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,referenceSurface ? &standardGradient : nullptr);
+        if(!endpointIntegrated) TriangleIntegration::Integrate(standardCoefficient,degree,vertices,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,0,10,values,errors,evaluations,accepted,selected,referenceSurface ? &standardGradient : nullptr);
         standardMoments = true;
       }
     }

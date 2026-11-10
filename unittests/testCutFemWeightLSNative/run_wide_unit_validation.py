@@ -21,10 +21,11 @@ parser.add_argument('--element',type=int,choices=range(4))
 parser.add_argument('--degree',type=int,choices=[2,5,10])
 parser.add_argument('--binary',type=Path,default=suite/'build/wide_unit_validation')
 parser.add_argument('--folder',default='wide_unit')
+parser.add_argument('--summary')
 args=parser.parse_args()
 folder=suite/'results'/args.folder
 folder.mkdir(parents=True,exist_ok=True)
-summary_path=suite/'review_results'/('wide_unit_smoke.json' if args.smoke else 'wide_unit_summary.json')
+summary_path=suite/'review_results'/(args.summary or ('wide_unit_smoke.json' if args.smoke else 'wide_unit_summary.json'))
 manifest={str(p.relative_to(repo)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((repo/'src/quadrature/cutfem_ls').glob('*.hpp'))}
 summary_path.write_text(json.dumps({'accepted':False,'status':'running','source_sha256':manifest},indent=2)+'\n')
 

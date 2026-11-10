@@ -2,6 +2,7 @@
 #define FEMUS_UNIT_ELEMENT_MOMENTS_HPP
 
 #include "Hex27DirectionSelection.hpp"
+#include "EndpointStripQuadrature.hpp"
 
 namespace FELevelSetMoments {
 
@@ -85,7 +86,14 @@ inline void UnitQuadMoments(const std::vector<long double>& coefficient, long do
   unsigned accepted = 0;
   std::vector<long double> native;
   std::vector<long double> nativeErrors;
-  for(unsigned attempt = 0; attempt < (validation == 2 ? 2U : 1U); ++attempt) {
+  bool endpointIntegrated = false;
+  if(direction == 0 && validation != 2 && lower[0] == 0 && lower[1] == 0 && (upper[0] > 0 || upper[1] > 0) && Quad9SelectedWeakGraphOrder(field) == 0) {
+    int phase = 0;
+    LineSliceUtilities::CanonicalGraphOrder(field,0,phase);
+    unsigned chosen = 0;
+    if(phase == 0) endpointIntegrated = EndpointStripQuadrature::Try(field,degree,false,true,0.01L*absolute,0.01L*absolute*scale,0.01L*relative,24,200000,native,nativeErrors,evaluations,accepted,chosen,gradient.empty() ? nullptr : &gradient);
+  }
+  for(unsigned attempt = 0; !endpointIntegrated && attempt < (validation == 2 ? 2U : 1U); ++attempt) {
     const unsigned order = attempt == 0 ? selected : 3U-selected;
     std::vector<long double> trial;
     std::vector<long double> trialErrors;

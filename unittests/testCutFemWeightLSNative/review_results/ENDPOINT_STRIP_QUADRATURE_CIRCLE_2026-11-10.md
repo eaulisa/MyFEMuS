@@ -2,6 +2,8 @@
 
 Circle experiment, 10 November 2026.
 
+This report describes the circle-only snapshot at commit aea2c13efd1ac883103461d3218790cfbe70e4f0; use that commit to reproduce its original timing controls. The later general QUAD/TRI comparison is recorded in ENDPOINT_STRIP_QUADRATURE_2D_2026-11-10.md.
+
 The prototype evaluates the original FE level-set polynomial and applies GK quadrature after the substitution x = a + delta*u^2 at a left fold, or x = b - delta*u^2 at a right fold. It keeps the original integration direction in the strips and the bulk. It does not approximate the curve.
 
 For the surface integrand, factor D(x) = (x-a)*Q(x-a). The mapped Jacobian divided by the root derivative is evaluated as 2*delta/sqrt(delta*Q(delta*u^2)); the factor u cancels algebraically. This avoids subtracting nearly equal discriminant terms at the endpoint and avoids a numerical 0/0. The right-end expression includes the corresponding orientation sign.

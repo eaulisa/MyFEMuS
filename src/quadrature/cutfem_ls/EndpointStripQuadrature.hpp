@@ -65,7 +65,7 @@ public:
   // Experiments with selective GK on the original curve after quadratic endpoint coordinate maps.
   static EndpointStripStatistics& Statistics() { static thread_local EndpointStripStatistics statistics; return statistics; }
 
-  static long double& StripWidth() { static thread_local long double width = 0.03L; return width; }
+  static long double& StripWidth() { static thread_local long double width = 0; return width; }
   static unsigned& PreferredDirection() { static thread_local unsigned direction = 0; return direction; }
 
   static bool IsGraph(const std::vector<std::vector<long double>>& coefficient, bool triangle) {
@@ -346,7 +346,7 @@ private:
       if(interval.signs.empty()) { if(interval.phase > 0) LineIntegration::FullStripMoments(degree,strip,interval.left,interval.right,values,errors); ++accepted; continue; }
       std::vector<unsigned char> active(values.size(),1);
       if(!computeDelta) std::fill(active.begin()+count,active.end(),0);
-      const long double width = std::min(StripWidth(),0.45L*(interval.right-interval.left));
+      const long double width = std::min(StripWidth() > 0 ? StripWidth() : (interval.right-interval.left)/6,0.45L*(interval.right-interval.left));
       long double left = interval.left;
       long double right = interval.right;
       if(interval.leftTangent) {

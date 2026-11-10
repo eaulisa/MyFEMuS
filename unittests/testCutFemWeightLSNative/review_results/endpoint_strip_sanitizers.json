@@ -1,0 +1,70 @@
+{
+  "accepted": true,
+  "cases": 405,
+  "records": [
+    {
+      "degree": 2,
+      "mode": "raw",
+      "exit": 0,
+      "cases": 45,
+      "stderr": ""
+    },
+    {
+      "degree": 2,
+      "mode": "surface",
+      "exit": 0,
+      "cases": 45,
+      "stderr": ""
+    },
+    {
+      "degree": 2,
+      "mode": "physical",
+      "exit": 0,
+      "cases": 45,
+      "stderr": ""
+    },
+    {
+      "degree": 5,
+      "mode": "raw",
+      "exit": 0,
+      "cases": 45,
+      "stderr": ""
+    },
+    {
+      "degree": 5,
+      "mode": "surface",
+      "exit": 0,
+      "cases": 45,
+      "stderr": ""
+    },
+    {
+      "degree": 5,
+      "mode": "physical",
+      "exit": 0,
+      "cases": 45,
+      "stderr": ""
+    },
+    {
+      "degree": 10,
+      "mode": "raw",
+      "exit": 0,
+      "cases": 45,
+      "stderr": ""
+    },
+    {
+      "degree": 10,
+      "mode": "surface",
+      "exit": 0,
+      "cases": 45,
+      "stderr": ""
+    },
+    {
+      "degree": 10,
+      "mode": "physical",
+      "exit": 0,
+      "cases": 45,
+      "stderr": ""
+    }
+  ],
+  "leak_detection": "Disabled: LeakSanitizer cannot run under ptrace in this environment."
+}

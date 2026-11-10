@@ -1,0 +1,34 @@
+{
+  "accepted": true,
+  "records": [
+    {
+      "test": "test_contract",
+      "exit": 0,
+      "output": "Passed 157 input, setter-range, const-getter and cache checks; 29 removed API signatures are inaccessible.\n"
+    },
+    {
+      "test": "test_ls_multiprecision",
+      "exit": 0,
+      "output": "Standalone LS cpp_bin_float_oct: half-square area=2, reference interface length=2.\n"
+    },
+    {
+      "test": "test_ls_output_range",
+      "exit": 0,
+      "output": "Output-range checks passed: overflow rejection, atomic outputs, surface recovery, cache, and multiprecision output.\n"
+    },
+    {
+      "test": "line_integration",
+      "exit": 0,
+      "output": "LINE degree-10 exact moments passed; maximum absolute error 0; 10000 integrations 0.0608661 s\n"
+    },
+    {
+      "test": "quad_tri_standard_moments",
+      "exit": 0,
+      "output": "2654 native QUAD/TRI checks passed in 128 cases; maximum absolute error 4.10262e-16\n"
+    }
+  ],
+  "syntax_checks": [
+    "test_order_ls_first",
+    "test_order_planar_first"
+  ]
+}
