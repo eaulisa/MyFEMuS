@@ -51,6 +51,10 @@ There is consequently no finite universal exponent that makes every HEX27/TET15 
 
 ## Numerical checks and architecture
 
+Projection events are refined against the original slice polynomial using compensated long-double sums and products. This keeps a boundary crossing and a nearly coincident discriminant zero consistent without replacing the level set or increasing an event-merging tolerance. It also avoids creating a spurious integration interval on the opposite side of a fold.
+
+A simple fold just outside a cell can leave a small positive endpoint discriminant D(a), producing a sharp but finite surface density. The same quadratic endpoint substitution is used when D(a) is small compared with the discriminant's inward variation across the strip. Its constant is retained: for h=+/-delta*t^2, `D(a+h)=D(a)+h*R(h)` and the transformed surface ratio is `2*delta/sqrt(D(a)/t^2 +/- delta*R(h))`. The quadrature still evaluates the actual transformed integrand, including D(a); no zero endpoint value is imposed on these near-fold strips.
+
 `endpoint_exponents.cpp` checks p=2,6,4 for transverse contacts, verifies transformed model integrals analytically, checks that quartic triquadratic discriminants remain quartic, and requires rejection of a non-transverse model. The integration hierarchy is HEX -> QUAD -> LINE and TET -> full TRI -> LINE. LINE graph quadrature and exact quadratic two-root integration are retained; general curves use actual-integrand endpoint quadrature. General 3D surfaces use full parent slices, projection events, endpoint strips, and adaptive quadrature panels. There is no geometric subdivision dispatcher.
 
 The derivations above are local calculations for this implementation. For broader background on polynomial projection and dimension reduction, see [Saye, JCP 2022](https://doi.org/10.1016/j.jcp.2021.110720); that reference is not a proof of this branch's supported input class.

@@ -585,9 +585,53 @@ public:
     return polynomial;
   }
 
+  static std::array<long double,2> CompensatedSum(const std::array<long double,2>& first, const std::array<long double,2>& second) {
+    const long double sum = first[0]+second[0];
+    const long double part = sum-first[0];
+    const long double error = (first[0]-(sum-part))+(second[0]-part)+first[1]+second[1];
+    const long double value = sum+error;
+    const long double tail = value-sum;
+    return {value,(sum-(value-tail))+(error-tail)};
+  }
+
+  static std::array<long double,2> CompensatedProduct(const std::array<long double,2>& first, const std::array<long double,2>& second) {
+    const long double product = first[0]*second[0];
+    const long double error = std::fma(first[1],second[1],std::fma(first[0],second[1],std::fma(first[1],second[0],std::fma(first[0],second[0],-product))));
+    return CompensatedSum({product,0},{error,0});
+  }
+
+  // Refines projected events against the original polynomial without cancellation in its discriminant.
+  static std::array<std::array<long double,2>,3> CompensatedFiberPolynomial(const std::vector<std::vector<long double>>& coefficient, long double x) {
+    std::array<std::array<long double,2>,3> polynomial = {{{0,0},{0,0},{0,0}}};
+    for(unsigned j = 0; j < 3; ++j) for(unsigned i = 3; i > 0; --i) polynomial[j] = CompensatedSum(CompensatedProduct(polynomial[j],{x,0}),{coefficient[i-1U][j],0});
+    return polynomial;
+  }
+
   static long double FiberDiscriminantValue(const std::vector<std::vector<long double>>& coefficient, long double x) {
-    const std::vector<long double> polynomial = FiberPolynomial(coefficient,x);
-    return std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
+    const std::array<std::array<long double,2>,3> polynomial = CompensatedFiberPolynomial(coefficient,x);
+    const std::array<long double,2> value = CompensatedSum(CompensatedProduct(polynomial[1],polynomial[1]),CompensatedProduct({-4,0},CompensatedProduct(polynomial[2],polynomial[0])));
+    return value[0]+value[1];
+  }
+
+  static long double BoundaryValue(const std::vector<std::vector<long double>>& coefficient, long double x, long double constant, long double slope) {
+    const std::array<std::array<long double,2>,3> polynomial = CompensatedFiberPolynomial(coefficient,x);
+    const std::array<long double,2> point = CompensatedSum({constant,0},CompensatedProduct({slope,0},{x,0}));
+    const std::array<long double,2> value = CompensatedSum(CompensatedProduct(CompensatedSum(CompensatedProduct(polynomial[2],point),polynomial[1]),point),polynomial[0]);
+    return value[0]+value[1];
+  }
+
+  static long double RefineBoundaryEvent(const std::vector<std::vector<long double>>& coefficient, long double root, long double left, long double right, long double constant, long double slope) {
+    const std::vector<long double> derivative = LineSliceUtilities::PolynomialDerivative(BoundaryPolynomial(coefficient,constant,slope));
+    long double current = root;
+    for(unsigned iteration = 0; iteration < 12; ++iteration) {
+      const long double value = BoundaryValue(coefficient,current,constant,slope);
+      const long double gradient = LineSliceUtilities::PolynomialValue(derivative,current);
+      if(gradient == 0 || !std::isfinite(value) || !std::isfinite(gradient)) break;
+      const long double next = current-value/gradient;
+      if(!(next >= left && next <= right) || !std::isfinite(next) || next == current) break;
+      current = next;
+    }
+    return current;
   }
 
   static long double FiberDiscriminantBound(const std::vector<std::vector<long double>>& coefficient, long double x) {
@@ -658,7 +702,7 @@ public:
       if(tangencies != nullptr) tangencies->push_back(event);
     }
     for(unsigned side = 0; side < 2; ++side) for(unsigned k = 0; k < boundaryEvents[side].size(); ++k) {
-      long double event = boundaryEvents[side][k];
+      long double event = RefineBoundaryEvent(coefficient,boundaryEvents[side][k],strip.left,strip.right,side == 0 ? strip.lowerConstant : strip.upperConstant,side == 0 ? strip.lowerSlope : strip.upperSlope);
       const long double boundary = side == 0 ? StripLower(strip,event) : StripUpper(strip,event);
       const std::vector<long double> polynomial = FiberPolynomial(coefficient,event);
       const long double derivative = std::fma(2.0L*polynomial[2],boundary,polynomial[1]);

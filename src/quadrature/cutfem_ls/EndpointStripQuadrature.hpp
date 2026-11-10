@@ -40,6 +40,7 @@ struct EndpointStripInterval {
   int mapping = 0;
   long double endpoint = 0;
   long double delta = 0;
+  long double discriminantConstant = 0;
   std::vector<long double> reducedDiscriminant;
   std::vector<int> signs;
   std::vector<int> boundary;
@@ -236,6 +237,7 @@ private:
     strip.mapping = left ? 1 : -1;
     strip.endpoint = left ? interval.left : interval.right;
     strip.delta = delta;
+    strip.discriminantConstant = (left ? interval.leftTangent : interval.rightTangent) ? 0 : LineIntegration::FiberDiscriminantValue(data.coefficient,strip.endpoint);
     const std::vector<long double> discriminant = DiscriminantPolynomial(data.field);
     strip.reducedDiscriminant.assign(discriminant.size()-1U,0);
     for(unsigned i = 1; i < discriminant.size(); ++i) for(unsigned k = i; k < discriminant.size(); ++k) {
@@ -249,6 +251,13 @@ private:
     return strip;
   }
 
+  static bool NearTangent(const EndpointStripDirection& data, long double point, int inward, long double width) {
+    if(PolynomialValue(data.field[0],point) == 0) return false;
+    const long double value = LineIntegration::FiberDiscriminantValue(data.coefficient,point);
+    const long double derivative = inward*LineIntegration::FiberDiscriminantDerivative(data.coefficient,point);
+    return value >= 0 && derivative > 0 && value <= 0.25L*width*derivative;
+  }
+
   static void Sample(const EndpointStripDirection& data, const EndpointStripInterval& interval, unsigned degree, long double x, const std::vector<unsigned char>& active, std::vector<long double>& values) {
     const unsigned count = active.size()/2U;
     const long double parameter = x;
@@ -259,7 +268,7 @@ private:
     const long double b = PolynomialValue(data.field[1],x);
     const long double c = PolynomialValue(data.field[2],x);
     const long double discriminant = std::fma(-4*a,c,b*b);
-    const long double reduced = interval.mapping == 0 ? 0 : interval.mapping*interval.delta*PolynomialValue(interval.reducedDiscriminant,offset);
+    const long double reduced = interval.mapping == 0 ? 0 : interval.discriminantConstant/(parameter*parameter)+interval.mapping*interval.delta*PolynomialValue(interval.reducedDiscriminant,offset);
     if(interval.mapping != 0 && !(reduced > 0)) throw std::runtime_error("An endpoint map requires a positive simple-fold discriminant.");
     const long double regularDerivative = interval.mapping == 0 ? 0 : std::sqrt(reduced);
     const long double derivative = interval.mapping == 0 ? (a == 0 ? std::abs(b) : std::sqrt(std::max(0.0L,discriminant))) : parameter*regularDerivative;
@@ -360,12 +369,12 @@ private:
       const long double width = std::min(StripWidth() > 0 ? StripWidth() : (interval.right-interval.left)/6,0.45L*(interval.right-interval.left));
       long double left = interval.left;
       long double right = interval.right;
-      if(interval.leftTangent) {
+      if(interval.leftTangent || NearTangent(data,interval.left,1,width)) {
         const EndpointStripInterval mapped = MappedStrip(data,interval,true,width);
         Adaptive(data,mapped,degree,0,1,0.25L*intervalBudget*absoluteH,0.25L*intervalBudget*absoluteD,relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,active,values,errors);
         left += width;
       }
-      if(interval.rightTangent) {
+      if(interval.rightTangent || NearTangent(data,interval.right,-1,width)) {
         const EndpointStripInterval mapped = MappedStrip(data,interval,false,width);
         Adaptive(data,mapped,degree,0,1,0.25L*intervalBudget*absoluteH,0.25L*intervalBudget*absoluteD,relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,active,values,errors);
         right -= width;
