@@ -1,0 +1,7 @@
+TET oblique cut=0.5 degree=10 passed
+TET oblique cut=1 degree=10 passed
+HEX ball degree=10 radius=0.5 surface=0 scale=1 tolerance=1e-10 milliseconds=100.193986 samples=14940 estimated=2.859426605702486e-11,2.828685125918664e-11
+HEX ball degree=10 radius=0.375 surface=1 scale=1 tolerance=1e-10 milliseconds=161.115809 samples=13620 estimated=3.259796724790324e-11,2.975037518347975e-11
+TET ball degree=10 radius=0.125 surface=0 scale=1 tolerance=1e-10 milliseconds=98.64988099999999 samples=4560 estimated=6.310540888482379e-14,6.590859940450488e-14
+TET ball degree=10 radius=0.125 surface=1 scale=1 tolerance=1e-10 milliseconds=193.469279 samples=4560 estimated=6.310540888482379e-14,5.502775571519304e-14
+checks=24364 cases=44 max_error=1.77635683940025e-15 splits=16 graphs=44 weak=0 quad=705 tri=720 accepted_components=0 skipped_components=178065

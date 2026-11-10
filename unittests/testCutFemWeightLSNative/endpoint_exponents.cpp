@@ -17,9 +17,9 @@ int main() {
     const unsigned exponent = FELevelSetMoments::EndpointProjection::ContactExponent(constraint,0,false);
     if(exponent != (multiplicity == 3 ? 6U : multiplicity)) throw std::runtime_error("Projected contact exponent is incorrect.");
     long double integral = 0;
-    for(unsigned q = 0; q < boost::math::quadrature::gauss_kronrod<long double,31>::abscissa().size(); ++q) for(unsigned side = 0; side < (q == 0 ? 1U : 2U); ++side) {
-      const long double point = 0.5L+(side == 0 ? -0.5L : 0.5L)*boost::math::quadrature::gauss_kronrod<long double,31>::abscissa()[q];
-      integral += 0.5L*boost::math::quadrature::gauss_kronrod<long double,31>::weights()[q]*EndpointModel(multiplicity,exponent,point);
+    for(unsigned q = 0; q < boost::math::quadrature::gauss_kronrod<long double,15>::abscissa().size(); ++q) for(unsigned side = 0; side < (q == 0 ? 1U : 2U); ++side) {
+      const long double point = 0.5L+(side == 0 ? -0.5L : 0.5L)*boost::math::quadrature::gauss_kronrod<long double,15>::abscissa()[q];
+      integral += 0.5L*boost::math::quadrature::gauss_kronrod<long double,15>::weights()[q]*EndpointModel(multiplicity,exponent,point);
     }
     if(std::abs(integral-1.0L/(0.5L+1.0L/multiplicity)) > 1e-17L) throw std::runtime_error("Transformed analytical endpoint quadrature is incorrect.");
     if(!std::isfinite(EndpointModel(multiplicity,2,1e-15L))) throw std::runtime_error("The quadratic endpoint map did not regularize the model.");
@@ -45,6 +45,11 @@ int main() {
     if(contact == 3) { coefficient[FELevelSetMoments::Hex27Index(0,1,1)] = 1; coefficient[FELevelSetMoments::Hex27Index(0,2,0)] = 0.25L; }
     const std::vector<std::vector<long double>> discriminant = FELevelSetMoments::EndpointProjection::Discriminant(FELevelSetMoments::EndpointProjection::Field(coefficient,0,2));
     if(discriminant.size() != 5 || FELevelSetMoments::EndpointProjection::ContactExponent(discriminant,0,true) != (contact == 3 ? 6U : 4U)) throw std::runtime_error("An enriched TET contact exponent is incorrect.");
+    ++checks;
+  }
+  for(const long double residual : {-1e-19L,1e-19L}) {
+    const std::vector<std::vector<long double>> constraint = {{residual,1},{1e-19L},{-0.1L}};
+    if(FELevelSetMoments::EndpointProjection::ContactExponent(constraint,0,false) != 2) throw std::runtime_error("A rounded boundary contact was classified as regular.");
     ++checks;
   }
   bool rejected = false;

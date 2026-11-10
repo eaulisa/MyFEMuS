@@ -1,3 +1,5 @@
+The current G7/K15 full-interval outer strategy supersedes the earlier strip/bulk quadrature descriptions below; see `UNIFIED_OUTER_QUADRATURE.md`. The contact-exponent and exact-restriction definitions remain applicable.
+
 # Endpoint transformations and the supported local models
 
 Starting implementation: `8bad259c5a51060e4c2674db49a7ae34b75a0367`, the verified tip of `rifat-cutfem-2d-endpoint-quadrature` and direct child of `aea2c13efd1ac883103461d3218790cfbe70e4f0`. Benchmark: `0ff0669494e603be248d02c44c0a2e9b81f72b4d` on `rifat`.

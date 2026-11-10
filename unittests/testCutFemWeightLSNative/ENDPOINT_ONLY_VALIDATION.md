@@ -1,3 +1,5 @@
+The current outer integration update and acceptance evidence are in `UNIFIED_OUTER_QUADRATURE.md`; the results below describe the earlier endpoint-only revision.
+
 # Native CutFEM endpoint-only validation
 
 ## Source and scope
@@ -165,7 +167,7 @@ The README gives the standalone CMake and broader suite commands. The comparison
 
 ```sh
 python3 unittests/testCutFemWeightLSNative/run_endpoint_only_comparison.py --accepted-root /path/to/accepted --rifat-root /path/to/rifat --boost /path/to/boost
-python3 unittests/testCutFemWeightLSNative/run_endpoint_strip_comparison.py --skip-build
+python3 unittests/testCutFemWeightLSNative/run_outer_interval_benchmark.py --baseline /path/to/baseline-benchmark --candidate build-cutfem/cutfem_outer_interval_benchmark --output unittests/testCutFemWeightLSNative/unified_outer_results
 python3 unittests/testCutFemWeightLSNative/run_endpoint_analytic_convergence.py --binary /path/to/comparison_candidate
 ```
 

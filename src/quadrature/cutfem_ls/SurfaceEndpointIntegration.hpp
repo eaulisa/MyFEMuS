@@ -20,6 +20,7 @@ struct SurfaceEndpointStatistics {
   unsigned long long triCalls = 0;
   unsigned long long outerSamples = 0;
   unsigned long long eventBuilds = 0;
+  unsigned long long integrationPasses = 0;
   unsigned long long acceptedComponents = 0;
   unsigned long long skippedComponents = 0;
 
@@ -55,6 +56,13 @@ struct SurfaceEndpointData {
   long double absoluteH = 0.0L;
   long double absoluteD = 0.0L;
   long double relative = 0.0L;
+};
+
+struct SurfaceOuterContext {
+  SurfaceEndpointData* data = nullptr;
+  const SurfaceEndpointDomain* cell = nullptr;
+  unsigned outer = 0;
+
 };
 
 class SurfaceEndpointIntegration {
@@ -400,67 +408,18 @@ public:
     }
   }
 
-  template<unsigned Rule> static bool ResolvedPanel(long double left, long double right, int mapping, long double endpoint, long double delta, unsigned exponent) {
-    if(mapping == 0) return true;
-    const long double parameter = left+0.5L*(right-left)*(1-boost::math::quadrature::gauss_kronrod<long double,Rule>::abscissa().back());
-    return endpoint+mapping*delta*ReferencePower(parameter,exponent) != endpoint;
-  }
-
-  template<unsigned Rule> static void Panel(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, unsigned outer, long double left, long double right, int mapping, long double endpoint, long double delta, unsigned exponent, long double allocation, const std::vector<unsigned char>& active, std::vector<long double>& values, std::vector<long double>& errors, bool coordinateError = false) {
-    const long double middle = left+0.5L*(right-left);
-    const long double half = 0.5L*(right-left);
-    std::vector<long double> low(active.size(),0);
-    std::vector<long double> norm(active.size(),0);
-    values.assign(active.size(),0);
-    errors.assign(active.size(),0);
-    for(unsigned q = 0; q < boost::math::quadrature::gauss_kronrod<long double,Rule>::abscissa().size(); ++q) for(unsigned side = 0; side < (q == 0 ? 1U : 2U); ++side) {
-      const long double parameter = middle+(side == 0 ? -half : half)*boost::math::quadrature::gauss_kronrod<long double,Rule>::abscissa()[q];
-      const long double offset = mapping*delta*ReferencePower(parameter,exponent);
-      const long double coordinate = mapping == 0 ? parameter : endpoint+offset;
-      if(mapping != 0 && coordinate == endpoint && offset != 0) throw std::runtime_error("A transformed 3D slice reached coordinate resolution.");
-      const long double jacobian = mapping == 0 ? 1 : exponent*delta*ReferencePower(parameter,exponent-1U);
-      const long double weight = half*boost::math::quadrature::gauss_kronrod<long double,Rule>::weights()[q];
-      const long double gaussWeight = q%2U == 0 ? half*boost::math::quadrature::gauss<long double,(Rule-1U)/2U>::weights()[q/2U] : 0;
-      std::vector<long double> sample;
-      std::vector<long double> innerError;
-      Sample(data,cell,outer,coordinate,active,sample,innerError,allocation);
-      if(coordinateError) {
-        std::vector<long double> adjacent;
-        std::vector<long double> adjacentError;
-        Sample(data,cell,outer,std::nextafter(coordinate,endpoint+mapping*delta),active,adjacent,adjacentError,allocation);
-        for(unsigned n = 0; n < active.size(); ++n) if(active[n]) innerError[n] += std::abs(sample[n]-adjacent[n])+adjacentError[n];
-      }
-      for(unsigned n = 0; n < active.size(); ++n) if(active[n]) {
-        values[n] += weight*jacobian*sample[n];
-        low[n] += gaussWeight*jacobian*sample[n];
-        errors[n] += weight*jacobian*innerError[n];
-        norm[n] += weight*jacobian*std::abs(sample[n]);
-      }
-    }
-    for(unsigned n = 0; n < active.size(); ++n) if(active[n]) errors[n] += std::max(std::abs(values[n]-low[n]),256*std::numeric_limits<long double>::epsilon()*norm[n]);
+  static void OuterSample(SurfaceOuterContext& context, const OuterIntervalPoint& point, const std::vector<unsigned char>& active, std::vector<long double>& values, std::vector<long double>& errors, long double absoluteH, long double absoluteD, long double relative) {
+    Sample(*context.data,*context.cell,context.outer,point.coordinate,active,values,errors,absoluteH/context.data->absoluteH);
+    for(unsigned n = 0; n < active.size(); ++n) if(active[n]) { values[n] *= point.jacobian; errors[n] *= point.jacobian; }
   }
 
   static void Adaptive(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, unsigned outer, long double left, long double right, int mapping, long double endpoint, long double delta, unsigned exponent, long double budget, unsigned depth, const std::vector<unsigned char>& requested, std::vector<long double>& total, std::vector<long double>& totalErrors) {
-    std::vector<unsigned char> active = requested;
-    std::vector<long double> values;
-    std::vector<long double> errors;
-    const long double physicalWidth = mapping == 0 ? right-left : delta*(ReferencePower(right,exponent)-ReferencePower(left,exponent));
-    const long double allocation = budget/physicalWidth;
-    if(!ResolvedPanel<15>(left,right,mapping,endpoint,delta,exponent)) {
-      if(ResolvedPanel<7>(left,right,mapping,endpoint,delta,exponent)) Panel<7>(data,cell,outer,left,right,mapping,endpoint,delta,exponent,allocation,active,values,errors,true);
-      else if(ResolvedPanel<3>(left,right,mapping,endpoint,delta,exponent)) Panel<3>(data,cell,outer,left,right,mapping,endpoint,delta,exponent,allocation,active,values,errors,true);
-      else throw std::runtime_error("A transformed 3D slice reached coordinate resolution.");
-      if(!LineIntegration::Accept(values,errors,budget*data.absoluteH,budget*data.absoluteD,data.relative,active,total,totalErrors)) { ++data.accepted; return; }
-      throw std::runtime_error("A transformed 3D slice cannot reach tolerance at coordinate resolution.");
-    }
-    Panel<15>(data,cell,outer,left,right,mapping,endpoint,delta,exponent,allocation,active,values,errors);
-    if(!LineIntegration::Accept(values,errors,budget*data.absoluteH,budget*data.absoluteD,data.relative,active,total,totalErrors)) { ++data.accepted; return; }
-    Panel<31>(data,cell,outer,left,right,mapping,endpoint,delta,exponent,allocation,active,values,errors);
-    if(!LineIntegration::Accept(values,errors,budget*data.absoluteH,budget*data.absoluteD,data.relative,active,total,totalErrors)) { ++data.accepted; return; }
-    const long double middle = left+0.5L*(right-left);
-    if(depth >= data.maximumDepth || middle == left || middle == right) throw std::runtime_error("3D endpoint quadrature did not reach tolerance.");
-    Adaptive(data,cell,outer,left,middle,mapping,endpoint,delta,exponent,0.5L*budget,depth+1U,active,total,totalErrors);
-    Adaptive(data,cell,outer,middle,right,mapping,endpoint,delta,exponent,0.5L*budget,depth+1U,active,total,totalErrors);
+    SurfaceOuterContext context;
+    context.data = &data;
+    context.cell = &cell;
+    context.outer = outer;
+    const OuterInterval interval = {mapping == 0 ? left : (mapping > 0 ? endpoint : endpoint-delta),mapping == 0 ? right : (mapping > 0 ? endpoint+delta : endpoint),endpoint,delta,mapping,exponent,true};
+    OuterIntervalQuadrature::Adaptive(context,OuterSample,interval,left,right,budget*data.absoluteH,budget*data.absoluteD,data.relative,depth,data.maximumDepth,data.maximumEvaluations,data.evaluations,data.accepted,3,requested,total,totalErrors);
   }
 
   static void IntegrateParent(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, std::vector<long double>& total, std::vector<long double>& totalErrors) {
@@ -529,12 +488,11 @@ public:
             const long double left = std::fma(scale,events[n-1U].point,origin);
             const long double right = std::fma(scale,events[n].point,origin);
             if(!(right > left)) continue;
-            if(events[n-1U].exponent == 1 && events[n].exponent == 1) { Adaptive(data,cell,outer,left,right,0,0,0,1,budget,0,active,values,errors); continue; }
-            const long double width = (right-left)/6;
-            Adaptive(data,cell,outer,0,1,1,left,width,events[n-1U].exponent,0.25L*budget,0,active,values,errors);
-            Adaptive(data,cell,outer,left+width,right-width,0,0,0,1,0.5L*budget,0,active,values,errors);
-            Adaptive(data,cell,outer,0,1,-1,right,width,events[n].exponent,0.25L*budget,0,active,values,errors);
-            Statistics().endpointStrips += 2;
+            const std::vector<OuterInterval> plan = OuterIntervalQuadrature::Plan(left,right,events[n-1U].exponent,events[n].exponent,3);
+            for(unsigned part = 0; part < plan.size(); ++part) {
+              Adaptive(data,cell,outer,plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,plan[part].mapping,plan[part].endpoint,plan[part].delta,plan[part].exponent,budget/plan.size(),0,active,values,errors);
+              if(plan[part].mapping != 0) ++Statistics().endpointStrips;
+            }
           }
         }
         for(unsigned n = 0; n < total.size(); ++n) { total[n] += values[n]; totalErrors[n] += errors[n]; }
@@ -581,6 +539,7 @@ public:
       data.relative = budgetFactor*relative;
       std::vector<long double> passValues(2U*count,0.0L);
       std::vector<long double> passErrors(2U*count,0.0L);
+      ++Statistics().integrationPasses;
       IntegrateParent(data,cell,passValues,passErrors);
       if(!tetrahedron && !data.unitCube) Symmetry(data,passValues,passErrors);
       long double worst = 0.0L;
