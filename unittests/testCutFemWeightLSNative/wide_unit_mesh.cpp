@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
   femus::TetBiquadratic tet;
   femus::basis* basis = element == 0 ? static_cast<femus::basis*>(&quad) : (element == 1 ? static_cast<femus::basis*>(&tri) : (element == 2 ? static_cast<femus::basis*>(&hex) : static_cast<femus::basis*>(&tet)));
   CutFemWeight_LS<long double,long double> rule(types[element],degree,"legendre");
-  std::cout << std::setprecision(18) << "element,degree,divisions,cells,cut_cells,volume_error,surface_error,volume_x2_error,surface_x2_error,quad_splits,triangle_splits,cell_splits,seconds,status\n";
+  std::cout << std::setprecision(18) << "element,degree,divisions,cells,cut_cells,volume_error,surface_error,volume_x2_error,surface_x2_error,quad_calls,tri_calls,endpoint_strips,seconds,status\n";
   unsigned failures = 0;
   for(unsigned divisions = 2; divisions <= maximum; divisions *= 2) {
     const std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     unsigned cells = 0;
     unsigned cutCells = 0;
     FELevelSetMoments::LineIntegration::Statistics() = FELevelSetMoments::LineIntegrationStatistics();
-    FELevelSetMoments::GraphCellIntegration::Statistics() = FELevelSetMoments::GraphCellStatistics();
+    FELevelSetMoments::SurfaceEndpointIntegration::Statistics() = FELevelSetMoments::SurfaceEndpointStatistics();
     try {
       for(unsigned i = 0; i < divisions; ++i) for(unsigned j = 0; j < divisions; ++j) for(unsigned k = 0; k < (dimension == 3 ? divisions : 1U); ++k) {
         const unsigned grid[3] = {i,j,k};
@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
       if(!success) ++failures;
       std::cout << element << ',' << degree << ',' << divisions << ',' << cells << ',' << cutCells;
       for(unsigned n = 0; n < 4; ++n) std::cout << ',' << std::abs(sums[n]-exact[n]);
-      std::cout << ',' << FELevelSetMoments::LineIntegration::Statistics().splitCells << ',' << FELevelSetMoments::LineIntegration::Statistics().triangleSplitCells << ',' << FELevelSetMoments::GraphCellIntegration::Statistics().splitCells << ',' << std::chrono::duration<double>(std::chrono::steady_clock::now()-started).count() << ',' << (success ? "PASS" : "FAIL") << std::endl;
+      std::cout << ',' << FELevelSetMoments::SurfaceEndpointIntegration::Statistics().quadCalls << ',' << FELevelSetMoments::SurfaceEndpointIntegration::Statistics().triCalls << ',' << FELevelSetMoments::SurfaceEndpointIntegration::Statistics().endpointStrips << ',' << std::chrono::duration<double>(std::chrono::steady_clock::now()-started).count() << ',' << (success ? "PASS" : "FAIL") << std::endl;
     }
     catch(const std::exception& error) { ++failures; std::cerr << "element=" << element << " q=" << degree << " n=" << divisions << ": " << error.what() << '\n'; }
   }

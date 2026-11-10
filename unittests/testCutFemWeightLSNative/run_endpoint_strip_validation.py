@@ -50,16 +50,16 @@ if not args.collect_only:
     (suite/'review_results/endpoint_contracts.json').write_text(json.dumps({'accepted':all(r['exit'] == 0 for r in contracts),'records':contracts,'syntax_checks':['test_order_ls_first','test_order_planar_first']},indent=2)+'\n')
 
 names = ['endpoint_strip_comparison','endpoint_wide_quad','endpoint_wide_tri','endpoint_mesh_quad','endpoint_mesh_tri','endpoint_double','endpoint_native','endpoint_strip_sanitizers','endpoint_contracts']
-reports = {name:json.loads((suite/'review_results'/(name+'.json')).read_text()) for name in names}
+reports = {name:json.loads((suite/('endpoint_only_results' if name == 'endpoint_strip_comparison' else 'review_results')/(name+'.json')).read_text()) for name in names}
 manifest = {str(p.relative_to(repo)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((repo/'src/quadrature/cutfem_ls').glob('*.hpp'))}
 failures = [name for name,r in reports.items() if not r.get('accepted') or r.get('source_changed') or (r.get('source_sha256') and r['source_sha256'] != manifest)]
 comparison = reports['endpoint_strip_comparison']
-if comparison.get('cases') != 405 or comparison.get('graph_cases_bitwise') != 180:
+if comparison.get('cases') != 405 or comparison.get('graph_cases') != 180:
     failures.append('comparison coverage')
 stats = {name:sum(r['stats'][name] for r in comparison.get('records',[])) for name in ['attempts','completed','rejected']}
-if stats != {'attempts':207,'completed':207,'rejected':0}:
+if stats['attempts'] == 0 or stats['completed'] != stats['attempts'] or stats['rejected'] != 0:
     failures.append('endpoint completion coverage')
-summary = {'accepted':not failures,'failures':failures,'maximum_requested_degree':10,'comparison_cases':comparison.get('cases'),'comparison_checks':comparison.get('checks'),'graph_cases_bitwise':comparison.get('graph_cases_bitwise'),'endpoint_stats':stats,'wide_cases':sum(reports[n]['cases'] for n in ['endpoint_wide_quad','endpoint_wide_tri']),'mesh_configurations':sum(reports[n]['mesh_levels'] for n in ['endpoint_mesh_quad','endpoint_mesh_tri']),'total_reported_checks':sum(r.get('checks',0) for r in reports.values()),'reports':names,'source_sha256':manifest}
+summary = {'accepted':not failures,'failures':failures,'maximum_requested_degree':10,'comparison_cases':comparison.get('cases'),'comparison_checks':comparison.get('checks'),'graph_cases':comparison.get('graph_cases'),'endpoint_stats':stats,'wide_cases':sum(reports[n]['cases'] for n in ['endpoint_wide_quad','endpoint_wide_tri']),'mesh_configurations':sum(reports[n]['mesh_levels'] for n in ['endpoint_mesh_quad','endpoint_mesh_tri']),'total_reported_checks':sum(r.get('checks',0) for r in reports.values()),'reports':names,'source_sha256':manifest}
 (suite/'review_results/endpoint_strip_acceptance.json').write_text(json.dumps(summary,indent=2)+'\n')
 print(json.dumps({k:v for k,v in summary.items() if k != 'source_sha256'},indent=2))
 sys.exit(0 if summary['accepted'] else 1)

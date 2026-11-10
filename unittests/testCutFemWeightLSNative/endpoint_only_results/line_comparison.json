@@ -1,0 +1,130 @@
+{
+  "cpu": 0,
+  "commands": {
+    "candidate": [
+      "/usr/bin/g++",
+      "-std=c++14",
+      "-O3",
+      "-DNDEBUG",
+      "-march=x86-64",
+      "-mtune=generic",
+      "-I/workspace/scratch/83f2ea880287/MyFEMuS/src/quadrature/cutfem_ls",
+      "-I/workspace/scratch/3abad1a1b7d4/tmp/parabola_deps/boost/usr/include",
+      "/workspace/scratch/83f2ea880287/MyFEMuS/unittests/testCutFemWeightLSNative/endpoint_line_comparison.cpp",
+      "-o",
+      "/workspace/scratch/83f2ea880287/line_candidate"
+    ],
+    "accepted": [
+      "/usr/bin/g++",
+      "-std=c++14",
+      "-O3",
+      "-DNDEBUG",
+      "-march=x86-64",
+      "-mtune=generic",
+      "-I/workspace/scratch/83f2ea880287/cutfem-baseline/src/quadrature/cutfem_ls",
+      "-I/workspace/scratch/3abad1a1b7d4/tmp/parabola_deps/boost/usr/include",
+      "/workspace/scratch/83f2ea880287/MyFEMuS/unittests/testCutFemWeightLSNative/endpoint_line_comparison.cpp",
+      "-o",
+      "/workspace/scratch/83f2ea880287/line_accepted"
+    ],
+    "rifat": [
+      "/usr/bin/g++",
+      "-std=c++14",
+      "-O3",
+      "-DNDEBUG",
+      "-march=x86-64",
+      "-mtune=generic",
+      "-I/workspace/scratch/83f2ea880287/cutfem-rifat/src/quadrature/cutfem_ls",
+      "-I/workspace/scratch/3abad1a1b7d4/tmp/parabola_deps/boost/usr/include",
+      "/workspace/scratch/83f2ea880287/MyFEMuS/unittests/testCutFemWeightLSNative/endpoint_line_comparison.cpp",
+      "-o",
+      "/workspace/scratch/83f2ea880287/line_rifat"
+    ]
+  },
+  "driver_sha256": "c4b98afd4d0186b84f32f6ae1efbd0be6bfb2e5efda9e002875f654a0a6e2984",
+  "protocol": "Seven paired alternating batches, same CPU and compiler flags; one untimed integration per process, then repeated direct kernel calls; process startup and output excluded.",
+  "rows": [
+    {
+      "graph": 0,
+      "repetitions": 10000,
+      "samples_seconds": {
+        "candidate": [
+          4.8297724e-06,
+          3.8259763e-06,
+          5.2560586e-06,
+          4.7521171e-06,
+          5.0132701e-06,
+          5.1840076e-06,
+          4.561179499999999e-06
+        ],
+        "accepted": [
+          4.006494e-06,
+          4.6658298e-06,
+          4.1784333e-06,
+          4.4355084e-06,
+          5.0453403e-06,
+          3.6566081e-06,
+          5.188070999999999e-06
+        ],
+        "rifat": [
+          5.0885236e-06,
+          3.6008132e-06,
+          3.7790632e-06,
+          4.2971e-06,
+          4.3096482e-06,
+          4.638697800000001e-06,
+          3.9295481e-06
+        ]
+      },
+      "medians_seconds": {
+        "candidate": 4.8297724e-06,
+        "accepted": 4.4355084e-06,
+        "rifat": 4.2971e-06
+      }
+    },
+    {
+      "graph": 1,
+      "repetitions": 500,
+      "samples_seconds": {
+        "candidate": [
+          5.684023e-05,
+          6.2102412e-05,
+          7.503989399999999e-05,
+          5.5523466e-05,
+          6.6361524e-05,
+          6.0157519999999996e-05,
+          6.944249e-05
+        ],
+        "accepted": [
+          6.2686482e-05,
+          7.4169858e-05,
+          6.6006206e-05,
+          5.4319684e-05,
+          6.8038032e-05,
+          6.0089268e-05,
+          6.6212526e-05
+        ],
+        "rifat": [
+          6.0461512e-05,
+          5.5756470000000005e-05,
+          6.3524424e-05,
+          6.0854828e-05,
+          5.2785246e-05,
+          8.9088426e-05,
+          7.195734e-05
+        ]
+      },
+      "medians_seconds": {
+        "candidate": 6.2102412e-05,
+        "accepted": 6.6006206e-05,
+        "rifat": 6.0854828e-05
+      }
+    }
+  ],
+  "text_section_sha256": {
+    "candidate": "bb26227693f9a1f006a5e4343dec5cfe0844e60628d09cb9498b34aad1f4c074",
+    "accepted": "bb26227693f9a1f006a5e4343dec5cfe0844e60628d09cb9498b34aad1f4c074",
+    "rifat": "aa5bd2e7fcf6b6c850ae2358676c45d7a49ee9644b18e4fc8c9c013cb4ae43e6"
+  },
+  "candidate_and_accepted_text_identical": true
+}

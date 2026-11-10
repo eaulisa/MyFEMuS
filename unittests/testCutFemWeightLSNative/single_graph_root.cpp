@@ -71,7 +71,7 @@ void RootDispatchProbe() {
   unsigned evaluations = 0;
   unsigned accepted = 0;
   if(!FELevelSetMoments::LineIntegration::IntegrateFastGraph(coefficient,degree,1,false,true,1.5L,1.0e-13L,1.0e-13L,1.0e-13L,24,previous,previousErrors,accepted)) throw std::runtime_error("The independent graph reference did not complete.");
-  FELevelSetMoments::LineIntegration::IntegrateStrip(coefficient,degree,strip,true,false,true,true,1.0e-13L,1.0e-13L,1.0e-13L,24,200000,evaluations,accepted,single,errors);
+  FELevelSetMoments::LineIntegration::IntegrateStrip(coefficient,degree,strip,true,false,true,1.0e-13L,1.0e-13L,1.0e-13L,24,200000,evaluations,accepted,single,errors);
   for(unsigned index = 0; index < single.size(); ++index) RootCheck(single[index],previous[index]);
   const FELevelSetMoments::LineIntegrationStatistics statistics = FELevelSetMoments::LineIntegration::Statistics();
   if(statistics.singleRootSamples-before != statistics.fastSamples || statistics.pairPanels == 0) throw std::runtime_error("The cached root branch was not passed through both graph quadrature rules.");

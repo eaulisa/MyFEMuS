@@ -15,8 +15,8 @@ void DirectCheck(long double actual, long double expected) {
   ++directChecks;
 }
 
-void DirectProbe(const std::array<long double,5>& coordinates, bool sparse, bool taylor) {
-  const unsigned degree = taylor ? 2U : 10U;
+void DirectProbe(const std::array<long double,5>& coordinates, bool sparse) {
+  const unsigned degree = 10;
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   const long double cut = 0.6L;
   const FELevelSetMoments::LineIntegrationStrip strip = {0,1,0,0,1,0};
@@ -32,8 +32,7 @@ void DirectProbe(const std::array<long double,5>& coordinates, bool sparse, bool
   std::vector<long double> errors(2U*count,0.0L);
   unsigned evaluations = 0;
   unsigned accepted = 0;
-  if(taylor) FELevelSetMoments::LineIntegration::TaylorPanel(coefficient,degree,strip,0,1,true,values,errors,nullptr,&requested,&coordinates);
-  else FELevelSetMoments::LineIntegration::IntegrateStrip(coefficient,degree,strip,true,false,true,true,1.0e-12L,1.0e-12L,1.0e-12L,24,200000,evaluations,accepted,values,errors,nullptr,&coordinates,&requested);
+  FELevelSetMoments::LineIntegration::IntegrateStrip(coefficient,degree,strip,true,false,true,1.0e-12L,1.0e-12L,1.0e-12L,24,200000,evaluations,accepted,values,errors,nullptr,&coordinates,&requested);
   for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) {
     const unsigned index = FELevelSetMoments::ReferenceMomentIndex2D(degree,i,j);
     const long double first = DirectInterval(i,coordinates[0],coordinates[1],0,1);
@@ -46,10 +45,9 @@ void DirectProbe(const std::array<long double,5>& coordinates, bool sparse, bool
 
 int main() {
   try {
-    DirectProbe({-1,2,-1,2,4},false,false);
-    DirectProbe({1,-2,1,-2,4},false,false);
-    DirectProbe({-0.75L,2,-1,2,4},true,false);
-    DirectProbe({-1,2,-1,2,4},false,true);
+    DirectProbe({-1,2,-1,2,4},false);
+    DirectProbe({1,-2,1,-2,4},false);
+    DirectProbe({-0.75L,2,-1,2,4},true);
     std::cout << directChecks << " direct parent-coordinate checks passed; maximum absolute error " << directMaximumError << '\n';
   }
   catch(const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }

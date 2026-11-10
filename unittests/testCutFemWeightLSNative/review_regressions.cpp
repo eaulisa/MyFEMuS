@@ -1,7 +1,5 @@
 #include "LineIntegration.hpp"
-#define private public
 #include "TriangleIntegration.hpp"
-#undef private
 #include "Quad9DirectionSelection.hpp"
 #include "Tri7DirectionSelection.hpp"
 #include <array>
@@ -51,51 +49,43 @@ void CheckMoment(long double computed, long double exact, long double tolerance,
 }
 
 void CheckTriangleGeometry() {
-  const std::vector<FELevelSetMoments::TriangleDomainVertex> triangle = {{1.0L,1.0L},{0.0L,0.0L},{1.0L,0.0L}};
-  const unsigned geometryDegrees[2] = {8,10};
-  for(unsigned degreeIndex = 0; degreeIndex < 2; ++degreeIndex) {
-    const unsigned degree = geometryDegrees[degreeIndex];
-    long double estimate = 0.0L;
-    const long double value = FELevelSetMoments::TriangleIntegration::TriangleMoment(triangle,0,degree,&estimate);
-    const long double exact = 1.0L/((degree+1.0L)*(degree+2.0L));
-    ReviewCheck(value > 0.0L && std::abs(value-exact) <= estimate,"Stable high-degree full-triangle moment and estimator");
+  for(unsigned degree = 8; degree <= 10; degree += 2) {
+    const unsigned count = (degree+1U)*(degree+2U)/2U;
+    std::vector<long double> values(2U*count,0);
+    std::vector<long double> errors(2U*count,0);
+    const FELevelSetMoments::LineIntegrationStrip strip = {0,1,0,0,0,1};
+    FELevelSetMoments::LineIntegration::FullStripMoments(degree,strip,0,1,values,errors);
+    const unsigned n = FELevelSetMoments::ReferenceMomentIndex2D(degree,0,degree);
+    ReviewCheck(values[n] > 0 && std::abs(values[n]-1.0L/((degree+1U)*(degree+2U))) <= errors[n],"Full-triangle high-degree moment and estimator");
   }
-  const long double s = std::ldexp(1.0L,-30);
-  const std::vector<FELevelSetMoments::TriangleDomainVertex> small = {{0.125L,0.125L},{0.125L+s,0.125L},{0.125L+s,0.125L+s}};
-  std::vector<std::vector<FELevelSetMoments::TriangleDomainVertex>> retained;
-  FELevelSetMoments::TriangleIntegration::TriangulatePolygon(small,retained);
-  ReviewCheck(retained.size() == 1,"Tiny positive-area triangle was discarded");
-  std::vector<std::vector<long double>> field(3,std::vector<long double>(3,0.0L));
-  field[1][0] = 1.0L;
-  field[0][1] = -1.0L;
-  field[0][0] = -0.5L*s;
+  const long double size = std::ldexp(1.0L,-30);
+  std::vector<std::vector<long double>> field(3,std::vector<long double>(3,0));
+  field[0][0] = 0.5L*size;
+  field[1][0] = field[0][1] = -size;
+  const std::array<long double,5> small = {0.125L+size,-size,0.125L,size,size*size};
   std::vector<long double> values;
   std::vector<long double> errors;
   unsigned evaluations = 0;
   unsigned accepted = 0;
   unsigned direction = 0;
-  FELevelSetMoments::TriangleIntegration::Integrate(field,0,small,true,1.0e-15L,1.0e-15L,1.0e-12L,28,200000,0,10,values,errors,evaluations,accepted,direction);
-  CheckMoment(values[1],0.5L*s,1.0e-15L,"Tiny-triangle delta");
-  field.assign(3,std::vector<long double>(3,0.0L));
-  field[0][1] = 1.0L;
+  FELevelSetMoments::TriangleIntegration::Integrate(field,0,true,1e-15L,1e-15L,1e-12L,28,200000,values,errors,evaluations,accepted,direction,nullptr,&small);
+  CheckMoment(values[1],0.5L*size,1e-15L,"Tiny-triangle delta");
+  ReviewCheck(values[0] > 0,"Tiny positive triangle contribution was discarded");
   field[0][0] = -0.5L;
-  const std::vector<std::vector<FELevelSetMoments::TriangleDomainVertex>> children = {{{0.0L,0.0L},{1.0L,0.0L},{1.0L,0.5L}},{{0.0L,0.0L},{1.0L,0.5L},{0.5L,0.5L}},{{0.5L,0.5L},{1.0L,0.5L},{1.0L,1.0L}}};
+  field[0][1] = 1;
+  field[1][0] = 0;
+  const std::array<long double,5> parent = {1,-1,0,1,1};
   const unsigned degree = 6;
   const unsigned count = (degree+1U)*(degree+2U)/2U;
-  std::vector<long double> sum(2U*count,0.0L);
-  for(unsigned child = 0; child < children.size(); ++child) {
-    FELevelSetMoments::TriangleIntegration::Integrate(field,degree,children[child],true,1.0e-12L,1.0e-12L,1.0e-12L,28,200000,0,10,values,errors,evaluations,accepted,direction);
-    for(unsigned k = 0; k < sum.size(); ++k) sum[k] += values[k];
-  }
+  FELevelSetMoments::TriangleIntegration::Integrate(field,degree,true,1e-12L,1e-12L,1e-12L,28,200000,values,errors,evaluations,accepted,direction,nullptr,&parent);
   for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) {
-    const unsigned k = FELevelSetMoments::MomentIndex(degree,i,j);
-    const long double exact = ReviewPower(0.5L,j)*(1.0L-ReviewPower(0.5L,i+1U))/(i+1U);
-    CheckMoment(sum[count+k],exact,1.0e-12L,"Artificial-edge delta ownership");
+    const unsigned n = FELevelSetMoments::ReferenceMomentIndex2D(degree,i,j);
+    CheckMoment(values[count+n],ReviewPower(0.5L,j)*(1-ReviewPower(0.5L,i+1U))/(i+1U),1e-12L,"Full-triangle trace ownership");
   }
-  std::cout << "REVIEW partition, tiny-region, degree-8/10 moment regressions passed\n";
+  std::cout << "REVIEW full triangle, tiny region, and degree-8/10 moments passed\n";
 }
 
-void CheckFallbackState() {
+void CheckSelectiveRefinement() {
   const unsigned degree = 2;
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   std::vector<std::vector<long double>> coefficient(3,std::vector<long double>(3,0.0L));
@@ -103,7 +93,7 @@ void CheckFallbackState() {
   coefficient[0][1] = 1.0L;
   coefficient[2][1] = 100.0L;
   const FELevelSetMoments::LineIntegrationStrip strip = {0.0L,1.0L,0.0L,0.0L,1.0L,0.0L};
-  for(unsigned mode = 0; mode < 2; ++mode) {
+  for(unsigned repeat = 0; repeat < 1; ++repeat) {
     std::vector<long double> values(2U*count,0.0L);
     std::vector<long double> errors(2U*count,0.0L);
     std::vector<unsigned char> active(2U*count,0);
@@ -112,13 +102,11 @@ void CheckFallbackState() {
     unsigned evaluations = 0;
     unsigned accepted = 0;
     FELevelSetMoments::LineIntegration::Statistics() = FELevelSetMoments::LineIntegrationStatistics();
-    FELevelSetMoments::LineIntegration::Adaptive(coefficient,degree,strip,0.0L,1.0L,0.0L,1.0L,false,true,mode == 0,true,false,false,1.0e-13L,1.0e-13L,1.0e-13L,8,24,200000,evaluations,accepted,values,errors,nullptr,active);
-    ReviewCheck(values[0] == 123.0L,"Accepted moment was recomputed during fallback");
-    CheckMoment(values[count],std::atan(10.0L)/10.0L,1.0e-13L,"Selective fallback integral");
-    if(mode == 0) ReviewCheck(FELevelSetMoments::LineIntegration::Statistics().taylorPanels > 0,"Taylor fallback was not exercised");
-    else ReviewCheck(FELevelSetMoments::LineIntegration::Statistics().fullSamples > 0,"Full GK fallback was not exercised");
+    FELevelSetMoments::LineIntegration::Adaptive(coefficient,degree,strip,0.0L,1.0L,0.0L,1.0L,false,true,true,false,false,1.0e-13L,1.0e-13L,1.0e-13L,8,24,200000,evaluations,accepted,values,errors,nullptr,active);
+    ReviewCheck(values[0] == 123.0L,"Accepted moment was recomputed during selective refinement");
+    CheckMoment(values[count],std::atan(10.0L)/10.0L,1.0e-13L,"Selective graph integral");
   }
-  std::cout << "REVIEW selective cross-stage fallback regressions passed\n";
+  std::cout << "REVIEW selective refinement regressions passed\n";
 }
 
 void CheckExplicitValidationMode() {
@@ -130,14 +118,14 @@ void CheckExplicitValidationMode() {
   field[0][0] = -0.1;
   field[1][0] = 1.0;
   field[0][1] = 0.5;
-  FELevelSetMoments::IntegrateQuad9ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,&estimate,2,nullptr,true);
+  FELevelSetMoments::IntegrateQuad9ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,&estimate,2,nullptr);
   ReviewCheck(estimate.size() >= 7 && estimate[5] != 0.0,"QUAD validation mode 2 did not perform an independent comparison");
   field.assign(3,std::vector<double>(3,0.0));
   field[0][0] = -0.25;
   field[1][0] = 1.0;
   field[0][1] = 1.0;
   estimate.clear();
-  FELevelSetMoments::IntegrateTri7ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,&estimate,2,nullptr,true);
+  FELevelSetMoments::IntegrateTri7ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,&estimate,2,nullptr);
   ReviewCheck(estimate.size() >= 7 && estimate[5] != 0.0,"TRI validation mode 2 did not perform an independent comparison");
   std::cout << "REVIEW explicit heavy validation mode passed on regular graphs\n";
 }
@@ -166,8 +154,8 @@ void CheckCircleConvergence() {
     const std::string label = std::string(shape == 0 ? "QUAD" : "TRI")+" circle geometry="+std::to_string(geometry)+" degree="+std::to_string(degree)+" tolerance="+std::to_string(t)+" sign="+std::to_string(sign);
     try {
       try {
-      if(shape == 0) FELevelSetMoments::IntegrateQuad9ReferenceSelected(field,degree,positive,delta,tolerances[t],tolerances[t],true,false,28,0,200000,&estimate,1,nullptr,true);
-      else FELevelSetMoments::IntegrateTri7ReferenceSelected(field,degree,positive,delta,tolerances[t],tolerances[t],true,false,28,0,200000,&estimate,1,nullptr,true);
+      if(shape == 0) FELevelSetMoments::IntegrateQuad9ReferenceSelected(field,degree,positive,delta,tolerances[t],tolerances[t],true,false,28,0,200000,&estimate,1,nullptr);
+      else FELevelSetMoments::IntegrateTri7ReferenceSelected(field,degree,positive,delta,tolerances[t],tolerances[t],true,false,28,0,200000,&estimate,1,nullptr);
     }
       catch(const std::exception& exception) { throw std::runtime_error(label+": "+exception.what()); }
     ReviewCheck(field == original,"Integration modified the parent coefficient tensor");
@@ -235,8 +223,8 @@ void CheckTranslatedEllipses() {
     const long double ry = std::sqrt(squaredRadius/bb);
     std::vector<std::vector<double>> positive;
     std::vector<std::vector<double>> delta;
-    if(shape == 0) FELevelSetMoments::IntegrateQuad9ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,1,nullptr,true);
-    else FELevelSetMoments::IntegrateTri7ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,1,nullptr,true);
+    if(shape == 0) FELevelSetMoments::IntegrateQuad9ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,1,nullptr);
+    else FELevelSetMoments::IntegrateTri7ReferenceSelected(field,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,1,nullptr);
     for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) {
       long double disk = 0.0L;
       long double interface = 0.0L;
@@ -281,8 +269,8 @@ void CheckAnalyticReferenceFile(const char* path) {
     }
     std::vector<std::vector<double>> positive;
     std::vector<std::vector<double>> delta;
-    if(shape == 0) FELevelSetMoments::IntegrateQuad9ReferenceSelected(field,6,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,1,nullptr,true);
-    else FELevelSetMoments::IntegrateTri7ReferenceSelected(field,6,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,1,nullptr,true);
+    if(shape == 0) FELevelSetMoments::IntegrateQuad9ReferenceSelected(field,6,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,1,nullptr);
+    else FELevelSetMoments::IntegrateTri7ReferenceSelected(field,6,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,1,nullptr);
     for(unsigned k = 0; k < 28; ++k) {
       if(!(input >> i >> j >> h >> d)) throw std::runtime_error("Malformed reference table");
       CheckMoment(positive[i][j],h,1.0e-12L,"Independent high-precision graph H");
@@ -298,7 +286,7 @@ int main(int argc, char** argv) {
   try {
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     CheckTriangleGeometry();
-    CheckFallbackState();
+    CheckSelectiveRefinement();
     CheckExplicitValidationMode();
     CheckCircleConvergence();
     CheckMappedDiscriminant();

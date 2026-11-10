@@ -43,7 +43,7 @@ void WideMoments(unsigned element, unsigned degree, const std::vector<double>& n
   if(element == 1) {
     std::vector<std::vector<double>> h;
     std::vector<std::vector<double>> d;
-    FELevelSetMoments::IntegrateTri7NodalSelected(nodal,degree,h,d,tolerance,tolerance,true,false,validation,direction,nullptr,true,surface,nullptr,geometry);
+    FELevelSetMoments::IntegrateTri7NodalSelected(nodal,degree,h,d,tolerance,tolerance,true,false,validation,direction,nullptr,surface,nullptr,geometry);
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     values.assign(2U*count,0);
     for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) { const unsigned n = FELevelSetMoments::UnitMomentIndex(2,i,j); values[n] = h[i][j]; values[count+n] = d[i][j]; }
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
         for(unsigned d = 0; d < dimension; ++d) coordinates[d][node] = physical[d];
       }
       FELevelSetMoments::LineIntegration::Statistics() = FELevelSetMoments::LineIntegrationStatistics();
-      FELevelSetMoments::GraphCellIntegration::Statistics() = FELevelSetMoments::GraphCellStatistics();
+      FELevelSetMoments::SurfaceEndpointIntegration::Statistics() = FELevelSetMoments::SurfaceEndpointStatistics();
       std::vector<long double> raw;
       std::vector<long double> surface;
       std::vector<long double> physical;
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
       if(geometry != 0) WideMoments(element,degree,nodal,true,&coordinates,tolerance,validation,direction,physical);
       const unsigned count = raw.size()/2U;
       const FELevelSetMoments::LineIntegrationStatistics lineStats = FELevelSetMoments::LineIntegration::Statistics();
-      const FELevelSetMoments::GraphCellStatistics graphStats = FELevelSetMoments::GraphCellIntegration::Statistics();
+      const FELevelSetMoments::SurfaceEndpointStatistics graphStats = FELevelSetMoments::SurfaceEndpointIntegration::Statistics();
       std::vector<long double> h;
       std::vector<long double> d;
       std::vector<long double> s;
@@ -142,7 +142,7 @@ int main(int argc, char** argv) {
         rule->GetWeightsFromNodalValues(nodal,unused,s,tolerance,tolerance,true);
         if(geometry != 0) rule->GetPhysicalSurfaceWeightsFromNodalGeometry(nodal,coordinates,unused,p,tolerance,tolerance);
       }
-      std::cout << ",\"quad_splits\":" << lineStats.splitCells << ",\"triangle_splits\":" << lineStats.triangleSplitCells << ",\"cell_splits\":" << graphStats.splitCells << ",\"fallback_cells\":" << graphStats.fallbackCells << ",\"quad_calls\":" << graphStats.quadCalls << ",\"tri_calls\":" << graphStats.triCalls << ",\"mapped_panels\":" << lineStats.mappedPanels << ",\"moments\":[";
+      std::cout << ",\"endpoint_strips\":" << graphStats.endpointStrips << ",\"general_surfaces\":" << graphStats.generalSurfaces << ",\"quad_calls\":" << graphStats.quadCalls << ",\"tri_calls\":" << graphStats.triCalls << ",\"mapped_panels\":" << lineStats.mappedPanels << ",\"moments\":[";
       for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) for(unsigned k = 0; k <= (dimension == 3 ? degree-i-j : 0U); ++k) {
         const unsigned n = FELevelSetMoments::UnitMomentIndex(dimension,i,j,k);
         if(n != 0) std::cout << ',';
@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
       }
       std::cout << "],\"setup_seconds\":" << setup << ",\"seconds\":" << std::chrono::duration<double>(std::chrono::steady_clock::now()-started).count() << ",\"error\":null}\n";
     }
-    catch(const std::exception& error) { std::cout << ",\"seconds\":" << std::chrono::duration<double>(std::chrono::steady_clock::now()-started).count() << ",\"error\":"; WideString(error.what()); std::cout << ",\"stage\":"; WideString(stage); std::cout << ",\"quad_splits\":" << FELevelSetMoments::LineIntegration::Statistics().splitCells << ",\"triangle_splits\":" << FELevelSetMoments::LineIntegration::Statistics().triangleSplitCells << "}\n"; }
+    catch(const std::exception& error) { std::cout << ",\"seconds\":" << std::chrono::duration<double>(std::chrono::steady_clock::now()-started).count() << ",\"error\":"; WideString(error.what()); std::cout << ",\"stage\":"; WideString(stage); std::cout << "}\n"; }
     std::cout << std::flush;
   }
 }

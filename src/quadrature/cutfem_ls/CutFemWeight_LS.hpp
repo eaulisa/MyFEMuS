@@ -7,7 +7,7 @@
 #include "FELevelSetMoments.hpp"
 #include "Hex27LevelSetMoments.hpp"
 #include "Hex27DirectionSelection.hpp"
-#include "AdaptiveLineSliceMoments.hpp"
+#include "LineSliceUtilities.hpp"
 #include "Quad9DirectionSelection.hpp"
 #include "Tri7DirectionSelection.hpp"
 #include "Tet15LevelSet.hpp"
@@ -242,7 +242,7 @@ class CutFemWeight_LS {
       }
       else if(_geomElemType == TRI) {
         std::vector<std::vector<double>> positive, delta;
-        FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,false,_directionValidation,_integrationDirection,nullptr,true,referenceSurface,nullptr,geometryCoordinates);
+        FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,false,_directionValidation,_integrationDirection,nullptr,referenceSurface,nullptr,geometryCoordinates);
         StoreNodalMomentPair(positive,delta);
       }
     }

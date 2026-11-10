@@ -81,9 +81,9 @@ double DimensionIntegrate(unsigned element, const std::vector<double>& nodal, un
   std::vector<std::vector<double>> surface2;
   std::vector<std::vector<std::vector<double>>> positive3;
   std::vector<std::vector<std::vector<double>>> surface3;
-  if(element == 0) FELevelSetMoments::IntegrateQuad9NodalSelected(nodal,degree,positive2,surface2,1.0e-10,1.0e-10,true,false,1,0,nullptr,true,true);
-  else if(element == 1) FELevelSetMoments::IntegrateTri7NodalSelected(nodal,degree,positive2,surface2,1.0e-10,1.0e-10,true,false,1,0,nullptr,true,true);
-  else if(element == 2) FELevelSetMoments::IntegrateHex27NodalSelected(nodal,degree,positive3,surface3,1.0e-10,1.0e-10,true,1,0,nullptr,true,nullptr,true);
+  if(element == 0) FELevelSetMoments::IntegrateQuad9NodalSelected(nodal,degree,positive2,surface2,1.0e-10,1.0e-10,true,false,1,0,nullptr,true);
+  else if(element == 1) FELevelSetMoments::IntegrateTri7NodalSelected(nodal,degree,positive2,surface2,1.0e-10,1.0e-10,true,false,1,0,nullptr,true);
+  else if(element == 2) FELevelSetMoments::IntegrateHex27NodalSelected(nodal,degree,positive3,surface3,1.0e-10,1.0e-10,true,1,0,nullptr,nullptr,true);
   else FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodal,degree,positive3,surface3,1.0e-10,1.0e-10,true,24,0,200000,nullptr,1,nullptr,true);
   double checksum = 0.0;
   if(element < 2) {
@@ -101,10 +101,9 @@ double DimensionIntegrate(unsigned element, const std::vector<double>& nodal, un
 void DimensionMeasure(unsigned element, unsigned index, unsigned degree) {
   const char* names[4] = {"QUAD","TRI","HEX","TET"};
   const std::vector<double> nodal = DimensionNodal(element,index);
-  FELevelSetMoments::GraphCellIntegration::Statistics() = FELevelSetMoments::GraphCellStatistics();
+  FELevelSetMoments::SurfaceEndpointIntegration::Statistics() = FELevelSetMoments::SurfaceEndpointStatistics();
   dimensionSink += 1.0e-300*DimensionIntegrate(element,nodal,degree);
-  const FELevelSetMoments::GraphCellStatistics counts = FELevelSetMoments::GraphCellIntegration::Statistics();
-  if(element >= 2 && (counts.splitCells != 0 || counts.fallbackCells != 0)) throw std::runtime_error("A simple graph needed geometric splitting or fallback.");
+  const FELevelSetMoments::SurfaceEndpointStatistics counts = FELevelSetMoments::SurfaceEndpointIntegration::Statistics();
   unsigned calls = 1;
   while(calls < 8192) {
     const std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
@@ -119,14 +118,14 @@ void DimensionMeasure(unsigned element, unsigned index, unsigned degree) {
     seconds.push_back(std::chrono::duration<double>(std::chrono::steady_clock::now()-started).count()/calls);
   }
   std::sort(seconds.begin(),seconds.end());
-  std::cout << names[element] << ',' << degree << ',' << index << ',' << dimensionGraphs[index].name << ',' << seconds[2] << ',' << calls << ',' << counts.outerSamples << ',' << counts.quadCalls+counts.triCalls << ',' << counts.splitCells << ',' << counts.graphCells << '\n' << std::flush;
+  std::cout << names[element] << ',' << degree << ',' << index << ',' << dimensionGraphs[index].name << ',' << seconds[2] << ',' << calls << ',' << counts.outerSamples << ',' << counts.quadCalls+counts.triCalls << ',' << counts.endpointStrips << ',' << counts.graphCells << '\n' << std::flush;
 }
 
 int main(int argc, char** argv) {
   const unsigned degree = argc > 1 ? std::strtoul(argv[1],nullptr,10) : 2U;
   if(degree > 10) return 64;
   std::cout << std::setprecision(17);
-  std::cout << "element,degree,case,name,seconds,calls,slices,inner_2d_calls,splits,graph_regions\n";
+  std::cout << "element,degree,case,name,seconds,calls,slices,inner_2d_calls,endpoint_strips,graph_regions\n";
   try {
     for(unsigned index = 0; index < 10; ++index) for(unsigned element = 0; element < 4; ++element) DimensionMeasure(element,index,degree);
   }

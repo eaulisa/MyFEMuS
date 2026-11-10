@@ -1,0 +1,22 @@
+{
+  "Integrate1DInternal": {
+    "identical": true,
+    "sha256": "ba6c4ef790cfb448b47cd3b4609fa8c00c218c42d14f0e850492f565bceb39e4"
+  },
+  "QuadraticRoots": {
+    "identical": true,
+    "sha256": "b39c899ae1828e9feb4a5c0392f3a17b6a8898e83eaae7da9223374ebe41ff1e"
+  },
+  "CanonicalGraphSample": {
+    "identical": true,
+    "sha256": "3429e206ee562a4933035f08029f8d80dfcd16ceddc048502c6ddb6989aa1e2a"
+  },
+  "IntegrateCanonicalGraphInterval": {
+    "identical": true,
+    "sha256": "9f2c88f21079d5ac2ece5bd754fe52c351fa858ba3ee1ab10301f84a556ac1d0"
+  },
+  "IntegrateCanonicalGraph": {
+    "identical": true,
+    "sha256": "8cd0abd408f8569383d17062d63f5a59d88dd371f2105e84ed5d5bb83d5709c3"
+  }
+}

@@ -1,7 +1,7 @@
 #ifndef FEMUS_LINE_INTEGRATION_HPP
 #define FEMUS_LINE_INTEGRATION_HPP
 
-#include "AdaptiveLineSliceMoments.hpp"
+#include "LineSliceUtilities.hpp"
 #include "FELevelSetMoments.hpp"
 #include "LineDomainIntegration.hpp"
 
@@ -18,13 +18,9 @@ public:
     return IntegrateCanonicalGraph(coefficient,degree,order,triangle,computeDelta,derivativeBound,absoluteH,absoluteDelta,relativeTolerance,maximumDepth,values,errors,accepted,surfaceGradient);
   }
 
-  static void IntegrateTaylor(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned triangle, const std::vector<long double>& domain, bool computePositive, bool computeDelta, bool fullBoundaryDelta, long double absolutePositive, long double absoluteDelta, long double relativeTolerance, unsigned seriesOrder, unsigned maximumDepth, unsigned integrationOrder, std::vector<long double>& values, std::vector<long double>& errors, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
-    IntegrateNormalizedCell(coefficient,degree,triangle,domain,computePositive,computeDelta,fullBoundaryDelta,absolutePositive,absoluteDelta,relativeTolerance,seriesOrder,maximumDepth,integrationOrder,values,errors,accepted,surfaceGradient);
-  }
 
-  static void IntegrateFullGaussKronrod(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, unsigned order, bool computeDelta, bool fullBoundaryDelta, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned guaranteedMonotoneOrder = 0, const std::vector<unsigned>* zeroBoundary = nullptr, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
-    LineSliceDirection(coefficient,degree,triangle,order,computeDelta,fullBoundaryDelta,absoluteH,absoluteDelta,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,guaranteedMonotoneOrder,zeroBoundary,surfaceGradient);
-  }
+
+
 };
 
 }

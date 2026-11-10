@@ -48,7 +48,7 @@ void ProbeCheck(double actual, long double expected, const std::string& label) {
   ++momentChecks;
 }
 
-void ProbeCut(bool triangle, unsigned axis, double cut, bool quadratic, unsigned direction, bool taylor, unsigned metric) {
+void ProbeCut(bool triangle, unsigned axis, double cut, bool quadratic, unsigned direction, unsigned metric) {
   const unsigned nodes = triangle ? 7U : 9U;
   std::vector<double> nodal(nodes);
   std::vector<std::vector<double>> coordinates(2,std::vector<double>(nodes));
@@ -64,8 +64,8 @@ void ProbeCut(bool triangle, unsigned axis, double cut, bool quadratic, unsigned
   std::vector<std::vector<double>> positive;
   std::vector<std::vector<double>> delta;
   std::vector<double> estimated;
-  if(triangle) FELevelSetMoments::IntegrateTri7NodalSelected(nodal,3,positive,delta,1.0e-11,1.0e-11,true,false,0,direction,&estimated,taylor,metric != 0,metric == 3 ? &inverse : nullptr,metric == 2 ? &coordinates : nullptr);
-  else FELevelSetMoments::IntegrateQuad9NodalSelected(nodal,3,positive,delta,1.0e-11,1.0e-11,true,false,0,direction,&estimated,taylor,metric != 0,metric == 3 ? &inverse : nullptr,metric == 2 ? &coordinates : nullptr);
+  if(triangle) FELevelSetMoments::IntegrateTri7NodalSelected(nodal,3,positive,delta,1.0e-11,1.0e-11,true,false,0,direction,&estimated,metric != 0,metric == 3 ? &inverse : nullptr,metric == 2 ? &coordinates : nullptr);
+  else FELevelSetMoments::IntegrateQuad9NodalSelected(nodal,3,positive,delta,1.0e-11,1.0e-11,true,false,0,direction,&estimated,metric != 0,metric == 3 ? &inverse : nullptr,metric == 2 ? &coordinates : nullptr);
   for(unsigned i = 0; i <= 3; ++i) {
     for(unsigned j = 0; j <= 3-i; ++j) {
       const unsigned fixed = axis == 0 ? i : j;
@@ -126,13 +126,13 @@ int main() {
     ProbeUniform(shape != 0,-1.0);
     ProbeTolerance(shape != 0);
     for(unsigned direction = 1; direction <= (shape != 0 ? 3U : 2U); ++direction) {
-      for(unsigned taylor = 0; taylor < 2; ++taylor) {
+      for(unsigned repeat = 0; repeat < 1; ++repeat) {
         for(unsigned axis = 0; axis < 2; ++axis) {
-          for(unsigned metric = 0; metric < 4; ++metric) ProbeCut(shape != 0,axis,0.25,false,direction,taylor != 0,metric);
-          ProbeCut(shape != 0,axis,shape != 0 ? 0.0 : -1.0,false,direction,taylor != 0,1);
+          for(unsigned metric = 0; metric < 4; ++metric) ProbeCut(shape != 0,axis,0.25,false,direction,metric);
+          ProbeCut(shape != 0,axis,shape != 0 ? 0.0 : -1.0,false,direction,1);
         }
-        ProbeCut(shape != 0,0,0.5,true,direction,taylor != 0,0);
-        ProbeCut(shape != 0,0,0.5,true,direction,taylor != 0,1);
+        ProbeCut(shape != 0,0,0.5,true,direction,0);
+        ProbeCut(shape != 0,0,0.5,true,direction,1);
       }
     }
   }

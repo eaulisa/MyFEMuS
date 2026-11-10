@@ -34,7 +34,7 @@ int main() {
         coefficient[0][2] = field == 0 ? 0.0 : -0.25*scale;
         std::vector<std::vector<double>> positive;
         std::vector<std::vector<double>> delta;
-        FELevelSetMoments::IntegrateQuad9ReferenceSelected(coefficient,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,0,nullptr,false,mode != 0,nullptr,nullptr,mode == 2 ? &coordinates : nullptr);
+        FELevelSetMoments::IntegrateQuad9ReferenceSelected(coefficient,degree,positive,delta,1.0e-12,1.0e-12,true,false,28,0,200000,nullptr,0,nullptr,mode != 0,nullptr,nullptr,mode == 2 ? &coordinates : nullptr);
         for(unsigned i = 0; i <= degree; ++i) {
           for(unsigned j = 0; j <= degree-i; ++j) {
             long double graphH = 0.0L;

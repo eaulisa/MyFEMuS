@@ -30,7 +30,7 @@ long double ValidationField3D(const std::string& field, const std::array<long do
 
 void ValidationIntegrate3D(bool tet, const std::vector<double>& nodal, unsigned degree, double tolerance, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta) {
   if(tet) FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodal,degree,positive,delta,tolerance,tolerance,true,24,0,200000,nullptr,1);
-  else FELevelSetMoments::IntegrateHex27NodalSelected(nodal,degree,positive,delta,tolerance,tolerance,true,1,0,nullptr,true);
+  else FELevelSetMoments::IntegrateHex27NodalSelected(nodal,degree,positive,delta,tolerance,tolerance,true,1,0,nullptr);
 }
 
 void ValidationCase3D(bool tet, unsigned degree, const std::string& field, double tolerance) {
@@ -120,7 +120,8 @@ void ValidationRefinement3D(bool tet, unsigned degree, unsigned divisions, doubl
   for(unsigned cell = 0; cell < cells.size(); ++cell) {
     std::vector<std::vector<std::vector<double>>> positive;
     std::vector<std::vector<std::vector<double>>> delta;
-    ValidationIntegrate3D(tet,cells[cell].nodal,degree,tolerance,positive,delta);
+    try { ValidationIntegrate3D(tet,cells[cell].nodal,degree,tolerance,positive,delta); }
+    catch(const std::exception& error) { throw std::runtime_error("Mesh cell "+std::to_string(cell)+": "+error.what()); }
     volume += cells[cell].determinant*positive[0][0][0];
     surface += 2.0L*0.613L*cells[cell].determinant*delta[0][0][0];
     volumeX2 += cells[cell].determinant*ValidationPhysicalX2(cells[cell],positive);

@@ -42,7 +42,7 @@ def run(name, command, timeout=180, required=True):
 
 
 for degree in (2, 6, 10):
-    run(f'analytic_q{degree}', [suite / 'build/graph_cell_splitting', degree], timeout=240)
+    run(f'analytic_q{degree}', [suite / 'build/endpoint_surface_regressions', degree], timeout=240)
 for element in ('HEX', 'TET'):
     for degree in (2, 6, 10):
         for divisions in (2, 4, 8):
@@ -54,7 +54,7 @@ for element in ('HEX', 'TET'):
         run(f'small_{element}_q{degree}', [suite / 'build/hex_tet_validation', 'case', element, degree, 'small_sphere', '1e-11'], timeout=180)
 
 if not args.skip_sanitizers:
-    sanitizer = suite / 'build/graph_cell_splitting_asan'
+    sanitizer = suite / 'build/endpoint_surface_regressions_asan'
     sanitizer_flags = [os.environ.get('CXX', 'g++'), '-std=c++14', '-O1', '-g', '-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-fno-sanitize-recover=all']
     sanitizer_includes = ['-I' + str(repo / path) for path in ('src/quadrature/cutfem_ls', 'src/quadrature', 'src/enums', 'src/fe')]
     sanitizer_includes.append('-I' + os.environ.get('EIGEN3_INCLUDE_DIR', '/usr/include/eigen3'))
@@ -62,7 +62,7 @@ if not args.skip_sanitizers:
         sanitizer_includes.append('-I' + os.environ['BOOST_INCLUDEDIR'])
     sanitizer_objects = [str(suite / 'build' / (name + '.o')) for name in ('Line', 'Quadrilateral', 'Triangle', 'Hexaedron', 'Tetrahedral')]
     sanitizer_objects += [str(suite / 'build' / (path.stem + '.o')) for path in sorted((repo / 'src/quadrature').glob('*Points.cpp'))]
-    compiled = run('compile_sanitizers', [*sanitizer_flags, *sanitizer_includes, suite / 'graph_cell_splitting.cpp', *sanitizer_objects, '-o', sanitizer], timeout=300)
+    compiled = run('compile_sanitizers', [*sanitizer_flags, *sanitizer_includes, suite / 'endpoint_surface_regressions.cpp', *sanitizer_objects, '-o', sanitizer], timeout=300)
     if compiled['exit'] == 0:
         run('sanitizers', [sanitizer, 2], timeout=360)
     enriched_sanitizer = suite / 'build/enriched_3d_asan'

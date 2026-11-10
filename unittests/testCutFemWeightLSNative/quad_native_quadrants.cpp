@@ -33,7 +33,7 @@ void CheckQuadrantValue(double actual, long double expected, unsigned field, uns
   ++quadrantChecks;
 }
 
-void CheckQuadrants(unsigned field, unsigned direction, bool taylor, bool fullBoundary) {
+void CheckQuadrants(unsigned field, unsigned direction, bool fullBoundary) {
   std::vector<std::vector<double>> coefficient(3,std::vector<double>(3,0.0));
   coefficient[1][0] = 1.0;
   if(field == 0) coefficient[0][0] = -0.25;
@@ -44,7 +44,7 @@ void CheckQuadrants(unsigned field, unsigned direction, bool taylor, bool fullBo
   if(field == 7) { coefficient[0][0] = -0.25; coefficient[0][2] = -0.25; }
   std::vector<std::vector<double>> positive;
   std::vector<std::vector<double>> delta;
-  FELevelSetMoments::IntegrateQuad9ReferenceSelected(coefficient,10,positive,delta,1.0e-12,1.0e-12,true,fullBoundary,28,direction,200000,nullptr,0,nullptr,taylor);
+  FELevelSetMoments::IntegrateQuad9ReferenceSelected(coefficient,10,positive,delta,1.0e-12,1.0e-12,true,fullBoundary,28,direction,200000,nullptr,0,nullptr);
   const long double boundary = fullBoundary ? 1.0L : 0.5L;
   for(unsigned i = 0; i <= 10; ++i) {
     for(unsigned j = 0; j <= 10-i; ++j) {
@@ -73,40 +73,9 @@ void CheckQuadrants(unsigned field, unsigned direction, bool taylor, bool fullBo
   }
 }
 
-void CheckLocalSplitDirections() {
-  std::vector<std::vector<double>> coefficient(3,std::vector<double>(3,0.0));
-  coefficient[2][0] = 1.0;
-  coefficient[1][0] = 0.2;
-  coefficient[0][2] = 1.0;
-  coefficient[0][1] = -0.6;
-  coefficient[0][0] = -0.3;
-  unsigned directions[4] = {};
-  unsigned split = 0;
-  for(unsigned firstSide = 0; firstSide < 2; ++firstSide) {
-    const long double firstSign = firstSide == 0 ? -1.0L : 1.0L;
-    for(unsigned secondSide = 0; secondSide < 2; ++secondSide) {
-      const long double secondSign = secondSide == 0 ? -1.0L : 1.0L;
-      std::vector<std::vector<long double>> local;
-      FELevelSetMoments::ReferencePolynomialAffine2D(coefficient,0.5L,0.5L*firstSign,0.5L,0.5L*secondSign,local);
-      std::vector<std::vector<long double>> normalized;
-      long double scale = 0.0L;
-      LineSliceUtilities::NormalizeCanonicalPolynomial(local,normalized,scale);
-      long double lower[2] = {};
-      long double upper[2] = {};
-      directions[split++] = FELevelSetMoments::Quad9SelectedOrder(normalized,lower,upper);
-    }
-  }
-  bool first = false;
-  bool second = false;
-  for(unsigned k = 0; k < 4; ++k) {
-    first = first || directions[k] == 1;
-    second = second || directions[k] == 2;
-  }
-  if(!first || !second) throw std::runtime_error("QUAD split direction selection did not vary locally.");
-  ++quadrantChecks;
-}
 
-void CheckRecursiveGraphSplitting() {
+
+void CheckClosedCurve() {
   const long double radius = 0.65L;
   const long double pi = std::acos(-1.0L);
   std::vector<std::vector<double>> coefficient(3,std::vector<double>(3,0.0));
@@ -125,7 +94,7 @@ void CheckRecursiveGraphSplitting() {
   std::vector<std::vector<double>> positive;
   std::vector<std::vector<double>> delta;
   std::vector<double> estimate;
-  FELevelSetMoments::IntegrateQuad9ReferenceSelected(coefficient,2,positive,delta,1.0e-10,1.0e-10,true,false,28,0,200000,&estimate,0,nullptr,true);
+  FELevelSetMoments::IntegrateQuad9ReferenceSelected(coefficient,2,positive,delta,1.0e-10,1.0e-10,true,false,28,0,200000,&estimate,0,nullptr);
   const long double expectedArea = 4.0L-pi*radius*radius;
   const long double expectedSecond = 4.0L/3.0L-pi*radius*radius*radius*radius/4.0L;
   const long double expectedDelta = pi;
@@ -142,18 +111,17 @@ void CheckRecursiveGraphSplitting() {
   };
   for(unsigned k = 0; k < 8; ++k) {
     quadrantError = std::max(quadrantError,errors[k]);
-    if(errors[k] > 2.0e-10L) throw std::runtime_error("Recursive QUAD graph splitting failed the circle regression.");
+    if(errors[k] > 2.0e-10L) throw std::runtime_error("QUAD endpoint transformation failed the circle regression.");
     ++quadrantChecks;
   }
 }
 
 int main() {
-  CheckRecursiveGraphSplitting();
-  CheckLocalSplitDirections();
+  CheckClosedCurve();
   for(unsigned direction = 1; direction <= 2; ++direction) {
-    for(unsigned taylor = 0; taylor < 2; ++taylor) {
+    for(unsigned repeat = 0; repeat < 1; ++repeat) {
       for(unsigned full = 0; full < 2; ++full) {
-        for(unsigned field = 0; field < 8; ++field) CheckQuadrants(field,direction,taylor != 0,full != 0);
+        for(unsigned field = 0; field < 8; ++field) CheckQuadrants(field,direction,full != 0);
       }
     }
   }

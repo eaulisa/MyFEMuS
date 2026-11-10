@@ -9,12 +9,13 @@
 volatile long double endpointCircleSink = 0;
 
 void EndpointCircleIntegrate(const std::vector<double>& nodal, bool triangle, unsigned degree, const std::string& method, long double width, std::vector<long double>& values) {
+  if(method != "mapped" && method != "baseline") throw std::invalid_argument("Invalid endpoint quadrature test method.");
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   if(method == "baseline") {
     if(!triangle) { std::vector<long double> errors; FELevelSetMoments::IntegrateUnitTensorNodalMoments(nodal,2,degree,values,errors,1e-10L,1e-10L,true); return; }
     std::vector<std::vector<double>> positive;
     std::vector<std::vector<double>> surface;
-    FELevelSetMoments::IntegrateTri7NodalSelected(nodal,degree,positive,surface,1e-10,1e-10,true,false,1,0,nullptr,true,true);
+    FELevelSetMoments::IntegrateTri7NodalSelected(nodal,degree,positive,surface,1e-10,1e-10,true,false,1,0,nullptr,true);
     values.assign(2U*count,0);
     for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) { const unsigned n = FELevelSetMoments::UnitMomentIndex(2,i,j); values[n] = positive[i][j]; values[count+n] = surface[i][j]; }
     return;
@@ -28,29 +29,6 @@ void EndpointCircleIntegrate(const std::vector<double>& nodal, bool triangle, un
   }
   std::vector<std::vector<std::vector<long double>>> gradient(2,std::vector<std::vector<long double>>(3,std::vector<long double>(3,0)));
   for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) { if(i > 0) gradient[0][i-1U][j] = i*coefficient[i][j]; if(j > 0) gradient[1][i][j-1U] = j*coefficient[i][j]; }
-  if(method == "switched") {
-    const long double cx = -coefficient[1][0]/(2*coefficient[2][0]);
-    const long double cy = -coefficient[0][1]/(2*coefficient[0][2]);
-    const long double radius = std::sqrt((coefficient[0][0]+coefficient[1][0]*cx+coefficient[0][1]*cy+coefficient[2][0]*cx*cx+coefficient[0][2]*cy*cy)/(-coefficient[2][0]));
-    const long double half = std::sqrt(width*(2*radius-width));
-    const FELevelSetMoments::LineIntegrationStrip bottom = {cx-half,cx+half,0,0,cy-radius+width,0};
-    const FELevelSetMoments::LineIntegrationStrip top = {cx-half,cx+half,cy+radius-width,0,1,0};
-    const FELevelSetMoments::LineIntegrationStrip middle = {cy-radius+width,cy+radius-width,0,0,1,0};
-    std::vector<long double> caps(2U*count,0);
-    std::vector<long double> middleValues(2U*count,0);
-    std::vector<long double> errors(2U*count,0);
-    unsigned evaluations = 0;
-    unsigned accepted = 0;
-    FELevelSetMoments::LineIntegration::IntegrateStrip(coefficient,degree,bottom,true,false,false,true,0.25e-12L,0.25e-12L,1e-12L,32,200000,evaluations,accepted,caps,errors,&gradient);
-    FELevelSetMoments::LineIntegration::IntegrateStrip(coefficient,degree,top,true,false,false,true,0.25e-12L,0.25e-12L,1e-12L,32,200000,evaluations,accepted,caps,errors,&gradient);
-    for(unsigned i = 0; i < 3; ++i) for(unsigned j = i+1U; j < 3; ++j) std::swap(coefficient[i][j],coefficient[j][i]);
-    std::vector<std::vector<std::vector<long double>>> transposedGradient;
-    FELevelSetMoments::SurfaceGradientTranspose(gradient,transposedGradient);
-    FELevelSetMoments::LineIntegration::IntegrateStrip(coefficient,degree,middle,false,false,false,true,0.5e-12L,0.5e-12L,1e-12L,32,200000,evaluations,accepted,middleValues,errors,&transposedGradient);
-    values.assign(2U*count,0);
-    for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) { const unsigned n = FELevelSetMoments::UnitMomentIndex(2,i,j); const unsigned source = LineSliceUtilities::MomentIndex(degree,i,j); const unsigned swapped = LineSliceUtilities::MomentIndex(degree,j,i); values[n] = caps[source]+middleValues[swapped]; values[count+n] = caps[count+source]+middleValues[count+swapped]; }
-    return;
-  }
   FELevelSetMoments::EndpointStripQuadrature::StripWidth() = width;
   FELevelSetMoments::EndpointStripQuadrature::PreferredDirection() = 2;
   std::vector<long double> native;

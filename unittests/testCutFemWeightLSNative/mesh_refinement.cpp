@@ -51,8 +51,8 @@ int main() {
         for(unsigned cell = 0; cell < cells.size(); ++cell) {
           std::vector<std::vector<double>> positive;
           std::vector<std::vector<double>> delta;
-          if(triangle) FELevelSetMoments::IntegrateTri7NodalSelected(cells[cell].values,degree,positive,delta,1.0e-12,1.0e-12,true,false,1,0,nullptr,true);
-          else FELevelSetMoments::IntegrateQuad9NodalSelected(cells[cell].values,degree,positive,delta,1.0e-12,1.0e-12,true,false,1,0,nullptr,true);
+          if(triangle) FELevelSetMoments::IntegrateTri7NodalSelected(cells[cell].values,degree,positive,delta,1.0e-12,1.0e-12,true,false,1,0,nullptr);
+          else FELevelSetMoments::IntegrateQuad9NodalSelected(cells[cell].values,degree,positive,delta,1.0e-12,1.0e-12,true,false,1,0,nullptr);
           area += cells[cell].determinant*positive[0][0];
           length += 2.0L*0.613L*cells[cell].determinant*delta[0][0];
         }

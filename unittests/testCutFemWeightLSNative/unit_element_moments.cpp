@@ -70,7 +70,7 @@ void UnitProbe(unsigned dimension, unsigned degree) {
   for(unsigned n = 0; n < nodes; ++n) {
     std::array<long double,3> point = {0,0,0};
     for(unsigned d = 0; d < dimension; ++d) point[d] = (basis->GetXcoarse(n)[d]+1)/2;
-    UnitCheck(FELevelSetMoments::GraphCellIntegration::Value(coefficient,point),nodal[n],2e-15L);
+    UnitCheck(FELevelSetMoments::SurfaceEndpointIntegration::Value(coefficient,point),nodal[n],2e-15L);
   }
   for(unsigned sample = 0; sample < 13; ++sample) {
     std::vector<double> native(dimension);
@@ -82,8 +82,8 @@ void UnitProbe(unsigned dimension, unsigned degree) {
       value += nodal[n]*basis->eval_phi(n,native);
       for(unsigned d = 0; d < dimension; ++d) gradient[d] += 2*nodal[n]*basis->eval_dphidxyz(d,basis->GetIND(n),native.data());
     }
-    UnitCheck(FELevelSetMoments::GraphCellIntegration::Value(coefficient,point),value,3e-14L);
-    for(unsigned d = 0; d < dimension; ++d) UnitCheck(FELevelSetMoments::GraphCellIntegration::Value(FELevelSetMoments::GraphCellIntegration::Derivative(coefficient,d),point),gradient[d],6e-14L);
+    UnitCheck(FELevelSetMoments::SurfaceEndpointIntegration::Value(coefficient,point),value,3e-14L);
+    for(unsigned d = 0; d < dimension; ++d) UnitCheck(FELevelSetMoments::SurfaceEndpointIntegration::Value(FELevelSetMoments::SurfaceEndpointIntegration::Derivative(coefficient,d),point),gradient[d],6e-14L);
   }
 }
 

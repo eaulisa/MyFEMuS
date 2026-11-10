@@ -1,9 +1,8 @@
 #ifndef FEMUS_QUAD9_DIRECTION_SELECTION_HPP
 #define FEMUS_QUAD9_DIRECTION_SELECTION_HPP
 
-#include "LineIntegration.hpp"
+#include "PlanarEndpointIntegration.hpp"
 
-// QUAD9 uses square charts internally and returns moments on the standard FEMuS reference square.
 namespace FELevelSetMoments {
 
 inline void Quad9SelectedQuadraticRange(long double a, long double b, long double c, long double& minimum, long double& maximum) {
@@ -89,65 +88,6 @@ inline unsigned Quad9SelectedWeakGraphOrder(const std::vector<std::vector<long d
   return selected;
 }
 
-inline void Quad9SelectedOneDirection(const std::vector<std::vector<long double>>& coefficient, long double scale, unsigned degree, unsigned order, long double derivativeBound, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, bool useTaylor, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
-  bool zeroEdge = false;
-  if(zeroBoundary != nullptr) {
-    for(unsigned side = 0; side < 4; ++side) zeroEdge = zeroEdge || (*zeroBoundary)[side] != 0;
-  }
-  bool useLine = !useTaylor || zeroEdge;
-  if(!useLine) {
-    const unsigned totalCount = (degree+1U)*(degree+2U);
-    values.assign(totalCount,0.0L);
-    errors.assign(totalCount,0.0L);
-    bool completed = false;
-    if(derivativeBound > 0.0L && !fullBoundaryDelta) {
-      try { completed = LineIntegration::IntegrateFastGraph(coefficient,degree,order,false,computeDelta,derivativeBound,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,values,errors,accepted,surfaceGradient); }
-      catch(const std::runtime_error&) { completed = false; }
-    }
-    if(!completed && !fullBoundaryDelta && Quad9SelectedWeakGraphOrder(coefficient,order) != 0) {
-      try {
-        LineIntegration::IntegrateCell(coefficient,degree,order,false,computeDelta,0.0L,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient);
-        completed = true;
-      }
-      catch(const std::runtime_error&) { completed = false; }
-    }
-    if(!completed) {
-      accepted = 0;
-      const std::vector<long double> domain = {0.0L,1.0L,0.0L,1.0L};
-      const unsigned taylorDepth = derivativeBound > 0.0L ? maximumDepth : std::min(maximumDepth,2U);
-      try {
-        LineIntegration::IntegrateTaylor(coefficient,degree,0,domain,true,computeDelta,fullBoundaryDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,32,taylorDepth,order,values,errors,accepted,surfaceGradient);
-      }
-      catch(const std::runtime_error&) {
-        useLine = true;
-      }
-    }
-    const unsigned count = (degree+1U)*(degree+2U)/2U;
-    if(!useLine && computeDelta && values[count] == 0.0L) useLine = true;
-  }
-  if(useLine) {
-    accepted = 0;
-    LineIntegration::IntegrateFullGaussKronrod(coefficient,degree,false,order,computeDelta,fullBoundaryDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,derivativeBound > 0.0L ? order : 0U,zeroBoundary,surfaceGradient);
-  }
-  const unsigned count = (degree+1U)*(degree+2U)/2U;
-  if(useLine && order == 2) {
-    for(unsigned i = 0; i <= degree; ++i) {
-      for(unsigned j = i+1U; j <= degree-i; ++j) {
-        const unsigned first = LineSliceUtilities::MomentIndex(degree,i,j);
-        const unsigned second = LineSliceUtilities::MomentIndex(degree,j,i);
-        std::swap(values[first],values[second]);
-        std::swap(values[count+first],values[count+second]);
-        std::swap(errors[first],errors[second]);
-        std::swap(errors[count+first],errors[count+second]);
-      }
-    }
-  }
-  for(unsigned k = 0; k < values.size(); ++k) {
-    const long double tolerance = absoluteTolerance*(k < count ? 1.0L : scale)+relativeTolerance*std::abs(values[k]);
-    if(!std::isfinite(values[k]) || !std::isfinite(errors[k]) || errors[k] < 0.0L || errors[k] > tolerance) throw std::runtime_error("QUAD9 accumulated directional error exceeds tolerance.");
-  }
-}
-
 inline int Quad9SelectedReflectionParity(const std::vector<std::vector<long double>>& coefficient, unsigned axis) {
   unsigned columns = 0;
   for(unsigned row = 0; row < coefficient.size(); ++row) columns = std::max(columns,static_cast<unsigned>(coefficient[row].size()));
@@ -196,373 +136,6 @@ inline void Quad9SelectedReferenceParity(const std::vector<std::vector<long doub
   }
 }
 
-inline bool Quad9SelectedDerivativeSplitCoordinate(const std::vector<std::vector<long double>>& coefficient, unsigned axis, long double& coordinate) {
-  std::vector<long double> roots;
-  for(unsigned side = 0; side < 2; ++side) {
-    long double constant = 0.0L;
-    long double linear = 0.0L;
-    if(axis == 0) {
-      long double sidePower = 1.0L;
-      for(unsigned j = 0; j < 3; ++j) {
-        constant += coefficient[1][j]*sidePower;
-        linear += 2.0L*coefficient[2][j]*sidePower;
-        sidePower *= static_cast<long double>(side);
-      }
-    }
-    else {
-      long double sidePower = 1.0L;
-      for(unsigned i = 0; i < 3; ++i) {
-        constant += coefficient[i][1]*sidePower;
-        linear += 2.0L*coefficient[i][2]*sidePower;
-        sidePower *= static_cast<long double>(side);
-      }
-    }
-    const long double scale = std::abs(constant)+std::abs(linear);
-    const long double padding = 1024.0L*std::numeric_limits<long double>::epsilon()*std::max(1.0L,scale);
-    if(std::abs(linear) <= padding) continue;
-    const long double root = -constant/linear;
-    if(root > 0.02L && root < 0.98L) roots.push_back(root);
-  }
-  if(roots.empty()) return false;
-  coordinate = 0.0L;
-  for(unsigned k = 0; k < roots.size(); ++k) coordinate += roots[k];
-  coordinate /= static_cast<long double>(roots.size());
-  long double spread = 0.0L;
-  for(unsigned k = 0; k < roots.size(); ++k) spread = std::max(spread,std::abs(roots[k]-coordinate));
-  if(roots.size() > 1 && spread > 0.30L) return false;
-  coordinate = std::max(0.05L,std::min(0.95L,coordinate));
-  return true;
-}
-
-inline void Quad9SelectedSplitCanonical(const std::vector<std::vector<long double>>& coefficient, long double scale, unsigned degree, bool computeDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, bool useTaylor, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, unsigned splitDepth, unsigned maximumSplitDepth, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted) {
-  const unsigned count = (degree+1U)*(degree+2U)/2U;
-  values.assign(2U*count,0.0L);
-  errors.assign(2U*count,0.0L);
-  std::vector<long double> correction(2U*count,0.0L);
-  long double splitCoordinate[2] = {0.5L,0.5L};
-  const bool splitAvailable[2] = {Quad9SelectedDerivativeSplitCoordinate(coefficient,0,splitCoordinate[0]),Quad9SelectedDerivativeSplitCoordinate(coefficient,1,splitCoordinate[1])};
-  long double splitLower[2] = {};
-  long double splitUpper[2] = {};
-  const unsigned preferredOrder = Quad9SelectedOrder(coefficient,splitLower,splitUpper);
-  const unsigned preferredAxis = preferredOrder == 2 ? 0U : 1U;
-  unsigned splitAxis = splitAvailable[preferredAxis] ? preferredAxis : (splitAvailable[1U-preferredAxis] ? 1U-preferredAxis : 2U);
-  const unsigned firstCount = splitAxis == 0 || splitAxis == 2 ? 2U : 1U;
-  const unsigned secondCount = splitAxis == 1 || splitAxis == 2 ? 2U : 1U;
-  for(unsigned firstSide = 0; firstSide < firstCount; ++firstSide) {
-    const long double firstOrigin = firstCount == 1 ? 0.0L : (firstSide == 0 ? 0.0L : splitCoordinate[0]);
-    const long double firstScale = firstCount == 1 ? 1.0L : (firstSide == 0 ? splitCoordinate[0] : 1.0L-splitCoordinate[0]);
-    for(unsigned secondSide = 0; secondSide < secondCount; ++secondSide) {
-      const long double secondOrigin = secondCount == 1 ? 0.0L : (secondSide == 0 ? 0.0L : splitCoordinate[1]);
-      const long double secondScale = secondCount == 1 ? 1.0L : (secondSide == 0 ? splitCoordinate[1] : 1.0L-splitCoordinate[1]);
-      std::vector<std::vector<long double>> childCoefficient;
-      ReferencePolynomialAffine2D(coefficient,firstOrigin,firstScale,secondOrigin,secondScale,childCoefficient);
-      std::vector<std::vector<long double>> childNormalized;
-      long double childScale = 1.0L;
-      LineSliceUtilities::NormalizeCanonicalPolynomial(childCoefficient,childNormalized,childScale);
-      std::vector<std::vector<std::vector<long double>>> childGradient;
-      if(surfaceGradient != nullptr) {
-        childGradient.resize(surfaceGradient->size());
-        for(unsigned component = 0; component < surfaceGradient->size(); ++component) ReferencePolynomialAffine2D((*surfaceGradient)[component],firstOrigin,firstScale,secondOrigin,secondScale,childGradient[component]);
-      }
-      std::vector<unsigned> boundary(4,1);
-      for(unsigned i = 0; i < 3; ++i) {
-        boundary[0] = boundary[0] != 0 && childNormalized[0][i] == 0.0L;
-        boundary[1] = boundary[1] != 0 && (childNormalized[0][i]+childNormalized[1][i])+childNormalized[2][i] == 0.0L;
-        boundary[2] = boundary[2] != 0 && childNormalized[i][0] == 0.0L;
-        boundary[3] = boundary[3] != 0 && (childNormalized[i][0]+childNormalized[i][1])+childNormalized[i][2] == 0.0L;
-      }
-      if(zeroBoundary != nullptr) {
-        if(firstCount == 1) {
-          boundary[0] = boundary[0] != 0 || (*zeroBoundary)[0] != 0;
-          boundary[1] = boundary[1] != 0 || (*zeroBoundary)[1] != 0;
-        }
-        else if(firstSide == 0) boundary[0] = boundary[0] != 0 || (*zeroBoundary)[0] != 0;
-        else boundary[1] = boundary[1] != 0 || (*zeroBoundary)[1] != 0;
-        if(secondCount == 1) {
-          boundary[2] = boundary[2] != 0 || (*zeroBoundary)[2] != 0;
-          boundary[3] = boundary[3] != 0 || (*zeroBoundary)[3] != 0;
-        }
-        else if(secondSide == 0) boundary[2] = boundary[2] != 0 || (*zeroBoundary)[2] != 0;
-        else boundary[3] = boundary[3] != 0 || (*zeroBoundary)[3] != 0;
-      }
-      int phase = 0;
-      LineSliceUtilities::CanonicalGraphOrder(childNormalized,0,phase);
-      if(computeDelta) {
-        for(unsigned side = 0; side < 4; ++side) if(boundary[side] != 0) phase = 0;
-      }
-      std::vector<long double> childValues(2U*count,0.0L);
-      std::vector<long double> childErrors(2U*count,0.0L);
-      unsigned childAccepted = 0;
-      if(phase != 0) {
-        if(phase > 0) {
-          for(unsigned i = 0; i <= degree; ++i) {
-            for(unsigned j = 0; j <= degree-i; ++j) {
-              const unsigned k = LineSliceUtilities::MomentIndex(degree,i,j);
-              childValues[k] = 1.0L/((i+1.0L)*(j+1.0L));
-              childErrors[k] = 4.0L*std::numeric_limits<long double>::epsilon()*std::abs(childValues[k]);
-            }
-          }
-        }
-      }
-      else {
-        long double lower[2] = {};
-        long double upper[2] = {};
-        unsigned childOrder = Quad9SelectedOrder(childNormalized,lower,upper);
-        long double derivativeBound = lower[2U-childOrder];
-        const unsigned weakOrder = derivativeBound == 0.0L ? Quad9SelectedWeakGraphOrder(childNormalized) : 0U;
-        if(derivativeBound == 0.0L && weakOrder != 0) childOrder = weakOrder;
-        if(derivativeBound == 0.0L && weakOrder == 0 && splitDepth < maximumSplitDepth) {
-          Quad9SelectedSplitCanonical(childNormalized,scale*childScale,degree,computeDelta,absoluteTolerance,0.25L*relativeTolerance,maximumDepth,maximumEvaluations,&boundary,useTaylor,surfaceGradient == nullptr ? nullptr : &childGradient,splitDepth+1U,maximumSplitDepth,childValues,childErrors,evaluations,childAccepted);
-        }
-        else {
-          Quad9SelectedOneDirection(childNormalized,scale*childScale,degree,childOrder,derivativeBound,computeDelta,false,absoluteTolerance,0.25L*relativeTolerance,maximumDepth,maximumEvaluations,&boundary,childValues,childErrors,evaluations,childAccepted,useTaylor,surfaceGradient == nullptr ? nullptr : &childGradient);
-        }
-      }
-      accepted += childAccepted;
-      for(unsigned k = count; k < 2U*count; ++k) {
-        childValues[k] /= childScale;
-        childErrors[k] /= childScale;
-      }
-      std::vector<long double> mappedValues;
-      std::vector<long double> mappedErrors;
-      ReferenceAffineMoments2D(degree,childValues,childErrors,firstOrigin,firstScale,secondOrigin,secondScale,firstScale*secondScale,mappedValues,mappedErrors);
-      for(unsigned k = 0; k < values.size(); ++k) {
-        const long double adjusted = mappedValues[k]-correction[k];
-        const long double next = values[k]+adjusted;
-        correction[k] = (next-values[k])-adjusted;
-        values[k] = next;
-        errors[k] += mappedErrors[k];
-      }
-    }
-  }
-}
-
-inline void Quad9SelectedDirect(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned requestedDirection, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::array<long double,5>& coordinates, const std::vector<unsigned char>* requested, unsigned splitDepth = 0, unsigned certifiedDirection = 0) {
-  const unsigned count = (degree+1U)*(degree+2U)/2U;
-  values.assign(2U*count,0.0L);
-  errors.assign(2U*count,0.0L);
-  int phase = 0;
-  LineSliceUtilities::CanonicalGraphOrder(coefficient,0,phase);
-  const LineIntegrationStrip strip = {0,1,0,0,1,0};
-  if(phase != 0) {
-    if(phase > 0) LineIntegration::FullStripMoments(degree,strip,0,1,values,errors,&coordinates,requested);
-    ++accepted;
-    return;
-  }
-  long double lower[2];
-  long double upper[2];
-  const unsigned automatic = certifiedDirection == 0 ? Quad9SelectedOrder(coefficient,lower,upper) : certifiedDirection;
-  if(certifiedDirection != 0) lower[2U-certifiedDirection] = 1.0L;
-  const unsigned direction = certifiedDirection != 0 ? certifiedDirection : (requestedDirection == 0 ? automatic : requestedDirection);
-  const bool strict = lower[2U-direction] > 0.0L;
-  const bool graph = strict || Quad9SelectedWeakGraphOrder(coefficient,direction) != 0;
-  bool zeroTrace = false;
-  if(!strict) for(unsigned side = 0; side < 2; ++side) {
-    zeroTrace = zeroTrace || LineIntegration::BoundaryIsZero(coefficient,side,0);
-    bool zero = true;
-    for(unsigned j = 0; j < 3; ++j) zero = zero && (side == 0 ? coefficient[0][j] : coefficient[0][j]+coefficient[1][j]+coefficient[2][j]) == 0.0L;
-    zeroTrace = zeroTrace || zero;
-  }
-  if(zeroTrace) throw std::runtime_error("A weak graph boundary trace requires the complete boundary integrator.");
-  if(graph || splitDepth >= 10) {
-    std::vector<std::vector<long double>> working = coefficient;
-    std::vector<std::vector<std::vector<long double>>> gradient;
-    if(direction == 2) {
-      for(unsigned i = 0; i < 3; ++i) for(unsigned j = i+1U; j < 3; ++j) std::swap(working[i][j],working[j][i]);
-      if(surfaceGradient != nullptr) SurfaceGradientTranspose(*surfaceGradient,gradient);
-    }
-    const std::array<long double,5> parent = LineIntegration::MomentCoordinates(&coordinates,direction);
-    const std::vector<unsigned char> active = LineIntegration::MomentRequest(degree,requested,direction,computeDelta);
-    LineIntegration::IntegrateStrip(working,degree,strip,graph,!strict,true,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors,direction == 2 && surfaceGradient != nullptr ? &gradient : surfaceGradient,&parent,&active);
-    if(direction == 2) for(unsigned i = 0; i <= degree; ++i) for(unsigned j = i+1U; j <= degree-i; ++j) for(unsigned pair = 0; pair < 2; ++pair) {
-      std::swap(values[pair*count+ReferenceMomentIndex2D(degree,i,j)],values[pair*count+ReferenceMomentIndex2D(degree,j,i)]);
-      std::swap(errors[pair*count+ReferenceMomentIndex2D(degree,i,j)],errors[pair*count+ReferenceMomentIndex2D(degree,j,i)]);
-    }
-    return;
-  }
-  long double split[2] = {0.5L,0.5L};
-  ++LineIntegration::Statistics().splitCells;
-  const bool available[2] = {Quad9SelectedDerivativeSplitCoordinate(coefficient,0,split[0]),Quad9SelectedDerivativeSplitCoordinate(coefficient,1,split[1])};
-  const unsigned axis = available[0] && !available[1] ? 0U : (available[1] && !available[0] ? 1U : splitDepth%2U);
-  for(unsigned side = 0; side < 2; ++side) {
-    const long double origin = side == 0 ? 0.0L : split[axis];
-    const long double width = side == 0 ? split[axis] : 1.0L-split[axis];
-    std::vector<std::vector<long double>> child;
-    ReferencePolynomialAffine2D(coefficient,axis == 0 ? origin : 0.0L,axis == 0 ? width : 1.0L,axis == 1 ? origin : 0.0L,axis == 1 ? width : 1.0L,child);
-    std::vector<std::vector<std::vector<long double>>> gradient;
-    if(surfaceGradient != nullptr) for(unsigned component = 0; component < surfaceGradient->size(); ++component) {
-      std::vector<std::vector<long double>> field;
-      ReferencePolynomialAffine2D((*surfaceGradient)[component],axis == 0 ? origin : 0.0L,axis == 0 ? width : 1.0L,axis == 1 ? origin : 0.0L,axis == 1 ? width : 1.0L,field);
-      gradient.push_back(field);
-    }
-    std::array<long double,5> parent = coordinates;
-    parent[2U*axis] = std::fma(coordinates[2U*axis+1U],origin,coordinates[2U*axis]);
-    parent[2U*axis+1U] *= width;
-    parent[4] *= width;
-    std::vector<long double> childValues;
-    std::vector<long double> childErrors;
-    Quad9SelectedDirect(child,degree,0,computeDelta,width*absoluteH,width*absoluteD,relative,maximumDepth,maximumEvaluations,childValues,childErrors,evaluations,accepted,surfaceGradient == nullptr ? nullptr : &gradient,parent,requested,splitDepth+1U);
-    for(unsigned k = 0; k < values.size(); ++k) { values[k] += childValues[k]; errors[k] += childErrors[k]+8.0L*std::numeric_limits<long double>::epsilon()*std::abs(childValues[k]); }
-  }
-}
-
-inline void Quad9SelectedReferenceOneDirection(const std::vector<std::vector<long double>>& coefficient, long double scale, unsigned degree, unsigned order, long double derivativeBound, bool computeDelta, bool fullBoundaryDelta, long double absoluteTolerance, long double relativeTolerance, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<unsigned>* zeroBoundary, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, bool useTaylor, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, bool allowSplit = true, const std::array<long double,5>* parentCoordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned certifiedDirection = 0) {
-  const unsigned count = (degree+1U)*(degree+2U)/2U;
-  bool zeroTrace = false;
-  if(zeroBoundary != nullptr) for(unsigned side = 0; side < zeroBoundary->size(); ++side) zeroTrace = zeroTrace || (*zeroBoundary)[side] != 0;
-  if(useTaylor && !fullBoundaryDelta && allowSplit && !zeroTrace) {
-    try {
-    const std::array<long double,5> coordinates = parentCoordinates == nullptr ? std::array<long double,5>{-1,2,-1,2,4} : *parentCoordinates;
-    Quad9SelectedDirect(coefficient,degree,order,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,surfaceGradient,coordinates,requested,0,certifiedDirection);
-    if(parentCoordinates == nullptr) Quad9SelectedReferenceParity(coefficient,degree,values,errors,surfaceGradient);
-    for(unsigned k = 0; k < values.size(); ++k) if(requested == nullptr || (*requested)[k]) {
-      const long double tolerance = absoluteTolerance*(k < count ? 1.0L : scale)+relativeTolerance*std::abs(values[k]);
-      if(!std::isfinite(values[k]) || !std::isfinite(errors[k]) || errors[k] < 0.0L || errors[k] > tolerance) throw std::runtime_error("Direct QUAD9 moments exceed tolerance.");
-    }
-    return;
-    }
-    catch(const std::runtime_error&) { if(parentCoordinates != nullptr) throw; }
-  }
-  const long double amplification = 4.0L*ReferencePower(3.0L,degree);
-  if(absoluteTolerance/amplification > 64.0L*std::numeric_limits<long double>::epsilon()) {
-    try {
-      std::vector<long double> chartValues;
-      std::vector<long double> chartErrors;
-      if(allowSplit && derivativeBound == 0.0L && !fullBoundaryDelta) Quad9SelectedSplitCanonical(coefficient,scale,degree,computeDelta,absoluteTolerance/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,zeroBoundary,useTaylor,surfaceGradient,0,5,chartValues,chartErrors,evaluations,accepted);
-      else Quad9SelectedOneDirection(coefficient,scale,degree,order,derivativeBound,computeDelta,fullBoundaryDelta,absoluteTolerance/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,zeroBoundary,chartValues,chartErrors,evaluations,accepted,useTaylor,surfaceGradient);
-      ReferenceTensorMoments2D(degree,chartValues,chartErrors,values,errors);
-      Quad9SelectedReferenceParity(coefficient,degree,values,errors,surfaceGradient);
-      bool completed = true;
-      for(unsigned k = 0; k < values.size(); ++k) {
-        const long double tolerance = absoluteTolerance*(k < count ? 1.0L : scale)+relativeTolerance*std::abs(values[k]);
-        completed = completed && std::isfinite(values[k]) && std::isfinite(errors[k]) && errors[k] >= 0.0L && errors[k] <= tolerance;
-      }
-      if(completed) return;
-    }
-    catch(const std::runtime_error&) {}
-  }
-  values.assign(2U*count,0.0L);
-  errors.assign(2U*count,0.0L);
-  std::vector<long double> correction(2U*count,0.0L);
-  std::vector<long double> absoluteSum(2U*count,0.0L);
-  accepted = 0;
-  const long double quadrantTolerance = absoluteTolerance/16.0L;
-  const long double quadrantRelativeTolerance = relativeTolerance/16.0L;
-  for(unsigned firstSide = 0; firstSide < 2; ++firstSide) {
-    const long double firstSign = firstSide == 0 ? -1.0L : 1.0L;
-    for(unsigned secondSide = 0; secondSide < 2; ++secondSide) {
-      const long double secondSign = secondSide == 0 ? -1.0L : 1.0L;
-      std::vector<std::vector<long double>> quadrantCoefficient;
-      ReferencePolynomialAffine2D(coefficient,0.5L,0.5L*firstSign,0.5L,0.5L*secondSign,quadrantCoefficient);
-      std::vector<std::vector<long double>> normalized;
-      long double quadrantScale;
-      LineSliceUtilities::NormalizeCanonicalPolynomial(quadrantCoefficient,normalized,quadrantScale);
-      std::vector<std::vector<std::vector<long double>>> quadrantGradient;
-      if(surfaceGradient != nullptr) {
-        quadrantGradient.resize(surfaceGradient->size());
-        for(unsigned component = 0; component < surfaceGradient->size(); ++component) ReferencePolynomialAffine2D((*surfaceGradient)[component],0.5L,0.5L*firstSign,0.5L,0.5L*secondSign,quadrantGradient[component]);
-      }
-      std::vector<unsigned> boundary(4,1);
-      for(unsigned i = 0; i < 3; ++i) {
-        boundary[0] = boundary[0] != 0 && normalized[0][i] == 0.0L;
-        boundary[1] = boundary[1] != 0 && (normalized[0][i]+normalized[1][i])+normalized[2][i] == 0.0L;
-        boundary[2] = boundary[2] != 0 && normalized[i][0] == 0.0L;
-        boundary[3] = boundary[3] != 0 && (normalized[i][0]+normalized[i][1])+normalized[i][2] == 0.0L;
-      }
-      if(zeroBoundary != nullptr) {
-        boundary[1] = boundary[1] != 0 || (*zeroBoundary)[firstSide] != 0;
-        boundary[3] = boundary[3] != 0 || (*zeroBoundary)[2U+secondSide] != 0;
-      }
-      std::vector<long double> quadrantValues(2U*count,0.0L);
-      std::vector<long double> quadrantErrors(2U*count,0.0L);
-      int phase = 0;
-      LineSliceUtilities::CanonicalGraphOrder(normalized,0,phase);
-      for(unsigned edge = 0; edge < 4; ++edge) if(computeDelta && boundary[edge] != 0) phase = 0;
-      if(phase != 0) {
-        if(phase > 0) {
-          for(unsigned i = 0; i <= degree; ++i) {
-            for(unsigned j = 0; j <= degree-i; ++j) {
-              const unsigned k = LineSliceUtilities::MomentIndex(degree,i,j);
-              quadrantValues[k] = 1.0L/((i+1.0L)*(j+1.0L));
-              quadrantErrors[k] = 4.0L*std::numeric_limits<long double>::epsilon()*std::abs(quadrantValues[k]);
-            }
-          }
-        }
-      }
-      else {
-        long double lower[2];
-        long double upper[2];
-        const unsigned automaticQuadrantOrder = Quad9SelectedOrder(normalized,lower,upper);
-        const unsigned quadrantOrder = allowSplit ? automaticQuadrantOrder : order;
-        unsigned quadrantAccepted = 0;
-        if(useTaylor && allowSplit && !fullBoundaryDelta && lower[2U-quadrantOrder] == 0.0L && Quad9SelectedWeakGraphOrder(normalized,quadrantOrder) == 0) Quad9SelectedSplitCanonical(normalized,scale*quadrantScale,degree,computeDelta,quadrantTolerance,quadrantRelativeTolerance,maximumDepth,maximumEvaluations,&boundary,useTaylor,surfaceGradient == nullptr ? nullptr : &quadrantGradient,0,5,quadrantValues,quadrantErrors,evaluations,quadrantAccepted);
-        else Quad9SelectedOneDirection(normalized,scale*quadrantScale,degree,quadrantOrder,lower[2U-quadrantOrder],computeDelta,false,quadrantTolerance,quadrantRelativeTolerance,maximumDepth,maximumEvaluations,&boundary,quadrantValues,quadrantErrors,evaluations,quadrantAccepted,useTaylor,surfaceGradient == nullptr ? nullptr : &quadrantGradient);
-        accepted += quadrantAccepted;
-      }
-      if(computeDelta && fullBoundaryDelta) {
-        for(unsigned axis = 0; axis < 2; ++axis) {
-          const unsigned edge = 2U*axis+1U;
-          if(boundary[edge] == 0) continue;
-          std::vector<std::vector<long double>> edgeCoefficient(3,std::vector<long double>(3,0.0L));
-          for(unsigned k = 0; k < 3; ++k) {
-            const long double derivative = axis == 0 ? normalized[1][k]+2.0L*normalized[2][k] : normalized[k][1]+2.0L*normalized[k][2];
-            if(axis == 0) {
-              edgeCoefficient[0][k] = -derivative;
-              edgeCoefficient[1][k] = derivative;
-            }
-            else {
-              edgeCoefficient[k][0] = -derivative;
-              edgeCoefficient[k][1] = derivative;
-            }
-          }
-          std::vector<std::vector<long double>> normalizedEdge;
-          long double edgeScale;
-          LineSliceUtilities::NormalizeCanonicalPolynomial(edgeCoefficient,normalizedEdge,edgeScale);
-          long double lower[2];
-          long double upper[2];
-          Quad9SelectedOrder(normalizedEdge,lower,upper);
-          std::vector<unsigned> edgeBoundary(4,0);
-          edgeBoundary[edge] = 1;
-          std::vector<long double> edgeValues;
-          std::vector<long double> edgeErrors;
-          unsigned edgeAccepted = 0;
-          const unsigned edgeOrder = 2U-axis;
-          Quad9SelectedOneDirection(normalizedEdge,scale*quadrantScale*edgeScale,degree,edgeOrder,lower[axis],true,false,quadrantTolerance,quadrantRelativeTolerance,maximumDepth,maximumEvaluations,&edgeBoundary,edgeValues,edgeErrors,evaluations,edgeAccepted,useTaylor,surfaceGradient == nullptr ? nullptr : &quadrantGradient);
-          accepted += edgeAccepted;
-          for(unsigned k = count; k < 2U*count; ++k) {
-            const long double contribution = edgeValues[k]/edgeScale;
-            quadrantValues[k] += contribution;
-            quadrantErrors[k] += edgeErrors[k]/edgeScale+4.0L*std::numeric_limits<long double>::epsilon()*std::abs(contribution);
-          }
-        }
-      }
-      for(unsigned i = 0; i <= degree; ++i) {
-        for(unsigned j = 0; j <= degree-i; ++j) {
-          const unsigned k = LineSliceUtilities::MomentIndex(degree,i,j);
-          const long double sign = ReferencePower(firstSign,i)*ReferencePower(secondSign,j);
-          for(unsigned pair = 0; pair < 2; ++pair) {
-            const unsigned index = pair*count+k;
-            const long double multiplier = pair == 0 ? sign : sign/quadrantScale;
-            const long double term = multiplier*quadrantValues[index];
-            const long double adjusted = term-correction[index];
-            const long double next = values[index]+adjusted;
-            correction[index] = (next-values[index])-adjusted;
-            values[index] = next;
-            errors[index] += std::abs(multiplier)*quadrantErrors[index];
-            absoluteSum[index] += std::abs(term);
-          }
-        }
-      }
-    }
-  }
-  for(unsigned k = 0; k < values.size(); ++k) errors[k] += 16.0L*std::numeric_limits<long double>::epsilon()*absoluteSum[k];
-  Quad9SelectedReferenceParity(coefficient,degree,values,errors,surfaceGradient);
-  for(unsigned k = 0; k < values.size(); ++k) {
-    const long double tolerance = absoluteTolerance*(k < count ? 1.0L : scale)+relativeTolerance*std::abs(values[k]);
-    if(!std::isfinite(values[k]) || !std::isfinite(errors[k]) || errors[k] < 0.0L || errors[k] > tolerance) throw std::runtime_error("QUAD9 native quadrant error exceeds tolerance.");
-  }
-}
-
 inline void Quad9SurfaceCoordinatePolynomials(const std::vector<std::vector<double>>& geometryCoordinates, std::vector<std::vector<std::vector<long double>>>& coordinatePolynomials) {
   ValidateSurfaceGeometryCoordinates(geometryCoordinates,2,9);
   coordinatePolynomials.assign(2,std::vector<std::vector<long double>>(3,std::vector<long double>(3,0.0L)));
@@ -577,7 +150,12 @@ inline void Quad9SurfaceCoordinatePolynomials(const std::vector<std::vector<doub
   }
 }
 
-inline void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+inline void Quad9SelectedDirect(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned direction, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* gradient, const std::array<long double,5>& coordinates, const std::vector<unsigned char>* requested, const std::vector<unsigned>* zeroBoundary = nullptr) {
+  unsigned selected = 0;
+  PlanarEndpointIntegration::Integrate(coefficient,degree,false,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,gradient,&coordinates,requested,direction,false,zeroBoundary);
+}
+
+inline void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr,  bool referenceSurface = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
   if(geometryCoordinates != nullptr) {
     if(!referenceSurface || inverseJacobian != nullptr) throw std::invalid_argument("Surface geometry requires surface moments without an inverse Jacobian.");
     ValidateSurfaceGeometryCoordinates(*geometryCoordinates,2,9);
@@ -617,124 +195,47 @@ inline void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double
     for(unsigned component = 0; component < surfaceGradient->size(); ++component) ReferencePolynomialAffine2D((*surfaceGradient)[component],-1.0L,2.0L,-1.0L,2.0L,chartGradient[component]);
     surfaceGradient = &chartGradient;
   }
-  long double norm = 0.0L;
-  for(unsigned i = 0; i < 3; ++i) {
-    for(unsigned j = 0; j < 3; ++j) norm += std::abs(normalized[i][j]);
-  }
-  if(norm == 0.0L && computeDelta) throw std::domain_error("The Dirac delta of an identically zero QUAD9 field is undefined.");
-  const unsigned count = (degree+1U)*(degree+2U)/2U;
-  std::vector<long double> values(2U*count,0.0L);
-  std::vector<long double> errors(2U*count,0.0L);
-  int phase = 0;
-  LineSliceUtilities::CanonicalGraphOrder(normalized,0,phase);
-  if(computeDelta && zeroBoundary != nullptr) {
-    for(unsigned side = 0; side < 4; ++side) {
-      if((*zeroBoundary)[side] != 0) phase = 0;
-    }
-  }
+  const std::array<long double,5> parent = {-1,2,-1,2,4};
+  std::vector<long double> values;
+  std::vector<long double> errors;
   unsigned evaluations = 0;
   unsigned accepted = 0;
   unsigned selected = 0;
+  PlanarEndpointIntegration::Integrate(normalized,degree,false,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,surfaceGradient,&parent,nullptr,integrationOrder,fullBoundaryDelta,zeroBoundary);
   unsigned compared = 0;
-  unsigned attempts = 0;
-  if(phase != 0 || norm == 0.0L) {
-    if(phase > 0 || norm == 0.0L) {
-      for(unsigned i = 0; i <= degree; ++i) {
-        for(unsigned j = 0; j <= degree-i; ++j) {
-          const unsigned k = LineSliceUtilities::MomentIndex(degree,i,j);
-          values[k] = (norm == 0.0L ? 0.5L : 1.0L)*ReferenceIntervalMoment(i)*ReferenceIntervalMoment(j);
-          errors[k] = 4.0L*std::numeric_limits<long double>::epsilon()*std::abs(values[k]);
-        }
-      }
-    }
-  }
-  else {
-    long double lower[2];
-    long double upper[2];
-    const unsigned automatic = Quad9SelectedOrder(normalized,lower,upper);
-    const unsigned preferred = integrationOrder == 0 ? automatic : integrationOrder;
-    const bool checkBoth = validationMode == 2;
-    bool completed = false;
-    std::string failure = "QUAD9 integration directions did not agree.";
-    for(unsigned retry = 0; retry < (checkBoth ? 2U : 1U) && !completed; ++retry) {
-      const long double factor = retry == 0 ? 1.0L : 0.125L;
-      std::vector<std::vector<long double>> trial(2);
-      std::vector<std::vector<long double>> trialError(2);
-      unsigned trialAccepted[2] = {0,0};
-      bool success[2] = {false,false};
-      const unsigned number = checkBoth || integrationOrder == 0 ? 2U : 1U;
-      for(unsigned candidate = 0; candidate < number; ++candidate) {
-        const unsigned order = candidate == 0 ? preferred : 3U-preferred;
-        ++attempts;
-        try {
-          Quad9SelectedReferenceOneDirection(normalized,scale,degree,order,lower[2U-order],computeDelta,fullBoundaryDelta,absoluteTolerance*factor,relativeTolerance*factor,maximumDepth,maximumEvaluations,zeroBoundary,trial[candidate],trialError[candidate],evaluations,trialAccepted[candidate],candidate == 1 && checkBoth ? false : useTaylor,surfaceGradient,!(checkBoth && candidate == 1));
-          success[candidate] = true;
-          if(!checkBoth) {
-            values.swap(trial[candidate]);
-            errors.swap(trialError[candidate]);
-            accepted = trialAccepted[candidate];
-            selected = order;
-            completed = true;
-            break;
-          }
-        }
-        catch(const std::runtime_error& exception) {
-          failure = exception.what();
-        }
-      }
-      if(checkBoth && success[0] && success[1]) {
-        bool agree = true;
-        for(unsigned k = 0; k < values.size(); ++k) {
-          const long double difference = std::abs(trial[0][k]-trial[1][k]);
-          const long double error = std::max(difference,std::max(trialError[0][k],trialError[1][k]));
-          const long double tolerance = absoluteTolerance*(k < count ? 1.0L : scale)+relativeTolerance*std::abs(trial[0][k]);
-          agree = agree && error <= tolerance;
-          errors[k] = error;
-        }
-        if(agree) {
-          values.swap(trial[0]);
-          accepted = trialAccepted[0]+trialAccepted[1];
-          selected = preferred;
-          compared = 1;
-          completed = true;
-        }
-        else failure = "QUAD9 x-first and y-first moments disagree beyond tolerance.";
-      }
-    }
-    if(!completed) throw std::runtime_error(failure);
-  }
+  if(validationMode == 2) compared = PlanarEndpointIntegration::Compare(normalized,degree,false,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,surfaceGradient,&parent,fullBoundaryDelta,zeroBoundary);
+  Quad9SelectedReferenceParity(normalized,degree,values,errors,surfaceGradient);
+  const unsigned count = values.size()/2U;
   std::vector<std::vector<double>> resultH(degree+1U);
   std::vector<std::vector<double>> resultD(degree+1U);
-  long double errorH = 0.0L;
-  long double errorD = 0.0L;
+  long double errorH = 0;
+  long double errorD = 0;
   for(unsigned i = 0; i <= degree; ++i) {
     resultH[i].resize(degree-i+1U);
     resultD[i].resize(degree-i+1U);
     for(unsigned j = 0; j <= degree-i; ++j) {
-      const unsigned k = LineSliceUtilities::MomentIndex(degree,i,j);
-      resultH[i][j] = static_cast<double>(values[k]);
-      resultD[i][j] = computeDelta ? static_cast<double>(values[count+k]/scale) : 0.0;
-      if(!std::isfinite(resultH[i][j]) || !std::isfinite(resultD[i][j])) throw std::overflow_error("A QUAD9 selected-direction moment exceeds double range.");
-      const long double momentErrorH = errors[k]+std::abs(static_cast<long double>(resultH[i][j])-values[k]);
-      const long double momentErrorD = computeDelta ? errors[count+k]/scale+std::abs(static_cast<long double>(resultD[i][j])-values[count+k]/scale) : 0.0L;
-      if(!std::isfinite(momentErrorH) || !std::isfinite(momentErrorD) || momentErrorH > absoluteTolerance+relativeTolerance*std::abs(static_cast<long double>(resultH[i][j])) || momentErrorD > absoluteTolerance+relativeTolerance*std::abs(static_cast<long double>(resultD[i][j]))) throw std::runtime_error("QUAD9 reference moment error exceeds tolerance.");
-      errorH = std::max(errorH,momentErrorH);
-      errorD = std::max(errorD,momentErrorD);
+      const unsigned n = ReferenceMomentIndex2D(degree,i,j);
+      resultH[i][j] = static_cast<double>(values[n]);
+      resultD[i][j] = computeDelta ? static_cast<double>(values[count+n]/scale) : 0;
+      const long double hError = errors[n]+std::abs(values[n]-resultH[i][j]);
+      const long double dError = computeDelta ? errors[count+n]/scale+std::abs(values[count+n]/scale-resultD[i][j]) : 0;
+      if(!std::isfinite(resultH[i][j]) || !std::isfinite(resultD[i][j]) || hError > absoluteTolerance+relativeTolerance*std::abs(values[n]) || dError > absoluteTolerance+relativeTolerance*std::abs(resultD[i][j])) throw std::runtime_error("Rounded QUAD moments exceed tolerance.");
+      errorH = std::max(errorH,hError);
+      errorD = std::max(errorD,dError);
     }
   }
   positive.swap(resultH);
   delta.swap(resultD);
-  if(estimatedError != nullptr) *estimatedError = {static_cast<double>(errorH),static_cast<double>(errorD),static_cast<double>(accepted),useTaylor ? -1.0 : static_cast<double>(evaluations),static_cast<double>(selected),static_cast<double>(compared),static_cast<double>(attempts)};
+  if(estimatedError != nullptr) *estimatedError = {static_cast<double>(errorH),static_cast<double>(errorD),static_cast<double>(accepted),static_cast<double>(evaluations),static_cast<double>(selected),static_cast<double>(compared),1};
 }
 
-inline void IntegrateQuad9NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr, bool useTaylor = false, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+inline void IntegrateQuad9NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr,  bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
   std::vector<std::vector<double>> coefficient;
   Quad9ReferenceCoefficientsFromNodalValues(nodalValues,coefficient);
   std::vector<unsigned> boundary = {static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[3] == 0.0 && nodalValues[7] == 0.0),static_cast<unsigned>(nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[5] == 0.0),static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[4] == 0.0),static_cast<unsigned>(nodalValues[3] == 0.0 && nodalValues[2] == 0.0 && nodalValues[6] == 0.0)};
-  IntegrateQuad9ReferenceSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,useTaylor ? 24U : 28U,integrationOrder,200000,estimatedError,validationMode,&boundary,useTaylor,referenceSurface,nullptr,inverseJacobian,geometryCoordinates);
+  IntegrateQuad9ReferenceSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,28U,integrationOrder,200000,estimatedError,validationMode,&boundary,referenceSurface,nullptr,inverseJacobian,geometryCoordinates);
 }
 
 }
 
 #endif
-

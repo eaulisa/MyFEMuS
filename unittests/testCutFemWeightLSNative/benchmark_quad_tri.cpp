@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-// Benchmark stage: derivative-aligned TRI splitting with mapped Fast GK plus optimized QUAD.
+// Benchmarks retained QUAD and full TRI integration through total degree ten.
 
 struct BenchmarkCase {
   std::string element;
@@ -90,13 +90,13 @@ std::vector<double> NodalValues(const BenchmarkCase& test) {
 
 void RunIntegration(const BenchmarkCase& test, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta) {
   if(!test.nodal) {
-    if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,24,0,200000,nullptr,1,nullptr,true);
-    else FELevelSetMoments::IntegrateTri7ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,24,0,200000,nullptr,1,nullptr,true);
+    if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,24,0,200000,nullptr,1,nullptr);
+    else FELevelSetMoments::IntegrateTri7ReferenceSelected(test.coefficient,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,24,0,200000,nullptr,1,nullptr);
     return;
   }
   const std::vector<double>& nodalValues = test.nodalValues;
-  if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,1,0,nullptr,true);
-  else FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,1,0,nullptr,true);
+  if(test.element == "QUAD") FELevelSetMoments::IntegrateQuad9NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,1,0,nullptr);
+  else FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,test.degree,positive,delta,1.0e-10,1.0e-10,true,false,1,0,nullptr);
 }
 
 CaseResult Measure(const BenchmarkCase& test) {

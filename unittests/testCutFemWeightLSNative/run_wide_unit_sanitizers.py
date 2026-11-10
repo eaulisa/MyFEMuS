@@ -9,7 +9,7 @@ import sys
 
 suite=Path(__file__).resolve().parent
 repo=suite.parents[1]
-parser=argparse.ArgumentParser(description='Run unit-basis fitting, non-graph splitting, and physical geometry with ASan and UBSan.')
+parser=argparse.ArgumentParser(description='Run unit-basis fitting, non-graph endpoint integration, and physical geometry with ASan and UBSan.')
 parser.add_argument('--skip-build',action='store_true')
 parser.add_argument('--leak-detection',action='store_true')
 args=parser.parse_args()
@@ -42,7 +42,7 @@ for element,degree in [(0,10),(1,10),(2,2),(3,2),(2,10),(3,10)]:
     try:
         rows=[json.loads(line) for line in process.stdout.splitlines()]
         count=math.comb(degree+(2 if element<2 else 3),2 if element<2 else 3)
-        good=process.returncode==0 and not process.stderr and len(rows)==len(packet.splitlines()) and all(not row.get('error') and len(row.get('moments',[]))==count and not row.get('fallback_cells',0) for row in rows)
+        good=process.returncode==0 and not process.stderr and len(rows)==len(packet.splitlines()) and all(not row.get('error') and len(row.get('moments',[]))==count for row in rows)
         records.append({'element':element,'degree':degree,'cases':len(rows),'moments':sum(len(row.get('moments',[])) for row in rows),'exit':process.returncode,'accepted':good})
     except Exception as error:
         records.append({'element':element,'degree':degree,'exit':process.returncode,'accepted':False,'error':str(error)})

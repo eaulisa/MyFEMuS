@@ -55,14 +55,19 @@ struct EndpointStripDirection {
   std::vector<std::vector<double>> inverseJacobian;
   long double metricScale = 1;
   std::vector<EndpointStripInterval> intervals;
+  bool lowerZero = false;
+  bool upperZero = false;
+  bool fullBoundaryDelta = false;
   unsigned triangle = 0;
+  std::array<long double,5> parent = {0,1,0,1,1};
+  std::vector<unsigned char> requested;
   unsigned order = 1;
   long double score = std::numeric_limits<long double>::infinity();
 };
 
 class EndpointStripQuadrature {
 public:
-  // Experiments with selective GK on the original curve after quadratic endpoint coordinate maps.
+  // Integrates the exact curve with selective quadrature after quadratic endpoint maps.
   static EndpointStripStatistics& Statistics() { static thread_local EndpointStripStatistics statistics; return statistics; }
 
   static long double& StripWidth() { static thread_local long double width = 0; return width; }
@@ -94,8 +99,8 @@ public:
     return false;
   }
 
-  static bool Try(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, long double metricScale = 1, const std::vector<std::vector<std::vector<long double>>>* coordinates = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr) {
-    if(degree > 10) return false;
+  static bool Try(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, long double metricScale = 1, const std::vector<std::vector<std::vector<long double>>>* coordinates = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::array<long double,5>* parent = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned requestedDirection = 0, bool fullBoundaryDelta = false) {
+    if(requestedDirection > 2) throw std::invalid_argument("Invalid endpoint direction.");
     ++Statistics().attempts;
     static thread_local std::vector<std::vector<long double>> cachedCoefficient;
     static thread_local bool cachedTriangle = false;
@@ -115,8 +120,9 @@ public:
     if(gradient != nullptr) { directions[0].gradient = *gradient; SurfaceGradientTranspose(*gradient,directions[1].gradient); }
     for(unsigned d = 0; d < 2; ++d) { directions[d].metricScale = metricScale; if(inverseJacobian != nullptr) directions[d].inverseJacobian = *inverseJacobian; }
     if(coordinates != nullptr) { directions[0].coordinates = *coordinates; SurfaceGradientTranspose(*coordinates,directions[1].coordinates); }
-    const unsigned first = PreferredDirection() == 0 ? (directions[1].score < directions[0].score ? 1U : 0U) : PreferredDirection()-1U;
-    for(unsigned attempt = 0; attempt < 2; ++attempt) {
+    for(unsigned d = 0; d < 2; ++d) { directions[d].fullBoundaryDelta = fullBoundaryDelta; if(parent != nullptr) directions[d].parent = LineIntegration::MomentCoordinates(parent,d+1U); directions[d].requested = LineIntegration::MomentRequest(degree,requested,d+1U,computeDelta); }
+    const unsigned first = requestedDirection != 0 ? requestedDirection-1U : PreferredDirection() == 0 ? (directions[1].score < directions[0].score ? 1U : 0U) : PreferredDirection()-1U;
+    for(unsigned attempt = 0; attempt < (requestedDirection == 0 ? 2U : 1U); ++attempt) {
       const unsigned axis = attempt == 0 ? first : 1U-first;
       if(!std::isfinite(directions[axis].score)) continue;
       std::vector<long double> result;
@@ -124,7 +130,7 @@ public:
       unsigned localEvaluations = 0;
       unsigned localAccepted = 0;
       try {
-        IntegrateDirection(directions[axis],degree,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,result,resultError,localEvaluations,localAccepted);
+        IntegrateDirection(directions[axis],degree,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations-evaluations,result,resultError,localEvaluations,localAccepted);
         if(axis == 1) {
           const unsigned count = result.size()/2U;
           for(unsigned i = 0; i <= degree; ++i) for(unsigned j = i+1U; j <= degree-i; ++j) for(unsigned p = 0; p < 2; ++p) { std::swap(result[p*count+LineSliceUtilities::MomentIndex(degree,i,j)],result[p*count+LineSliceUtilities::MomentIndex(degree,j,i)]); std::swap(resultError[p*count+LineSliceUtilities::MomentIndex(degree,i,j)],resultError[p*count+LineSliceUtilities::MomentIndex(degree,j,i)]); }
@@ -138,7 +144,7 @@ public:
         ++Statistics().directions[axis];
         return true;
       }
-      catch(const std::runtime_error& error) { Statistics().failure = error.what(); }
+      catch(const std::runtime_error& error) { evaluations += localEvaluations; Statistics().failure = error.what(); if(evaluations >= maximumEvaluations) break; }
     }
     ++Statistics().rejected;
     return false;
@@ -165,7 +171,7 @@ private:
 
   static void Classify(const EndpointStripDirection& data, long double x, EndpointStripInterval& interval) {
     const std::vector<long double> domain = {0,1,0,1};
-    IntervalBranches(data.field,x,data.triangle,domain,false,false,true,interval.signs,interval.boundary,interval.positive,interval.phase);
+    IntervalBranches(data.field,x,data.triangle,domain,data.lowerZero,data.upperZero,true,interval.signs,interval.boundary,interval.positive,interval.phase);
     ++Statistics().classifications;
   }
 
@@ -193,7 +199,8 @@ private:
     if(LineSliceUtilities::PolynomialNorm(data.field[0])+LineSliceUtilities::PolynomialNorm(data.field[1]) <= 64*std::sqrt(std::numeric_limits<long double>::epsilon())*fieldNorm) throw std::runtime_error("A nearly parallel projection retains the transverse direction.");
     if(gradient != nullptr) { if(order == 1) data.gradient = *gradient; else SurfaceGradientTranspose(*gradient,data.gradient); }
     const LineIntegrationStrip strip = {0,1,0,0,1,triangle ? -1.0L : 0.0L};
-    if(LineIntegration::BoundaryIsZero(data.coefficient,0,0) || LineIntegration::BoundaryIsZero(data.coefficient,1,strip.upperSlope)) throw std::runtime_error("A zero boundary retains the existing trace integrator.");
+    data.lowerZero = LineIntegration::BoundaryIsZero(data.coefficient,0,0);
+    data.upperZero = LineIntegration::BoundaryIsZero(data.coefficient,1,strip.upperSlope);
     std::vector<long double> events;
     std::vector<long double> candidates;
     LineIntegration::CollectEvents(data.coefficient,strip,events,&candidates,false);
@@ -258,6 +265,7 @@ private:
     const long double derivative = interval.mapping == 0 ? (a == 0 ? std::abs(b) : std::sqrt(std::max(0.0L,discriminant))) : parameter*regularDerivative;
     const long double surfaceRatio = interval.mapping == 0 ? 1.0L/derivative : 2*interval.delta/regularDerivative;
     const long double upper = data.triangle ? 1-x : 1;
+    const long double parentX = std::fma(data.parent[1],x,data.parent[0]);
     std::vector<long double> roots;
     std::vector<long double> cuts(1,0);
     for(unsigned r = 0; r < interval.signs.size(); ++r) {
@@ -274,26 +282,29 @@ private:
     std::vector<long double> h(degree+1U,0);
     std::vector<long double> d(degree+1U,0);
     for(unsigned r = 0; r < interval.positive.size(); ++r) if(interval.positive[r] != 0) {
+      const long double parentLeft = std::fma(data.parent[3],cuts[r],data.parent[2]);
+      const long double parentRight = std::fma(data.parent[3],cuts[r+1U],data.parent[2]);
       long double power = 1;
       long double geometric = 0;
-      for(unsigned j = 0; j <= degree; ++j) { geometric = power+cuts[r]*geometric; h[j] += (cuts[r+1U]-cuts[r])*geometric/(j+1U); power *= cuts[r+1U]; }
+      for(unsigned j = 0; j <= degree; ++j) { geometric = power+parentLeft*geometric; h[j] += (cuts[r+1U]-cuts[r])*geometric/(j+1U); power *= parentRight; }
     }
     for(unsigned r = 0; r < roots.size(); ++r) {
       if(!(derivative > 0)) throw std::runtime_error("A bulk node reached a singular fiber.");
-      long double weight = (interval.boundary[r] == 0 ? 1.0L : 0.5L)*surfaceRatio;
+      long double weight = (interval.boundary[r] == 0 || data.fullBoundaryDelta ? 1.0L : 0.5L)*surfaceRatio;
       if(!data.gradient.empty()) weight *= SurfaceGradientNorm(data.gradient,x,roots[r]);
+      const long double parentRoot = std::fma(data.parent[3],roots[r],data.parent[2]);
       long double power = 1;
-      for(unsigned j = 0; j <= degree; ++j) { d[j] += weight*power; power *= roots[r]; }
+      for(unsigned j = 0; j <= degree; ++j) { d[j] += weight*power; power *= parentRoot; }
     }
     values.assign(active.size(),0);
     long double power = 1;
     for(unsigned i = 0; i <= degree; ++i) {
       for(unsigned j = 0; j <= degree-i; ++j) {
         const unsigned n = LineSliceUtilities::MomentIndex(degree,i,j);
-        if(active[n]) values[n] = jacobian*power*h[j]; else ++Statistics().inactiveComponents;
-        if(active[count+n]) values[count+n] = power*d[j]; else ++Statistics().inactiveComponents;
+        if(active[n]) values[n] = data.parent[4]*jacobian*power*h[j]; else ++Statistics().inactiveComponents;
+        if(active[count+n]) values[count+n] = data.parent[4]*power*d[j]; else ++Statistics().inactiveComponents;
       }
-      power *= x;
+      power *= parentX;
     }
     if(interval.mapping == 0) ++Statistics().bulkSamples; else ++Statistics().stripSamples;
   }
@@ -343,8 +354,8 @@ private:
     const LineIntegrationStrip strip = {0,1,0,0,1,data.triangle ? -1.0L : 0.0L};
     for(unsigned k = 0; k < data.intervals.size(); ++k) {
       const EndpointStripInterval& interval = data.intervals[k];
-      if(interval.signs.empty()) { if(interval.phase > 0) LineIntegration::FullStripMoments(degree,strip,interval.left,interval.right,values,errors); ++accepted; continue; }
-      std::vector<unsigned char> active(values.size(),1);
+      if(interval.signs.empty()) { if(interval.phase > 0) LineIntegration::FullStripMoments(degree,strip,interval.left,interval.right,values,errors,&data.parent,&data.requested); ++accepted; continue; }
+      std::vector<unsigned char> active = data.requested;
       if(!computeDelta) std::fill(active.begin()+count,active.end(),0);
       const long double width = std::min(StripWidth() > 0 ? StripWidth() : (interval.right-interval.left)/6,0.45L*(interval.right-interval.left));
       long double left = interval.left;
@@ -361,7 +372,7 @@ private:
       }
       if(right > left) Adaptive(data,interval,degree,left,right,0.5L*intervalBudget*absoluteH,0.5L*intervalBudget*absoluteD,relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,active,values,errors);
     }
-    for(unsigned n = 0; n < values.size(); ++n) if(!std::isfinite(values[n]) || !std::isfinite(errors[n]) || errors[n] > (n < count ? absoluteH : absoluteD)+relative*std::abs(values[n])) throw std::runtime_error("Accumulated non-graph moment error exceeds tolerance.");
+    for(unsigned n = 0; n < values.size(); ++n) if(data.requested[n] && (!std::isfinite(values[n]) || !std::isfinite(errors[n]) || errors[n] > (n < count ? absoluteH : absoluteD)+relative*std::abs(values[n]))) throw std::runtime_error("Accumulated non-graph moment error exceeds tolerance.");
   }
 };
 

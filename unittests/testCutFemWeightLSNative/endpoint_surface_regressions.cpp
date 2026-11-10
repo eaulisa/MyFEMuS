@@ -1,4 +1,4 @@
-#include "GraphCellIntegration.hpp"
+#include "SurfaceEndpointIntegration.hpp"
 #include "Hex27DirectionSelection.hpp"
 #include "Tet15LevelSetMoments.hpp"
 #include "Basis.hpp"
@@ -28,44 +28,31 @@ void GraphCheck(long double actual, long double expected, long double tolerance,
 }
 
 void GraphGeometry() {
-  FELevelSetMoments::GraphCellRegion cell;
+  FELevelSetMoments::SurfaceEndpointDomain cell;
   cell.tetrahedron = true;
   cell.vertices = {{0,0,0},{1,0,0},{0,1,0},{0,0,1}};
-  std::vector<FELevelSetMoments::GraphCellRegion> regions = {cell};
-  for(unsigned step = 0; step < 5; ++step) {
-    std::vector<FELevelSetMoments::GraphCellRegion> children;
-    const long double cut = 0.17L+0.13L*step;
-    for(unsigned n = 0; n < regions.size(); ++n) {
-      FELevelSetMoments::GraphCellIntegration::Clip(regions[n],step%3U,cut,true,children);
-      FELevelSetMoments::GraphCellIntegration::Clip(regions[n],step%3U,cut,false,children);
-    }
-    regions.swap(children);
-    for(unsigned i = 0; i <= 5; ++i) for(unsigned j = 0; j <= 5-i; ++j) for(unsigned k = 0; k <= 5-i-j; ++k) {
-      long double actual = 0.0L;
-      for(unsigned n = 0; n < regions.size(); ++n) actual += FELevelSetMoments::GraphCellIntegration::TetMoment(regions[n],i,j,k);
-      GraphCheck(actual,GraphFactorial(i)*GraphFactorial(j)*GraphFactorial(k)/GraphFactorial(i+j+k+3U),2.0e-17L,"clipped tet moment");
-    }
-  }
+  const std::vector<FELevelSetMoments::SurfaceEndpointDomain> regions = {cell};
+  for(unsigned i = 0; i <= 5; ++i) for(unsigned j = 0; j <= 5-i; ++j) for(unsigned k = 0; k <= 5-i-j; ++k) GraphCheck(FELevelSetMoments::SurfaceEndpointIntegration::TetMoment(cell,i,j,k),GraphFactorial(i)*GraphFactorial(j)*GraphFactorial(k)/GraphFactorial(i+j+k+3U),2.0e-17L,"full tet moment");
   std::vector<long double> parent(27,0.0L);
   parent[0] = 0.13L;
   parent[FELevelSetMoments::Hex27Index(2,1,0)] = -1.7L;
   parent[FELevelSetMoments::Hex27Index(1,1,2)] = 2.1L;
   parent[FELevelSetMoments::Hex27Index(1,2,0)] = 0.9L;
   for(unsigned n = 0; n < regions.size(); ++n) {
-    const std::vector<long double> local = FELevelSetMoments::GraphCellIntegration::SimplexPolynomial(parent,regions[n]);
+    const std::vector<long double> local = FELevelSetMoments::SurfaceEndpointIntegration::SimplexPolynomial(parent,regions[n]);
     long double minimum;
     long double maximum;
     long double padding;
-    FELevelSetMoments::GraphCellIntegration::Range(parent,regions[n],4,minimum,maximum,padding);
+    FELevelSetMoments::SurfaceEndpointIntegration::Range(parent,regions[n],4,minimum,maximum,padding);
     for(unsigned sample = 0; sample < 7; ++sample) {
       const long double u = (sample+1.0L)/32.0L;
       const long double v = (7.0L-sample)/32.0L;
       const long double w = 0.125L;
       std::array<long double,3> point;
       for(unsigned d = 0; d < 3; ++d) point[d] = regions[n].vertices[0][d]+u*(regions[n].vertices[1][d]-regions[n].vertices[0][d])+v*(regions[n].vertices[2][d]-regions[n].vertices[0][d])+w*(regions[n].vertices[3][d]-regions[n].vertices[0][d]);
-      const long double original = FELevelSetMoments::GraphCellIntegration::Value(parent,point);
+      const long double original = FELevelSetMoments::SurfaceEndpointIntegration::Value(parent,point);
       long double mapped = 0.0L;
-      for(unsigned i = 0; i <= 4; ++i) for(unsigned j = 0; j <= 4-i; ++j) for(unsigned k = 0; k <= 4-i-j; ++k) mapped += local[FELevelSetMoments::GraphCellIntegration::Index(i,j,k)]*FELevelSetMoments::ReferencePower(u,i)*FELevelSetMoments::ReferencePower(v,j)*FELevelSetMoments::ReferencePower(w,k);
+      for(unsigned i = 0; i <= 4; ++i) for(unsigned j = 0; j <= 4-i; ++j) for(unsigned k = 0; k <= 4-i-j; ++k) mapped += local[FELevelSetMoments::SurfaceEndpointIntegration::Index(i,j,k)]*FELevelSetMoments::ReferencePower(u,i)*FELevelSetMoments::ReferencePower(v,j)*FELevelSetMoments::ReferencePower(w,k);
       GraphCheck(original,mapped,2.0e-17L,"parent polynomial restriction");
       GraphCheck(original,std::max(minimum,std::min(maximum,original)),padding+2.0e-17L,"Bernstein enclosure");
     }
@@ -79,14 +66,14 @@ void GraphIntegrate(bool tet, const std::vector<long double>& coefficient, unsig
     std::vector<double> nodal(15);
     for(unsigned node = 0; node < 15; ++node) {
       const double* point = basis.GetXcoarse(node);
-      nodal[node] = scaling*static_cast<double>(FELevelSetMoments::GraphCellIntegration::Value(coefficient,{point[0],point[1],point[2]}));
+      nodal[node] = scaling*static_cast<double>(FELevelSetMoments::SurfaceEndpointIntegration::Value(coefficient,{point[0],point[1],point[2]}));
     }
     FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodal,degree,positive,delta,tolerance,tolerance,true,24,0,200000,&error,1,nullptr,surface);
   }
   else {
     std::vector<std::vector<std::vector<double>>> field(3,std::vector<std::vector<double>>(3,std::vector<double>(3)));
     for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) field[i][j][k] = scaling*coefficient[FELevelSetMoments::Hex27Index(i,j,k)];
-    FELevelSetMoments::IntegrateHex27ReferenceSelected(field,degree,positive,delta,tolerance,tolerance,true,24,0,200000,&error,1,true,nullptr,nullptr,surface);
+    FELevelSetMoments::IntegrateHex27ReferenceSelected(field,degree,positive,delta,tolerance,tolerance,true,24,0,200000,&error,1,nullptr,nullptr,surface);
   }
 }
 
@@ -107,16 +94,16 @@ void GraphPlanes(bool tet, unsigned degree) {
     std::vector<std::vector<std::vector<double>>> h;
     std::vector<std::vector<std::vector<double>>> d;
     std::vector<double> error;
-    GraphIntegrate(tet,coefficient,degree,1.0e-11,false,1.0,h,d,error);
+    try { GraphIntegrate(tet,coefficient,degree,1.0e-11,false,1.0,h,d,error); } catch(const std::exception& error) { throw std::runtime_error(std::string(tet ? "TET" : "HEX")+" plane axis="+std::to_string(axis)+" cut="+std::to_string(static_cast<double>(cuts[c]))+": "+error.what()); }
     unsigned first;
     unsigned second;
     FELevelSetMoments::Hex27OtherAxes(axis,first,second);
     for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) for(unsigned k = 0; k <= degree-i-j; ++k) {
       const unsigned powers[3] = {i,j,k};
-      const long double expectedH = tet ? GraphPlaneH(cuts[c],powers[axis],powers[first],powers[second]) : FELevelSetMoments::GraphCellIntegration::IntegralPower(cuts[c],1.0L,powers[axis])*FELevelSetMoments::GraphCellIntegration::IntegralPower(-1.0L,1.0L,powers[first])*FELevelSetMoments::GraphCellIntegration::IntegralPower(-1.0L,1.0L,powers[second]);
+      const long double expectedH = tet ? GraphPlaneH(cuts[c],powers[axis],powers[first],powers[second]) : FELevelSetMoments::SurfaceEndpointIntegration::IntegralPower(cuts[c],1.0L,powers[axis])*FELevelSetMoments::SurfaceEndpointIntegration::IntegralPower(-1.0L,1.0L,powers[first])*FELevelSetMoments::SurfaceEndpointIntegration::IntegralPower(-1.0L,1.0L,powers[second]);
       long double expectedD = FELevelSetMoments::ReferencePower(cuts[c],powers[axis]);
       if(tet) expectedD *= FELevelSetMoments::ReferencePower(1.0L-cuts[c],powers[first]+powers[second]+2U)*GraphFactorial(powers[first])*GraphFactorial(powers[second])/GraphFactorial(powers[first]+powers[second]+2U);
-      else expectedD *= FELevelSetMoments::GraphCellIntegration::IntegralPower(-1.0L,1.0L,powers[first])*FELevelSetMoments::GraphCellIntegration::IntegralPower(-1.0L,1.0L,powers[second]);
+      else expectedD *= FELevelSetMoments::SurfaceEndpointIntegration::IntegralPower(-1.0L,1.0L,powers[first])*FELevelSetMoments::SurfaceEndpointIntegration::IntegralPower(-1.0L,1.0L,powers[second]);
       if(cuts[c] == (tet ? 0.0L : -1.0L) || cuts[c] == 1.0L) expectedD *= 0.5L;
       GraphCheck(h[i][j][k],expectedH,4.0e-11L,"plane H");
       GraphCheck(d[i][j][k],expectedD,4.0e-11L,"plane delta");
@@ -174,15 +161,15 @@ void GraphBoundaryPolynomial() {
   std::vector<long double> coefficient(27);
   for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) coefficient[FELevelSetMoments::Hex27Index(i,j,k)] = original[FELevelSetMoments::Tet15Index(i,j,k)];
   for(unsigned outer = 0; outer < 3; ++outer) for(unsigned inner = 0; inner < 3; ++inner) if(inner != outer) {
-    const std::vector<std::vector<long double>> face = FELevelSetMoments::GraphCellIntegration::TetrahedronBoundary(coefficient,outer,inner);
+    const std::vector<std::vector<long double>> face = FELevelSetMoments::EndpointProjection::Face(FELevelSetMoments::EndpointProjection::Field(coefficient,outer,3U-outer-inner),true,true);
     for(unsigned i = 0; i <= 8; ++i) for(unsigned j = 0; j <= 8-i; ++j) {
       std::array<long double,3> point;
       point[outer] = i/8.0L;
       point[inner] = j/8.0L;
       point[3U-outer-inner] = 1.0L-point[outer]-point[inner];
       long double value = 0.0L;
-      for(unsigned first = 0; first < 3; ++first) for(unsigned second = 0; second < 3; ++second) value += face[first][second]*FELevelSetMoments::ReferencePower(point[outer],first)*FELevelSetMoments::ReferencePower(point[inner],second);
-      GraphCheck(value,FELevelSetMoments::GraphCellIntegration::Value(coefficient,point),2.0e-13L,"TET15 original face restriction");
+      for(unsigned first = 0; first < face.size(); ++first) for(unsigned second = 0; second < face[first].size(); ++second) value += face[first][second]*FELevelSetMoments::ReferencePower(point[inner],first)*FELevelSetMoments::ReferencePower(point[outer],second);
+      GraphCheck(value,FELevelSetMoments::SurfaceEndpointIntegration::Value(coefficient,point),2.0e-13L,"TET15 original face restriction");
     }
   }
   ++graphCases;
@@ -203,7 +190,7 @@ void GraphObliquePlane(unsigned degree) {
     std::vector<double> nodal(15);
     for(unsigned node = 0; node < 15; ++node) {
       const double* point = basis.GetXcoarse(node);
-      nodal[node] = node == 12 ? static_cast<double>(cut-1.0L) : static_cast<double>(FELevelSetMoments::GraphCellIntegration::Value(coefficient,{point[0],point[1],point[2]}));
+      nodal[node] = node == 12 ? static_cast<double>(cut-1.0L) : static_cast<double>(FELevelSetMoments::SurfaceEndpointIntegration::Value(coefficient,{point[0],point[1],point[2]}));
     }
     FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodal,degree,h,d,1.0e-11,1.0e-11,true,24,0,200000,&error);
     std::cout << "TET oblique cut=" << cut << " degree=" << degree << " passed" << std::endl;
@@ -241,7 +228,7 @@ void GraphScales(bool tet, unsigned degree) {
       std::vector<std::vector<std::vector<double>>> d;
       GraphIntegrate(tet,coefficient,degree,1.0e-10,surface,scales[scaling],h,d,error);
       for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) for(unsigned k = 0; k <= degree-i-j; ++k) {
-        const long double full = tet ? GraphFactorial(i)*GraphFactorial(j)*GraphFactorial(k)/GraphFactorial(i+j+k+3U) : FELevelSetMoments::GraphCellIntegration::IntegralPower(-1.0L,1.0L,i)*FELevelSetMoments::GraphCellIntegration::IntegralPower(-1.0L,1.0L,j)*FELevelSetMoments::GraphCellIntegration::IntegralPower(-1.0L,1.0L,k);
+        const long double full = tet ? GraphFactorial(i)*GraphFactorial(j)*GraphFactorial(k)/GraphFactorial(i+j+k+3U) : FELevelSetMoments::SurfaceEndpointIntegration::IntegralPower(-1.0L,1.0L,i)*FELevelSetMoments::SurfaceEndpointIntegration::IntegralPower(-1.0L,1.0L,j)*FELevelSetMoments::SurfaceEndpointIntegration::IntegralPower(-1.0L,1.0L,k);
         const long double expectedH = scales[scaling] > 0.0 ? baselineH[i][j][k] : full-baselineH[i][j][k];
         const long double expectedD = baselineD[i][j][k]/(surface ? 1.0L : std::abs(scales[scaling]));
         GraphCheck(h[i][j][k],expectedH,8.0e-10L,"scaled H and complement");
@@ -268,11 +255,10 @@ int main(int argc, char** argv) {
     GraphBall(false,degree,{0.125L,-0.0625L,0.25L},0.375L,1.0e-10,true,1.0);
     GraphBall(true,degree,{0.25L,0.25L,0.25L},0.125L,1.0e-10,false,1.0);
     GraphBall(true,degree,{0.25L,0.25L,0.25L},0.125L,1.0e-10,true,1.0);
-    const FELevelSetMoments::GraphCellStatistics& statistics = FELevelSetMoments::GraphCellIntegration::Statistics();
-    if(statistics.quadCalls == 0 || statistics.triCalls == 0 || statistics.splitCells == 0 || statistics.fallbackCells != 0) throw std::runtime_error("The 3D graph hierarchy was not exercised successfully.");
+    const FELevelSetMoments::SurfaceEndpointStatistics& statistics = FELevelSetMoments::SurfaceEndpointIntegration::Statistics();
+    if(statistics.quadCalls == 0 || statistics.triCalls == 0 || statistics.endpointStrips == 0) throw std::runtime_error("The 3D graph hierarchy was not exercised successfully.");
     const FELevelSetMoments::LineIntegrationStatistics& line = FELevelSetMoments::LineDomainIntegration::Statistics();
-    std::cout << "line_fast=" << line.fastSamples << " line_full=" << line.fullSamples << " taylor_panels=" << line.taylorPanels << " bounded_regions=" << statistics.boundedCells << " relaxed_slices=" << statistics.relaxedSlices << std::endl;
-    std::cout << "checks=" << graphChecks << " cases=" << graphCases << " max_error=" << graphMaximumError << " splits=" << statistics.splitCells << " graphs=" << statistics.graphCells << " weak=" << statistics.weakGraphs << " quad=" << statistics.quadCalls << " tri=" << statistics.triCalls << " accepted_components=" << statistics.acceptedComponents << " skipped_components=" << statistics.skippedComponents << '\n';
+    std::cout << "checks=" << graphChecks << " cases=" << graphCases << " max_error=" << graphMaximumError << " splits=" << statistics.endpointStrips << " graphs=" << statistics.graphCells << " weak=" << statistics.weakGraphs << " quad=" << statistics.quadCalls << " tri=" << statistics.triCalls << " accepted_components=" << statistics.acceptedComponents << " skipped_components=" << statistics.skippedComponents << '\n';
   }
   catch(const std::exception& exception) { std::cerr << exception.what() << '\n'; return 1; }
 }

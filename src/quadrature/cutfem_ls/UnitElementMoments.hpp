@@ -41,7 +41,7 @@ inline void UnitTensorPolynomialFromNodalValues(const std::vector<double>& nodal
 
 inline void UnitTensorGradient(const std::vector<long double>& coefficient, unsigned dimension, const std::vector<std::vector<double>>* geometry, std::vector<std::vector<long double>>& gradient) {
   gradient.resize(dimension);
-  for(unsigned axis = 0; axis < dimension; ++axis) gradient[axis] = GraphCellIntegration::Derivative(coefficient,axis);
+  for(unsigned axis = 0; axis < dimension; ++axis) gradient[axis] = SurfaceEndpointIntegration::Derivative(coefficient,axis);
   if(geometry == nullptr || dimension == 1) return;
   ValidateSurfaceGeometryCoordinates(*geometry,dimension,dimension == 2 ? 9U : 27U);
   std::vector<std::vector<long double>> coordinates(dimension);
@@ -68,7 +68,7 @@ inline void UnitTensorCheck(unsigned count, const std::vector<long double>& valu
   }
 }
 
-inline void UnitQuadMoments(const std::vector<long double>& coefficient, long double scale, unsigned degree, const std::vector<std::vector<long double>>& metric, long double absolute, long double relative, unsigned direction, unsigned validation, std::vector<long double>& values, std::vector<long double>& errors) {
+inline void UnitQuadMoments(const std::vector<long double>& coefficient, long double scale, unsigned degree, const std::vector<std::vector<long double>>& metric, long double absolute, long double relative, unsigned direction, unsigned validation, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<unsigned>* zeroBoundary = nullptr) {
   std::vector<std::vector<long double>> field(3,std::vector<long double>(3));
   for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) field[i][j] = coefficient[Hex27Index(i,j,0)];
   std::vector<std::vector<std::vector<long double>>> gradient;
@@ -77,37 +77,14 @@ inline void UnitQuadMoments(const std::vector<long double>& coefficient, long do
     gradient.push_back(std::vector<std::vector<long double>>(side,std::vector<long double>(side)));
     for(unsigned i = 0; i < side; ++i) for(unsigned j = 0; j < side; ++j) gradient.back()[i][j] = metric[component][side*side*i+side*j];
   }
-  long double lower[2];
-  long double upper[2];
-  const unsigned automatic = Quad9SelectedOrder(field,lower,upper);
-  const unsigned selected = direction == 0 ? automatic : direction;
   const std::array<long double,5> coordinates = {0,1,0,1,1};
   unsigned evaluations = 0;
   unsigned accepted = 0;
   std::vector<long double> native;
   std::vector<long double> nativeErrors;
-  bool endpointIntegrated = false;
-  if(direction == 0 && validation != 2 && lower[0] == 0 && lower[1] == 0 && (upper[0] > 0 || upper[1] > 0) && Quad9SelectedWeakGraphOrder(field) == 0) {
-    int phase = 0;
-    LineSliceUtilities::CanonicalGraphOrder(field,0,phase);
-    unsigned chosen = 0;
-    if(phase == 0) endpointIntegrated = EndpointStripQuadrature::Try(field,degree,false,true,0.01L*absolute,0.01L*absolute*scale,0.01L*relative,24,200000,native,nativeErrors,evaluations,accepted,chosen,gradient.empty() ? nullptr : &gradient);
-  }
-  for(unsigned attempt = 0; !endpointIntegrated && attempt < (validation == 2 ? 2U : 1U); ++attempt) {
-    const unsigned order = attempt == 0 ? selected : 3U-selected;
-    std::vector<long double> trial;
-    std::vector<long double> trialErrors;
-    try { Quad9SelectedDirect(field,degree,order,true,absolute,absolute*scale,relative,24,200000,trial,trialErrors,evaluations,accepted,gradient.empty() ? nullptr : &gradient,coordinates,nullptr); }
-    catch(const std::runtime_error&) {
-      std::vector<std::vector<long double>> transposed = field;
-      for(unsigned i = 0; i < 3; ++i) for(unsigned j = i+1U; j < 3; ++j) std::swap(transposed[i][j],transposed[j][i]);
-      const std::vector<unsigned> boundary = {static_cast<unsigned>(LineIntegration::BoundaryIsZero(transposed,0,0)),static_cast<unsigned>(LineIntegration::BoundaryIsZero(transposed,1,0)),static_cast<unsigned>(LineIntegration::BoundaryIsZero(field,0,0)),static_cast<unsigned>(LineIntegration::BoundaryIsZero(field,1,0))};
-      Quad9SelectedOneDirection(field,scale,degree,order,lower[2U-order],true,false,absolute,relative,24,200000,&boundary,trial,trialErrors,evaluations,accepted,true,gradient.empty() ? nullptr : &gradient);
-    }
-    UnitTensorCheck(trial.size()/2U,trial,trialErrors,absolute,absolute*scale,relative);
-    if(attempt == 0) { native.swap(trial); nativeErrors.swap(trialErrors); }
-    else for(unsigned n = 0; n < native.size(); ++n) nativeErrors[n] = std::max(nativeErrors[n],std::max(trialErrors[n],std::abs(native[n]-trial[n])));
-  }
+  unsigned selected = 0;
+  PlanarEndpointIntegration::Integrate(field,degree,false,true,absolute,absolute*scale,relative,24,200000,native,nativeErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&coordinates,nullptr,direction,false,zeroBoundary);
+  if(validation == 2) PlanarEndpointIntegration::Compare(field,degree,false,true,absolute,absolute*scale,relative,24,200000,native,nativeErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&coordinates,false,zeroBoundary);
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   values.assign(2U*count,0);
   errors.assign(2U*count,0);
@@ -162,29 +139,30 @@ inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, un
     }
     for(unsigned n = 0; n < values.size(); ++n) errors[n] = 128*std::numeric_limits<long double>::epsilon()*std::abs(values[n]);
   }
-  else if(dimension == 2) UnitQuadMoments(coefficient,scale,degree,metric,absolute,relative,direction,validation,values,errors);
+  else if(dimension == 2) {
+    const unsigned nodes[4][3] = {{0,3,7},{1,2,5},{0,1,4},{3,2,6}};
+    std::vector<unsigned> boundary(4,1);
+    for(unsigned face = 0; face < 4; ++face) for(unsigned n = 0; n < 3; ++n) boundary[face] = boundary[face] && nodal[nodes[face][n]] == 0;
+    UnitQuadMoments(coefficient,scale,degree,metric,absolute,relative,direction,validation,values,errors,&boundary);
+  }
   else {
-    GraphCellData data;
+    SurfaceEndpointData data;
     data.coefficient = coefficient;
     data.gradient = metric;
     data.degree = degree;
     data.unitCube = true;
+    data.zeroFaces.assign(6,1);
+    for(unsigned axis = 0; axis < 3; ++axis) for(unsigned side = 0; side < 2; ++side) {
+      std::vector<double> face;
+      Hex27FaceNodalValues(nodal,axis,side,face);
+      for(unsigned n = 0; n < face.size(); ++n) data.zeroFaces[2U*axis+side] = data.zeroFaces[2U*axis+side] && face[n] == 0;
+    }
     data.absoluteH = absolute;
     data.absoluteD = absolute*scale;
     data.relative = relative;
     if(direction != 0) { unsigned middle; Hex27SelectedAxes(direction,data.preferredInner,middle,data.preferredOuter); }
-    GraphCellIntegration::Integrate(data,false,values,errors);
-    if(validation == 2) {
-      GraphCellData independent = data;
-      independent.evaluations = independent.accepted = 0;
-      unsigned outer = 0;
-      for(unsigned axis = 1; axis < 3; ++axis) if(data.outerCounts[axis] > data.outerCounts[outer]) outer = axis;
-      independent.preferredOuter = 3U-data.graphAxis-outer;
-      std::vector<long double> second;
-      std::vector<long double> secondErrors;
-      GraphCellIntegration::Integrate(independent,false,second,secondErrors);
-      for(unsigned n = 0; n < values.size(); ++n) errors[n] = std::max(errors[n],std::max(secondErrors[n],std::abs(values[n]-second[n])));
-    }
+    SurfaceEndpointIntegration::Integrate(data,false,values,errors);
+    if(validation == 2) SurfaceEndpointIntegration::Compare(data,false,values,errors);
     for(unsigned n = count; n < values.size(); ++n) { values[n] /= scale; errors[n] /= scale; }
   }
   UnitTensorCheck(count,values,errors,absolute,absolute,relative);

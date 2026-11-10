@@ -97,8 +97,8 @@ def assess(element,degree,case,data):
     expected_count=math.comb(degree+(2 if element<2 else 3),2 if element<2 else 3)
     if len(seen)!=expected_count:
         failures.append({'kind':'missing_moments','actual':len(seen),'expected':expected_count})
-    if data.get('fallback_cells',0):
-        failures.append({'kind':'unresolved_graph_cells','count':data['fallback_cells']})
+    if data.get('unsupported_cells',0):
+        failures.append({'kind':'unresolved_graph_cells','count':data['unsupported_cells']})
     return {'checks':checks,'failures':failures,'maximum_error_ratio':worst,'maximum_absolute_error':maximum_error,'oracle_error':oracle_error}
 
 
@@ -115,7 +115,7 @@ def group(item):
         records=[]
         for case,row in zip(cases,rows):
             assessment=assess(element,degree,case,row)
-            records.append({'case':case,'assessment':assessment,'seconds':row.get('seconds'),'setup_seconds':row.get('setup_seconds',0),'splits':{k:row.get(k,0) for k in ['quad_splits','triangle_splits','cell_splits','quad_calls','tri_calls','mapped_panels']}})
+            records.append({'case':case,'assessment':assessment,'seconds':row.get('seconds'),'setup_seconds':row.get('setup_seconds',0),'integration':{k:row.get(k,0) for k in ['endpoint_strips','general_surfaces','quad_calls','tri_calls','mapped_panels']}})
         errors=[]
         if process.returncode or len(rows)!=len(cases):
             errors.append({'exit':process.returncode,'rows':len(rows),'expected_rows':len(cases),'stderr':process.stderr[-2000:]})
@@ -136,7 +136,7 @@ degrees=[args.degree] if args.degree is not None else ([2] if args.smoke else [2
 with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
     records=list(pool.map(group,[(e,q) for e in elements for q in degrees]))
 after={str(p.relative_to(repo)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((repo/'src/quadrature/cutfem_ls').glob('*.hpp'))}
-summary={'accepted':all(not r['failures'] for r in records) and manifest==after,'maximum_degree':10,'groups':len(records),'cases':sum(r['cases'] for r in records),'checks':sum(v['assessment']['checks'] for r in records for v in r['records']),'maximum_error_ratio':max((v['assessment']['maximum_error_ratio'] for r in records for v in r['records']),default=0),'failures':[{'element':r['element'],'degree':r['degree'],'failures':r['failures']} for r in records if r['failures']],'source_changed':manifest!=after,'source_sha256':manifest,'split_totals':{k:sum(v['splits'][k] for r in records for v in r['records']) for k in ['quad_splits','triangle_splits','cell_splits','quad_calls','tri_calls','mapped_panels']}}
+summary={'accepted':all(not r['failures'] for r in records) and manifest==after,'maximum_degree':10,'groups':len(records),'cases':sum(r['cases'] for r in records),'checks':sum(v['assessment']['checks'] for r in records for v in r['records']),'maximum_error_ratio':max((v['assessment']['maximum_error_ratio'] for r in records for v in r['records']),default=0),'failures':[{'element':r['element'],'degree':r['degree'],'failures':r['failures']} for r in records if r['failures']],'source_changed':manifest!=after,'source_sha256':manifest,'integration_totals':{k:sum(v['integration'][k] for r in records for v in r['records']) for k in ['endpoint_strips','general_surfaces','quad_calls','tri_calls','mapped_panels']}}
 summary_path.write_text(json.dumps(summary,indent=2)+'\n')
 print(json.dumps({k:v for k,v in summary.items() if k not in ['failures','source_sha256']},indent=2),flush=True)
 sys.exit(0 if summary['accepted'] else 1)

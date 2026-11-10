@@ -1,0 +1,100 @@
+[  1%] Building CXX object src/CMakeFiles/femus.dir/algebra/DenseSubmatrix.cpp.o
+[  3%] Building CXX object src/CMakeFiles/femus.dir/algebra/DenseVectorBase.cpp.o
+[  3%] Building CXX object src/CMakeFiles/femus.dir/algebra/FieldSplitTree.cpp.o
+[  5%] Building CXX object src/CMakeFiles/femus.dir/algebra/Graph.cpp.o
+In file included from /workspace/scratch/3abad1a1b7d4/tmp/parabola_deps/boost/usr/include/boost/mpi/datatype.hpp:20,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/parallel/MyVector.hpp:25,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/mesh/Elem.hpp:26,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/mesh/Mesh.hpp:22,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/FieldSplitTree.hpp:34,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/FieldSplitTree.cpp:19:
+/workspace/scratch/3abad1a1b7d4/tmp/parabola_deps/boost/usr/include/boost/mpi/config.hpp:20:9: warning: "OMPI_SKIP_MPICXX" redefined
+   20 | #define OMPI_SKIP_MPICXX
+      |         ^~~~~~~~~~~~~~~~
+In file included from /workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscbag.h:3,
+                 from /workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petsc.h:6,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/PetscMacro.hpp:36,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/PetscVector.hpp:32,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/FieldSplitTree.hpp:28:
+/workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscsys.h:61:11: note: this is the location of the previous definition
+   61 |   #define OMPI_SKIP_MPICXX 1
+      |           ^~~~~~~~~~~~~~~~
+[  5%] Building CXX object src/CMakeFiles/femus.dir/algebra/LinearEquation.cpp.o
+[  6%] Building CXX object src/CMakeFiles/femus.dir/algebra/LinearEquationSolver.cpp.o
+[  6%] Building CXX object src/CMakeFiles/femus.dir/algebra/NumericVector.cpp.o
+[  8%] Building CXX object src/CMakeFiles/femus.dir/algebra/LinearEquationSolverPetsc.cpp.o
+In file included from /workspace/scratch/3abad1a1b7d4/tmp/parabola_deps/boost/usr/include/boost/mpi/datatype.hpp:20,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/parallel/MyVector.hpp:25,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/mesh/Elem.hpp:26,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/mesh/Mesh.hpp:22,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquation.hpp:24,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolver.hpp:30,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetsc.hpp:30,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetsc.cpp:25:
+/workspace/scratch/3abad1a1b7d4/tmp/parabola_deps/boost/usr/include/boost/mpi/config.hpp:20:9: warning: "OMPI_SKIP_MPICXX" redefined
+   20 | #define OMPI_SKIP_MPICXX
+      |         ^~~~~~~~~~~~~~~~
+In file included from /workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscbag.h:3,
+                 from /workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petsc.h:6,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/PetscMacro.hpp:36,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetsc.cpp:24:
+/workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscsys.h:61:11: note: this is the location of the previous definition
+   61 |   #define OMPI_SKIP_MPICXX 1
+      |           ^~~~~~~~~~~~~~~~
+[  8%] Building CXX object src/CMakeFiles/femus.dir/algebra/LinearEquationSolverPetscAsm.cpp.o
+[ 10%] Building CXX object src/CMakeFiles/femus.dir/algebra/LinearEquationSolverPetscFieldSplit.cpp.o
+/workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetsc.cpp: In member function ‘virtual void femus::LinearEquationSolverPetsc::MGSolve(bool)’:
+/workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetsc.cpp:359:54: error: ‘KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED’ was not declared in this scope
+  359 |       KSPOrthogonalizationSetCGSRefinementType(_ksp, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED);
+      |                                                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetsc.cpp:359:7: error: ‘KSPOrthogonalizationSetCGSRefinementType’ was not declared in this scope
+  359 |       KSPOrthogonalizationSetCGSRefinementType(_ksp, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED);
+      |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gmake[3]: *** [src/CMakeFiles/femus.dir/build.make:205: src/CMakeFiles/femus.dir/algebra/LinearEquationSolverPetsc.cpp.o] Error 1
+gmake[3]: *** Waiting for unfinished jobs....
+/workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetscFieldSplit.cpp: In member function ‘virtual void femus::LinearEquationSolverPetscFieldSplit::MGSolve(bool)’:
+/workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetscFieldSplit.cpp:66:54: error: ‘KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED’ was not declared in this scope
+   66 |       KSPOrthogonalizationSetCGSRefinementType(_ksp, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED);
+      |                                                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetscFieldSplit.cpp:66:7: error: ‘KSPOrthogonalizationSetCGSRefinementType’ was not declared in this scope
+   66 |       KSPOrthogonalizationSetCGSRefinementType(_ksp, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED);
+      |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscsys.h:1228,
+                 from /workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscvec.h:8,
+                 from /workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscmat.h:6,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/solution/Solution.hpp:29,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/mesh/Mesh.hpp:23,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquation.hpp:24,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolver.hpp:30,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetsc.hpp:30,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetscFieldSplit.hpp:26,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetscFieldSplit.cpp:20:
+/workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetscFieldSplit.cpp: In member function ‘virtual void femus::LinearEquationSolverPetscFieldSplit::Solve(bool)’:
+/workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetscFieldSplit.cpp:136:87: error: ‘KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED’ was not declared in this scope
+  136 |       PetscCallAbort(PETSC_COMM_WORLD, KSPOrthogonalizationSetCGSRefinementType(_ksp, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED));
+      |                                                                                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscerror.h:884:32: note: in definition of macro ‘PetscCallAbort’
+  884 |       ierr_petsc_call_abort_ = __VA_ARGS__; \
+      |                                ^~~~~~~~~~~
+/workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetscFieldSplit.cpp:136:40: error: ‘KSPOrthogonalizationSetCGSRefinementType’ was not declared in this scope
+  136 |       PetscCallAbort(PETSC_COMM_WORLD, KSPOrthogonalizationSetCGSRefinementType(_ksp, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED));
+      |                                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscerror.h:884:32: note: in definition of macro ‘PetscCallAbort’
+  884 |       ierr_petsc_call_abort_ = __VA_ARGS__; \
+      |                                ^~~~~~~~~~~
+/workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetscFieldSplit.cpp:180:88: error: ‘KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED’ was not declared in this scope
+  180 |     PetscCallAbort(PETSC_COMM_WORLD, KSPOrthogonalizationSetCGSRefinementType(kspFine, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED));
+      |                                                                                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscerror.h:884:32: note: in definition of macro ‘PetscCallAbort’
+  884 |       ierr_petsc_call_abort_ = __VA_ARGS__; \
+      |                                ^~~~~~~~~~~
+/workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetscFieldSplit.cpp:180:38: error: ‘KSPOrthogonalizationSetCGSRefinementType’ was not declared in this scope
+  180 |     PetscCallAbort(PETSC_COMM_WORLD, KSPOrthogonalizationSetCGSRefinementType(kspFine, KSP_ORTHOGONALIZATION_CGS_REFINE_IFNEEDED));
+      |                                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscerror.h:884:32: note: in definition of macro ‘PetscCallAbort’
+  884 |       ierr_petsc_call_abort_ = __VA_ARGS__; \
+      |                                ^~~~~~~~~~~
+gmake[3]: *** [src/CMakeFiles/femus.dir/build.make:233: src/CMakeFiles/femus.dir/algebra/LinearEquationSolverPetscFieldSplit.cpp.o] Error 1
+gmake[2]: *** [CMakeFiles/Makefile2:1709: src/CMakeFiles/femus.dir/all] Error 2
+gmake[1]: *** [CMakeFiles/Makefile2:1876: applications/MultiPhase/ex44/CMakeFiles/MultiPhase_ex44.dir/rule] Error 2
+gmake: *** [Makefile:603: MultiPhase_ex44] Error 2

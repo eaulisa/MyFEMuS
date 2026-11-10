@@ -69,9 +69,7 @@ for degree in [2, 5, 10]:
         run('baseline', widths[2], degree, triangle)
         for width in widths:
             run('mapped', width, degree, triangle)
-        if not triangle:
-            run('switched', widths[2], degree, triangle)
 sources = [root/'endpoint_strip_circle.cpp', root.parents[1]/'src/quadrature/cutfem_ls/EndpointStripQuadrature.hpp']
-summary = {'circle': {'center': [0.29, 0.23], 'radius': 0.15}, 'requested_reference_absolute_tolerance': 1e-10, 'requested_reference_relative_tolerance': 1e-10, 'mapped_and_switched_unit_absolute_tolerance': 1e-12, 'mapped_and_switched_unit_relative_tolerance': 1e-12, 'timing': 'Median of nine batches after two warm-up batches; 16 calls per batch; nodal constants alternate by 2.910383045673370361328125e-11 to force geometry rebuilds.', 'reference': '80-digit analytic disk and circle moments from beta functions; QUAD moments transformed to [-1,1]^2 with volume factor four and surface factor two.', 'source_sha256': {str(p.relative_to(root.parents[1])):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}, 'cases': cases, 'all_passed': all(c['passed'] for c in cases)}
+summary = {'circle': {'center': [0.29, 0.23], 'radius': 0.15}, 'requested_reference_absolute_tolerance': 1e-10, 'requested_reference_relative_tolerance': 1e-10, 'mapped_unit_absolute_tolerance': 1e-12, 'mapped_unit_relative_tolerance': 1e-12, 'timing': 'Median of nine batches after two warm-up batches; 16 calls per batch; nodal constants alternate by 2.910383045673370361328125e-11 to force geometry rebuilds.', 'reference': '80-digit analytic disk and circle moments from beta functions; QUAD moments transformed to [-1,1]^2 with volume factor four and surface factor two.', 'source_sha256': {str(p.relative_to(root.parents[1])):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}, 'cases': cases, 'all_passed': all(c['passed'] for c in cases)}
 (root/'review_results/endpoint_strip_circle.json').write_text(json.dumps(summary, indent=2)+'\n')
 raise SystemExit(0 if summary['all_passed'] else 1)

@@ -18,7 +18,7 @@ void CheckPlane(unsigned degree, double tolerance, double offset = 0.25) {
   std::vector<std::vector<std::vector<double>>> delta;
   std::vector<double> error;
   for(unsigned mode = 0; mode < 3; ++mode) {
-    FELevelSetMoments::IntegrateHex27NodalSelected(nodal,degree,positive,delta,tolerance,tolerance,true,1,0,&error,true,nullptr,mode != 0,nullptr,mode == 2 ? &geometry : nullptr);
+    FELevelSetMoments::IntegrateHex27NodalSelected(nodal,degree,positive,delta,tolerance,tolerance,true,1,0,&error,nullptr,mode != 0,nullptr,mode == 2 ? &geometry : nullptr);
     long double mismatch = 0.0L;
     for(unsigned i = 0; i <= degree; ++i) {
       for(unsigned j = 0; j <= degree-i; ++j) {
@@ -47,7 +47,7 @@ void CheckCurvedGeometry(unsigned degree, double tolerance) {
   std::vector<std::vector<std::vector<double>>> positive;
   std::vector<std::vector<std::vector<double>>> delta;
   std::vector<double> error;
-  FELevelSetMoments::IntegrateHex27NodalSelected(nodal,degree,positive,delta,tolerance,tolerance,true,1,0,&error,true,nullptr,true,nullptr,&geometry);
+  FELevelSetMoments::IntegrateHex27NodalSelected(nodal,degree,positive,delta,tolerance,tolerance,true,1,0,&error,nullptr,true,nullptr,&geometry);
   const long double expected = 2.0L*(std::sqrt(1.36L)+std::asinh(0.6L)/0.6L);
   const long double mismatch = std::abs(expected-delta[0][0][0]);
   std::cout << "curved_geometry area=" << delta[0][0][0] << " expected=" << expected << " maxerr=" << mismatch << " estimated=" << error[1] << " samples=" << error[3] << std::endl;
@@ -63,7 +63,7 @@ void CheckParaboloid(unsigned degree, double tolerance) {
   std::vector<std::vector<std::vector<double>>> positive;
   std::vector<std::vector<std::vector<double>>> delta;
   std::vector<double> error;
-  FELevelSetMoments::IntegrateHex27ReferenceSelected(coefficient,degree,positive,delta,tolerance,tolerance,true,24,0,200000,&error,1,true);
+  FELevelSetMoments::IntegrateHex27ReferenceSelected(coefficient,degree,positive,delta,tolerance,tolerance,true,24,0,200000,&error,1);
   const long double h = 4.0L-0.2L*4.0L-(0.1L+0.15L)*4.0L/3.0L;
   const long double d = 4.0L;
   std::cout << "paraboloid H=" << positive[0][0][0] << " D=" << delta[0][0][0] << " expected=" << h << ',' << d << " estimated=" << error[0] << ',' << error[1] << " samples=" << error[3] << std::endl;

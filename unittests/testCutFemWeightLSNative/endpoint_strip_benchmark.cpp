@@ -49,7 +49,16 @@ void TangentIntegrate(unsigned element, unsigned degree, const std::vector<doubl
   if(element == 0) { std::vector<long double> errors; FELevelSetMoments::IntegrateUnitTensorNodalMoments(nodal,2,degree,values,errors,tolerance,tolerance,mode != "raw",mode == "physical" ? &geometry : nullptr); return; }
   std::vector<std::vector<double>> h;
   std::vector<std::vector<double>> d;
-  FELevelSetMoments::IntegrateTri7NodalSelected(nodal,degree,h,d,tolerance,tolerance,true,false,1,0,nullptr,true,mode != "raw",nullptr,mode == "physical" ? &geometry : nullptr);
+  FELevelSetMoments::IntegrateTri7NodalSelected(nodal,degree,h,d,tolerance,tolerance,true,false,1,0,nullptr,mode != "raw",nullptr,mode == "physical" ? &geometry : nullptr);
+  const unsigned count = (degree+1U)*(degree+2U)/2U;
+  values.assign(2U*count,0);
+  for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) { const unsigned n = FELevelSetMoments::UnitMomentIndex(2,i,j); values[n] = h[i][j]; values[count+n] = d[i][j]; }
+}
+
+void TangentIntegrateQuadReference(unsigned degree, const std::vector<double>& nodal, const std::vector<std::vector<double>>& geometry, const std::string& mode, double tolerance, std::vector<long double>& values) {
+  std::vector<std::vector<double>> h;
+  std::vector<std::vector<double>> d;
+  FELevelSetMoments::IntegrateQuad9NodalSelected(nodal,degree,h,d,tolerance,tolerance,true,false,1,0,nullptr,mode != "raw",nullptr,mode == "physical" ? &geometry : nullptr);
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   values.assign(2U*count,0);
   for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) { const unsigned n = FELevelSetMoments::UnitMomentIndex(2,i,j); values[n] = h[i][j]; values[count+n] = d[i][j]; }
@@ -96,8 +105,6 @@ int main(int argc, char** argv) {
 #ifdef FEMUS_ENDPOINT_STRIP_QUADRATURE_HPP
     const FELevelSetMoments::EndpointStripStatistics statistics = FELevelSetMoments::EndpointStripQuadrature::Statistics();
 #endif
-    const unsigned long long quadSplits = FELevelSetMoments::LineIntegration::Statistics().splitCells;
-    const unsigned long long triangleSplits = FELevelSetMoments::LineIntegration::Statistics().triangleSplitCells;
     unsigned calls = 1;
     if(measure && failure.empty()) {
       std::vector<double> shifted = nodal;
@@ -130,7 +137,7 @@ int main(int argc, char** argv) {
 #else
     std::cout << ",0,0,0,0,0";
 #endif
-    std::cout << ',' << quadSplits << ',' << triangleSplits << ',' << calls << '\n';
+    std::cout << ',' << calls << '\n';
     if(!failure.empty()) { std::cerr << element << ',' << field << ',' << failure << '\n'; continue; }
     if(round == 0) {
       std::cout << "C," << element << ',' << field;
@@ -138,6 +145,14 @@ int main(int argc, char** argv) {
       std::cout << '\n';
       const unsigned count = values.size()/2U;
       for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) { const unsigned n = FELevelSetMoments::UnitMomentIndex(2,i,j); std::cout << "M," << element << ',' << degree << ',' << mode << ',' << field << ',' << i << ',' << j << ',' << values[n] << ',' << values[count+n] << '\n'; }
+      if(element == 0) {
+        try {
+          std::vector<long double> referenceValues;
+          TangentIntegrateQuadReference(degree,nodal,geometry,mode,tolerance,referenceValues);
+          for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) { const unsigned n = FELevelSetMoments::UnitMomentIndex(2,i,j); std::cout << "F," << element << ',' << degree << ',' << mode << ',' << field << ',' << i << ',' << j << ',' << referenceValues[n] << ',' << referenceValues[count+n] << '\n'; }
+        }
+        catch(const std::exception& error) { ++failures; std::cerr << element << ',' << field << ',' << error.what() << '\n'; }
+      }
     }
     std::cout << std::flush;
   }

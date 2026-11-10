@@ -1,0 +1,41 @@
+Test project /workspace/scratch/83f2ea880287/native-cmake
+      Start  1: cutfem_line_integration
+ 1/18 Test  #1: cutfem_line_integration .................   Passed    0.02 sec
+      Start  2: cutfem_test_reference_coefficients
+ 2/18 Test  #2: cutfem_test_reference_coefficients ......   Passed    0.01 sec
+      Start  3: cutfem_test_contract
+ 3/18 Test  #3: cutfem_test_contract ....................   Passed    0.00 sec
+      Start  4: cutfem_direct_parent_moments
+ 4/18 Test  #4: cutfem_direct_parent_moments ............   Passed    0.02 sec
+      Start  5: cutfem_tri_endpoint_regressions
+ 5/18 Test  #5: cutfem_tri_endpoint_regressions .........   Passed    0.01 sec
+      Start  6: cutfem_endpoint_surface_regressions
+ 6/18 Test  #6: cutfem_endpoint_surface_regressions .....   Passed    0.48 sec
+      Start  7: cutfem_endpoint_exponents
+ 7/18 Test  #7: cutfem_endpoint_exponents ...............   Passed    0.02 sec
+      Start  8: cutfem_endpoint_nested_contacts
+ 8/18 Test  #8: cutfem_endpoint_nested_contacts .........   Passed    3.19 sec
+      Start  9: cutfem_quad_tri_standard_moments
+ 9/18 Test  #9: cutfem_quad_tri_standard_moments ........   Passed    0.24 sec
+      Start 10: cutfem_tet_standard_moments
+10/18 Test #10: cutfem_tet_standard_moments .............   Passed    1.72 sec
+      Start 11: cutfem_quad_native_quadrants
+11/18 Test #11: cutfem_quad_native_quadrants ............   Passed    0.15 sec
+      Start 12: cutfem_quad_scaled_plane
+12/18 Test #12: cutfem_quad_scaled_plane ................   Passed    0.04 sec
+      Start 13: cutfem_test_tet_slice_regression
+13/18 Test #13: cutfem_test_tet_slice_regression ........   Passed    0.07 sec
+      Start 14: cutfem_test_root_candidate_regression
+14/18 Test #14: cutfem_test_root_candidate_regression ...   Passed    0.06 sec
+      Start 15: cutfem_mesh_refinement
+15/18 Test #15: cutfem_mesh_refinement ..................   Passed    8.30 sec
+      Start 16: cutfem_line_mesh_refinement
+16/18 Test #16: cutfem_line_mesh_refinement .............   Passed    0.06 sec
+      Start 17: cutfem_hex_sphere_mesh
+17/18 Test #17: cutfem_hex_sphere_mesh ..................   Passed   40.11 sec
+      Start 18: cutfem_tet_sphere_mesh
+18/18 Test #18: cutfem_tet_sphere_mesh ..................   Passed   13.19 sec
+
+100% tests passed out of 18
+
+Total Test time (real) =  67.73 sec

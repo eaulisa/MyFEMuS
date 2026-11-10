@@ -1,7 +1,7 @@
 #ifndef FEMUS_LINE_DOMAIN_INTEGRATION_HPP
 #define FEMUS_LINE_DOMAIN_INTEGRATION_HPP
 
-#include "AdaptiveLineSliceMoments.hpp"
+#include "LineSliceUtilities.hpp"
 #include "FELevelSetMoments.hpp"
 #include <array>
 
@@ -14,22 +14,20 @@ struct LineIntegrationStrip {
   long double lowerSlope;
   long double upperConstant;
   long double upperSlope;
+  bool fullBoundaryDelta = false;
+  bool certifiedLowerZero = false;
+  bool certifiedUpperZero = false;
 };
 
 struct LineIntegrationStatistics {
-  unsigned long long splitCells = 0;
-  unsigned long long triangleSplitCells = 0;
   unsigned long long fastSamples = 0;
   unsigned long long fullSamples = 0;
-  unsigned long long taylorPanels = 0;
   unsigned long long rootSolves = 0;
   unsigned long long singleRootSamples = 0;
   unsigned long long inactiveSkipped = 0;
-  unsigned long long fallbackComponents = 0;
   unsigned long long mappedPanels = 0;
   unsigned long long regularGraphPanels = 0;
   unsigned long long pairPanels = 0;
-  unsigned firstFallbackIndex = std::numeric_limits<unsigned>::max();
   long double worstPairRatio = 0.0L;
   unsigned worstPairIndex = std::numeric_limits<unsigned>::max();
   long double worstPairValue = 0.0L;
@@ -47,7 +45,7 @@ struct LineIntegrationDiscriminant {
 
 class LineDomainIntegration {
 public:
-  // Shared affine-fiber integration retains accepted moments through every fallback stage.
+  // Shared affine-fiber graph quadrature retains accepted moments during selective refinement.
   static LineIntegrationStatistics& Statistics() {
     static thread_local LineIntegrationStatistics data;
     return data;
@@ -71,99 +69,6 @@ public:
   static bool BoundaryIsZero(const std::vector<std::vector<long double>>& coefficient, long double constant, long double slope) {
     const std::vector<long double> boundary = BoundaryPolynomial(coefficient,constant,slope);
     return LineSliceUtilities::PolynomialNorm(boundary) == 0.0L;
-  }
-
-  static long double RootDerivativeMagnitude(const std::vector<long double>& polynomial, long double root) {
-    if(polynomial[2] == 0.0L) return std::abs(polynomial[1]);
-    const long double discriminant = std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
-    if(discriminant >= 0.0L) return std::sqrt(discriminant);
-    return std::abs(std::fma(2.0L*polynomial[2],root,polynomial[1]));
-  }
-
-  static void Sample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double x, bool computeDelta, bool graph, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& active, long double mappedDerivative = -1.0L, const std::array<long double,5>* coordinates = nullptr) {
-    const unsigned count = (degree+1U)*(degree+2U)/2U;
-    values.assign(2U*count,0.0L);
-    const long double parentX = coordinates == nullptr ? x : std::fma((*coordinates)[1],x,(*coordinates)[0]);
-    const long double measure = coordinates == nullptr ? 1.0L : (*coordinates)[4];
-    const long double lower = StripLower(strip,x);
-    const long double upper = StripUpper(strip,x);
-    const std::vector<long double> polynomial = FiberPolynomial(coefficient,x);
-    std::vector<long double> roots;
-    if(lowerZero) {
-      roots.push_back(lower);
-      if(polynomial[2] != 0.0L) {
-        const long double other = -polynomial[1]/polynomial[2]-lower;
-        if(other != lower) roots.push_back(other);
-      }
-    }
-    else if(upperZero) {
-      roots.push_back(upper);
-      if(polynomial[2] != 0.0L) {
-        const long double other = -polynomial[1]/polynomial[2]-upper;
-        if(other != upper) roots.push_back(other);
-      }
-    }
-    else roots = LineSliceUtilities::QuadraticRoots(polynomial[2],polynomial[1],polynomial[0]);
-    ++Statistics().rootSolves;
-    std::sort(roots.begin(),roots.end());
-    std::vector<long double> inside;
-    std::vector<long double> cuts(1,lower);
-    for(unsigned r = 0; r < roots.size(); ++r) {
-      if(roots[r] < lower || roots[r] > upper) continue;
-      inside.push_back(roots[r]);
-      if(roots[r] > lower && roots[r] < upper) cuts.push_back(roots[r]);
-    }
-    cuts.push_back(upper);
-    if(graph && inside.size() != 1) throw std::runtime_error("The cached graph branch is not a single root.");
-    std::vector<unsigned char> needH(degree+1U,0);
-    std::vector<unsigned char> needD(degree+1U,0);
-    for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) {
-      const unsigned k = LineSliceUtilities::MomentIndex(degree,i,j);
-      needH[j] = needH[j] || active[k] != 0;
-      needD[j] = needD[j] || (computeDelta && active[count+k] != 0);
-    }
-    std::vector<long double> h(degree+1U,0.0L);
-    std::vector<long double> d(degree+1U,0.0L);
-    for(unsigned segment = 1; segment < cuts.size(); ++segment) {
-      const long double a = cuts[segment-1U];
-      const long double b = cuts[segment];
-      const long double middle = a+0.5L*(b-a);
-      const long double sign = std::fma(std::fma(polynomial[2],middle,polynomial[1]),middle,polynomial[0]);
-      if(sign <= 0.0L) continue;
-      const long double parentA = coordinates == nullptr ? a : std::fma((*coordinates)[3],a,(*coordinates)[2]);
-      const long double parentB = coordinates == nullptr ? b : std::fma((*coordinates)[3],b,(*coordinates)[2]);
-      long double power = 1.0L;
-      long double geometric = 0.0L;
-      for(unsigned j = 0; j <= degree; ++j) {
-        geometric = power+parentA*geometric;
-        if(needH[j]) h[j] += (b-a)*geometric/(j+1U);
-        power *= parentB;
-      }
-    }
-    if(computeDelta) for(unsigned r = 0; r < inside.size(); ++r) {
-      const long double root = inside[r];
-      const long double derivative = mappedDerivative >= 0.0L ? mappedDerivative : RootDerivativeMagnitude(polynomial,root);
-      if(!(derivative > 0.0L)) throw std::runtime_error("A singular fiber has no regular delta weight.");
-      long double weight = (root == lower || root == upper ? 0.5L : 1.0L)/derivative;
-      if(surfaceGradient != nullptr) weight *= SurfaceGradientNorm(*surfaceGradient,x,root);
-      const long double parentRoot = coordinates == nullptr ? root : std::fma((*coordinates)[3],root,(*coordinates)[2]);
-      long double power = 1.0L;
-      for(unsigned j = 0; j <= degree; ++j) {
-        if(needD[j]) d[j] += power*weight;
-        power *= parentRoot;
-      }
-    }
-    long double xPower = 1.0L;
-    for(unsigned i = 0; i <= degree; ++i) {
-      for(unsigned j = 0; j <= degree-i; ++j) {
-        const unsigned k = LineSliceUtilities::MomentIndex(degree,i,j);
-        if(active[k]) values[k] = measure*xPower*h[j];
-        else ++Statistics().inactiveSkipped;
-        if(active[count+k]) values[count+k] = measure*xPower*d[j];
-        else ++Statistics().inactiveSkipped;
-      }
-      xPower *= parentX;
-    }
   }
 
   static void FastGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double x, bool computeDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& active, long double mappedDerivative = -1.0L, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0) {
@@ -253,7 +158,7 @@ public:
       rightPower *= parentRight;
     }
     if(computeDelta && number == 1) {
-      long double weight = measure*(root == lower || root == upper ? 0.5L : 1.0L)/derivative;
+      long double weight = measure*((root == lower || root == upper) && !strip.fullBoundaryDelta ? 0.5L : 1.0L)/derivative;
       if(surfaceGradient != nullptr) weight *= SurfaceGradientNorm(*surfaceGradient,x,root);
       const long double parentRoot = coordinates == nullptr ? root : (*coordinates)[2]+(*coordinates)[3]*root;
       long double rootPower = 1.0L;
@@ -349,8 +254,7 @@ public:
         const long double point = MappedPoint(left,right,parameter,mapped);
         const long double jacobian = mapped ? 0.5L*pi*(right-left)*std::sin(pi*parameter) : right-left;
         const long double mappedDerivative = mapped ? MappedDerivativeMagnitude(discriminant,parameter) : -1.0L;
-        if(graph) FastGraphSample(coefficient,degree,strip,point,computeDelta,lowerZero,upperZero,samples[sample],surfaceGradient,active,mappedDerivative,coordinates,derivativeSign);
-        else Sample(coefficient,degree,strip,point,computeDelta,false,lowerZero,upperZero,samples[sample],surfaceGradient,active,mappedDerivative,coordinates);
+        FastGraphSample(coefficient,degree,strip,point,computeDelta,lowerZero,upperZero,samples[sample],surfaceGradient,active,mappedDerivative,coordinates,derivativeSign);
         for(unsigned k = 0; k < size; ++k) {
           if(!active[k]) continue;
           samples[sample][k] *= jacobian;
@@ -448,7 +352,7 @@ public:
     return true;
   }
 
-  static void Adaptive(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool mapped, bool graph, bool useTaylor, bool computeDelta, bool lowerZero, bool upperZero, long double absoluteH, long double absoluteD, long double relative, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& requested, const LineIntegrationDiscriminant* cachedDiscriminant = nullptr, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0) {
+  static void Adaptive(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, long double parameterLeft, long double parameterRight, bool mapped, bool graph, bool computeDelta, bool lowerZero, bool upperZero, long double absoluteH, long double absoluteD, long double relative, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& total, std::vector<long double>& totalError, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& requested, const LineIntegrationDiscriminant* cachedDiscriminant = nullptr, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0) {
     const LineIntegrationDiscriminant localDiscriminant = mapped && cachedDiscriminant == nullptr ? MappedDiscriminant(coefficient,left,right) : LineIntegrationDiscriminant();
     if(cachedDiscriminant == nullptr) cachedDiscriminant = &localDiscriminant;
     std::vector<unsigned char> active(requested);
@@ -494,39 +398,15 @@ public:
       }
     }
     const long double middle = 0.5L*(parameterLeft+parameterRight);
-    const unsigned fastDepthLimit = mapped ? maximumDepth : std::min(maximumDepth,8U);
+    const unsigned fastDepthLimit = maximumDepth;
     if(graph && sampled && depth < fastDepthLimit && middle != parameterLeft && middle != parameterRight) {
-      Adaptive(coefficient,degree,strip,left,right,parameterLeft,middle,mapped,true,useTaylor,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
-      Adaptive(coefficient,degree,strip,left,right,middle,parameterRight,mapped,true,useTaylor,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
+      Adaptive(coefficient,degree,strip,left,right,parameterLeft,middle,mapped,true,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
+      Adaptive(coefficient,degree,strip,left,right,middle,parameterRight,mapped,true,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
       return;
     }
-    if(graph && useTaylor) {
-      ++Statistics().taylorPanels;
-      for(unsigned k = 0; k < active.size(); ++k) {
-        if(active[k]) {
-          ++Statistics().fallbackComponents;
-          if(Statistics().firstFallbackIndex == std::numeric_limits<unsigned>::max()) Statistics().firstFallbackIndex = k;
-        }
-      }
-      try {
-        TaylorPanel(coefficient,degree,strip,MappedPoint(left,right,parameterLeft,mapped),MappedPoint(left,right,parameterRight,mapped),computeDelta,values,errors,surfaceGradient,&active,coordinates);
-        if(!Accept(values,errors,absoluteH*fractionH,absoluteD*fractionD,relative,active,total,totalError)) {
-          ++accepted;
-          return;
-        }
-      }
-      catch(const std::runtime_error&) {}
-    }
-    if(graph) {
-      GaussKronrodPanel(coefficient,degree,strip,left,right,parameterLeft,parameterRight,mapped,false,computeDelta,lowerZero,upperZero,active,maximumEvaluations,evaluations,values,errors,surfaceGradient,cachedDiscriminant,coordinates,derivativeSign);
-      if(!Accept(values,errors,absoluteH*fractionH,absoluteD*fractionD,relative,active,total,totalError)) {
-        ++accepted;
-        return;
-      }
-    }
     if(depth >= maximumDepth || middle == parameterLeft || middle == parameterRight || evaluations >= maximumEvaluations) throw std::runtime_error("LINE domain integration did not reach the requested tolerance.");
-    Adaptive(coefficient,degree,strip,left,right,parameterLeft,middle,mapped,false,false,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
-    Adaptive(coefficient,degree,strip,left,right,middle,parameterRight,mapped,false,false,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
+    Adaptive(coefficient,degree,strip,left,right,parameterLeft,middle,mapped,graph,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
+    Adaptive(coefficient,degree,strip,left,right,middle,parameterRight,mapped,graph,computeDelta,lowerZero,upperZero,absoluteH,absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,total,totalError,surfaceGradient,active,cachedDiscriminant,coordinates,derivativeSign);
   }
 
   static void GaussRule(unsigned number, std::vector<long double>& points, std::vector<long double>& weights) {
@@ -594,13 +474,14 @@ public:
     }
   }
 
-  static void IntegrateStrip(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, bool graph, bool mapped, bool useTaylor, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr) {
+  static void IntegrateStrip(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, bool graph, bool mapped, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr) {
+    if(!(strip.right > strip.left)) throw std::invalid_argument("A LINE integration interval must have positive width.");
     std::vector<long double> events;
     std::vector<long double> tangencies;
     CollectEvents(coefficient,strip,events,&tangencies,graph && !mapped);
     const long double intervalBudget = events.size() > 1 ? 1.0L/static_cast<long double>(events.size()-1U) : 1.0L;
-    const bool lowerZero = BoundaryIsZero(coefficient,strip.lowerConstant,strip.lowerSlope);
-    const bool upperZero = BoundaryIsZero(coefficient,strip.upperConstant,strip.upperSlope);
+    const bool lowerZero = strip.certifiedLowerZero || BoundaryIsZero(coefficient,strip.lowerConstant,strip.lowerSlope);
+    const bool upperZero = strip.certifiedUpperZero || BoundaryIsZero(coefficient,strip.upperConstant,strip.upperSlope);
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     std::vector<unsigned char> active = requested == nullptr ? std::vector<unsigned char>(2U*count,1) : *requested;
     if(!computeDelta) std::fill(active.begin()+count,active.end(),0);
@@ -619,6 +500,7 @@ public:
       unsigned number = 0;
       long double middleRoot = 0.0L;
       for(unsigned r = 0; r < roots.size(); ++r) if(roots[r] >= lower && roots[r] <= upper) { middleRoot = roots[r]; ++number; }
+      if(graph && (lowerZero || upperZero)) { number = 1; middleRoot = lowerZero ? lower : upper; }
       const long double middleDerivative = graph && !intervalMapped && number == 1 ? std::fma(2.0L*polynomial[2],middleRoot,polynomial[1]) : 0.0L;
       const int derivativeSign = middleDerivative > 0.0L ? 1 : (middleDerivative < 0.0L ? -1 : 0);
       if(number == 0 && !lowerZero && !upperZero) {
@@ -627,7 +509,7 @@ public:
         continue;
       }
       const LineIntegrationDiscriminant discriminant = intervalMapped ? MappedDiscriminant(coefficient,left,right,leftTangency,rightTangency) : LineIntegrationDiscriminant();
-      Adaptive(coefficient,degree,strip,left,right,0.0L,1.0L,intervalMapped,graph && number == 1,useTaylor,computeDelta,lowerZero,upperZero,intervalBudget*absoluteH,intervalBudget*absoluteD,relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors,surfaceGradient,active,&discriminant,coordinates,derivativeSign);
+      Adaptive(coefficient,degree,strip,left,right,0.0L,1.0L,intervalMapped,graph && number == 1,computeDelta,lowerZero,upperZero,intervalBudget*absoluteH,intervalBudget*absoluteD,relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors,surfaceGradient,active,&discriminant,coordinates,derivativeSign);
     }
   }
 
@@ -656,45 +538,7 @@ public:
     return false;
   }
 
-  static void IntegrateCell(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, bool triangle, bool computeDelta, long double derivativeBound, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
-    if(computeDelta && HasVerticalFiber(coefficient,order)) {
-      LineSliceDirection(coefficient,degree,triangle,order,computeDelta,false,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,0,nullptr,surfaceGradient);
-      if(order == 2) {
-        const unsigned count = (degree+1U)*(degree+2U)/2U;
-        for(unsigned i = 0; i <= degree; ++i) for(unsigned j = i+1U; j <= degree-i; ++j) {
-          const unsigned a = LineSliceUtilities::MomentIndex(degree,i,j);
-          const unsigned b = LineSliceUtilities::MomentIndex(degree,j,i);
-          for(unsigned pair = 0; pair < 2; ++pair) {
-            std::swap(values[pair*count+a],values[pair*count+b]);
-            std::swap(errors[pair*count+a],errors[pair*count+b]);
-          }
-        }
-      }
-      return;
-    }
-    std::vector<std::vector<long double>> working(coefficient);
-    std::vector<std::vector<std::vector<long double>>> gradient;
-    if(order == 2) {
-      for(unsigned i = 0; i < 3; ++i) for(unsigned j = i+1U; j < 3; ++j) std::swap(working[i][j],working[j][i]);
-      if(surfaceGradient != nullptr) {
-        SurfaceGradientTranspose(*surfaceGradient,gradient);
-        surfaceGradient = &gradient;
-      }
-    }
-    const LineIntegrationStrip strip = {0.0L,1.0L,0.0L,triangle && order == 2 ? 1.0L : 0.0L,triangle && order == 1 ? 0.0L : 1.0L,triangle && order == 1 ? 1.0L : 0.0L};
-    const unsigned count = (degree+1U)*(degree+2U)/2U;
-    values.assign(2U*count,0.0L);
-    errors.assign(2U*count,0.0L);
-    IntegrateStrip(working,degree,strip,true,derivativeBound == 0.0L,true,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,evaluations,accepted,values,errors,surfaceGradient);
-    if(order == 2) for(unsigned i = 0; i <= degree; ++i) for(unsigned j = i+1U; j <= degree-i; ++j) {
-      const unsigned a = LineSliceUtilities::MomentIndex(degree,i,j);
-      const unsigned b = LineSliceUtilities::MomentIndex(degree,j,i);
-      for(unsigned pair = 0; pair < 2; ++pair) {
-        std::swap(values[pair*count+a],values[pair*count+b]);
-        std::swap(errors[pair*count+a],errors[pair*count+b]);
-      }
-    }
-  }
+
   static long double Power(long double value, unsigned degree) {
     long double result = 1.0L;
     for(unsigned k = 0; k < degree; ++k) result *= value;
@@ -833,129 +677,7 @@ public:
     LineSliceUtilities::SortDistinct(events);
   }
 
-  static void TaylorPanel(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, bool computeDelta, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>* active, const std::array<long double,5>* coordinates = nullptr) {
-    const unsigned order = 32;
-    const unsigned count = (degree+1U)*(degree+2U)/2U;
-    const unsigned size = 2U*count;
-    const long double thetaLeft = 0.0L;
-    const long double thetaRight = 0.5L*std::acos(-1.0L);
-    const long double thetaMiddle = 0.5L*(thetaLeft+thetaRight);
-    const long double thetaHalfWidth = 0.5L*(thetaRight-thetaLeft);
-    std::vector<long double> sine;
-    std::vector<long double> cosine;
-    SineCosineSeries(thetaMiddle,thetaHalfWidth,order,sine,cosine);
-    std::vector<long double> x = SeriesProduct(sine,sine);
-    const long double width = right-left;
-    for(unsigned k = 0; k <= order; ++k) x[k] *= width;
-    x[0] += left;
-    std::vector<long double> jacobian = SeriesProduct(sine,cosine);
-    for(unsigned k = 0; k <= order; ++k) jacobian[k] *= 2.0L*width*thetaHalfWidth;
-    std::vector<long double> aPolynomial(3,0.0L);
-    std::vector<long double> bPolynomial(3,0.0L);
-    std::vector<long double> cPolynomial(3,0.0L);
-    for(unsigned i = 0; i < 3; ++i) {
-      aPolynomial[i] = coefficient[i][2];
-      bPolynomial[i] = coefficient[i][1];
-      cPolynomial[i] = coefficient[i][0];
-    }
-    std::vector<long double> a = SeriesPolynomial(aPolynomial,x);
-    std::vector<long double> b = SeriesPolynomial(bPolynomial,x);
-    std::vector<long double> c = SeriesPolynomial(cPolynomial,x);
-    std::vector<long double> root(order+1U,0.0L);
-    const bool quadratic = LineSliceUtilities::PolynomialNorm(aPolynomial) != 0.0L;
-    if(!quadratic) {
-      root = SeriesQuotient(c,b);
-      for(unsigned k = 0; k <= order; ++k) root[k] = -root[k];
-    }
-    else {
-      if(a[0] == 0.0L) throw std::runtime_error("Triangle Taylor quadratic coefficient vanishes at the expansion point.");
-      std::vector<long double> discriminant = SeriesProduct(b,b);
-      std::vector<long double> term = SeriesProduct(a,c);
-      for(unsigned k = 0; k <= order; ++k) discriminant[k] -= 4.0L*term[k];
-      std::vector<long double> squareRoot = SeriesSquareRoot(discriminant);
-      const long double lowerMiddle = StripLower(strip,0.5L*(left+right));
-      const long double upperMiddle = StripUpper(strip,0.5L*(left+right));
-      const long double candidateMinus = (-b[0]-squareRoot[0])/(2.0L*a[0]);
-      const long double candidatePlus = (-b[0]+squareRoot[0])/(2.0L*a[0]);
-      const long double sign = candidateMinus >= lowerMiddle && candidateMinus <= upperMiddle ? -1.0L : (candidatePlus >= lowerMiddle && candidatePlus <= upperMiddle ? 1.0L : 0.0L);
-      if(sign == 0.0L) throw std::runtime_error("Triangle Taylor graph root is outside the strip.");
-      std::vector<long double> numerator(b);
-      std::vector<long double> denominator(a);
-      for(unsigned k = 0; k <= order; ++k) {
-        numerator[k] = -numerator[k]+sign*squareRoot[k];
-        denominator[k] *= 2.0L;
-      }
-      root = SeriesQuotient(numerator,denominator);
-    }
-    std::vector<long double> lowerSeries = x;
-    std::vector<long double> upperSeries = x;
-    for(unsigned k = 0; k <= order; ++k) {
-      lowerSeries[k] *= strip.lowerSlope;
-      upperSeries[k] *= strip.upperSlope;
-    }
-    lowerSeries[0] += strip.lowerConstant;
-    upperSeries[0] += strip.upperConstant;
-    std::vector<long double> gy = SeriesProduct(a,root);
-    for(unsigned k = 0; k <= order; ++k) gy[k] = 2.0L*gy[k]+b[k];
-    const long double signedDerivative = gy[0];
-    if(signedDerivative == 0.0L) throw std::runtime_error("Triangle Taylor graph has a singular derivative.");
-    if(signedDerivative < 0.0L) for(unsigned k = 0; k <= order; ++k) gy[k] = -gy[k];
-    std::vector<long double> deltaWeight;
-    if(computeDelta) {
-      deltaWeight = SeriesQuotient(jacobian,gy);
-      const bool boundaryRoot = BoundaryIsZero(coefficient,strip.lowerConstant,strip.lowerSlope) || BoundaryIsZero(coefficient,strip.upperConstant,strip.upperSlope);
-      if(boundaryRoot) for(unsigned k = 0; k <= order; ++k) deltaWeight[k] *= 0.5L;
-      if(surfaceGradient != nullptr) deltaWeight = SeriesProduct(deltaWeight,SurfaceGradientSeriesNorm(*surfaceGradient,x,root));
-    }
-    std::vector<long double> parentX = x;
-    std::vector<long double> parentRoot = root;
-    if(coordinates != nullptr) {
-      for(unsigned k = 0; k <= order; ++k) {
-        parentX[k] *= (*coordinates)[1];
-        parentRoot[k] *= (*coordinates)[3];
-        lowerSeries[k] *= (*coordinates)[3];
-        upperSeries[k] *= (*coordinates)[3];
-      }
-      parentX[0] += (*coordinates)[0];
-      parentRoot[0] += (*coordinates)[2];
-      lowerSeries[0] += (*coordinates)[2];
-      upperSeries[0] += (*coordinates)[2];
-    }
-    std::vector<std::vector<long double>> lowerPowers(degree+2U,SeriesConstant(1.0L,order));
-    std::vector<std::vector<long double>> upperPowers(degree+2U,SeriesConstant(1.0L,order));
-    std::vector<std::vector<long double>> rootPowers(degree+2U,SeriesConstant(1.0L,order));
-    for(unsigned j = 1; j <= degree+1U; ++j) {
-      lowerPowers[j] = SeriesProduct(lowerPowers[j-1U],lowerSeries);
-      upperPowers[j] = SeriesProduct(upperPowers[j-1U],upperSeries);
-      rootPowers[j] = SeriesProduct(rootPowers[j-1U],parentRoot);
-    }
-    std::vector<std::vector<long double>> xPowers(degree+1U,SeriesConstant(1.0L,order));
-    for(unsigned i = 1; i <= degree; ++i) xPowers[i] = SeriesProduct(xPowers[i-1U],parentX);
-    values.assign(size,0.0L);
-    errors.assign(size,0.0L);
-    for(unsigned i = 0; i <= degree; ++i) {
-      for(unsigned j = 0; j <= degree-i; ++j) {
-        const unsigned index = LineSliceUtilities::MomentIndex(degree,i,j);
-        if(active == nullptr || (*active)[index] != 0) {
-          std::vector<long double> fiber(order+1U,0.0L);
-          const std::vector<long double>& first = signedDerivative > 0.0L ? upperPowers[j+1U] : rootPowers[j+1U];
-          const std::vector<long double>& second = signedDerivative > 0.0L ? rootPowers[j+1U] : lowerPowers[j+1U];
-          for(unsigned k = 0; k <= order; ++k) fiber[k] = (first[k]-second[k])/((j+1U)*(coordinates == nullptr ? 1.0L : (*coordinates)[3]));
-          fiber = SeriesProduct(fiber,jacobian);
-          bool converged = true;
-          SeriesProductIntegral(xPowers[i],fiber,values[index],errors[index],converged);
-          if(!converged) errors[index] = std::numeric_limits<long double>::infinity();
-        }
-        if(computeDelta && (active == nullptr || (*active)[count+index] != 0)) {
-          std::vector<long double> fiber = SeriesProduct(rootPowers[j],deltaWeight);
-          bool converged = true;
-          SeriesProductIntegral(xPowers[i],fiber,values[count+index],errors[count+index],converged);
-          if(!converged) errors[count+index] = std::numeric_limits<long double>::infinity();
-        }
-      }
-    }
-    if(coordinates != nullptr) for(unsigned k = 0; k < size; ++k) { values[k] *= (*coordinates)[4]; errors[k] *= std::abs((*coordinates)[4]); }
-  }
+
 };
 
 }
