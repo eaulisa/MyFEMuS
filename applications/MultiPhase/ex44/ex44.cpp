@@ -430,22 +430,6 @@ int main(int argc, char **argv) {
       // mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
-      if (iproc == 0) {
-
-        std::ofstream out("area.dat", std::ios::app);
-
-        if (!out) {
-          throw std::runtime_error(
-            "computeArea: cannot open output file area.dat");
-        }
-
-        out << "#" << std::setw(20) << "Time"
-            << std::setw(25) << "Area"
-            << "\n";
-
-        out.close();
-      }
-
       UpdateColorFunction(*mlsol0, psiName, cName);
       if(levelC < levelF) RestrictPWDCField(*mlsol0, cName, levelC, levelF);
 
@@ -546,6 +530,10 @@ int main(int argc, char **argv) {
 
       for (unsigned t = 1; t <= 1 + nSteps; t++) {
 
+        std::cout << "==============================================\n";
+        std::cout << "  ITERATION " << t << std::endl;
+        std::cout << "==============================================\n";
+
         TimeDiscretization td = (t == 1) ? TimeDiscretization::BackEuler : TimeDiscretization::CrankNicholson;
 
         double time = t * dt;
@@ -600,9 +588,32 @@ int main(int argc, char **argv) {
           }
         }
 
-        if(level0 < levelC) RestrictPWDCField(mlSol2, cName, 0, levelC - level0);
+        // if(level0 < levelC) RestrictPWDCField(mlSol2, cName, 0, levelC - level0);
 
-        std::vector<double> xtarget = {xmin, ymin, zmin};
+        // std::vector<double> xtarget = {xmin, ymin, zmin};
+        // xtarget.resize(dim);
+        // SetUnphysicalPressureDofs(mlSol2, cName, pName, 0, levelC - level0, xtarget, true);
+
+        const unsigned c0Index = mlsol0->GetIndex(cName.c_str());
+        const unsigned c2Index = mlSol2.GetIndex(cName.c_str());
+
+        auto originalC = NumericVector::build();
+
+        originalC->init(*Sol0_C[c0Index]);
+
+        *originalC = *Sol0_C[c0Index];
+
+        ReclassifyUnsupportedPressureCells(mlSol2, cName, levelC - level0, levelC);
+
+        if(level0 < levelC) {
+          RestrictPWDCField(mlSol2, cName, 0, levelC - level0);
+        }
+
+        *Sol0_C[c0Index] = *Sol2[c2Index];
+
+        std::vector<double> xtarget = (simulation == SimulationCase::PI) ? {0.75, 0.75, 0.} : {
+                                        xmin, ymin, zmin
+                                      };
         xtarget.resize(dim);
         SetUnphysicalPressureDofs(mlSol2, cName, pName, 0, levelC - level0, xtarget, true);
 
@@ -740,6 +751,8 @@ int main(int argc, char **argv) {
 
         //system2.MGsolve();
         system2.Solve();
+
+        *Sol0_C[c0Index] = *originalC;
 
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l + level0);

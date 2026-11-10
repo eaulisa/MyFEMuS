@@ -185,7 +185,7 @@ EOF_OPTIONS
 -level-${i}fieldsplit_0_ksp_type preonly
 -level-${i}fieldsplit_0_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_0_mg_levels_ksp_type chebyshev
--level-${i}fieldsplit_0_mg_levels_ksp_max_it 2
+-level-${i}fieldsplit_0_mg_levels_ksp_max_it 4
 -level-${i}fieldsplit_0_mg_levels_pc_type jacobi
 
 # ------------------------------------------------------------
@@ -195,7 +195,7 @@ EOF_OPTIONS
 -level-${i}fieldsplit_1_ksp_type preonly
 -level-${i}fieldsplit_1_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
--level-${i}fieldsplit_1_mg_levels_ksp_max_it 2
+-level-${i}fieldsplit_1_mg_levels_ksp_max_it 4
 -level-${i}fieldsplit_1_mg_levels_pc_type jacobi
 
 EOF_OPTIONS

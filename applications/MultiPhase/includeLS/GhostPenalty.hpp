@@ -2420,300 +2420,300 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
     }
   }
 
-  // ============================================================
-  // FIND CUT ELEMENTS CONNECTED BY GP TO A ROBUST INTERIOR CELL
-  // ============================================================
-
-  NumericVector* gpAnchored = NumericVector::build().release();
-
-  gpAnchored->init(*mysolution->_Sol[cIndex]);
-  gpAnchored->zero();
+  // // ============================================================
+  // // FIND CUT ELEMENTS CONNECTED BY GP TO A ROBUST INTERIOR CELL
+  // // ============================================================
+
+  // NumericVector* gpAnchored = NumericVector::build().release();
+
+  // gpAnchored->init(*mysolution->_Sol[cIndex]);
+  // gpAnchored->zero();
 
-  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
-    const double Ciel = (*mysolution->_Sol[cIndex])(iel);
-    const unsigned ielLevel = msh->el->GetElementLevel(iel);
+  // for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
+  //   const double Ciel = (*mysolution->_Sol[cIndex])(iel);
+  //   const unsigned ielLevel = msh->el->GetElementLevel(iel);
 
-    if(isRobustInterior(ielLevel, Ciel)) {
-      gpAnchored->set(iel, 1.);
-    }
-  }
-
-  gpAnchored->close();
-
-  unsigned propagationIteration = 0;
-
-  while(true) {
-    NumericVector* newlyAnchored = NumericVector::build().release();
+  //   if(isRobustInterior(ielLevel, Ciel)) {
+  //     gpAnchored->set(iel, 1.);
+  //   }
+  // }
+
+  // gpAnchored->close();
+
+  // unsigned propagationIteration = 0;
+
+  // while(true) {
+  //   NumericVector* newlyAnchored = NumericVector::build().release();
 
-    newlyAnchored->init(*mysolution->_Sol[cIndex]);
-    newlyAnchored->zero();
+  //   newlyAnchored->init(*mysolution->_Sol[cIndex]);
+  //   newlyAnchored->zero();
 
-    unsigned localAdded = 0;
+  //   unsigned localAdded = 0;
 
-    for(unsigned kproc = 0; kproc < nprocs; ++kproc) {
-      for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; ++iel) {
-        unsigned eFlag1 = 0;
-        unsigned anchored1 = 0;
+  //   for(unsigned kproc = 0; kproc < nprocs; ++kproc) {
+  //     for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; ++iel) {
+  //       unsigned eFlag1 = 0;
+  //       unsigned anchored1 = 0;
 
-        if(iproc == kproc) {
-          const double Ciel = (*mysolution->_Sol[cIndex])(iel);
-          const unsigned ielLevel = msh->el->GetElementLevel(iel);
-          eFlag1 = elementFlag(ielLevel, Ciel);
-          anchored1 = ((*gpAnchored)(iel) > 0.5) ? 1u : 0u;
-        }
+  //       if(iproc == kproc) {
+  //         const double Ciel = (*mysolution->_Sol[cIndex])(iel);
+  //         const unsigned ielLevel = msh->el->GetElementLevel(iel);
+  //         eFlag1 = elementFlag(ielLevel, Ciel);
+  //         anchored1 = ((*gpAnchored)(iel) > 0.5) ? 1u : 0u;
+  //       }
 
-        MPI_Bcast(&eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
-        MPI_Bcast(&anchored1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+  //       MPI_Bcast(&eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+  //       MPI_Bcast(&anchored1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
-        if(eFlag1 == 0 || anchored1 == 0) {
-          continue;
-        }
+  //       if(eFlag1 == 0 || anchored1 == 0) {
+  //         continue;
+  //       }
 
-        unsigned nFaces = 0;
+  //       unsigned nFaces = 0;
 
-        if(iproc == kproc) {
-          nFaces = msh->GetElementFaceNumber(iel);
-        }
+  //       if(iproc == kproc) {
+  //         nFaces = msh->GetElementFaceNumber(iel);
+  //       }
 
-        MPI_Bcast(&nFaces, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+  //       MPI_Bcast(&nFaces, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
 
-        for(unsigned iface = 0; iface < nFaces; ++iface) {
-          int jel = -1;
+  //       for(unsigned iface = 0; iface < nFaces; ++iface) {
+  //         int jel = -1;
 
-          if(iproc == kproc) {
-            jel = el->GetFaceElementIndex(iel, iface) - 1;
-          }
+  //         if(iproc == kproc) {
+  //           jel = el->GetFaceElementIndex(iel, iface) - 1;
+  //         }
 
-          MPI_Bcast(&jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
+  //         MPI_Bcast(&jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
 
-          if(jel < 0) {
-            continue;
-          }
+  //         if(jel < 0) {
+  //           continue;
+  //         }
 
-          const unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
+  //         const unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
 
-          unsigned eFlag2 = 0;
-          unsigned anchored2 = 0;
+  //         unsigned eFlag2 = 0;
+  //         unsigned anchored2 = 0;
 
-          if(jproc == kproc) {
-            if(iproc == kproc) {
-              const double Cjel = (*mysolution->_Sol[cIndex])(jel);
-              const unsigned jelLevel = msh->el->GetElementLevel(jel);
-              eFlag2 = elementFlag(jelLevel, Cjel);
-              anchored2 = ((*gpAnchored)(jel) > 0.5) ? 1u : 0u;
-            }
-          }
-          else {
-            unsigned packet[2] = {0, 0};
+  //         if(jproc == kproc) {
+  //           if(iproc == kproc) {
+  //             const double Cjel = (*mysolution->_Sol[cIndex])(jel);
+  //             const unsigned jelLevel = msh->el->GetElementLevel(jel);
+  //             eFlag2 = elementFlag(jelLevel, Cjel);
+  //             anchored2 = ((*gpAnchored)(jel) > 0.5) ? 1u : 0u;
+  //           }
+  //         }
+  //         else {
+  //           unsigned packet[2] = {0, 0};
 
-            if(iproc == jproc) {
-              const double Cjel = (*mysolution->_Sol[cIndex])(jel);
-              const unsigned jelLevel = msh->el->GetElementLevel(jel);
-              packet[0] = elementFlag(jelLevel, Cjel);
-              packet[1] = ((*gpAnchored)(jel) > 0.5) ? 1u : 0u;
-              MPI_Send(packet, 2, MPI_UNSIGNED, kproc, 100, PETSC_COMM_WORLD);
-            }
-            else if(iproc == kproc) {
-              MPI_Recv(packet, 2, MPI_UNSIGNED, jproc, 100, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
-              eFlag2 = packet[0];
-              anchored2 = packet[1];
-            }
-          }
+  //           if(iproc == jproc) {
+  //             const double Cjel = (*mysolution->_Sol[cIndex])(jel);
+  //             const unsigned jelLevel = msh->el->GetElementLevel(jel);
+  //             packet[0] = elementFlag(jelLevel, Cjel);
+  //             packet[1] = ((*gpAnchored)(jel) > 0.5) ? 1u : 0u;
+  //             MPI_Send(packet, 2, MPI_UNSIGNED, kproc, 100, PETSC_COMM_WORLD);
+  //           }
+  //           else if(iproc == kproc) {
+  //             MPI_Recv(packet, 2, MPI_UNSIGNED, jproc, 100, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+  //             eFlag2 = packet[0];
+  //             anchored2 = packet[1];
+  //           }
+  //         }
 
-          if(iproc != kproc) {
-            continue;
-          }
+  //         if(iproc != kproc) {
+  //           continue;
+  //         }
 
-          const bool gpFace = eFlag2 > 0 && (eFlag1 == 2 || eFlag2 == 2);
+  //         const bool gpFace = eFlag2 > 0 && (eFlag1 == 2 || eFlag2 == 2);
 
-          if(!gpFace) {
-            continue;
-          }
+  //         if(!gpFace) {
+  //           continue;
+  //         }
 
-          if(anchored2 == 0) {
-            newlyAnchored->add(jel, 1.);
-            ++localAdded;
-          }
-        }
-      }
-    }
+  //         if(anchored2 == 0) {
+  //           newlyAnchored->add(jel, 1.);
+  //           ++localAdded;
+  //         }
+  //       }
+  //     }
+  //   }
 
-    newlyAnchored->close();
+  //   newlyAnchored->close();
 
-    unsigned globalAdded = 0;
+  //   unsigned globalAdded = 0;
 
-    MPI_Allreduce(&localAdded, &globalAdded, 1, MPI_UNSIGNED, MPI_SUM, PETSC_COMM_WORLD);
+  //   MPI_Allreduce(&localAdded, &globalAdded, 1, MPI_UNSIGNED, MPI_SUM, PETSC_COMM_WORLD);
 
-    if(globalAdded == 0) {
-      delete newlyAnchored;
-      break;
-    }
+  //   if(globalAdded == 0) {
+  //     delete newlyAnchored;
+  //     break;
+  //   }
 
-    gpAnchored->add(1., *newlyAnchored);
-    gpAnchored->close();
+  //   gpAnchored->add(1., *newlyAnchored);
+  //   gpAnchored->close();
 
-    delete newlyAnchored;
+  //   delete newlyAnchored;
 
-    ++propagationIteration;
+  //   ++propagationIteration;
 
-    if(propagationIteration > msh->GetNumberOfElements()) {
-      throw std::runtime_error("Pressure GP graph propagation did not converge.");
-    }
-  }
+  //   if(propagationIteration > msh->GetNumberOfElements()) {
+  //     throw std::runtime_error("Pressure GP graph propagation did not converge.");
+  //   }
+  // }
 
-  // ============================================================
-  // FALLBACK FOR UNANCHORED CUT COMPONENTS
-  // ============================================================
+  // // ============================================================
+  // // FALLBACK FOR UNANCHORED CUT COMPONENTS
+  // // ============================================================
 
-  unsigned localUnsupported = 0;
+  // unsigned localUnsupported = 0;
 
-  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
-    const double Ciel = (*mysolution->_Sol[cIndex])(iel);
-    const unsigned ielLevel = msh->el->GetElementLevel(iel);
+  // for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
+  //   const double Ciel = (*mysolution->_Sol[cIndex])(iel);
+  //   const unsigned ielLevel = msh->el->GetElementLevel(iel);
 
-    if(!flag(ielLevel, Ciel)) {
-      continue;
-    }
+  //   if(!flag(ielLevel, Ciel)) {
+  //     continue;
+  //   }
 
-    if(!isCut(Ciel)) {
-      continue;
-    }
+  //   if(!isCut(Ciel)) {
+  //     continue;
+  //   }
 
-    if((*gpAnchored)(iel) > 0.5) {
-      continue;
-    }
+  //   if((*gpAnchored)(iel) > 0.5) {
+  //     continue;
+  //   }
 
-    ++localUnsupported;
+  //   ++localUnsupported;
 
-    const unsigned ielt = msh->GetElementType(iel);
-    const unsigned nDofsP = msh->GetElementDofNumber(iel, solType);
-    const unsigned nDofsX = msh->GetElementDofNumber(iel, solTypeX);
+  //   const unsigned ielt = msh->GetElementType(iel);
+  //   const unsigned nDofsP = msh->GetElementDofNumber(iel, solType);
+  //   const unsigned nDofsX = msh->GetElementDofNumber(iel, solTypeX);
 
-    std::vector<double> solP(nDofsP);
-    std::vector<unsigned> sysDofsP(nDofsP);
-    std::vector<std::vector<double>> vx(dim, std::vector<double>(nDofsX));
+  //   std::vector<double> solP(nDofsP);
+  //   std::vector<unsigned> sysDofsP(nDofsP);
+  //   std::vector<std::vector<double>> vx(dim, std::vector<double>(nDofsX));
 
-    for(unsigned i = 0; i < nDofsP; ++i) {
-      const unsigned idof = msh->GetSolutionDof(i, iel, solType);
-      solP[i] = (*mysolution->_Sol[indexSol])(idof);
-      sysDofsP[i] = myLinEqSolver->GetSystemDof(indexSol, indexPde, i, iel);
-    }
+  //   for(unsigned i = 0; i < nDofsP; ++i) {
+  //     const unsigned idof = msh->GetSolutionDof(i, iel, solType);
+  //     solP[i] = (*mysolution->_Sol[indexSol])(idof);
+  //     sysDofsP[i] = myLinEqSolver->GetSystemDof(indexSol, indexPde, i, iel);
+  //   }
 
-    for(unsigned i = 0; i < nDofsX; ++i) {
-      const unsigned idofX = msh->GetSolutionDof(i, iel, solTypeX);
+  //   for(unsigned i = 0; i < nDofsX; ++i) {
+  //     const unsigned idofX = msh->GetSolutionDof(i, iel, solTypeX);
 
-      for(unsigned d = 0; d < dim; ++d) {
-        vx[d][i] = (*msh->_topology->_Sol[d])(idofX);
-      }
-    }
+  //     for(unsigned d = 0; d < dim; ++d) {
+  //       vx[d][i] = (*msh->_topology->_Sol[d])(idofX);
+  //     }
+  //   }
 
-    const unsigned nDofsLin = msh->GetElementDofNumber(iel, 0);
-    double hmean = 0.;
-    unsigned cnt = 0;
+  //   const unsigned nDofsLin = msh->GetElementDofNumber(iel, 0);
+  //   double hmean = 0.;
+  //   unsigned cnt = 0;
 
-    for(unsigned i = 0; i < nDofsLin; ++i) {
-      const unsigned idofXi = msh->GetSolutionDof(i, iel, solTypeX);
+  //   for(unsigned i = 0; i < nDofsLin; ++i) {
+  //     const unsigned idofXi = msh->GetSolutionDof(i, iel, solTypeX);
 
-      for(unsigned j = i + 1; j < nDofsLin; ++j) {
-        const unsigned idofXj = msh->GetSolutionDof(j, iel, solTypeX);
-        double dist2 = 0.;
+  //     for(unsigned j = i + 1; j < nDofsLin; ++j) {
+  //       const unsigned idofXj = msh->GetSolutionDof(j, iel, solTypeX);
+  //       double dist2 = 0.;
 
-        for(unsigned d = 0; d < dim; ++d) {
-          const double dx = (*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj);
-          dist2 += dx * dx;
-        }
+  //       for(unsigned d = 0; d < dim; ++d) {
+  //         const double dx = (*msh->_topology->_Sol[d])(idofXi) - (*msh->_topology->_Sol[d])(idofXj);
+  //         dist2 += dx * dx;
+  //       }
 
-        hmean += std::sqrt(dist2);
-        ++cnt;
-      }
-    }
+  //       hmean += std::sqrt(dist2);
+  //       ++cnt;
+  //     }
+  //   }
 
-    if(cnt == 0) {
-      throw std::runtime_error("Invalid h in unsupported pressure component.");
-    }
+  //   if(cnt == 0) {
+  //     throw std::runtime_error("Invalid h in unsupported pressure component.");
+  //   }
 
-    hmean /= static_cast<double>(cnt);
+  //   hmean /= static_cast<double>(cnt);
 
-    const double muP = P1 ? mu1 : mu2;
-    const double rhoP = P1 ? rho1 : rho2;
-    const double Ciso = gammaIso / (muP + rhoP * hmean * hmean / dt);
+  //   const double muP = P1 ? mu1 : mu2;
+  //   const double rhoP = P1 ? rho1 : rho2;
+  //   const double Ciso = gammaIso / (muP + rhoP * hmean * hmean / dt);
 
-    std::vector<double> rhs(nDofsP, 0.);
-    std::vector<double> JacIso(nDofsP * nDofsP, 0.);
-    std::vector<double> phiP;
-    std::vector<double> gradPhiP;
-    std::vector<double> phiX;
-    std::vector<double> gradPhiX;
+  //   std::vector<double> rhs(nDofsP, 0.);
+  //   std::vector<double> JacIso(nDofsP * nDofsP, 0.);
+  //   std::vector<double> phiP;
+  //   std::vector<double> gradPhiP;
+  //   std::vector<double> phiX;
+  //   std::vector<double> gradPhiX;
 
-    double weightP = 0.;
-    double weightX = 0.;
+  //   double weightP = 0.;
+  //   double weightX = 0.;
 
-    const unsigned nGauss = msh->_finiteElement[ielt][solTypeX]->GetGaussPointNumber();
+  //   const unsigned nGauss = msh->_finiteElement[ielt][solTypeX]->GetGaussPointNumber();
 
-    for(unsigned ig = 0; ig < nGauss; ++ig) {
-      msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, weightP, phiP, gradPhiP);
-      msh->_finiteElement[ielt][solTypeX]->Jacobian(vx, ig, weightX, phiX, gradPhiX);
+  //   for(unsigned ig = 0; ig < nGauss; ++ig) {
+  //     msh->_finiteElement[ielt][solType]->Jacobian(vx, ig, weightP, phiP, gradPhiP);
+  //     msh->_finiteElement[ielt][solTypeX]->Jacobian(vx, ig, weightX, phiX, gradPhiX);
 
-      double axisWeight = 1.;
+  //     double axisWeight = 1.;
 
-      if(axisymmetric) {
-        double xg = 0.;
+  //     if(axisymmetric) {
+  //       double xg = 0.;
 
-        for(unsigned i = 0; i < nDofsX; ++i) {
-          xg += phiX[i] * vx[0][i];
-        }
+  //       for(unsigned i = 0; i < nDofsX; ++i) {
+  //         xg += phiX[i] * vx[0][i];
+  //       }
 
-        axisWeight = xg - axisCoordinate;
+  //       axisWeight = xg - axisCoordinate;
 
-        if(axisWeight < -1.e-12) {
-          throw std::runtime_error("Negative radius in unsupported pressure stabilization.");
-        }
-      }
+  //       if(axisWeight < -1.e-12) {
+  //         throw std::runtime_error("Negative radius in unsupported pressure stabilization.");
+  //       }
+  //     }
 
-      const double volumeWeight = weightX * axisWeight;
+  //     const double volumeWeight = weightX * axisWeight;
 
-      double p_gss = 0.;
+  //     double p_gss = 0.;
 
-      for(unsigned j = 0; j < nDofsP; ++j) {
-        p_gss += phiP[j] * solP[j];
-      }
+  //     for(unsigned j = 0; j < nDofsP; ++j) {
+  //       p_gss += phiP[j] * solP[j];
+  //     }
 
-      for(unsigned i = 0; i < nDofsP; ++i) {
-        rhs[i] += -Ciso * phiP[i] * p_gss * volumeWeight;
+  //     for(unsigned i = 0; i < nDofsP; ++i) {
+  //       rhs[i] += -Ciso * phiP[i] * p_gss * volumeWeight;
 
-        for(unsigned j = 0; j < nDofsP; ++j) {
-          JacIso[i * nDofsP + j] += Ciso * phiP[i] * phiP[j] * volumeWeight;
-        }
-      }
-    }
+  //       for(unsigned j = 0; j < nDofsP; ++j) {
+  //         JacIso[i * nDofsP + j] += Ciso * phiP[i] * phiP[j] * volumeWeight;
+  //       }
+  //     }
+  //   }
 
-    for(unsigned i = 0; i < nDofsP; ++i) {
-      if(!std::isfinite(rhs[i])) {
-        std::cerr << "NON-FINITE unsupported pressure RHS" << " phase = " << (P1 ? "P1" : "P2") << " iel = " << iel << " C = " << Ciel << " Ciso = " << Ciso << std::endl;
-        abort();
-      }
-    }
+  //   for(unsigned i = 0; i < nDofsP; ++i) {
+  //     if(!std::isfinite(rhs[i])) {
+  //       std::cerr << "NON-FINITE unsupported pressure RHS" << " phase = " << (P1 ? "P1" : "P2") << " iel = " << iel << " C = " << Ciel << " Ciso = " << Ciso << std::endl;
+  //       abort();
+  //     }
+  //   }
 
-    for(unsigned i = 0; i < JacIso.size(); ++i) {
-      if(!std::isfinite(JacIso[i])) {
-        std::cerr << "NON-FINITE unsupported pressure Jacobian" << " phase = " << (P1 ? "P1" : "P2") << " iel = " << iel << " C = " << Ciel << " Ciso = " << Ciso << std::endl;
-        abort();
-      }
-    }
+  //   for(unsigned i = 0; i < JacIso.size(); ++i) {
+  //     if(!std::isfinite(JacIso[i])) {
+  //       std::cerr << "NON-FINITE unsupported pressure Jacobian" << " phase = " << (P1 ? "P1" : "P2") << " iel = " << iel << " C = " << Ciel << " Ciso = " << Ciso << std::endl;
+  //       abort();
+  //     }
+  //   }
 
-    myRES->add_vector_blocked(rhs, sysDofsP);
-    myKK->add_matrix_blocked(JacIso, sysDofsP, sysDofsP);
-  }
+  //   myRES->add_vector_blocked(rhs, sysDofsP);
+  //   myKK->add_matrix_blocked(JacIso, sysDofsP, sysDofsP);
+  // }
 
-  unsigned globalUnsupported = 0;
+  // unsigned globalUnsupported = 0;
 
-  MPI_Allreduce(&localUnsupported, &globalUnsupported, 1, MPI_UNSIGNED, MPI_SUM, PETSC_COMM_WORLD);
+  // MPI_Allreduce(&localUnsupported, &globalUnsupported, 1, MPI_UNSIGNED, MPI_SUM, PETSC_COMM_WORLD);
 
-  if(iproc == 0 && globalUnsupported > 0) {
-    std::cout << "Pressure GP connectivity: " << globalUnsupported << " unsupported cut elements for " << (P1 ? "P1" : "P2") << ", propagation iterations = " << propagationIteration << std::endl;
-  }
+  // if(iproc == 0 && globalUnsupported > 0) {
+  //   std::cout << "Pressure GP connectivity: " << globalUnsupported << " unsupported cut elements for " << (P1 ? "P1" : "P2") << ", propagation iterations = " << propagationIteration << std::endl;
+  // }
 
-  delete gpAnchored;
+  // delete gpAnchored;
 
   std::cout << "Ghost Penalty Assembly time = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::endl;
 }

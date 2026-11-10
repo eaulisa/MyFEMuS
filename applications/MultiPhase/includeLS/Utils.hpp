@@ -72,6 +72,278 @@ void ProjectSolution(MultiLevelSolution &mlSol0 /* target */, MultiLevelSolution
                      const double time = 0.,
                      const double period = 0.);
 
+std::unique_ptr<NumericVector> ComputePressureGPAnchoredElements(
+  MultiLevelSolution& mlSol,
+  const std::string& CName,
+  const bool P1,
+  const unsigned level,
+  const unsigned levelC) {
+
+  Mesh* msh = mlSol.GetMultilevelMesh()->GetLevel(level);
+  elem* el = msh->el;
+
+  const unsigned iproc = msh->processor_id();
+  const unsigned nprocs = msh->n_processors();
+
+  const unsigned cIndex = mlSol.GetIndex(CName.c_str());
+
+  Solution* sol = mlSol.GetSolutionLevel(level);
+  NumericVector* solC = sol->_Sol[cIndex];
+
+  auto flag = [&](const unsigned ielLevel, const double C) -> bool {
+    if(ielLevel != levelC) return false;
+    return P1 ? (C > 0.1) : (C < 0.9);
+  };
+
+  auto isCut = [&](const double C) -> bool {
+    return std::fabs(C - 0.5) < 0.1;
+  };
+
+  auto elementFlag = [&](const unsigned ielLevel, const double C) -> unsigned {
+    if(!flag(ielLevel, C)) return 0u;
+    return isCut(C) ? 2u : 1u;
+  };
+
+  auto isRobustInterior = [&](const unsigned ielLevel, const double C) -> bool {
+    if(ielLevel != levelC) return false;
+    return P1 ? (C > 0.9) : (C < 0.1);
+  };
+
+  // ------------------------------------------------------------
+  // Initialize anchored elements from robust interior cells
+  // ------------------------------------------------------------
+
+  auto gpAnchored = NumericVector::build();
+
+  gpAnchored->init(*solC);
+  gpAnchored->zero();
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
+
+    const double Ciel = (*solC)(iel);
+    const unsigned ielLevel = msh->el->GetElementLevel(iel);
+
+    if(isRobustInterior(ielLevel, Ciel)) {
+      gpAnchored->set(iel, 1.0);
+    }
+  }
+
+  gpAnchored->close();
+
+  unsigned propagationIteration = 0;
+
+  const unsigned maxPropagationIterations = msh->_elementOffset[nprocs] + 1;
+
+  while(true) {
+
+    auto newlyAnchored = NumericVector::build();
+
+    newlyAnchored->init(*solC);
+    newlyAnchored->zero();
+
+    unsigned localAdded = 0;
+
+    for(unsigned kproc = 0; kproc < nprocs; ++kproc) {
+
+      for(int iel = msh->_elementOffset[kproc]; iel < msh->_elementOffset[kproc + 1]; ++iel) {
+
+        unsigned eFlag1 = 0;
+        unsigned anchored1 = 0;
+
+        if(iproc == kproc) {
+
+          const double Ciel = (*solC)(iel);
+          const unsigned ielLevel = msh->el->GetElementLevel(iel);
+
+          eFlag1 = elementFlag(ielLevel, Ciel);
+          anchored1 = ((*gpAnchored)(iel) > 0.5) ? 1u : 0u;
+        }
+
+        MPI_Bcast(&eFlag1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+        MPI_Bcast(&anchored1, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+
+        if(eFlag1 == 0 || anchored1 == 0) continue;
+
+        unsigned nFaces = 0;
+
+        if(iproc == kproc) {
+          nFaces = msh->GetElementFaceNumber(iel);
+        }
+
+        MPI_Bcast(&nFaces, 1, MPI_UNSIGNED, kproc, PETSC_COMM_WORLD);
+
+        for(unsigned iface = 0; iface < nFaces; ++iface) {
+
+          int jel = -1;
+
+          if(iproc == kproc) {
+            jel = el->GetFaceElementIndex(iel, iface) - 1;
+          }
+
+          MPI_Bcast(&jel, 1, MPI_INT, kproc, PETSC_COMM_WORLD);
+
+          if(jel < 0) continue;
+
+          const unsigned jproc =
+            msh->IsdomBisectionSearch(jel, 3);
+
+          unsigned eFlag2 = 0;
+          unsigned anchored2 = 0;
+
+          if(jproc == kproc) {
+            if(iproc == kproc) {
+              const double Cjel = (*solC)(jel);
+              const unsigned jelLevel = msh->el->GetElementLevel(jel);
+
+              eFlag2 = elementFlag(jelLevel, Cjel);
+              anchored2 = ((*gpAnchored)(jel) > 0.5) ? 1u : 0u;
+            }
+          }
+          else {
+
+            unsigned packet[2] = {0u, 0u};
+
+            if(iproc == jproc) {
+              const double Cjel = (*solC)(jel);
+              const unsigned jelLevel = msh->el->GetElementLevel(jel);
+
+              packet[0] = elementFlag(jelLevel, Cjel);
+              packet[1] = ((*gpAnchored)(jel) > 0.5) ? 1u : 0u;
+
+              MPI_Send(packet, 2, MPI_UNSIGNED, kproc, 321, PETSC_COMM_WORLD);
+            }
+            else if(iproc == kproc) {
+              MPI_Recv(packet, 2, MPI_UNSIGNED, jproc, 321, PETSC_COMM_WORLD, MPI_STATUS_IGNORE);
+
+              eFlag2 = packet[0];
+              anchored2 = packet[1];
+            }
+          }
+
+          if(iproc != kproc) continue;
+
+          const bool gpFace = eFlag2 > 0 && (eFlag1 == 2 || eFlag2 == 2);
+
+          if(!gpFace) continue;
+
+          if(anchored2 == 0) {
+            newlyAnchored->add(jel, 1.0);
+            ++localAdded;
+          }
+        }
+      }
+    }
+
+    newlyAnchored->close();
+
+    unsigned globalAdded = 0;
+
+    MPI_Allreduce(&localAdded, &globalAdded, 1, MPI_UNSIGNED, MPI_SUM, PETSC_COMM_WORLD);
+
+    if(globalAdded == 0) break;
+
+    gpAnchored->add(1.0, *newlyAnchored);
+    gpAnchored->close();
+
+    ++propagationIteration;
+
+    if(propagationIteration > maxPropagationIterations) {
+      throw std::runtime_error("Pressure GP connectivity propagation did not converge.");
+    }
+  }
+
+  return gpAnchored;
+}
+
+void ReclassifyUnsupportedPressureCells(MultiLevelSolution& mlSol, const std::string& CName, const unsigned level, const unsigned levelC) {
+
+  Mesh* msh = mlSol.GetMultilevelMesh()->GetLevel(level);
+
+  const unsigned iproc = msh->processor_id();
+
+  const unsigned cIndex = mlSol.GetIndex(CName.c_str());
+
+  Solution* sol = mlSol.GetSolutionLevel(level);
+  NumericVector* solC = sol->_Sol[cIndex];
+
+  auto anchoredP1 = ComputePressureGPAnchoredElements(mlSol, CName, true, level, levelC);
+  auto anchoredP2 = ComputePressureGPAnchoredElements(mlSol, CName, false, level, levelC);
+
+  unsigned localToP1 = 0;
+  unsigned localToP2 = 0;
+  unsigned localAmbiguous = 0;
+
+  for(unsigned iel = msh->_elementOffset[iproc];
+      iel < msh->_elementOffset[iproc + 1];
+      ++iel) {
+
+    const unsigned ielLevel = msh->el->GetElementLevel(iel);
+
+    if(ielLevel != levelC) continue;
+
+    const double C = (*solC)(iel);
+
+    if(std::fabs(C - 0.5) >= 0.1) continue;
+
+    const bool unsupportedP1 = ((*anchoredP1)(iel) < 0.5);
+    const bool unsupportedP2 = ((*anchoredP2)(iel) < 0.5);
+
+    if(unsupportedP1 && !unsupportedP2) {
+      ++localToP2;
+    }
+    else if(unsupportedP2 && !unsupportedP1) {
+      ++localToP1;
+    }
+    else if(unsupportedP1 && unsupportedP2) {
+      ++localAmbiguous;
+    }
+  }
+
+  unsigned localCounts[3] = {localToP1, localToP2, localAmbiguous};
+
+  unsigned globalCounts[3] = {0u, 0u, 0u};
+
+  MPI_Allreduce(localCounts, globalCounts, 3, MPI_UNSIGNED, MPI_SUM, PETSC_COMM_WORLD);
+
+  if(iproc == 0) {
+    std::cout
+        << "Pressure cell reclassification:"
+        << " to P1 = " << globalCounts[0]
+        << ", to P2 = " << globalCounts[1]
+        << ", ambiguous = " << globalCounts[2]
+        << std::endl;
+  }
+
+  if(globalCounts[2] > 0) {
+    throw std::runtime_error(
+      "Cannot reclassify cut cells unsupported in both phases."
+    );
+  }
+
+  for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
+
+    const unsigned ielLevel = msh->el->GetElementLevel(iel);
+
+    if(ielLevel != levelC) continue;
+
+    const double C = (*solC)(iel);
+
+    if(std::fabs(C - 0.5) >= 0.1) continue;
+
+    const bool unsupportedP1 = ((*anchoredP1)(iel) < 0.5);
+    const bool unsupportedP2 = ((*anchoredP2)(iel) < 0.5);
+
+    if(unsupportedP1 && !unsupportedP2) {
+      solC->set(iel, 0.0);
+    }
+    else if(unsupportedP2 && !unsupportedP1) {
+      solC->set(iel, 1.0);
+    }
+  }
+
+  solC->close();
+}
+
 void RestrictPWDCField(MultiLevelSolution &mlSol,
                        const std::string &CName,
                        const unsigned level0,
