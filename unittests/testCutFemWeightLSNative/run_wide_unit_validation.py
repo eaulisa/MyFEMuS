@@ -21,10 +21,11 @@ parser.add_argument('--element',type=int,choices=range(4))
 parser.add_argument('--degree',type=int,choices=[2,5,10])
 parser.add_argument('--binary',type=Path,default=suite/'build/wide_unit_validation')
 parser.add_argument('--folder',default='wide_unit')
+parser.add_argument('--summary')
 args=parser.parse_args()
 folder=suite/'results'/args.folder
 folder.mkdir(parents=True,exist_ok=True)
-summary_path=suite/'review_results'/('wide_unit_smoke.json' if args.smoke else 'wide_unit_summary.json')
+summary_path=suite/'review_results'/(args.summary or ('wide_unit_smoke.json' if args.smoke else 'wide_unit_summary.json'))
 manifest={str(p.relative_to(repo)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((repo/'src/quadrature/cutfem_ls').glob('*.hpp'))}
 summary_path.write_text(json.dumps({'accepted':False,'status':'running','source_sha256':manifest},indent=2)+'\n')
 
@@ -114,7 +115,7 @@ def group(item):
         records=[]
         for case,row in zip(cases,rows):
             assessment=assess(element,degree,case,row)
-            records.append({'case':case,'assessment':assessment,'seconds':row.get('seconds'),'setup_seconds':row.get('setup_seconds',0),'splits':{k:row.get(k,0) for k in ['quad_splits','triangle_splits','cell_splits','quad_calls','tri_calls','mapped_panels']}})
+            records.append({'case':case,'assessment':assessment,'seconds':row.get('seconds'),'setup_seconds':row.get('setup_seconds',0),'splits':{k:row.get(k,0) for k in ['quad_splits','triangle_splits','cell_splits','quad_calls','tri_calls','mapped_panels','tangent_attempts','tangent_completed','tangent_rejected','analytic_panels','model_refinements','bulk_samples']}})
         errors=[]
         if process.returncode or len(rows)!=len(cases):
             errors.append({'exit':process.returncode,'rows':len(rows),'expected_rows':len(cases),'stderr':process.stderr[-2000:]})

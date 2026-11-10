@@ -1,0 +1,60 @@
+name: CutFEM 2D tangency-strip experiment
+
+on:
+  push:
+    branches:
+      - rifat-cutfem-2d-tangent-strips
+    paths:
+      - 'src/quadrature/cutfem_ls/**'
+      - 'unittests/testCutFemWeightLSNative/**'
+      - '.github/workflows/cutfem-2d-tangency-strips.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: unittests/testCutFemWeightLSNative
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Mark validation pending
+        run: python3 -c 'import json,os; from pathlib import Path; Path("review_results/tangency_acceptance.json").write_text(json.dumps({"accepted":False,"status":"pending","input_sha":os.environ["GITHUB_SHA"]},indent=2)+"\n")'
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ python3 python3-numpy python3-mpmath libboost-dev libeigen3-dev
+      - name: Build standalone FEMuS checks
+        run: python3 build.py --jobs 2
+      - name: Run original regressions and fitted-weight checks
+        run: |
+          python3 run.py --selection original
+          python3 run.py --selection supplemental
+          python3 run_focused.py --extended
+          python3 compare_planar.py
+          python3 run_wide_double_output.py --2d-only --folder tangent_double --summary tangent_double_summary.json
+      - name: Compare the non-graph trial with the pinned baseline
+        run: python3 run_tangency_strip_experiment.py --rounds 1 --measure
+      - name: Check unit moments and physical meshes in 2D
+        run: |
+          python3 run_wide_unit_validation.py --element 0 --folder tangent_quad --summary tangent_quad_summary.json
+          python3 run_wide_unit_validation.py --element 1 --folder tangent_tri --summary tangent_tri_summary.json
+          python3 run_wide_unit_mesh.py --element 0 --folder tangent_quad_mesh --summary tangent_quad_mesh_summary.json
+          python3 run_wide_unit_mesh.py --element 1 --folder tangent_tri_mesh --summary tangent_tri_mesh_summary.json
+      - name: Check graph timing and unchanged 3D outputs
+        run: python3 run_tangency_preservation.py
+      - name: Check memory and undefined behaviour
+        run: python3 run_tangency_sanitizers.py --leak-detection
+      - name: Verify accepted source snapshot
+        run: python3 run_tangency_acceptance.py
+      - name: Save numerical evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cutfem-tangency-strips-${{ github.sha }}
+          path: |
+            unittests/testCutFemWeightLSNative/review_results/tangen*.json
+            unittests/testCutFemWeightLSNative/results/tangency_*/
+            unittests/testCutFemWeightLSNative/results/tangent_*/
+          if-no-files-found: error

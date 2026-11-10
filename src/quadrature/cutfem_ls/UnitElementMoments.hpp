@@ -2,6 +2,7 @@
 #define FEMUS_UNIT_ELEMENT_MOMENTS_HPP
 
 #include "Hex27DirectionSelection.hpp"
+#include "TangencyStripIntegration.hpp"
 
 namespace FELevelSetMoments {
 
@@ -67,7 +68,7 @@ inline void UnitTensorCheck(unsigned count, const std::vector<long double>& valu
   }
 }
 
-inline void UnitQuadMoments(const std::vector<long double>& coefficient, long double scale, unsigned degree, const std::vector<std::vector<long double>>& metric, long double absolute, long double relative, unsigned direction, unsigned validation, std::vector<long double>& values, std::vector<long double>& errors) {
+inline void UnitQuadMoments(const std::vector<long double>& coefficient, long double scale, unsigned degree, const std::vector<std::vector<long double>>& metric, long double absolute, long double relative, unsigned direction, unsigned validation, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<double>>* geometry = nullptr) {
   std::vector<std::vector<long double>> field(3,std::vector<long double>(3));
   for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) field[i][j] = coefficient[Hex27Index(i,j,0)];
   std::vector<std::vector<std::vector<long double>>> gradient;
@@ -85,7 +86,23 @@ inline void UnitQuadMoments(const std::vector<long double>& coefficient, long do
   unsigned accepted = 0;
   std::vector<long double> native;
   std::vector<long double> nativeErrors;
-  for(unsigned attempt = 0; attempt < (validation == 2 ? 2U : 1U); ++attempt) {
+  bool tangencyIntegrated = false;
+  if(direction == 0 && validation != 2 && lower[0] == 0 && lower[1] == 0 && (upper[0] > 0 || upper[1] > 0) && Quad9SelectedWeakGraphOrder(field) == 0) {
+    int phase = 0;
+    LineSliceUtilities::CanonicalGraphOrder(field,0,phase);
+    unsigned chosen = 0;
+    if(phase == 0) {
+      std::vector<std::vector<std::vector<long double>>> coordinates;
+      if(geometry != nullptr) for(unsigned d = 0; d < 2; ++d) {
+        std::vector<long double> polynomial;
+        UnitTensorPolynomialFromNodalValues((*geometry)[d],2,polynomial);
+        coordinates.push_back(std::vector<std::vector<long double>>(3,std::vector<long double>(3)));
+        for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) coordinates[d][i][j] = polynomial[Hex27Index(i,j,0)];
+      }
+      tangencyIntegrated = TangencyStripIntegration::Try(field,degree,false,true,absolute,absolute*scale,relative,24,200000,native,nativeErrors,evaluations,accepted,chosen,gradient.empty() ? nullptr : &gradient,scale,coordinates.empty() ? nullptr : &coordinates);
+    }
+  }
+  for(unsigned attempt = 0; !tangencyIntegrated && attempt < (validation == 2 ? 2U : 1U); ++attempt) {
     const unsigned order = attempt == 0 ? selected : 3U-selected;
     std::vector<long double> trial;
     std::vector<long double> trialErrors;
@@ -154,7 +171,7 @@ inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, un
     }
     for(unsigned n = 0; n < values.size(); ++n) errors[n] = 128*std::numeric_limits<long double>::epsilon()*std::abs(values[n]);
   }
-  else if(dimension == 2) UnitQuadMoments(coefficient,scale,degree,metric,absolute,relative,direction,validation,values,errors);
+  else if(dimension == 2) UnitQuadMoments(coefficient,scale,degree,metric,absolute,relative,direction,validation,values,errors,geometry);
   else {
     GraphCellData data;
     data.coefficient = coefficient;

@@ -116,6 +116,9 @@ int main(int argc, char** argv) {
       }
       FELevelSetMoments::LineIntegration::Statistics() = FELevelSetMoments::LineIntegrationStatistics();
       FELevelSetMoments::GraphCellIntegration::Statistics() = FELevelSetMoments::GraphCellStatistics();
+#ifdef FEMUS_TANGENCY_STRIP_INTEGRATION_HPP
+      FELevelSetMoments::TangencyStripIntegration::Statistics() = FELevelSetMoments::TangencyStripStatistics();
+#endif
       std::vector<long double> raw;
       std::vector<long double> surface;
       std::vector<long double> physical;
@@ -128,6 +131,9 @@ int main(int argc, char** argv) {
       const unsigned count = raw.size()/2U;
       const FELevelSetMoments::LineIntegrationStatistics lineStats = FELevelSetMoments::LineIntegration::Statistics();
       const FELevelSetMoments::GraphCellStatistics graphStats = FELevelSetMoments::GraphCellIntegration::Statistics();
+#ifdef FEMUS_TANGENCY_STRIP_INTEGRATION_HPP
+      const FELevelSetMoments::TangencyStripStatistics tangentStats = FELevelSetMoments::TangencyStripIntegration::Statistics();
+#endif
       std::vector<long double> h;
       std::vector<long double> d;
       std::vector<long double> s;
@@ -142,6 +148,10 @@ int main(int argc, char** argv) {
         rule->GetWeightsFromNodalValues(nodal,unused,s,tolerance,tolerance,true);
         if(geometry != 0) rule->GetPhysicalSurfaceWeightsFromNodalGeometry(nodal,coordinates,unused,p,tolerance,tolerance);
       }
+#ifdef FEMUS_TANGENCY_STRIP_INTEGRATION_HPP
+      std::cout << ",\"tangent_attempts\":" << tangentStats.attempts << ",\"tangent_completed\":" << tangentStats.completed << ",\"tangent_rejected\":" << tangentStats.rejected << ",\"analytic_panels\":" << tangentStats.analyticPanels << ",\"model_refinements\":" << tangentStats.modelRefinements << ",\"bulk_samples\":" << tangentStats.bulkSamples << ",\"delta_min\":" << tangentStats.minimumDelta << ",\"delta_max\":" << tangentStats.maximumDelta << ",\"tangent_direction_x\":" << tangentStats.directions[1] << ",\"tangent_direction_y\":" << tangentStats.directions[0];
+      std::cout << ",\"tangent_failure\":"; WideString(tangentStats.failure);
+#endif
       std::cout << ",\"quad_splits\":" << lineStats.splitCells << ",\"triangle_splits\":" << lineStats.triangleSplitCells << ",\"cell_splits\":" << graphStats.splitCells << ",\"fallback_cells\":" << graphStats.fallbackCells << ",\"quad_calls\":" << graphStats.quadCalls << ",\"tri_calls\":" << graphStats.triCalls << ",\"mapped_panels\":" << lineStats.mappedPanels << ",\"moments\":[";
       for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) for(unsigned k = 0; k <= (dimension == 3 ? degree-i-j : 0U); ++k) {
         const unsigned n = FELevelSetMoments::UnitMomentIndex(dimension,i,j,k);

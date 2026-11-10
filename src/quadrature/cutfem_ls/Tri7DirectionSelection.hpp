@@ -3,6 +3,7 @@
 
 #include "LineIntegration.hpp"
 #include "TriangleIntegration.hpp"
+#include "TangencyStripIntegration.hpp"
 
 // TRI7 uses ordered triangular charts internally and returns moments on the standard FEMuS reference triangle.
 namespace FELevelSetMoments {
@@ -212,13 +213,13 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
   if(zero && computeDelta) throw std::domain_error("The Dirac delta of an identically zero TRI7 field is undefined.");
   std::vector<std::vector<std::vector<long double>>> referenceGradient;
   std::vector<std::vector<std::vector<long double>>> standardGradient;
+  std::vector<std::vector<std::vector<long double>>> standardCoordinates;
   if(referenceSurface) {
     SurfaceGradientFromPolynomial(coefficient,1.0L,1.0L,referenceGradient);
     if(inverseJacobian != nullptr) SurfaceGradientPhysical(referenceGradient,*inverseJacobian);
     if(geometryCoordinates != nullptr) {
-      std::vector<std::vector<std::vector<long double>>> coordinatePolynomials;
-      Tri7SurfaceCoordinatePolynomials(*geometryCoordinates,coordinatePolynomials);
-      SurfaceGradientCofactor2D(referenceGradient,coordinatePolynomials,1.0L,1.0L);
+      Tri7SurfaceCoordinatePolynomials(*geometryCoordinates,standardCoordinates);
+      SurfaceGradientCofactor2D(referenceGradient,standardCoordinates,1.0L,1.0L);
     }
     standardGradient = referenceGradient;
     for(unsigned component = 0; component < referenceGradient.size(); ++component) {
@@ -270,7 +271,9 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
         const std::vector<TriangleDomainVertex> vertices = {{0.0L,0.0L},{1.0L,0.0L},{0.0L,1.0L}};
         accepted = 0;
         ++attempts;
-        TriangleIntegration::Integrate(standardCoefficient,degree,vertices,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,0,10,values,errors,evaluations,accepted,selected,referenceSurface ? &standardGradient : nullptr);
+        bool tangencyIntegrated = false;
+        if(lower[ranked[0]-1U] == 0 && !TangencyStripIntegration::IsGraph(standardCoefficient,true)) tangencyIntegrated = TangencyStripIntegration::Try(standardCoefficient,degree,true,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,referenceSurface ? &standardGradient : nullptr,scale,standardCoordinates.empty() ? nullptr : &standardCoordinates,inverseJacobian);
+        if(!tangencyIntegrated) TriangleIntegration::Integrate(standardCoefficient,degree,vertices,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,0,10,values,errors,evaluations,accepted,selected,referenceSurface ? &standardGradient : nullptr);
         standardMoments = true;
       }
     }

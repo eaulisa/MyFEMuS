@@ -18,8 +18,10 @@ parser.add_argument('--smoke',action='store_true')
 parser.add_argument('--jobs',type=int,default=3)
 parser.add_argument('--element',type=int,choices=range(4))
 parser.add_argument('--degree',type=int,choices=[2,5,10])
+parser.add_argument('--folder',default='wide_unit_mesh')
+parser.add_argument('--summary')
 args=parser.parse_args()
-folder=suite/'results/wide_unit_mesh'
+folder=suite/'results'/args.folder
 folder.mkdir(parents=True,exist_ok=True)
 manifest={str(p.relative_to(repo)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((repo/'src/quadrature/cutfem_ls').glob('*.hpp'))}
 
@@ -59,7 +61,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
 after={str(p.relative_to(repo)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((repo/'src/quadrature/cutfem_ls').glob('*.hpp'))}
 rows=[row for r in records for row in r['rows']]
 summary={'accepted':all(not r['failures'] for r in records) and manifest==after,'groups':len(records),'mesh_levels':len(rows),'checks':4*len(rows),'maximum_requested_degree':10,'maximum_errors':{name:max((float(row[name]) for row in rows),default=0) for name in ['volume_error','surface_error','volume_x2_error','surface_x2_error']},'records':records,'source_sha256':manifest,'source_changed':manifest!=after}
-name='wide_unit_mesh_smoke.json' if args.smoke else 'wide_unit_mesh_summary.json'
+name=args.summary or ('wide_unit_mesh_smoke.json' if args.smoke else 'wide_unit_mesh_summary.json')
 (suite/'review_results'/name).write_text(json.dumps(summary,indent=2)+'\n')
 print(json.dumps({k:v for k,v in summary.items() if k not in ['records','source_sha256']},indent=2),flush=True)
 sys.exit(0 if summary['accepted'] else 1)
