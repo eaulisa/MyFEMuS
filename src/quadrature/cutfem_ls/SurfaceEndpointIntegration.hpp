@@ -400,7 +400,13 @@ public:
     }
   }
 
-  template<unsigned Rule> static void Panel(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, unsigned outer, long double left, long double right, int mapping, long double endpoint, long double delta, unsigned exponent, long double allocation, const std::vector<unsigned char>& active, std::vector<long double>& values, std::vector<long double>& errors) {
+  template<unsigned Rule> static bool ResolvedPanel(long double left, long double right, int mapping, long double endpoint, long double delta, unsigned exponent) {
+    if(mapping == 0) return true;
+    const long double parameter = left+0.5L*(right-left)*(1-boost::math::quadrature::gauss_kronrod<long double,Rule>::abscissa().back());
+    return endpoint+mapping*delta*ReferencePower(parameter,exponent) != endpoint;
+  }
+
+  template<unsigned Rule> static void Panel(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, unsigned outer, long double left, long double right, int mapping, long double endpoint, long double delta, unsigned exponent, long double allocation, const std::vector<unsigned char>& active, std::vector<long double>& values, std::vector<long double>& errors, bool coordinateError = false) {
     const long double middle = left+0.5L*(right-left);
     const long double half = 0.5L*(right-left);
     std::vector<long double> low(active.size(),0);
@@ -418,6 +424,12 @@ public:
       std::vector<long double> sample;
       std::vector<long double> innerError;
       Sample(data,cell,outer,coordinate,active,sample,innerError,allocation);
+      if(coordinateError) {
+        std::vector<long double> adjacent;
+        std::vector<long double> adjacentError;
+        Sample(data,cell,outer,std::nextafter(coordinate,endpoint+mapping*delta),active,adjacent,adjacentError,allocation);
+        for(unsigned n = 0; n < active.size(); ++n) if(active[n]) innerError[n] += std::abs(sample[n]-adjacent[n])+adjacentError[n];
+      }
       for(unsigned n = 0; n < active.size(); ++n) if(active[n]) {
         values[n] += weight*jacobian*sample[n];
         low[n] += gaussWeight*jacobian*sample[n];
@@ -434,6 +446,13 @@ public:
     std::vector<long double> errors;
     const long double physicalWidth = mapping == 0 ? right-left : delta*(ReferencePower(right,exponent)-ReferencePower(left,exponent));
     const long double allocation = budget/physicalWidth;
+    if(!ResolvedPanel<15>(left,right,mapping,endpoint,delta,exponent)) {
+      if(ResolvedPanel<7>(left,right,mapping,endpoint,delta,exponent)) Panel<7>(data,cell,outer,left,right,mapping,endpoint,delta,exponent,allocation,active,values,errors,true);
+      else if(ResolvedPanel<3>(left,right,mapping,endpoint,delta,exponent)) Panel<3>(data,cell,outer,left,right,mapping,endpoint,delta,exponent,allocation,active,values,errors,true);
+      else throw std::runtime_error("A transformed 3D slice reached coordinate resolution.");
+      if(!LineIntegration::Accept(values,errors,budget*data.absoluteH,budget*data.absoluteD,data.relative,active,total,totalErrors)) { ++data.accepted; return; }
+      throw std::runtime_error("A transformed 3D slice cannot reach tolerance at coordinate resolution.");
+    }
     Panel<15>(data,cell,outer,left,right,mapping,endpoint,delta,exponent,allocation,active,values,errors);
     if(!LineIntegration::Accept(values,errors,budget*data.absoluteH,budget*data.absoluteD,data.relative,active,total,totalErrors)) { ++data.accepted; return; }
     Panel<31>(data,cell,outer,left,right,mapping,endpoint,delta,exponent,allocation,active,values,errors);

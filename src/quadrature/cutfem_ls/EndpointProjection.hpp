@@ -66,6 +66,33 @@ public:
     return result;
   }
 
+  static std::vector<std::vector<long double>> FaceNormalDerivative(const std::vector<std::vector<std::vector<long double>>>& field, bool top, bool triangle) {
+    std::vector<std::vector<std::vector<long double>>> derivative(3,std::vector<std::vector<long double>>(3,std::vector<long double>(3,0)));
+    for(unsigned i = 0; i < 2; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) derivative[i][j][k] = (i+1U)*field[i+1U][j][k];
+    return Face(derivative,top,triangle);
+  }
+
+  // A definite face critical point is isolated when the parent normal derivative is nonzero.
+  static bool RegularFaceTangency(const std::vector<std::vector<long double>>& constraint, const std::vector<std::vector<long double>>& normalDerivative, long double point, long double height) {
+    long double normal = 0;
+    long double normalBound = 0;
+    for(unsigned i = 0; i < normalDerivative.size(); ++i) {
+      normal += PolynomialValue(normalDerivative[i],height)*ReferencePower(point,i);
+      normalBound += PolynomialBound(normalDerivative[i],height)*ReferencePower(std::abs(point),i);
+    }
+    if(std::abs(normal) <= 65536*std::numeric_limits<long double>::epsilon()*normalBound) return false;
+    long double first = 0;
+    long double mixed = 0;
+    long double second = 0;
+    for(unsigned i = 0; i < constraint.size(); ++i) {
+      if(i > 1) first += i*(i-1U)*PolynomialValue(constraint[i],height)*ReferencePower(point,i-2U);
+      if(i > 0) mixed += i*PolynomialValue(PolynomialDerivative(constraint[i]),height)*ReferencePower(point,i-1U);
+      second += PolynomialValue(PolynomialDerivative(PolynomialDerivative(constraint[i])),height)*ReferencePower(point,i);
+    }
+    const long double determinant = std::fma(first,second,-mixed*mixed);
+    return determinant > 65536*std::numeric_limits<long double>::epsilon()*(std::abs(first*second)+mixed*mixed);
+  }
+
   static bool Relevant(const std::vector<std::vector<long double>>& polynomial, long double height, bool triangle) {
     std::vector<long double> fiber(polynomial.size());
     long double norm = 0;
@@ -104,7 +131,7 @@ public:
     return first/a*second;
   }
 
-  static unsigned ContactExponent(const std::vector<std::vector<long double>>& constraint, long double height, bool triangle, bool regularGraphBoundary = false) {
+  static unsigned ContactExponent(const std::vector<std::vector<long double>>& constraint, long double height, bool triangle, bool regularGraphBoundary = false, const std::vector<std::vector<long double>>* normalDerivative = nullptr) {
     std::vector<long double> polynomial(constraint.size());
     for(unsigned i = 0; i < constraint.size(); ++i) polynomial[i] = PolynomialValue(constraint[i],height);
     Trim(polynomial);
@@ -125,7 +152,7 @@ public:
       for(unsigned i = 0; i < constraint.size(); ++i) transverse += PolynomialValue(PolynomialDerivative(constraint[i]),height)*ReferencePower(roots[n],i);
       long double norm = 0;
       for(unsigned i = 0; i < constraint.size(); ++i) norm += PolynomialNorm(constraint[i]);
-      if(!regularGraphBoundary && std::abs(transverse) <= 65536*std::numeric_limits<long double>::epsilon()*norm) throw std::runtime_error("Unsupported non-transverse projected endpoint; no regular-fold convergence claim is available.");
+      if(!regularGraphBoundary && std::abs(transverse) <= 65536*std::numeric_limits<long double>::epsilon()*norm && (normalDerivative == nullptr || !RegularFaceTangency(constraint,*normalDerivative,roots[n],height))) throw std::runtime_error("Unsupported non-transverse projected endpoint; no regular-fold convergence claim is available.");
       if(multiplicity > 4) throw std::runtime_error("Unsupported projected contact multiplicity.");
       exponent = CommonExponent(exponent,CommonExponent(2,multiplicity));
     }
@@ -135,12 +162,14 @@ public:
   static std::vector<EndpointProjectionEvent> BuildDirection(const std::vector<long double>& coefficient, bool triangle, unsigned outer, unsigned certifiedInner, bool graphOnly) {
     std::vector<long double> events = {0,1};
     std::vector<std::vector<std::vector<long double>>> constraints;
+    std::vector<std::vector<std::vector<long double>>> normalDerivatives;
     for(unsigned inner = 0; inner < 3; ++inner) if(inner != outer && (certifiedInner == 3 || inner == certifiedInner)) {
       const std::vector<std::vector<std::vector<long double>>> field = Field(coefficient,outer,inner);
       for(unsigned side = 0; side < 2; ++side) {
         const std::vector<std::vector<long double>> face = Face(field,side != 0,triangle);
         AddConstraint(face,triangle,events,graphOnly);
         constraints.push_back(face);
+        normalDerivatives.push_back(FaceNormalDerivative(field,side != 0,triangle));
       }
       if(graphOnly) continue;
       bool quadratic = false;
@@ -151,12 +180,13 @@ public:
       if(quadratic && discriminant.size() == 1 && PolynomialNorm(discriminant[0]) == 0) throw std::runtime_error("A repeated fiber root has no regular delta moment.");
       AddConstraint(discriminant,triangle,events);
       constraints.push_back(discriminant);
+      normalDerivatives.push_back({});
     }
     SortDistinct(events);
     std::vector<EndpointProjectionEvent> result;
     for(unsigned n = 0; n < events.size(); ++n) {
       unsigned exponent = graphOnly ? 1U : 2U;
-      for(unsigned i = 0; i < constraints.size(); ++i) exponent = CommonExponent(exponent,ContactExponent(constraints[i],events[n],triangle,graphOnly));
+      for(unsigned i = 0; i < constraints.size(); ++i) exponent = CommonExponent(exponent,ContactExponent(constraints[i],events[n],triangle,graphOnly,normalDerivatives[i].empty() ? nullptr : &normalDerivatives[i]));
       result.push_back({events[n],exponent});
     }
     return result;

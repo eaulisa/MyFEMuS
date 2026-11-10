@@ -215,9 +215,9 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
         std::cout<<"    NODE "<<i<<std::endl;
       const unsigned dof = msh->GetSolutionDof(i, iel, xType);
       psi[i] = (*sol->_Sol[psiIndex])(dof);
-      std::cout<<"      psi "<<psi[i]<<std::endl;
+      std::cout<<"      psi "<<std::setprecision(17)<<psi[i]<<std::endl;
       std::cout<<"      coord ";
-      for(unsigned d = 0; d < dim; ++d) {coordX[d][i] = (*msh->_topology->_Sol[d])(dof); std::cout<<psi[i]<<" ";}
+      for(unsigned d = 0; d < dim; ++d) {coordX[d][i] = (*msh->_topology->_Sol[d])(dof); std::cout<<coordX[d][i]<<" ";}
       std::cout<<std::endl;
     }
     std::cout<<std::endl;
