@@ -443,24 +443,20 @@ namespace femus {
   }
 
 
-  Mesh* MultiLevelMesh::GenerateSingleManufacturedBallElementMesh(
-  const GeomElType geometry,
-  const std::array<double, 3>& lo,
-  const std::array<double, 3>& hi,
-  const std::array<double, 3>& center,
-  double radius,
-  double epsilon,
-  const char GaussOrder[]) {
+Mesh* MultiLevelMesh::GenerateSingleAnalyticBallElementMesh(
+    GeomElType geometry,
+    const std::array<double,3>& lo,
+    const std::array<double,3>& hi,
+    const std::array<double,3>& center,
+    double curvature,
+    const char GaussOrder[]) {
 
-  if(geometry != TRI && geometry != QUAD &&
-     geometry != TET && geometry != HEX) {
-    throw std::invalid_argument("Unsupported manufactured BALL geometry");
-  }
+  if(geometry!=TRI && geometry!=QUAD &&
+     geometry!=TET && geometry!=HEX)
+    throw std::invalid_argument("Analytic BALL: unsupported geometry");
 
-  Mesh* msh = GenerateSingleElementMesh(geometry, lo, hi, GaussOrder);
-
-  msh->CurveSingleElementManufacturedBall(center, radius, epsilon);
-
-  return msh;
+  Mesh* mesh=GenerateSingleElementMesh(geometry,lo,hi,GaussOrder);
+  mesh->CurveSingleElementAnalyticBall(center,curvature);
+  return mesh;
 }
 } //end namespace femus
