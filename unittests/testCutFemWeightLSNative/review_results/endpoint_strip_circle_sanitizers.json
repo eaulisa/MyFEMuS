@@ -1,0 +1,54 @@
+{
+  "address_and_undefined_behavior": [
+    {
+      "element": "QUAD",
+      "delta": 0.043933982822017874,
+      "degree": 10,
+      "exit": 0,
+      "stderr": "",
+      "command": [
+        "unittests/testCutFemWeightLSNative/build/endpoint_strip_circle_sanitized",
+        "mapped",
+        "0.04393398282201787134",
+        "10",
+        "0",
+        "1"
+      ]
+    },
+    {
+      "element": "QUAD",
+      "delta": 0.075,
+      "degree": 10,
+      "exit": 0,
+      "stderr": "",
+      "command": [
+        "unittests/testCutFemWeightLSNative/build/endpoint_strip_circle_sanitized",
+        "mapped",
+        "0.075",
+        "10",
+        "0",
+        "1"
+      ]
+    },
+    {
+      "element": "TRI",
+      "delta": 0.05,
+      "degree": 10,
+      "exit": 0,
+      "stderr": "",
+      "command": [
+        "unittests/testCutFemWeightLSNative/build/endpoint_strip_circle_sanitized",
+        "mapped",
+        "0.05",
+        "10",
+        "1",
+        "1"
+      ]
+    }
+  ],
+  "leak_detection": {
+    "status": "unavailable",
+    "reason": "LeakSanitizer reports that the process is running under ptrace.",
+    "attempts": 3
+  }
+}
