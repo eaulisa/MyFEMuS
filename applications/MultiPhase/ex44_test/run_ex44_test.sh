@@ -4,7 +4,7 @@ set -euo pipefail
 # ------------------ EDIT ONLY THIS SECTION ------------------
 ELEMENTS=(0 1 3 4)     # 0=HEX, 1=TET, 3=QUAD, 4=TRI
 PSI="ball"             # ball, saye, stella (Stella only on straight QUAD9)
-CURVED=0               # 0=straight, 1=analytical curved BALL
+CURVED=1               # 0=straight, 1=analytical curved BALL
 LEVELS=4               # 0 through LEVELS
 CURVATURE=0.40         # only used for curved BALL
 STELLA_A=4             # >4 recommended to keep oval strictly inside [-0.5,0.5]^2

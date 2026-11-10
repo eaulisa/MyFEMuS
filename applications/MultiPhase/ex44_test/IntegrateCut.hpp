@@ -217,7 +217,10 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
       psi[i] = (*sol->_Sol[psiIndex])(dof);
       std::cout<<"      psi "<<std::setprecision(17)<<psi[i]<<std::endl;
       std::cout<<"      coord ";
-      for(unsigned d = 0; d < dim; ++d) {coordX[d][i] = (*msh->_topology->_Sol[d])(dof); std::cout<<coordX[d][i]<<" ";}
+      for(unsigned d = 0; d < dim; ++d) {
+        coordX[d][i] = (*msh->_topology->_Sol[d])(dof);
+        std::cout<<coordX[d][i]<<" ";
+      }
       std::cout<<std::endl;
     }
     std::cout<<std::endl;
