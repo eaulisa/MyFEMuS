@@ -1,0 +1,18 @@
+{
+  "baseline": {
+    "cases": 180,
+    "completed": 180,
+    "accurate": 180,
+    "max_abs_H": 6.38378239159465e-16,
+    "max_abs_D": 8.881784197001252e-15,
+    "failures": []
+  },
+  "candidate": {
+    "cases": 180,
+    "completed": 180,
+    "accurate": 180,
+    "max_abs_H": 6.38378239159465e-16,
+    "max_abs_D": 8.881784197001252e-15,
+    "failures": []
+  }
+}

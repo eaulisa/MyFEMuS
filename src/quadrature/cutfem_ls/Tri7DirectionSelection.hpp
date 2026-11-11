@@ -20,7 +20,8 @@ inline void Tri7SurfaceCoordinatePolynomials(const std::vector<std::vector<doubl
   }
 }
 
-inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationDirection = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr,  bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationDirection = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr,  bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+  rules.Validate();
   if(geometryCoordinates != nullptr) {
     if(!referenceSurface || inverseJacobian != nullptr) throw std::invalid_argument("Surface geometry requires surface moments without an inverse Jacobian.");
     ValidateSurfaceGeometryCoordinates(*geometryCoordinates,2,7);
@@ -29,7 +30,7 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
     if(!referenceSurface) throw std::invalid_argument("A surface inverse Jacobian requires surface moments.");
     ValidateSurfaceInverseJacobian(*inverseJacobian,2);
   }
-  if(&positive == &delta || coefficient.size() != 3 || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 60 || integrationDirection > 3 || validationMode > 2 || maximumEvaluations < 15) throw std::invalid_argument("Invalid TRI7 selected-direction input.");
+  if(&positive == &delta || coefficient.size() != 3 || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 60 || integrationDirection > 3 || validationMode > 2 || maximumEvaluations < 3) throw std::invalid_argument("Invalid TRI7 selected-direction input.");
   for(unsigned i = 0; i < 3; ++i) if(coefficient[i].size() != 3) throw std::invalid_argument("The TRI7 coefficient matrix must be 3 by 3.");
   if(coefficient[2][2] != 0.0 || coefficient[2][1] != coefficient[1][2]) throw std::invalid_argument("The TRI7 coefficients must represent a quadratic polynomial with a barycentric bubble.");
   if(zeroBoundary != nullptr && zeroBoundary->size() != 3) throw std::invalid_argument("TRI7 requires three boundary flags.");
@@ -67,9 +68,9 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
     for(unsigned component = 0; component < gradient.size(); ++component) gradient[component] = EndpointSimplexChart::Triangle(gradient[component]);
     if(zeroBoundary != nullptr) { transformedBoundary = {(*zeroBoundary)[2],(*zeroBoundary)[1],(*zeroBoundary)[0]}; zeroBoundary = &transformedBoundary; }
   }
-  TriangleIntegration::Integrate(normalized,degree,computeDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,referenceSurface ? &gradient : nullptr,nullptr,nullptr,integrationDirection == 3 ? 1U : integrationDirection,fullBoundaryDelta,zeroBoundary);
+  TriangleIntegration::Integrate(normalized,degree,computeDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,referenceSurface ? &gradient : nullptr,nullptr,nullptr,integrationDirection == 3 ? 1U : integrationDirection,fullBoundaryDelta,zeroBoundary,rules);
   unsigned compared = 0;
-  if(validationMode == 2) compared = PlanarEndpointIntegration::Compare(normalized,degree,true,computeDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,referenceSurface ? &gradient : nullptr,nullptr,fullBoundaryDelta,zeroBoundary);
+  if(validationMode == 2) compared = PlanarEndpointIntegration::Compare(normalized,degree,true,computeDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,referenceSurface ? &gradient : nullptr,nullptr,fullBoundaryDelta,zeroBoundary,rules);
   if(integrationDirection == 3) {
     std::vector<long double> source;
     std::vector<long double> sourceErrors;
@@ -102,11 +103,11 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
   if(estimatedError != nullptr) *estimatedError = {static_cast<double>(errorH),static_cast<double>(errorD),static_cast<double>(accepted),static_cast<double>(evaluations),static_cast<double>(selected),static_cast<double>(compared),1};
 }
 
-inline void IntegrateTri7NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr,  bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+inline void IntegrateTri7NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr,  bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
   std::vector<std::vector<double>> coefficient;
   Tri7ReferenceCoefficientsFromNodalValues(nodalValues,coefficient);
   const std::vector<unsigned> boundary = {static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[3] == 0.0),static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[2] == 0.0 && nodalValues[5] == 0.0),static_cast<unsigned>(nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[4] == 0.0)};
-  IntegrateTri7ReferenceSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,28U,integrationDirection,200000,estimatedError,validationMode,&boundary,referenceSurface,inverseJacobian,geometryCoordinates);
+  IntegrateTri7ReferenceSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,28U,integrationDirection,200000,estimatedError,validationMode,&boundary,referenceSurface,inverseJacobian,geometryCoordinates,rules);
 }
 
 }

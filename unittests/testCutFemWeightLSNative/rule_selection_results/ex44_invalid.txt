@@ -1,0 +1,11 @@
+[1794357689.713638] [f07d7b07ca06:17   :f]        vfs_fuse.c:413  UCX  ERROR failed to create VFS socket: Operation not permitted
+hwloc/linux: failed to find sysfs cpu topology directory, aborting linux discovery.
+ FemusInit(): PETSC_COMM_WORLD initialized
+
+Command-line error: Invalid Gauss-Kronrod pair: 7/31; expected n/(2n+1) for n=1,...,15.
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There is one unused database option. It is:
+Option left: name:--gk-regular-2d value: 7/31 source: command line
+
+ ~FemusInit(): PETSC_COMM_WORLD ends

@@ -168,6 +168,7 @@ def cases(element):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--baseline',required=True)
+    parser.add_argument('--baseline-sha',default='f5f81a8a088cb990780f326c4a8692ac98265536')
     parser.add_argument('--candidate',required=True)
     parser.add_argument('--output',required=True)
     parser.add_argument('--reuse-existing',action='store_true')
@@ -177,7 +178,7 @@ def main():
     cpu = min(os.sched_getaffinity(0)) if hasattr(os,'sched_getaffinity') else None
     if cpu is not None:
         os.sched_setaffinity(0,{cpu})
-    metadata = dict(cpu=cpu,platform=platform.platform(),degree=10,repetitions=3,compiler=subprocess.check_output(['c++','--version'],text=True).splitlines()[0],baseline_sha='f5f81a8a088cb990780f326c4a8692ac98265536',primary_rule='G7/K15 for every interval',headers={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (Path(__file__).resolve().parents[2]/'src/quadrature/cutfem_ls').glob('*.hpp')})
+    metadata = dict(cpu=cpu,platform=platform.platform(),degree=10,repetitions=3,compiler=subprocess.check_output(['c++','--version'],text=True).splitlines()[0],baseline_sha=args.baseline_sha,primary_rule='G7/K15 for every interval',headers={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (Path(__file__).resolve().parents[2]/'src/quadrature/cutfem_ls').glob('*.hpp')})
     (output/'metadata.json').write_text(json.dumps(metadata,indent=2)+'\n')
     rows = []
     archive_lines = []

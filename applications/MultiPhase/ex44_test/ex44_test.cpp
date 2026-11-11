@@ -298,6 +298,7 @@ std::string PsiKind(const std::string& value) {
 const std::string& PsiName(const std::string& value) { return value; }
 
 void Usage() {
+  std::cout << FELevelSetMoments::GaussKronrodRules::Help();
   std::cout << "Usage: MultiPhase_ex44_test [options]\n"
             << "  --elements tri,quad,tet,hex  Element types (comma-separated)\n"
             << "  --psi ball,saye,stella       Level-set types (comma-separated)\n"
@@ -336,6 +337,7 @@ DriverOptions Parse(int argc, char** argv) {
         if(std::find(options.psis.begin(), options.psis.end(), p) == options.psis.end()) options.psis.push_back(p);
       }
     }
+    else if(FELevelSetMoments::GaussKronrodRules::IsOption(key)) options.integration.outerQuadratureRules.SetOption(key,value);
     else if(key == "--curved") options.curved = Boolean(value);
     else if(key == "--levels") options.levels = Unsigned(value, key);
     else if(key == "--curvature") options.curvature = Real(value, key);

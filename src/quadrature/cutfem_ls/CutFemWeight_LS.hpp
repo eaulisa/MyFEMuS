@@ -61,6 +61,17 @@ class CutFemWeight_LS {
       _nodalWeightCacheValid = false;
     }
 
+    void SetOuterQuadratureRules(const FELevelSetMoments::OuterQuadratureRules& rules) {
+      rules.Validate();
+      if(_outerQuadratureRules.SameAs(rules)) return;
+      _outerQuadratureRules = rules;
+      _nodalWeightCacheValid = false;
+    }
+
+    const FELevelSetMoments::OuterQuadratureRules& GetOuterQuadratureRules() const {
+      return _outerQuadratureRules;
+    }
+
     void ClearCache() {
       _nodalWeightCacheValid = false;
       _nodalValues.clear();
@@ -70,12 +81,20 @@ class CutFemWeight_LS {
     }
 
     void GetWeightsFromNodalValues(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool referenceSurface = false) {
-      GetNodalWeightPair(nodalValues, positiveWeight, deltaWeight, absoluteTolerance, relativeTolerance, referenceSurface);
+      GetNodalWeightPair(nodalValues, positiveWeight, deltaWeight, absoluteTolerance, relativeTolerance, referenceSurface, _outerQuadratureRules);
     }
 
     // Surface moments include |cof(J) grad G| and use the reference Gauss weight during assembly.
     void GetPhysicalSurfaceWeightsFromNodalGeometry(const std::vector<double>& nodalValues, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& surfaceWeight, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12) {
-      GetNodalWeightPair(nodalValues, positiveWeight, surfaceWeight, absoluteTolerance, relativeTolerance, true, &coordinates);
+      GetNodalWeightPair(nodalValues, positiveWeight, surfaceWeight, absoluteTolerance, relativeTolerance, true, _outerQuadratureRules, &coordinates);
+    }
+
+    void GetWeightsFromNodalValues(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules) {
+      GetNodalWeightPair(nodalValues,positiveWeight,deltaWeight,absoluteTolerance,relativeTolerance,referenceSurface,rules);
+    }
+
+    void GetPhysicalSurfaceWeightsFromNodalGeometry(const std::vector<double>& nodalValues, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& surfaceWeight, double absoluteTolerance, double relativeTolerance, const FELevelSetMoments::OuterQuadratureRules& rules) {
+      GetNodalWeightPair(nodalValues,positiveWeight,surfaceWeight,absoluteTolerance,relativeTolerance,true,rules,&coordinates);
     }
 
     unsigned GetCutFEMQuadratureOrder() const {
@@ -177,18 +196,20 @@ class CutFemWeight_LS {
       }
     }
 
-    void GetNodalWeightPair(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+    void GetNodalWeightPair(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+      rules.Validate();
       if(&positiveWeight == &deltaWeight) throw std::invalid_argument("Heaviside and delta weights require distinct output vectors.");
       if(!(absoluteTolerance > 0.) || !(relativeTolerance >= 0.) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance)) throw std::invalid_argument("Invalid nodal integration tolerance.");
       if(geometryCoordinates != nullptr) FELevelSetMoments::ValidateSurfaceGeometryCoordinates(*geometryCoordinates, _dim, _geomElemType == LINE ? 3U : (_geomElemType == TRI ? 7U : (_geomElemType == QUAD ? 9U : (_geomElemType == TET ? 15U : 27U))));
       const bool sameGeometry = geometryCoordinates == nullptr ? _nodalGeometryCoordinates.empty() : _nodalGeometryCoordinates == *geometryCoordinates;
-      if(_nodalWeightCacheValid && sameGeometry && referenceSurface == _nodalUsesReferenceSurface && nodalValues == _nodalValues && absoluteTolerance == _nodalAbsoluteTolerance && relativeTolerance == _nodalRelativeTolerance) {
+      if(_nodalWeightCacheValid && _cachedOuterQuadratureRules.SameAs(rules) && sameGeometry && referenceSurface == _nodalUsesReferenceSurface && nodalValues == _nodalValues && absoluteTolerance == _nodalAbsoluteTolerance && relativeTolerance == _nodalRelativeTolerance) {
         positiveWeight = _nodalPositiveWeight;
         deltaWeight = _nodalDeltaWeight;
         return;
       }
       _nodalWeightCacheValid = false;
-      IntegrateNodalMomentPair(nodalValues, absoluteTolerance, relativeTolerance, referenceSurface, geometryCoordinates);
+      IntegrateNodalMomentPair(nodalValues, absoluteTolerance, relativeTolerance, referenceSurface, rules, geometryCoordinates);
+      _cachedOuterQuadratureRules = rules;
       _nodalValues = nodalValues;
       if(geometryCoordinates == nullptr) _nodalGeometryCoordinates.clear();
       else _nodalGeometryCoordinates = *geometryCoordinates;
@@ -227,22 +248,22 @@ class CutFemWeight_LS {
       }
     }
 
-    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
       if(_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX) {
         std::vector<long double> values;
         std::vector<long double> errors;
-        FELevelSetMoments::IntegrateUnitTensorNodalMoments(nodalValues,_dim,_qM,values,errors,absoluteTolerance,relativeTolerance,referenceSurface,geometryCoordinates,_integrationDirection,_directionValidation);
+        FELevelSetMoments::IntegrateUnitTensorNodalMoments(nodalValues,_dim,_qM,values,errors,absoluteTolerance,relativeTolerance,referenceSurface,geometryCoordinates,_integrationDirection,_directionValidation,rules);
         const long double surfaceFactor = geometryCoordinates != nullptr ? 1.0L/(1U<<_dim) : (referenceSurface ? 0.5L : 1.0L);
         for(unsigned n = 0; n < _L; ++n) { _fPair(n,0) = static_cast<TypeA>(values[n]); _fPair(n,1) = static_cast<TypeA>(surfaceFactor*values[_L+n]); }
       }
       else if(_geomElemType == TET) {
         std::vector<std::vector<std::vector<double>>> positive, delta;
-        FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,24,_integrationDirection,200000,nullptr,_directionValidation,nullptr,referenceSurface,nullptr,geometryCoordinates);
+        FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,24,_integrationDirection,200000,nullptr,_directionValidation,nullptr,referenceSurface,nullptr,geometryCoordinates,rules);
         StoreNodalMomentPair(positive,delta);
       }
       else if(_geomElemType == TRI) {
         std::vector<std::vector<double>> positive, delta;
-        FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,false,_directionValidation,_integrationDirection,nullptr,referenceSurface,nullptr,geometryCoordinates);
+        FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,false,_directionValidation,_integrationDirection,nullptr,referenceSurface,nullptr,geometryCoordinates,rules);
         StoreNodalMomentPair(positive,delta);
       }
     }
@@ -282,6 +303,8 @@ class CutFemWeight_LS {
     unsigned _L;
     Eigen::Matrix<TypeA, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> _momentToWeight;
     Eigen::Matrix<TypeA, Eigen::Dynamic, 2> _fPair;
+    FELevelSetMoments::OuterQuadratureRules _outerQuadratureRules;
+    FELevelSetMoments::OuterQuadratureRules _cachedOuterQuadratureRules;
     unsigned _directionValidation = 1;
     unsigned _integrationDirection = 0;
     bool _nodalUsesReferenceSurface = false;

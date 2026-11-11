@@ -56,6 +56,7 @@ CutFemWeight_LS<TypeIO, TypeA> tetLS(TET, tet.GetCutFEMQuadratureOrder(), "legen
 CutFemWeight_LS<TypeIO, TypeA> quadLS(QUAD, quad.GetCutFEMQuadratureOrder(), "legendre");
 CutFemWeight_LS<TypeIO, TypeA> triLS(TRI, tri.GetCutFEMQuadratureOrder(), "legendre");
 CutFemWeight_LS<TypeIO, TypeA> lineLS(LINE, line.GetCutFEMQuadratureOrder(), "legendre");
+FELevelSetMoments::OuterQuadratureRules outerQuadratureRules;
 const std::vector<CutFemWeight_LS<TypeIO, TypeA>*> cfwLS = {&hexLS, &tetLS, nullptr, &quadLS, &triLS, &lineLS};
 
 std::vector<std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > > PMatrix(6); //projection matrix between elements;
@@ -160,6 +161,8 @@ int main(int argc, char **argv) {
   SimulationArgs args;
 
   try {
+    outerQuadratureRules = FELevelSetMoments::OuterQuadratureRules::ParseArguments(argc,argv);
+    for(int i = 1; i < argc; ++i) if(std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h") std::cout << FELevelSetMoments::GaussKronrodRules::Help();
     args = ParseSimulationArgs(argc, argv);
   }
   catch (const std::exception& e) {
@@ -1475,10 +1478,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           cfwLS[ielGeom]->SetDirectionValidation(0);
 
           if(geometrySurfaceWeights) {
-            cfwLS[ielGeom]->GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCF, 1.E-8, 1.E-8);
+            cfwLS[ielGeom]->GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCF, 1.E-8, 1.E-8, outerQuadratureRules);
           }
           else {
-            cfwLS[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights);
+            cfwLS[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights, outerQuadratureRules);
           }
 
 

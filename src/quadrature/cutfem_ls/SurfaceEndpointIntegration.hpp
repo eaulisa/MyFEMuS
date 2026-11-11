@@ -56,6 +56,7 @@ struct SurfaceEndpointData {
   long double absoluteH = 0.0L;
   long double absoluteD = 0.0L;
   long double relative = 0.0L;
+  OuterQuadratureRules quadratureRules;
 };
 
 struct SurfaceOuterContext {
@@ -386,14 +387,17 @@ public:
     unsigned evaluations = 0;
     unsigned accepted = 0;
     unsigned selected = 0;
-    if(cell.tetrahedron) {
-      ++Statistics().triCalls;
-      TriangleIntegration::Integrate(chart,degree,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,data.maximumEvaluations-data.evaluations,moments,momentErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&parent,&required,requestedDirection,false,boundary.empty() ? nullptr : &boundary);
+    try {
+      if(cell.tetrahedron) {
+        ++Statistics().triCalls;
+        TriangleIntegration::Integrate(chart,degree,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,data.maximumEvaluations-data.evaluations,moments,momentErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&parent,&required,requestedDirection,false,boundary.empty() ? nullptr : &boundary,data.quadratureRules);
+      }
+      else {
+        ++Statistics().quadCalls;
+        Quad9SelectedDirect(chart,degree,requestedDirection,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,data.maximumEvaluations-data.evaluations,moments,momentErrors,evaluations,accepted,gradient.empty() ? nullptr : &gradient,parent,&required,boundary.empty() ? nullptr : &boundary,data.quadratureRules);
+      }
     }
-    else {
-      ++Statistics().quadCalls;
-      Quad9SelectedDirect(chart,degree,requestedDirection,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,data.maximumEvaluations-data.evaluations,moments,momentErrors,evaluations,accepted,gradient.empty() ? nullptr : &gradient,parent,&required,boundary.empty() ? nullptr : &boundary);
-    }
+    catch(...) { data.evaluations += evaluations; throw; }
     data.evaluations += evaluations;
     values.assign(2U*count,0);
     errors.assign(2U*count,0);
@@ -419,7 +423,7 @@ public:
     context.cell = &cell;
     context.outer = outer;
     const OuterInterval interval = {mapping == 0 ? left : (mapping > 0 ? endpoint : endpoint-delta),mapping == 0 ? right : (mapping > 0 ? endpoint+delta : endpoint),endpoint,delta,mapping,exponent,true};
-    OuterIntervalQuadrature::Adaptive(context,OuterSample,interval,left,right,budget*data.absoluteH,budget*data.absoluteD,data.relative,depth,data.maximumDepth,data.maximumEvaluations,data.evaluations,data.accepted,3,requested,total,totalErrors);
+    OuterIntervalQuadrature::Adaptive(context,OuterSample,interval,left,right,budget*data.absoluteH,budget*data.absoluteD,data.relative,depth,data.maximumDepth,data.maximumEvaluations,data.evaluations,data.accepted,3,requested,total,totalErrors,data.quadratureRules);
   }
 
   static void IntegrateParent(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, std::vector<long double>& total, std::vector<long double>& totalErrors) {
@@ -504,6 +508,7 @@ public:
   }
 
   static void Integrate(SurfaceEndpointData& data, bool tetrahedron, std::vector<long double>& values, std::vector<long double>& errors) {
+    data.quadratureRules.Validate();
     const unsigned count = (data.degree+1U)*(data.degree+2U)*(data.degree+3U)/6U;
     data.powers.assign(count,{0,0,0});
     for(unsigned i = 0; i <= data.degree; ++i) for(unsigned j = 0; j <= data.degree-i; ++j) for(unsigned k = 0; k <= data.degree-i-j; ++k) data.powers[HexMomentIndex(i,j,k)] = {i,j,k};

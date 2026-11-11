@@ -94,7 +94,8 @@ public:
     return false;
   }
 
-  static bool Try(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, long double metricScale = 1, const std::vector<std::vector<std::vector<long double>>>* coordinates = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::array<long double,5>* parent = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned requestedDirection = 0, bool fullBoundaryDelta = false) {
+  static bool Try(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, long double metricScale = 1, const std::vector<std::vector<std::vector<long double>>>* coordinates = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::array<long double,5>* parent = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned requestedDirection = 0, bool fullBoundaryDelta = false, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+    rules.Validate();
     if(requestedDirection > 2) throw std::invalid_argument("Invalid endpoint direction.");
     ++Statistics().attempts;
     static thread_local std::vector<std::vector<long double>> cachedCoefficient;
@@ -117,6 +118,7 @@ public:
     if(coordinates != nullptr) { directions[0].coordinates = *coordinates; SurfaceGradientTranspose(*coordinates,directions[1].coordinates); }
     for(unsigned d = 0; d < 2; ++d) { directions[d].fullBoundaryDelta = fullBoundaryDelta; if(parent != nullptr) directions[d].parent = LineIntegration::MomentCoordinates(parent,d+1U); directions[d].requested = LineIntegration::MomentRequest(degree,requested,d+1U,computeDelta); }
     const unsigned first = requestedDirection != 0 ? requestedDirection-1U : PreferredDirection() == 0 ? (directions[1].score < directions[0].score ? 1U : 0U) : PreferredDirection()-1U;
+    std::string resolutionFailure;
     for(unsigned attempt = 0; attempt < (requestedDirection == 0 ? 2U : 1U); ++attempt) {
       const unsigned axis = attempt == 0 ? first : 1U-first;
       if(!std::isfinite(directions[axis].score)) continue;
@@ -125,7 +127,7 @@ public:
       unsigned localEvaluations = 0;
       unsigned localAccepted = 0;
       try {
-        IntegrateDirection(directions[axis],degree,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations-evaluations,result,resultError,localEvaluations,localAccepted);
+        IntegrateDirection(directions[axis],degree,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations-evaluations,result,resultError,localEvaluations,localAccepted,rules);
         if(axis == 1) {
           const unsigned count = result.size()/2U;
           for(unsigned i = 0; i <= degree; ++i) for(unsigned j = i+1U; j <= degree-i; ++j) for(unsigned p = 0; p < 2; ++p) { std::swap(result[p*count+LineSliceUtilities::MomentIndex(degree,i,j)],result[p*count+LineSliceUtilities::MomentIndex(degree,j,i)]); std::swap(resultError[p*count+LineSliceUtilities::MomentIndex(degree,i,j)],resultError[p*count+LineSliceUtilities::MomentIndex(degree,j,i)]); }
@@ -139,9 +141,11 @@ public:
         ++Statistics().directions[axis];
         return true;
       }
+      catch(const OuterQuadratureResolutionError& error) { evaluations += localEvaluations; Statistics().failure = error.what(); resolutionFailure = error.what(); if(evaluations >= maximumEvaluations) break; }
       catch(const std::runtime_error& error) { evaluations += localEvaluations; Statistics().failure = error.what(); if(evaluations >= maximumEvaluations) break; }
     }
     ++Statistics().rejected;
+    if(!resolutionFailure.empty() && evaluations < maximumEvaluations) throw OuterQuadratureResolutionError(resolutionFailure);
     return false;
   }
 
@@ -292,7 +296,7 @@ private:
     errors.assign(values.size(),0);
   }
 
-  static void IntegrateDirection(const EndpointStripDirection& data, unsigned degree, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted) {
+  static void IntegrateDirection(const EndpointStripDirection& data, unsigned degree, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     values.assign(2U*count,0);
     errors.assign(values.size(),0);
@@ -318,7 +322,7 @@ private:
         const LineIntegrationDiscriminant discriminant = LineIntegration::EndpointDiscriminant(data.coefficient,plan[part]);
         context.interval.discriminantConstant = discriminant.constant;
         context.interval.reducedDiscriminant = discriminant.coefficient;
-        OuterIntervalQuadrature::Adaptive(context,CurveSample,plan[part],plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,intervalBudget*absoluteH/plan.size(),intervalBudget*absoluteD/plan.size(),relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,2,active,values,errors);
+        OuterIntervalQuadrature::Adaptive(context,CurveSample,plan[part],plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,intervalBudget*absoluteH/plan.size(),intervalBudget*absoluteD/plan.size(),relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,2,active,values,errors,rules);
       }
     }
     for(unsigned n = 0; n < values.size(); ++n) if(data.requested[n] && (!std::isfinite(values[n]) || !std::isfinite(errors[n]) || errors[n] > (n < count ? absoluteH : absoluteD)+relative*std::abs(values[n]))) throw std::runtime_error("Accumulated non-graph moment error exceeds tolerance.");

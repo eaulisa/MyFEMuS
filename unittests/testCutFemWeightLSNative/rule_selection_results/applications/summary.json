@@ -1,0 +1,2652 @@
+[
+  {
+    "name": "default_script",
+    "command": [
+      "bash",
+      "./run_ex44_test.sh"
+    ],
+    "environment": {},
+    "seconds": 192.81051398800082,
+    "exit_code": 0,
+    "reference_rows": 80,
+    "max_volume_error": 2.14351314e-11,
+    "max_surface_error": 1.2644028e-08,
+    "error": null,
+    "rows": [
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0680678408,
+        "exact": 0.0680678408,
+        "abs_error": 2.63677968e-16,
+        "rel_error": 3.8737525e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.806258339,
+        "exact": 0.806258339,
+        "abs_error": 3.44169138e-15,
+        "rel_error": 4.26872035e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00266053628,
+        "exact": 0.00266053628,
+        "abs_error": 1.6479873e-17,
+        "rel_error": 6.19419218e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0522041144,
+        "exact": 0.0522041144,
+        "abs_error": 1.57512892e-15,
+        "rel_error": 3.01725053e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0680678408,
+        "exact": 0.0680678408,
+        "abs_error": 1.38777878e-16,
+        "rel_error": 2.0388171e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.806258339,
+        "exact": 0.806258339,
+        "abs_error": 4.77395901e-15,
+        "rel_error": 5.92112823e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00266053628,
+        "exact": 0.00266053628,
+        "abs_error": 5.37764278e-17,
+        "rel_error": 2.02126271e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0522041144,
+        "exact": 0.0522041144,
+        "abs_error": 1.45716772e-16,
+        "rel_error": 2.79128903e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0680678408,
+        "exact": 0.0680678408,
+        "abs_error": 9.71445147e-17,
+        "rel_error": 1.42717197e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.806258339,
+        "exact": 0.806258339,
+        "abs_error": 4.4408921e-15,
+        "rel_error": 5.50802626e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00266053628,
+        "exact": 0.00266053628,
+        "abs_error": 2.38524478e-17,
+        "rel_error": 8.96527816e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0522041144,
+        "exact": 0.0522041144,
+        "abs_error": 2.91433544e-16,
+        "rel_error": 5.58257806e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0680678408,
+        "exact": 0.0680678408,
+        "abs_error": 6.9388939e-16,
+        "rel_error": 1.01940855e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.806258339,
+        "exact": 0.806258339,
+        "abs_error": 4.99600361e-15,
+        "rel_error": 6.19652954e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00266053628,
+        "exact": 0.00266053628,
+        "abs_error": 1.08420217e-17,
+        "rel_error": 4.07512644e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0522041144,
+        "exact": 0.0522041144,
+        "abs_error": 3.40005801e-16,
+        "rel_error": 6.51300774e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0680678408,
+        "exact": 0.0680678408,
+        "abs_error": 6.52256027e-16,
+        "rel_error": 9.58244039e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.806258339,
+        "exact": 0.806258339,
+        "abs_error": 1.47659662e-14,
+        "rel_error": 1.83141873e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00266053628,
+        "exact": 0.00266053628,
+        "abs_error": 1.30104261e-17,
+        "rel_error": 4.89015172e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0522041144,
+        "exact": 0.0522041144,
+        "abs_error": 1.11022302e-16,
+        "rel_error": 2.12669641e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00497671259,
+        "exact": 0.00497671259,
+        "abs_error": 2.72351586e-16,
+        "rel_error": 5.47251987e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140965706,
+        "exact": 0.140965706,
+        "abs_error": 4.94049246e-15,
+        "rel_error": 3.50474778e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 3.35945849e-05,
+        "exact": 3.35945849e-05,
+        "abs_error": 4.83147593e-18,
+        "rel_error": 1.43817104e-13
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.00158409143,
+        "exact": 0.00158409143,
+        "abs_error": 1.97324795e-17,
+        "rel_error": 1.24566544e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0049767126,
+        "exact": 0.00497671259,
+        "abs_error": 3.49177978e-12,
+        "rel_error": 7.01623756e-10
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140965719,
+        "exact": 0.140965706,
+        "abs_error": 1.26249648e-08,
+        "rel_error": 8.956054e-08
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 3.35945858e-05,
+        "exact": 3.35945849e-05,
+        "abs_error": 8.71548866e-13,
+        "rel_error": 2.59431354e-08
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0015840916,
+        "exact": 0.00158409143,
+        "abs_error": 1.65111315e-10,
+        "rel_error": 1.04230925e-07
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00497671259,
+        "exact": 0.00497671259,
+        "abs_error": 6.60405411e-12,
+        "rel_error": 1.32699126e-09
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140965706,
+        "exact": 0.140965706,
+        "abs_error": 4.78500461e-10,
+        "rel_error": 3.39444589e-09
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 3.35945849e-05,
+        "exact": 3.35945849e-05,
+        "abs_error": 8.02308456e-14,
+        "rel_error": 2.38820767e-09
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.00158409148,
+        "exact": 0.00158409143,
+        "abs_error": 5.33779928e-11,
+        "rel_error": 3.36962828e-08
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00497671259,
+        "exact": 0.00497671259,
+        "abs_error": 6.34070053e-13,
+        "rel_error": 1.27407408e-10
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140965707,
+        "exact": 0.140965706,
+        "abs_error": 3.0387462e-10,
+        "rel_error": 2.15566344e-09
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 3.35945849e-05,
+        "exact": 3.35945849e-05,
+        "abs_error": 7.423268e-15,
+        "rel_error": 2.20966207e-10
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.00158409143,
+        "exact": 0.00158409143,
+        "abs_error": 4.30856522e-12,
+        "rel_error": 2.71989681e-09
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00497671259,
+        "exact": 0.00497671259,
+        "abs_error": 2.86305701e-13,
+        "rel_error": 5.75290809e-11
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140965709,
+        "exact": 0.140965706,
+        "abs_error": 2.9267829e-09,
+        "rel_error": 2.07623753e-08
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 3.35945849e-05,
+        "exact": 3.35945849e-05,
+        "abs_error": 3.10834664e-15,
+        "rel_error": 9.25252283e-11
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.00158409146,
+        "exact": 0.00158409143,
+        "abs_error": 3.02043759e-11,
+        "rel_error": 1.90673185e-08
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 7.49400542e-16,
+        "rel_error": 3.74182904e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 1.08801856e-14,
+        "rel_error": 6.85779022e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 1.10154941e-16,
+        "rel_error": 1.69330921e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 7.21644966e-16,
+        "rel_error": 7.06772939e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 3.33066907e-16,
+        "rel_error": 1.66303513e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 4.4408921e-16,
+        "rel_error": 2.79909805e-16
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 4.68375339e-17,
+        "rel_error": 7.19989741e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 5.27355937e-16,
+        "rel_error": 5.16487917e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 6.9388939e-16,
+        "rel_error": 3.46465652e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654397,
+        "exact": 1.58654396,
+        "abs_error": 1.2644028e-08,
+        "rel_error": 7.96954158e-09
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 2.94902991e-17,
+        "rel_error": 4.53326874e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104217,
+        "exact": 0.102104216,
+        "abs_error": 9.56204282e-10,
+        "rel_error": 9.36498338e-09
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 4.16333634e-16,
+        "rel_error": 2.07879391e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 3.13082893e-14,
+        "rel_error": 1.97336412e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 1.994932e-17,
+        "rel_error": 3.06662297e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 2.0539126e-15,
+        "rel_error": 2.01158452e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 2.77555756e-16,
+        "rel_error": 1.38586261e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 1.55431223e-14,
+        "rel_error": 9.79684317e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 3.2959746e-17,
+        "rel_error": 5.06659447e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 1.15185639e-15,
+        "rel_error": 1.12811835e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 8.60422844e-16,
+        "rel_error": 1.26833236e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 2.33146835e-15,
+        "rel_error": 2.52511606e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 3.77302356e-17,
+        "rel_error": 5.11671891e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 1.52655666e-15,
+        "rel_error": 7.63085713e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 3.19549942e-13,
+        "rel_error": 4.71042272e-12
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 5.55369084e-11,
+        "rel_error": 6.01497075e-11
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 6.4079601e-15,
+        "rel_error": 8.69004132e-12
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 1.05901746e-12,
+        "rel_error": 5.29375105e-11
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 2.14351314e-11,
+        "rel_error": 3.15971048e-10
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 4.75124384e-11,
+        "rel_error": 5.1458739e-11
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391211,
+        "exact": 0.000737391212,
+        "abs_error": 5.15174058e-13,
+        "rel_error": 6.98644152e-10
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050487,
+        "exact": 0.0200050484,
+        "abs_error": 3.02684044e-10,
+        "rel_error": 1.5130383e-08
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 2.42861287e-14,
+        "rel_error": 3.57997036e-13
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 2.20299334e-11,
+        "rel_error": 2.38597014e-11
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 5.25404373e-16,
+        "rel_error": 7.12517812e-13
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 4.74058293e-13,
+        "rel_error": 2.36969331e-11
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 1.2490009e-16,
+        "rel_error": 1.84112762e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 1.55431223e-15,
+        "rel_error": 1.68341071e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 8.67361738e-19,
+        "rel_error": 1.17625722e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 8.32667268e-17,
+        "rel_error": 4.16228571e-15
+      }
+    ],
+    "known_budget_limit": false,
+    "passed": true
+  },
+  {
+    "name": "curved_2d_1_3",
+    "command": [
+      "./MultiPhase_ex44_test",
+      "--elements",
+      "quad,tri",
+      "--psi",
+      "ball",
+      "--curved",
+      "1",
+      "--levels",
+      "1",
+      "--degree",
+      "8",
+      "--vtk",
+      "0",
+      "--gk-regular-2d",
+      "1/3",
+      "--gk-tangent-2d",
+      "1/3",
+      "--gk-regular-3d",
+      "1/3",
+      "--gk-tangent-3d",
+      "1/3"
+    ],
+    "environment": {},
+    "seconds": 0.7694490750000114,
+    "exit_code": 0,
+    "reference_rows": 16,
+    "max_volume_error": 3.24947833e-08,
+    "max_surface_error": 2.20351348e-10,
+    "error": null,
+    "rows": [
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 1.45081169e-12,
+        "rel_error": 7.24404243e-12
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 6.21724894e-15,
+        "rel_error": 3.91873727e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530572,
+        "exact": 0.00650530573,
+        "abs_error": 8.28949409e-12,
+        "rel_error": 1.27426664e-09
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104215,
+        "exact": 0.102104216,
+        "abs_error": 2.20351348e-10,
+        "rel_error": 2.15810236e-09
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 8.0599416e-12,
+        "rel_error": 4.02440642e-11
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 3.46389584e-14,
+        "rel_error": 2.18329648e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.0065053057,
+        "exact": 0.00650530573,
+        "abs_error": 2.72511293e-11,
+        "rel_error": 4.18906204e-09
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 3.12666559e-14,
+        "rel_error": 3.06222968e-13
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 5.87516147e-13,
+        "rel_error": 8.66045973e-12
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 6.66133815e-16,
+        "rel_error": 7.21461732e-16
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737358717,
+        "exact": 0.000737391212,
+        "abs_error": 3.24947833e-08,
+        "rel_error": 4.40672234e-05
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 4.89057059e-12,
+        "rel_error": 2.44466822e-10
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 4.58508231e-13,
+        "rel_error": 6.75877948e-12
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 4.47231141e-12,
+        "rel_error": 4.84377383e-12
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737400957,
+        "exact": 0.000737391212,
+        "abs_error": 9.7452739e-09,
+        "rel_error": 1.32158802e-05
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 7.28892641e-13,
+        "rel_error": 3.64354351e-11
+      }
+    ],
+    "known_budget_limit": false,
+    "passed": true
+  },
+  {
+    "name": "curved_2d_2_5",
+    "command": [
+      "./MultiPhase_ex44_test",
+      "--elements",
+      "quad,tri",
+      "--psi",
+      "ball",
+      "--curved",
+      "1",
+      "--levels",
+      "1",
+      "--degree",
+      "8",
+      "--vtk",
+      "0",
+      "--gk-regular-2d",
+      "2/5",
+      "--gk-tangent-2d",
+      "2/5",
+      "--gk-regular-3d",
+      "2/5",
+      "--gk-tangent-3d",
+      "2/5"
+    ],
+    "environment": {},
+    "seconds": 0.3659235790000821,
+    "exit_code": 0,
+    "reference_rows": 16,
+    "max_volume_error": 7.45459138e-09,
+    "max_surface_error": 1.24315684e-09,
+    "error": null,
+    "rows": [
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 2.19949059e-12,
+        "rel_error": 1.09822682e-11
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 1.38404843e-11,
+        "rel_error": 8.72366898e-12
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530642,
+        "exact": 0.00650530573,
+        "abs_error": 6.91624855e-10,
+        "rel_error": 1.06317041e-07
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 8.04659533e-11,
+        "rel_error": 7.880767e-10
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 9.65869051e-12,
+        "rel_error": 4.82267714e-11
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 5.48265877e-11,
+        "rel_error": 3.45572446e-11
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530533,
+        "exact": 0.00650530573,
+        "abs_error": 3.96279807e-10,
+        "rel_error": 6.09164002e-08
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 2.85191037e-11,
+        "rel_error": 2.79313675e-10
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389097,
+        "exact": 0.0678389098,
+        "abs_error": 1.22851049e-10,
+        "rel_error": 1.8109231e-09
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 2.00393035e-11,
+        "rel_error": 2.17037333e-11
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737383757,
+        "exact": 0.000737391212,
+        "abs_error": 7.45459138e-09,
+        "rel_error": 1.01094118e-05
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050482,
+        "exact": 0.0200050484,
+        "abs_error": 1.57702792e-10,
+        "rel_error": 7.88314974e-09
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 4.10542433e-12,
+        "rel_error": 6.0517251e-11
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 8.00970401e-12,
+        "rel_error": 8.67497611e-12
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737387646,
+        "exact": 0.000737391212,
+        "abs_error": 3.5663038e-09,
+        "rel_error": 4.83637958e-06
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050496,
+        "exact": 0.0200050484,
+        "abs_error": 1.24315684e-09,
+        "rel_error": 6.21421564e-08
+      }
+    ],
+    "known_budget_limit": false,
+    "passed": true
+  },
+  {
+    "name": "curved_2d_3_7",
+    "command": [
+      "./MultiPhase_ex44_test",
+      "--elements",
+      "quad,tri",
+      "--psi",
+      "ball",
+      "--curved",
+      "1",
+      "--levels",
+      "1",
+      "--degree",
+      "8",
+      "--vtk",
+      "0",
+      "--gk-regular-2d",
+      "3/7",
+      "--gk-tangent-2d",
+      "3/7",
+      "--gk-regular-3d",
+      "3/7",
+      "--gk-tangent-3d",
+      "3/7"
+    ],
+    "environment": {},
+    "seconds": 0.3156090659995243,
+    "exit_code": 0,
+    "reference_rows": 16,
+    "max_volume_error": 1.36819709e-09,
+    "max_surface_error": 1.89167862e-10,
+    "error": null,
+    "rows": [
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 9.11215547e-12,
+        "rel_error": 4.54978694e-11
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 4.06119582e-13,
+        "rel_error": 2.55977516e-13
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530465,
+        "exact": 0.00650530573,
+        "abs_error": 1.07951565e-09,
+        "rel_error": 1.65943876e-07
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 1.89167862e-10,
+        "rel_error": 1.85269394e-09
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 5.92434435e-12,
+        "rel_error": 2.95808216e-11
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 1.72184267e-10,
+        "rel_error": 1.08527889e-10
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530542,
+        "exact": 0.00650530573,
+        "abs_error": 3.06987782e-10,
+        "rel_error": 4.71903696e-08
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 3.90128763e-11,
+        "rel_error": 3.82088791e-10
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389097,
+        "exact": 0.0678389098,
+        "abs_error": 9.97676247e-11,
+        "rel_error": 1.47065489e-09
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 4.8939186e-11,
+        "rel_error": 5.30039898e-11
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391085,
+        "exact": 0.000737391212,
+        "abs_error": 1.26893788e-10,
+        "rel_error": 1.72084758e-07
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050485,
+        "exact": 0.0200050484,
+        "abs_error": 1.70209135e-10,
+        "rel_error": 8.5083091e-09
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389102,
+        "exact": 0.0678389098,
+        "abs_error": 4.26033875e-10,
+        "rel_error": 6.28008139e-09
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 1.37364564e-10,
+        "rel_error": 1.48773826e-10
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00073739258,
+        "exact": 0.000737391212,
+        "abs_error": 1.36819709e-09,
+        "rel_error": 1.85545619e-06
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 8.97535518e-12,
+        "rel_error": 4.48654511e-10
+      }
+    ],
+    "known_budget_limit": false,
+    "passed": true
+  },
+  {
+    "name": "curved_2d_7_15",
+    "command": [
+      "./MultiPhase_ex44_test",
+      "--elements",
+      "quad,tri",
+      "--psi",
+      "ball",
+      "--curved",
+      "1",
+      "--levels",
+      "1",
+      "--degree",
+      "8",
+      "--vtk",
+      "0",
+      "--gk-regular-2d",
+      "7/15",
+      "--gk-tangent-2d",
+      "7/15",
+      "--gk-regular-3d",
+      "7/15",
+      "--gk-tangent-3d",
+      "7/15"
+    ],
+    "environment": {},
+    "seconds": 0.3153712599996652,
+    "exit_code": 0,
+    "reference_rows": 16,
+    "max_volume_error": 3.19549942e-13,
+    "max_surface_error": 5.55369084e-11,
+    "error": null,
+    "rows": [
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 7.49400542e-16,
+        "rel_error": 3.74182904e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 1.08801856e-14,
+        "rel_error": 6.85779022e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 1.10154941e-16,
+        "rel_error": 1.69330921e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 7.21644966e-16,
+        "rel_error": 7.06772939e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 3.33066907e-16,
+        "rel_error": 1.66303513e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 4.4408921e-16,
+        "rel_error": 2.79909805e-16
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 4.68375339e-17,
+        "rel_error": 7.19989741e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 5.27355937e-16,
+        "rel_error": 5.16487917e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 8.60422844e-16,
+        "rel_error": 1.26833236e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 2.33146835e-15,
+        "rel_error": 2.52511606e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 3.77302356e-17,
+        "rel_error": 5.11671891e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 1.52655666e-15,
+        "rel_error": 7.63085713e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 3.19549942e-13,
+        "rel_error": 4.71042272e-12
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 5.55369084e-11,
+        "rel_error": 6.01497075e-11
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 6.4079601e-15,
+        "rel_error": 8.69004132e-12
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 1.05901746e-12,
+        "rel_error": 5.29375105e-11
+      }
+    ],
+    "known_budget_limit": false,
+    "passed": true
+  },
+  {
+    "name": "curved_2d_10_21",
+    "command": [
+      "./MultiPhase_ex44_test",
+      "--elements",
+      "quad,tri",
+      "--psi",
+      "ball",
+      "--curved",
+      "1",
+      "--levels",
+      "1",
+      "--degree",
+      "8",
+      "--vtk",
+      "0",
+      "--gk-regular-2d",
+      "10/21",
+      "--gk-tangent-2d",
+      "10/21",
+      "--gk-regular-3d",
+      "10/21",
+      "--gk-tangent-3d",
+      "10/21"
+    ],
+    "environment": {},
+    "seconds": 0.31506524900032673,
+    "exit_code": 0,
+    "reference_rows": 16,
+    "max_volume_error": 8.60422844e-16,
+    "max_surface_error": 8.64863736e-14,
+    "error": null,
+    "rows": [
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 8.60422844e-16,
+        "rel_error": 4.29617408e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 8.8817842e-15,
+        "rel_error": 5.5981961e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 1.02348685e-16,
+        "rel_error": 1.57331092e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 8.32667268e-16,
+        "rel_error": 8.15507238e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 4.71844785e-16,
+        "rel_error": 2.35596643e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 3.55271368e-15,
+        "rel_error": 2.23927844e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 2.86229374e-17,
+        "rel_error": 4.39993731e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 5.55111512e-16,
+        "rel_error": 5.43671492e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 8.04911693e-16,
+        "rel_error": 1.18650446e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 1.22124533e-15,
+        "rel_error": 1.32267984e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 3.62123526e-17,
+        "rel_error": 4.9108739e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 1.48145385e-15,
+        "rel_error": 7.40539999e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 4.71844785e-16,
+        "rel_error": 6.95537099e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 8.64863736e-14,
+        "rel_error": 9.36697816e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 4.01154804e-18,
+        "rel_error": 5.44018965e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 1.66533454e-15,
+        "rel_error": 8.32457141e-14
+      }
+    ],
+    "known_budget_limit": false,
+    "passed": true
+  },
+  {
+    "name": "curved_2d_15_31",
+    "command": [
+      "./MultiPhase_ex44_test",
+      "--elements",
+      "quad,tri",
+      "--psi",
+      "ball",
+      "--curved",
+      "1",
+      "--levels",
+      "1",
+      "--degree",
+      "8",
+      "--vtk",
+      "0",
+      "--gk-regular-2d",
+      "15/31",
+      "--gk-tangent-2d",
+      "15/31",
+      "--gk-regular-3d",
+      "15/31",
+      "--gk-tangent-3d",
+      "15/31"
+    ],
+    "environment": {},
+    "seconds": 0.3676145320005162,
+    "exit_code": 0,
+    "reference_rows": 16,
+    "max_volume_error": 9.71445147e-16,
+    "max_surface_error": 9.1038288e-15,
+    "error": null,
+    "rows": [
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 9.71445147e-16,
+        "rel_error": 4.85051912e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 9.1038288e-15,
+        "rel_error": 5.738151e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 1.06685494e-16,
+        "rel_error": 1.63997663e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 8.60422844e-16,
+        "rel_error": 8.42690812e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 3.88578059e-16,
+        "rel_error": 1.94020765e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 3.33066907e-15,
+        "rel_error": 2.09932354e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 3.72965547e-17,
+        "rel_error": 5.73325164e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 4.4408921e-16,
+        "rel_error": 4.34937193e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 8.04911693e-16,
+        "rel_error": 1.18650446e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 1.22124533e-15,
+        "rel_error": 1.32267984e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 3.62123526e-17,
+        "rel_error": 4.9108739e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 1.48145385e-15,
+        "rel_error": 7.40539999e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 4.99600361e-16,
+        "rel_error": 7.36451046e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 2.55351296e-15,
+        "rel_error": 2.76560331e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 2.60208521e-18,
+        "rel_error": 3.52877166e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 9.71445147e-17,
+        "rel_error": 4.85599999e-15
+      }
+    ],
+    "known_budget_limit": false,
+    "passed": true
+  },
+  {
+    "name": "mixed_3d",
+    "command": [
+      "./MultiPhase_ex44_test",
+      "--elements",
+      "hex,tet",
+      "--psi",
+      "ball",
+      "--curved",
+      "0",
+      "--levels",
+      "0",
+      "--degree",
+      "4",
+      "--vtk",
+      "0",
+      "--gk-regular-2d",
+      "3/7",
+      "--gk-tangent-2d",
+      "10/21",
+      "--gk-regular-3d",
+      "7/15",
+      "--gk-tangent-3d",
+      "15/31"
+    ],
+    "environment": {},
+    "seconds": 0.6165268229997309,
+    "exit_code": 0,
+    "reference_rows": 8,
+    "max_volume_error": 2.19269047e-15,
+    "max_surface_error": 2.91988655e-14,
+    "error": null,
+    "rows": [
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0654498469,
+        "exact": 0.0654498469,
+        "abs_error": 2.19269047e-15,
+        "rel_error": 3.35018426e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.785398163,
+        "exact": 0.785398163,
+        "abs_error": 2.91988655e-14,
+        "rel_error": 3.71771503e-14
+      },
+      {
+        "test": "r^4",
+        "domain": "Omega+",
+        "numerical": 0.000109570056,
+        "exact": 0.000109570056,
+        "abs_error": 2.29986386e-16,
+        "rel_error": 2.09898939e-12
+      },
+      {
+        "test": "r^4",
+        "domain": "Gamma",
+        "numerical": 0.00306796158,
+        "exact": 0.00306796158,
+        "abs_error": 1.10805462e-15,
+        "rel_error": 3.61169654e-13
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00494140472,
+        "exact": 0.00494140472,
+        "abs_error": 1.93421668e-16,
+        "rel_error": 3.91430532e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140297869,
+        "exact": 0.140297869,
+        "abs_error": 4.69069228e-15,
+        "rel_error": 3.34338099e-14
+      },
+      {
+        "test": "r^4",
+        "domain": "Omega+",
+        "numerical": 2.63970905e-07,
+        "exact": 2.63970905e-07,
+        "abs_error": 5.50465537e-19,
+        "rel_error": 2.08532655e-12
+      },
+      {
+        "test": "r^4",
+        "domain": "Gamma",
+        "numerical": 1.74877323e-05,
+        "exact": 1.74877323e-05,
+        "abs_error": 2.08031292e-18,
+        "rel_error": 1.18958415e-13
+      }
+    ],
+    "known_budget_limit": false,
+    "passed": true
+  },
+  {
+    "name": "highest_3d",
+    "command": [
+      "./MultiPhase_ex44_test",
+      "--elements",
+      "hex,tet",
+      "--psi",
+      "ball",
+      "--curved",
+      "0",
+      "--levels",
+      "0",
+      "--degree",
+      "4",
+      "--vtk",
+      "0",
+      "--gk-regular-2d",
+      "15/31",
+      "--gk-tangent-2d",
+      "15/31",
+      "--gk-regular-3d",
+      "15/31",
+      "--gk-tangent-3d",
+      "15/31"
+    ],
+    "environment": {},
+    "seconds": 0.7166968019992055,
+    "exit_code": 0,
+    "reference_rows": 8,
+    "max_volume_error": 2.19269047e-15,
+    "max_surface_error": 2.91988655e-14,
+    "error": null,
+    "rows": [
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0654498469,
+        "exact": 0.0654498469,
+        "abs_error": 2.19269047e-15,
+        "rel_error": 3.35018426e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.785398163,
+        "exact": 0.785398163,
+        "abs_error": 2.91988655e-14,
+        "rel_error": 3.71771503e-14
+      },
+      {
+        "test": "r^4",
+        "domain": "Omega+",
+        "numerical": 0.000109570056,
+        "exact": 0.000109570056,
+        "abs_error": 2.29986386e-16,
+        "rel_error": 2.09898939e-12
+      },
+      {
+        "test": "r^4",
+        "domain": "Gamma",
+        "numerical": 0.00306796158,
+        "exact": 0.00306796158,
+        "abs_error": 1.10805462e-15,
+        "rel_error": 3.61169654e-13
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00494140472,
+        "exact": 0.00494140472,
+        "abs_error": 1.93421668e-16,
+        "rel_error": 3.91430532e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140297869,
+        "exact": 0.140297869,
+        "abs_error": 4.69069228e-15,
+        "rel_error": 3.34338099e-14
+      },
+      {
+        "test": "r^4",
+        "domain": "Omega+",
+        "numerical": 2.63970905e-07,
+        "exact": 2.63970905e-07,
+        "abs_error": 5.50465537e-19,
+        "rel_error": 2.08532655e-12
+      },
+      {
+        "test": "r^4",
+        "domain": "Gamma",
+        "numerical": 1.74877323e-05,
+        "exact": 1.74877323e-05,
+        "abs_error": 2.08031292e-18,
+        "rel_error": 1.18958415e-13
+      }
+    ],
+    "known_budget_limit": false,
+    "passed": true
+  },
+  {
+    "name": "even_3d",
+    "command": [
+      "./MultiPhase_ex44_test",
+      "--elements",
+      "hex,tet",
+      "--psi",
+      "ball",
+      "--curved",
+      "0",
+      "--levels",
+      "0",
+      "--degree",
+      "4",
+      "--vtk",
+      "0",
+      "--gk-regular-2d",
+      "10/21",
+      "--gk-tangent-2d",
+      "10/21",
+      "--gk-regular-3d",
+      "10/21",
+      "--gk-tangent-3d",
+      "10/21"
+    ],
+    "environment": {},
+    "seconds": 0.5160137769998983,
+    "exit_code": 0,
+    "reference_rows": 8,
+    "max_volume_error": 2.19269047e-15,
+    "max_surface_error": 2.91988655e-14,
+    "error": null,
+    "rows": [
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0654498469,
+        "exact": 0.0654498469,
+        "abs_error": 2.19269047e-15,
+        "rel_error": 3.35018426e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.785398163,
+        "exact": 0.785398163,
+        "abs_error": 2.91988655e-14,
+        "rel_error": 3.71771503e-14
+      },
+      {
+        "test": "r^4",
+        "domain": "Omega+",
+        "numerical": 0.000109570056,
+        "exact": 0.000109570056,
+        "abs_error": 2.30027043e-16,
+        "rel_error": 2.09936046e-12
+      },
+      {
+        "test": "r^4",
+        "domain": "Gamma",
+        "numerical": 0.00306796158,
+        "exact": 0.00306796158,
+        "abs_error": 1.10762094e-15,
+        "rel_error": 3.61028296e-13
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00494140472,
+        "exact": 0.00494140472,
+        "abs_error": 1.93421668e-16,
+        "rel_error": 3.91430532e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140297869,
+        "exact": 0.140297869,
+        "abs_error": 4.69069228e-15,
+        "rel_error": 3.34338099e-14
+      },
+      {
+        "test": "r^4",
+        "domain": "Omega+",
+        "numerical": 2.63970905e-07,
+        "exact": 2.63970905e-07,
+        "abs_error": 5.50465537e-19,
+        "rel_error": 2.08532655e-12
+      },
+      {
+        "test": "r^4",
+        "domain": "Gamma",
+        "numerical": 1.74877323e-05,
+        "exact": 1.74877323e-05,
+        "abs_error": 2.08031292e-18,
+        "rel_error": 1.18958415e-13
+      }
+    ],
+    "known_budget_limit": false,
+    "passed": true
+  },
+  {
+    "name": "lowest_3d",
+    "command": [
+      "./MultiPhase_ex44_test",
+      "--elements",
+      "hex,tet",
+      "--psi",
+      "ball",
+      "--curved",
+      "0",
+      "--levels",
+      "0",
+      "--degree",
+      "4",
+      "--vtk",
+      "0",
+      "--gk-regular-2d",
+      "1/3",
+      "--gk-tangent-2d",
+      "1/3",
+      "--gk-regular-3d",
+      "1/3",
+      "--gk-tangent-3d",
+      "1/3"
+    ],
+    "environment": {},
+    "seconds": 1.7730432139996992,
+    "exit_code": -6,
+    "reference_rows": 0,
+    "max_volume_error": null,
+    "max_surface_error": null,
+    "error": "what():  Unsupported endpoint topology: Outer quadrature evaluation budget exhausted.",
+    "rows": [],
+    "known_budget_limit": true,
+    "passed": true
+  },
+  {
+    "name": "script_environment",
+    "command": [
+      "bash",
+      "./run_ex44_test.sh"
+    ],
+    "environment": {
+      "GK_REGULAR_2D": "10/21",
+      "GK_TANGENT_2D": "15/31",
+      "GK_REGULAR_3D": "10/21",
+      "GK_TANGENT_3D": "15/31"
+    },
+    "seconds": 236.5730028580001,
+    "exit_code": 0,
+    "reference_rows": 80,
+    "max_volume_error": 4.99444236e-14,
+    "max_surface_error": 1.26438076e-08,
+    "error": null,
+    "rows": [
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0680678408,
+        "exact": 0.0680678408,
+        "abs_error": 1.80411242e-16,
+        "rel_error": 2.65046223e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.806258339,
+        "exact": 0.806258339,
+        "abs_error": 3.33066907e-15,
+        "rel_error": 4.13101969e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00266053628,
+        "exact": 0.00266053628,
+        "abs_error": 1.60461922e-17,
+        "rel_error": 6.03118713e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0522041144,
+        "exact": 0.0522041144,
+        "abs_error": 1.49880108e-15,
+        "rel_error": 2.87104015e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0680678408,
+        "exact": 0.0680678408,
+        "abs_error": 4.16333634e-17,
+        "rel_error": 6.11645131e-16
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.806258339,
+        "exact": 0.806258339,
+        "abs_error": 6.21724894e-15,
+        "rel_error": 7.71123676e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00266053628,
+        "exact": 0.00266053628,
+        "abs_error": 6.59194921e-17,
+        "rel_error": 2.47767687e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0522041144,
+        "exact": 0.0522041144,
+        "abs_error": 2.15105711e-16,
+        "rel_error": 4.12047429e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0680678408,
+        "exact": 0.0680678408,
+        "abs_error": 5.689893e-16,
+        "rel_error": 8.35915012e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.806258339,
+        "exact": 0.806258339,
+        "abs_error": 2.66453526e-15,
+        "rel_error": 3.30481575e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00266053628,
+        "exact": 0.00266053628,
+        "abs_error": 1.43114687e-17,
+        "rel_error": 5.3791669e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0522041144,
+        "exact": 0.0522041144,
+        "abs_error": 2.42861287e-16,
+        "rel_error": 4.65214839e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0680678408,
+        "exact": 0.0680678408,
+        "abs_error": 7.35522754e-16,
+        "rel_error": 1.08057306e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.806258339,
+        "exact": 0.806258339,
+        "abs_error": 1.88737914e-15,
+        "rel_error": 2.34091116e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00266053628,
+        "exact": 0.00266053628,
+        "abs_error": 1.43114687e-17,
+        "rel_error": 5.3791669e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0522041144,
+        "exact": 0.0522041144,
+        "abs_error": 9.22872889e-16,
+        "rel_error": 1.76781639e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0680678408,
+        "exact": 0.0680678408,
+        "abs_error": 8.60422844e-16,
+        "rel_error": 1.2640666e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.806258339,
+        "exact": 0.806258339,
+        "abs_error": 4.4408921e-16,
+        "rel_error": 5.50802626e-16
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00266053628,
+        "exact": 0.00266053628,
+        "abs_error": 5.20417043e-18,
+        "rel_error": 1.95606069e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0522041144,
+        "exact": 0.0522041144,
+        "abs_error": 9.7838404e-16,
+        "rel_error": 1.87415121e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00497671259,
+        "exact": 0.00497671259,
+        "abs_error": 2.8449465e-16,
+        "rel_error": 5.71651757e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140965706,
+        "exact": 0.140965706,
+        "abs_error": 4.96824804e-15,
+        "rel_error": 3.52443737e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 3.35945849e-05,
+        "exact": 3.35945849e-05,
+        "abs_error": 4.64851681e-18,
+        "rel_error": 1.38371015e-13
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.00158409143,
+        "exact": 0.00158409143,
+        "abs_error": 1.994932e-17,
+        "rel_error": 1.25935407e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00497671259,
+        "exact": 0.00497671259,
+        "abs_error": 2.71050543e-15,
+        "rel_error": 5.44637726e-13
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140965706,
+        "exact": 0.140965706,
+        "abs_error": 1.59637858e-11,
+        "rel_error": 1.13245883e-10
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 3.35945849e-05,
+        "exact": 3.35945849e-05,
+        "abs_error": 2.61428249e-17,
+        "rel_error": 7.78185679e-13
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.00158409146,
+        "exact": 0.00158409143,
+        "abs_error": 2.8199221e-11,
+        "rel_error": 1.7801511e-08
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00497671259,
+        "exact": 0.00497671259,
+        "abs_error": 1.19348975e-15,
+        "rel_error": 2.39814884e-13
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140965706,
+        "exact": 0.140965706,
+        "abs_error": 3.33474914e-12,
+        "rel_error": 2.36564568e-11
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 3.35945849e-05,
+        "exact": 3.35945849e-05,
+        "abs_error": 1.55989588e-17,
+        "rel_error": 4.64329557e-13
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.00158409143,
+        "exact": 0.00158409143,
+        "abs_error": 4.66568407e-13,
+        "rel_error": 2.94533761e-10
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00497671259,
+        "exact": 0.00497671259,
+        "abs_error": 2.82846663e-15,
+        "rel_error": 5.6834036e-13
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140965706,
+        "exact": 0.140965706,
+        "abs_error": 3.00627023e-11,
+        "rel_error": 2.13262524e-10
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 3.35945849e-05,
+        "exact": 3.35945849e-05,
+        "abs_error": 4.80775901e-17,
+        "rel_error": 1.4311113e-12
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.00158409143,
+        "exact": 0.00158409143,
+        "abs_error": 2.46581401e-13,
+        "rel_error": 1.55661092e-10
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.00497671259,
+        "exact": 0.00497671259,
+        "abs_error": 4.99444236e-14,
+        "rel_error": 1.00356255e-11
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.140965706,
+        "exact": 0.140965706,
+        "abs_error": 5.50159585e-10,
+        "rel_error": 3.90279026e-09
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 3.35945849e-05,
+        "exact": 3.35945849e-05,
+        "abs_error": 5.35501006e-16,
+        "rel_error": 1.59400989e-11
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.00158409142,
+        "exact": 0.00158409143,
+        "abs_error": 6.03820162e-12,
+        "rel_error": 3.81177595e-09
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 9.71445147e-16,
+        "rel_error": 4.85051912e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 9.1038288e-15,
+        "rel_error": 5.738151e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 1.06685494e-16,
+        "rel_error": 1.63997663e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 8.60422844e-16,
+        "rel_error": 8.42690812e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 3.88578059e-16,
+        "rel_error": 1.94020765e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 3.33066907e-15,
+        "rel_error": 2.09932354e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 3.72965547e-17,
+        "rel_error": 5.73325164e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 4.4408921e-16,
+        "rel_error": 4.34937193e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 5.55111512e-16,
+        "rel_error": 2.77172521e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654397,
+        "exact": 1.58654396,
+        "abs_error": 1.26438076e-08,
+        "rel_error": 7.9694026e-09
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 2.60208521e-17,
+        "rel_error": 3.99994301e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104217,
+        "exact": 0.102104216,
+        "abs_error": 9.56187809e-10,
+        "rel_error": 9.36482205e-09
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 3.33066907e-16,
+        "rel_error": 1.66303513e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 2.7533531e-14,
+        "rel_error": 1.73544079e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 1.994932e-17,
+        "rel_error": 3.06662297e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 1.79023463e-15,
+        "rel_error": 1.75334056e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.200276532,
+        "exact": 0.200276532,
+        "abs_error": 2.22044605e-16,
+        "rel_error": 1.10869009e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 1.58654396,
+        "exact": 1.58654396,
+        "abs_error": 1.86517468e-14,
+        "rel_error": 1.17562118e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.00650530573,
+        "exact": 0.00650530573,
+        "abs_error": 3.12250226e-17,
+        "rel_error": 4.79993161e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.102104216,
+        "exact": 0.102104216,
+        "abs_error": 1.09634524e-15,
+        "rel_error": 1.0737512e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 8.04911693e-16,
+        "rel_error": 1.18650446e-14
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 1.22124533e-15,
+        "rel_error": 1.32267984e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 3.62123526e-17,
+        "rel_error": 4.9108739e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 1.48145385e-15,
+        "rel_error": 7.40539999e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 4.99600361e-16,
+        "rel_error": 7.36451046e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 2.55351296e-15,
+        "rel_error": 2.76560331e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 2.60208521e-18,
+        "rel_error": 3.52877166e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 9.71445147e-17,
+        "rel_error": 4.85599999e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 4.16333634e-17,
+        "rel_error": 6.13709205e-16
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 2.32036612e-14,
+        "rel_error": 2.5130917e-14
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 1.30104261e-18,
+        "rel_error": 1.76438583e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 5.44703171e-16,
+        "rel_error": 2.72282857e-14
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 0.0,
+        "rel_error": 0.0
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 5.77315973e-15,
+        "rel_error": 6.25266835e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 1.30104261e-18,
+        "rel_error": 1.76438583e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 1.42247325e-16,
+        "rel_error": 7.11057142e-15
+      },
+      {
+        "test": "1",
+        "domain": "Omega+",
+        "numerical": 0.0678389098,
+        "exact": 0.0678389098,
+        "abs_error": 1.2490009e-16,
+        "rel_error": 1.84112762e-15
+      },
+      {
+        "test": "1",
+        "domain": "Gamma",
+        "numerical": 0.923311362,
+        "exact": 0.923311362,
+        "abs_error": 1.55431223e-15,
+        "rel_error": 1.68341071e-15
+      },
+      {
+        "test": "r^2",
+        "domain": "Omega+",
+        "numerical": 0.000737391212,
+        "exact": 0.000737391212,
+        "abs_error": 6.50521303e-19,
+        "rel_error": 8.82192916e-16
+      },
+      {
+        "test": "r^2",
+        "domain": "Gamma",
+        "numerical": 0.0200050484,
+        "exact": 0.0200050484,
+        "abs_error": 7.2858386e-17,
+        "rel_error": 3.64199999e-15
+      }
+    ],
+    "known_budget_limit": false,
+    "passed": true
+  }
+]

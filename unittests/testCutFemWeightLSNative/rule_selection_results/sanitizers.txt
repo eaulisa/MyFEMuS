@@ -1,0 +1,1 @@
+18522 configurable-rule, nested-slice, cache, exactness and downward-failsafe checks passed
