@@ -74,7 +74,7 @@ void RootDispatchProbe() {
   FELevelSetMoments::LineIntegration::IntegrateStrip(coefficient,degree,strip,true,false,true,1.0e-13L,1.0e-13L,1.0e-13L,24,200000,evaluations,accepted,single,errors);
   for(unsigned index = 0; index < single.size(); ++index) RootCheck(single[index],previous[index]);
   const FELevelSetMoments::LineIntegrationStatistics statistics = FELevelSetMoments::LineIntegration::Statistics();
-  if(statistics.singleRootSamples-before != statistics.fastSamples || statistics.pairPanels == 0) throw std::runtime_error("The cached root branch was not passed through both graph quadrature rules.");
+  if(statistics.singleRootSamples-before != statistics.fastSamples || FELevelSetMoments::OuterIntervalQuadrature::Statistics(2).regularPanels == 0) throw std::runtime_error("The cached root branch was not reused by graph quadrature.");
 }
 
 int main(int argc, char** argv) {

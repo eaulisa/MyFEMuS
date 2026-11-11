@@ -13,7 +13,8 @@ inline void Hex27SelectedAxes(unsigned order, unsigned& inner, unsigned& middle,
   outer = axes[order-1U][2];
 }
 
-inline void IntegrateHex27ReferenceSelected(const std::vector<std::vector<std::vector<double>>>& coefficient, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1,  const std::vector<unsigned>* zeroFaces = nullptr, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+inline void IntegrateHex27ReferenceSelected(const std::vector<std::vector<std::vector<double>>>& coefficient, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1,  const std::vector<unsigned>* zeroFaces = nullptr, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+  rules.Validate();
   if(&positive == &delta || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 48 || integrationOrder > 6 || maximumEvaluations == 0 || validationMode > 2 || (directionInfo != nullptr && directionInfo == estimatedError)) throw std::invalid_argument("Invalid selected-direction HEX27 integration input.");
   if(inverseJacobian != nullptr && !referenceSurface) throw std::invalid_argument("A physical HEX27 metric requires surface moments.");
   if(inverseJacobian != nullptr) ValidateSurfaceInverseJacobian(*inverseJacobian,3);
@@ -30,6 +31,7 @@ inline void IntegrateHex27ReferenceSelected(const std::vector<std::vector<std::v
   Hex27Normalize(coefficient,reference,scale);
 
   SurfaceEndpointData data;
+  data.quadratureRules = rules;
   data.coefficient = reference;
   if(zeroFaces != nullptr) data.zeroFaces = *zeroFaces;
   data.degree = degree;
@@ -49,7 +51,7 @@ inline void IntegrateHex27ReferenceSelected(const std::vector<std::vector<std::v
   if(directionInfo != nullptr) *directionInfo = {static_cast<double>(data.graphAxis+1U),0,1,1,static_cast<double>(data.innerCounts[0]),static_cast<double>(data.innerCounts[1]),static_cast<double>(data.innerCounts[2])};
 }
 
-inline void IntegrateHex27NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr,  std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+inline void IntegrateHex27NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr,  std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
   std::vector<std::vector<std::vector<double>>> coefficient;
   Hex27ReferenceCoefficientsFromNodalValues(nodalValues,coefficient);
   std::vector<unsigned> zeroFaces(6,0);
@@ -62,7 +64,7 @@ inline void IntegrateHex27NodalSelected(const std::vector<double>& nodalValues, 
       zeroFaces[2U*axis+side] = zero;
     }
   }
-  IntegrateHex27ReferenceSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,24,integrationOrder,200000,estimatedError,validationMode,&zeroFaces,directionInfo,referenceSurface,inverseJacobian,geometryCoordinates);
+  IntegrateHex27ReferenceSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,24,integrationOrder,200000,estimatedError,validationMode,&zeroFaces,directionInfo,referenceSurface,inverseJacobian,geometryCoordinates,rules);
 }
 
 }

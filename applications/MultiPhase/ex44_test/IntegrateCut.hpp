@@ -44,6 +44,7 @@ struct IntegrationOptions {
   double relativeTolerance = 1.e-5;
   unsigned algoimOrder = 5;
   unsigned algoimSubdivisions = 0;
+  FELevelSetMoments::OuterQuadratureRules outerQuadratureRules;
 };
 
 struct IntegrationResult {
@@ -238,7 +239,7 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
       if(nGauss != rule.GetGaussQuadraturePointNumber()) throw std::runtime_error("Integrate: moment-fitting Gauss rules do not match FEMuS");
       // The geometry-corrected surface weights already include
       // |cof(J) * grad_ref(Psi)|. The Gauss reference weight is applied below.
-      rule.GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightOmega, weightGamma, options.absoluteTolerance, options.relativeTolerance);
+      rule.GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightOmega, weightGamma, options.absoluteTolerance, options.relativeTolerance, options.outerQuadratureRules);
     }
 
     // Direct Algoim nodes are evaluated independently; no FEMuS moment fitting.

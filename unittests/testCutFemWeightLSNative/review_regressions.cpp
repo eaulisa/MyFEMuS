@@ -102,7 +102,7 @@ void CheckSelectiveRefinement() {
     unsigned evaluations = 0;
     unsigned accepted = 0;
     FELevelSetMoments::LineIntegration::Statistics() = FELevelSetMoments::LineIntegrationStatistics();
-    FELevelSetMoments::LineIntegration::Adaptive(coefficient,degree,strip,0.0L,1.0L,0.0L,1.0L,false,true,true,false,false,1.0e-13L,1.0e-13L,1.0e-13L,8,24,200000,evaluations,accepted,values,errors,nullptr,active);
+    FELevelSetMoments::LineIntegration::IntegrateStrip(coefficient,degree,strip,true,false,true,1e-13L,1e-13L,1e-13L,24,200000,evaluations,accepted,values,errors,nullptr,nullptr,&active);
     ReviewCheck(values[0] == 123.0L,"Accepted moment was recomputed during selective refinement");
     CheckMoment(values[count],std::atan(10.0L)/10.0L,1.0e-13L,"Selective graph integral");
   }
@@ -183,15 +183,16 @@ void CheckMappedDiscriminant() {
   field[2][0] = 1.0L;
   field[0][2] = 1.0L;
   field[2][2] = 1.0L;
-  const FELevelSetMoments::LineIntegrationDiscriminant discriminant = FELevelSetMoments::LineIntegration::MappedDiscriminant(field,0.0L,1.0L);
-  ReviewCheck(discriminant.leftZero && discriminant.rightZero,"Mapped quartic tangencies were not retained");
-  const long double parameters[7] = {std::ldexp(1.0L,-20),0.001L,0.1L,0.5L,0.9L,0.999L,1.0L-std::ldexp(1.0L,-20)};
-  for(unsigned k = 0; k < 7; ++k) {
-    const long double sine = std::sin(0.5L*std::acos(-1.0L)*parameters[k]);
-    const long double cosine = std::cos(0.5L*std::acos(-1.0L)*parameters[k]);
-    const long double point = sine*sine;
-    const long double exact = 2.0L*sine*cosine*std::sqrt(1.0L+point*point);
-    CheckMoment(FELevelSetMoments::LineIntegration::MappedDerivativeMagnitude(discriminant,parameters[k]),exact,1.0e-17L,"Factored mapped quartic discriminant");
+  const std::vector<FELevelSetMoments::OuterInterval> plan = FELevelSetMoments::OuterIntervalQuadrature::Plan(0,1,2,2,2);
+  const long double parameters[5] = {std::ldexp(1.0L,-20),0.001L,0.1L,0.5L,0.999L};
+  for(unsigned part = 0; part < plan.size(); ++part) {
+    const FELevelSetMoments::LineIntegrationDiscriminant discriminant = FELevelSetMoments::LineIntegration::EndpointDiscriminant(field,plan[part]);
+    for(unsigned k = 0; k < 5; ++k) {
+      const FELevelSetMoments::OuterIntervalPoint point = FELevelSetMoments::OuterIntervalQuadrature::Point(plan[part],parameters[k]);
+      const long double distance = plan[part].delta*parameters[k]*parameters[k];
+      const long double exact = 2*std::sqrt(distance*(1-distance)*(1+point.coordinate*point.coordinate));
+      CheckMoment(FELevelSetMoments::LineIntegration::EndpointDerivative(plan[part],discriminant,point),exact,1e-17L,"Factored mapped quartic discriminant");
+    }
   }
   std::cout << "REVIEW mapped quartic endpoint arithmetic passed\n";
 }

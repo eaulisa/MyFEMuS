@@ -115,6 +115,8 @@ int main(int argc, char** argv) {
         for(unsigned d = 0; d < dimension; ++d) coordinates[d][node] = physical[d];
       }
       FELevelSetMoments::LineIntegration::Statistics() = FELevelSetMoments::LineIntegrationStatistics();
+      FELevelSetMoments::OuterIntervalQuadrature::Statistics(2) = FELevelSetMoments::OuterIntervalStatistics();
+      FELevelSetMoments::OuterIntervalQuadrature::Statistics(3) = FELevelSetMoments::OuterIntervalStatistics();
       FELevelSetMoments::SurfaceEndpointIntegration::Statistics() = FELevelSetMoments::SurfaceEndpointStatistics();
       std::vector<long double> raw;
       std::vector<long double> surface;
@@ -126,7 +128,6 @@ int main(int argc, char** argv) {
       stage = "physical";
       if(geometry != 0) WideMoments(element,degree,nodal,true,&coordinates,tolerance,validation,direction,physical);
       const unsigned count = raw.size()/2U;
-      const FELevelSetMoments::LineIntegrationStatistics lineStats = FELevelSetMoments::LineIntegration::Statistics();
       const FELevelSetMoments::SurfaceEndpointStatistics graphStats = FELevelSetMoments::SurfaceEndpointIntegration::Statistics();
       std::vector<long double> h;
       std::vector<long double> d;
@@ -142,7 +143,7 @@ int main(int argc, char** argv) {
         rule->GetWeightsFromNodalValues(nodal,unused,s,tolerance,tolerance,true);
         if(geometry != 0) rule->GetPhysicalSurfaceWeightsFromNodalGeometry(nodal,coordinates,unused,p,tolerance,tolerance);
       }
-      std::cout << ",\"endpoint_strips\":" << graphStats.endpointStrips << ",\"general_surfaces\":" << graphStats.generalSurfaces << ",\"quad_calls\":" << graphStats.quadCalls << ",\"tri_calls\":" << graphStats.triCalls << ",\"mapped_panels\":" << lineStats.mappedPanels << ",\"moments\":[";
+      std::cout << ",\"endpoint_strips\":" << graphStats.endpointStrips << ",\"general_surfaces\":" << graphStats.generalSurfaces << ",\"quad_calls\":" << graphStats.quadCalls << ",\"tri_calls\":" << graphStats.triCalls << ",\"mapped_panels\":" << FELevelSetMoments::OuterIntervalQuadrature::Statistics(2).transformedPanels << ",\"moments\":[";
       for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) for(unsigned k = 0; k <= (dimension == 3 ? degree-i-j : 0U); ++k) {
         const unsigned n = FELevelSetMoments::UnitMomentIndex(dimension,i,j,k);
         if(n != 0) std::cout << ',';

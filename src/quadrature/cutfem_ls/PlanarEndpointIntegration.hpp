@@ -53,8 +53,9 @@ public:
     return selected;
   }
 
-  static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned direction = 0, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr) {
-    if(coefficient.size() != 3 || degree > 64 || maximumEvaluations < 15 || direction > 2 || !(absoluteH > 0) || !(absoluteD > 0) || !(relative >= 0)) throw std::invalid_argument("Invalid endpoint integration input.");
+  static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned direction = 0, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+    rules.Validate();
+    if(coefficient.size() != 3 || degree > 64 || maximumEvaluations < 3 || direction > 2 || !(absoluteH > 0) || !(absoluteD > 0) || !(relative >= 0)) throw std::invalid_argument("Invalid endpoint integration input.");
     for(unsigned i = 0; i < 3; ++i) if(coefficient[i].size() != 3) throw std::invalid_argument("Endpoint integration requires the exact 3 by 3 parent slice.");
     bool depends[2] = {false,false};
     for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if(coefficient[i][j] != 0) { depends[0] = depends[0] || i != 0; depends[1] = depends[1] || j != 0; }
@@ -112,7 +113,7 @@ public:
     bool strict = false;
     selected = GraphOrder(coefficient,triangle,direction,strict);
     if(selected == 0) {
-      if(!EndpointStripQuadrature::Try(coefficient,degree,triangle,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,gradient,1,nullptr,nullptr,coordinates,requested,direction,fullBoundaryDelta)) throw std::runtime_error("Unsupported endpoint topology: "+EndpointStripQuadrature::Statistics().failure);
+      if(!EndpointStripQuadrature::Try(coefficient,degree,triangle,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,gradient,1,nullptr,nullptr,coordinates,requested,direction,fullBoundaryDelta,rules)) throw std::runtime_error("Unsupported endpoint topology: "+EndpointStripQuadrature::Statistics().failure);
       return;
     }
     std::vector<std::vector<long double>> working = coefficient;
@@ -135,7 +136,7 @@ public:
     for(unsigned pass = 0; pass < 5; ++pass) {
       std::vector<long double> passValues(2U*count,0);
       std::vector<long double> passErrors(2U*count,0);
-      LineIntegration::IntegrateStrip(working,degree,strip,true,!strict,computeDelta,budgetFactor*absoluteH,budgetFactor*absoluteD,budgetFactor*relative,maximumDepth,maximumEvaluations,evaluations,accepted,passValues,passErrors,gradient,&parent,&failed);
+      LineIntegration::IntegrateStrip(working,degree,strip,true,!strict,computeDelta,budgetFactor*absoluteH,budgetFactor*absoluteD,budgetFactor*relative,maximumDepth,maximumEvaluations,evaluations,accepted,passValues,passErrors,gradient,&parent,&failed,rules);
       long double worst = 0;
       for(unsigned n = 0; n < failed.size(); ++n) if(failed[n]) {
         const long double tolerance = (n < count ? absoluteH : absoluteD)+relative*std::abs(passValues[n]);
@@ -152,7 +153,7 @@ public:
     }
     for(unsigned n = 0; n < values.size(); ++n) if((requested == nullptr || (*requested)[n]) && (!std::isfinite(values[n]) || !std::isfinite(errors[n]) || errors[n] > (n < count ? absoluteH : absoluteD)+relative*std::abs(values[n]))) throw std::runtime_error("Accumulated graph moment error exceeds tolerance.");
   }
-  static unsigned Compare(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned selected, const std::vector<std::vector<std::vector<long double>>>* gradient, const std::array<long double,5>* coordinates, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr) {
+  static unsigned Compare(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned selected, const std::vector<std::vector<std::vector<long double>>>* gradient, const std::array<long double,5>* coordinates, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
     bool depends[2] = {false,false};
     for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if(coefficient[i][j] != 0) { depends[0] = depends[0] || i != 0; depends[1] = depends[1] || j != 0; }
     if(!triangle && depends[0] != depends[1]) {
@@ -190,7 +191,7 @@ public:
     std::vector<long double> second;
     std::vector<long double> secondErrors;
     unsigned independent = 0;
-    Integrate(coefficient,degree,triangle,computeDelta,0.1L*absoluteH,0.1L*absoluteD,0.1L*relative,maximumDepth,maximumEvaluations,second,secondErrors,evaluations,accepted,independent,gradient,coordinates,nullptr,selected == 0 ? 0 : 3U-selected,fullBoundaryDelta,zeroBoundary);
+    Integrate(coefficient,degree,triangle,computeDelta,0.1L*absoluteH,0.1L*absoluteD,0.1L*relative,maximumDepth,maximumEvaluations,second,secondErrors,evaluations,accepted,independent,gradient,coordinates,nullptr,selected == 0 ? 0 : 3U-selected,fullBoundaryDelta,zeroBoundary,rules);
     const unsigned count = values.size()/2U;
     for(unsigned n = 0; n < values.size(); ++n) {
       errors[n] += secondErrors[n]+std::abs(values[n]-second[n]);

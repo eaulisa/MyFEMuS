@@ -1,0 +1,56 @@
+Internal ctest changing into directory: /workspace/scratch/83f2ea880287/native-build
+Test project /workspace/scratch/83f2ea880287/native-build
+      Start 18: cutfem_endpoint_coordinate_resolution
+      Start 19: cutfem_hex_curved_endpoint_regressions
+      Start 25: cutfem_tet_sphere_mesh
+      Start 17: cutfem_hex_sphere_boundary_tangencies
+ 1/25 Test #18: cutfem_endpoint_coordinate_resolution .....   Passed    0.00 sec
+      Start 15: cutfem_mesh_refinement
+ 2/25 Test #15: cutfem_mesh_refinement ....................   Passed    0.59 sec
+      Start  8: cutfem_endpoint_nested_contacts
+ 3/25 Test  #8: cutfem_endpoint_nested_contacts ...........   Passed    1.79 sec
+      Start 24: cutfem_hex_sphere_mesh
+ 4/25 Test #25: cutfem_tet_sphere_mesh ....................   Passed    5.45 sec
+      Start  6: cutfem_endpoint_surface_regressions
+ 5/25 Test #24: cutfem_hex_sphere_mesh ....................   Passed    3.14 sec
+      Start 22: cutfem_review_regressions
+ 6/25 Test #17: cutfem_hex_sphere_boundary_tangencies .....   Passed    5.56 sec
+      Start 11: cutfem_quad_native_quadrants
+ 7/25 Test #11: cutfem_quad_native_quadrants ..............   Passed    0.01 sec
+      Start 20: cutfem_quad_curved_endpoint_regressions
+ 8/25 Test #20: cutfem_quad_curved_endpoint_regressions ...   Passed    0.06 sec
+      Start 10: cutfem_tet_standard_moments
+ 9/25 Test #10: cutfem_tet_standard_moments ...............   Passed    0.03 sec
+      Start  1: cutfem_line_integration
+10/25 Test  #1: cutfem_line_integration ...................   Passed    0.03 sec
+      Start  2: cutfem_test_reference_coefficients
+11/25 Test #22: cutfem_review_regressions .................   Passed    0.17 sec
+      Start  5: cutfem_tri_endpoint_regressions
+12/25 Test  #5: cutfem_tri_endpoint_regressions ...........   Passed    0.01 sec
+      Start  4: cutfem_direct_parent_moments
+13/25 Test  #2: cutfem_test_reference_coefficients ........   Passed    0.01 sec
+      Start  9: cutfem_quad_tri_standard_moments
+14/25 Test  #4: cutfem_direct_parent_moments ..............   Passed    0.00 sec
+      Start 12: cutfem_quad_scaled_plane
+15/25 Test #12: cutfem_quad_scaled_plane ..................   Passed    0.00 sec
+      Start 21: cutfem_outer_interval_contract
+16/25 Test  #9: cutfem_quad_tri_standard_moments ..........   Passed    0.01 sec
+      Start 23: cutfem_single_graph_root
+17/25 Test #23: cutfem_single_graph_root ..................   Passed    0.00 sec
+      Start 16: cutfem_line_mesh_refinement
+18/25 Test #16: cutfem_line_mesh_refinement ...............   Passed    0.00 sec
+      Start  3: cutfem_test_contract
+19/25 Test #21: cutfem_outer_interval_contract ............   Passed    0.01 sec
+      Start 13: cutfem_test_tet_slice_regression
+20/25 Test  #3: cutfem_test_contract ......................   Passed    0.00 sec
+      Start 14: cutfem_test_root_candidate_regression
+21/25 Test #13: cutfem_test_tet_slice_regression ..........   Passed    0.00 sec
+      Start  7: cutfem_endpoint_exponents
+22/25 Test #14: cutfem_test_root_candidate_regression .....   Passed    0.00 sec
+23/25 Test  #7: cutfem_endpoint_exponents .................   Passed    0.00 sec
+24/25 Test  #6: cutfem_endpoint_surface_regressions .......   Passed    0.65 sec
+25/25 Test #19: cutfem_hex_curved_endpoint_regressions ....   Passed    8.60 sec
+
+100% tests passed, 0 tests failed out of 25
+
+Total Test time (real) =   8.61 sec

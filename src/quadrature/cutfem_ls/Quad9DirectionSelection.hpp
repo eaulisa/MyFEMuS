@@ -150,12 +150,13 @@ inline void Quad9SurfaceCoordinatePolynomials(const std::vector<std::vector<doub
   }
 }
 
-inline void Quad9SelectedDirect(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned direction, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* gradient, const std::array<long double,5>& coordinates, const std::vector<unsigned char>* requested, const std::vector<unsigned>* zeroBoundary = nullptr) {
+inline void Quad9SelectedDirect(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned direction, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* gradient, const std::array<long double,5>& coordinates, const std::vector<unsigned char>* requested, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
   unsigned selected = 0;
-  PlanarEndpointIntegration::Integrate(coefficient,degree,false,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,gradient,&coordinates,requested,direction,false,zeroBoundary);
+  PlanarEndpointIntegration::Integrate(coefficient,degree,false,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,gradient,&coordinates,requested,direction,false,zeroBoundary,rules);
 }
 
-inline void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr,  bool referenceSurface = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+inline void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr,  bool referenceSurface = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+  rules.Validate();
   if(geometryCoordinates != nullptr) {
     if(!referenceSurface || inverseJacobian != nullptr) throw std::invalid_argument("Surface geometry requires surface moments without an inverse Jacobian.");
     ValidateSurfaceGeometryCoordinates(*geometryCoordinates,2,9);
@@ -164,7 +165,7 @@ inline void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double
     if(!referenceSurface) throw std::invalid_argument("A surface inverse Jacobian requires surface moments.");
     ValidateSurfaceInverseJacobian(*inverseJacobian,2);
   }
-  if(&positive == &delta || coefficient.size() != 3 || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 60 || integrationOrder > 2 || validationMode > 2 || maximumEvaluations < 15) throw std::invalid_argument("Invalid QUAD9 selected-direction input.");
+  if(&positive == &delta || coefficient.size() != 3 || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 60 || integrationOrder > 2 || validationMode > 2 || maximumEvaluations < 3) throw std::invalid_argument("Invalid QUAD9 selected-direction input.");
   for(unsigned i = 0; i < 3; ++i) if(coefficient[i].size() != 3) throw std::invalid_argument("The QUAD9 coefficient matrix must be 3 by 3.");
   if(zeroBoundary != nullptr && zeroBoundary->size() != 4) throw std::invalid_argument("QUAD9 requires four boundary flags.");
   std::vector<std::vector<long double>> chartCoefficient;
@@ -201,9 +202,9 @@ inline void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double
   unsigned evaluations = 0;
   unsigned accepted = 0;
   unsigned selected = 0;
-  PlanarEndpointIntegration::Integrate(normalized,degree,false,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,surfaceGradient,&parent,nullptr,integrationOrder,fullBoundaryDelta,zeroBoundary);
+  PlanarEndpointIntegration::Integrate(normalized,degree,false,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,surfaceGradient,&parent,nullptr,integrationOrder,fullBoundaryDelta,zeroBoundary,rules);
   unsigned compared = 0;
-  if(validationMode == 2) compared = PlanarEndpointIntegration::Compare(normalized,degree,false,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,surfaceGradient,&parent,fullBoundaryDelta,zeroBoundary);
+  if(validationMode == 2) compared = PlanarEndpointIntegration::Compare(normalized,degree,false,computeDelta,absoluteTolerance,absoluteTolerance*scale,relativeTolerance,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,surfaceGradient,&parent,fullBoundaryDelta,zeroBoundary,rules);
   Quad9SelectedReferenceParity(normalized,degree,values,errors,surfaceGradient);
   const unsigned count = values.size()/2U;
   std::vector<std::vector<double>> resultH(degree+1U);
@@ -229,11 +230,11 @@ inline void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double
   if(estimatedError != nullptr) *estimatedError = {static_cast<double>(errorH),static_cast<double>(errorD),static_cast<double>(accepted),static_cast<double>(evaluations),static_cast<double>(selected),static_cast<double>(compared),1};
 }
 
-inline void IntegrateQuad9NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr,  bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr) {
+inline void IntegrateQuad9NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationOrder = 0, std::vector<double>* estimatedError = nullptr,  bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
   std::vector<std::vector<double>> coefficient;
   Quad9ReferenceCoefficientsFromNodalValues(nodalValues,coefficient);
   std::vector<unsigned> boundary = {static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[3] == 0.0 && nodalValues[7] == 0.0),static_cast<unsigned>(nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[5] == 0.0),static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[4] == 0.0),static_cast<unsigned>(nodalValues[3] == 0.0 && nodalValues[2] == 0.0 && nodalValues[6] == 0.0)};
-  IntegrateQuad9ReferenceSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,28U,integrationOrder,200000,estimatedError,validationMode,&boundary,referenceSurface,nullptr,inverseJacobian,geometryCoordinates);
+  IntegrateQuad9ReferenceSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,28U,integrationOrder,200000,estimatedError,validationMode,&boundary,referenceSurface,nullptr,inverseJacobian,geometryCoordinates,rules);
 }
 
 }

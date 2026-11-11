@@ -24,7 +24,7 @@ void OctantRejectionChecks() {
   const std::vector<std::vector<long double>> saddle = {{0,0,-1},{0},{1}};
   const std::vector<std::vector<long double>> normal = {{1}};
   const std::vector<std::vector<long double>> zeroNormal = {{0}};
-  if(FELevelSetMoments::EndpointProjection::ContactExponent(isolated,0,false,false,&normal) != 2) throw std::runtime_error("A regular isolated face tangency was rejected.");
+  if(FELevelSetMoments::EndpointProjection::ContactExponent(isolated,0,false,false,&normal) != 1) throw std::runtime_error("A regular isolated face tangency was rejected.");
   bool singularRejected = false;
   bool saddleRejected = false;
   try { FELevelSetMoments::EndpointProjection::ContactExponent(isolated,0,false,false,&zeroNormal); }

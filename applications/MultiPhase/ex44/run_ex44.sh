@@ -47,6 +47,10 @@ MULTIGRID_TYPE="mg"
 # Executable / options
 # ------------------------------------------------------------
 
+GK_REGULAR_2D="${GK_REGULAR_2D:-7/15}"  # n/(2n+1), n=1,...,15
+GK_TANGENT_2D="${GK_TANGENT_2D:-7/15}"
+GK_REGULAR_3D="${GK_REGULAR_3D:-7/15}"
+GK_TANGENT_3D="${GK_TANGENT_3D:-7/15}"
 EXECUTABLE="./MultiPhase_ex44"
 OPTIONS_FILE="./input/FS_solver.options"
 
@@ -340,6 +344,10 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
         "${EXECUTABLE}" \
         "${PETSC_OPTIONS[@]}" \
         -options_file "${OPTIONS_FILE}" \
+        --gk-regular-2d "${GK_REGULAR_2D}" \
+        --gk-tangent-2d "${GK_TANGENT_2D}" \
+        --gk-regular-3d "${GK_REGULAR_3D}" \
+        --gk-tangent-3d "${GK_TANGENT_3D}" \
         --uniform-levels "${uniform_levels}" \
         --adaptive-levels "${adaptive_levels}" \
         --level-offset "${LEVEL_OFFSET}" \

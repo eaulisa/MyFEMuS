@@ -7,7 +7,7 @@ namespace FELevelSetMoments {
 
 struct EndpointProjectionEvent {
   long double point = 0;
-  unsigned exponent = 2;
+  unsigned exponent = 1;
 
 };
 
@@ -131,28 +131,58 @@ public:
     return first/a*second;
   }
 
-  static unsigned ContactExponent(const std::vector<std::vector<long double>>& constraint, long double height, bool triangle, bool regularGraphBoundary = false, const std::vector<std::vector<long double>>* normalDerivative = nullptr) {
+  static long double FoldVertex(const std::vector<std::vector<std::vector<long double>>>& field, long double middle, long double height, bool triangle) {
+    long double a = 0;
+    long double b = 0;
+    for(unsigned i = 0; i < field[0].size(); ++i) { a += PolynomialValue(field[2][i],height)*ReferencePower(middle,i); b += PolynomialValue(field[1][i],height)*ReferencePower(middle,i); }
+    if(a == 0) return std::numeric_limits<long double>::infinity();
+    const long double root = -b/(2*a);
+    const long double padding = 65536*std::numeric_limits<long double>::epsilon();
+    return root >= -padding && root <= (triangle ? 1-height-middle : 1)+padding ? root : std::numeric_limits<long double>::infinity();
+  }
+
+  static unsigned ContactExponent(const std::vector<std::vector<long double>>& constraint, long double height, bool triangle, bool regularGraphBoundary = false, const std::vector<std::vector<long double>>* normalDerivative = nullptr, const std::vector<std::vector<std::vector<long double>>>* foldField = nullptr) {
     std::vector<long double> polynomial(constraint.size());
     for(unsigned i = 0; i < constraint.size(); ++i) polynomial[i] = PolynomialValue(constraint[i],height);
     Trim(polynomial);
-    if(PolynomialNorm(polynomial) == 0) return 1;
+    if(PolynomialNorm(polynomial) == 0) {
+      if(foldField == nullptr) return 1;
+      const long double upper = triangle ? 1-height : 1;
+      for(const long double middle : {0.0L,0.5L*upper,upper}) if(std::isfinite(FoldVertex(*foldField,middle,height,triangle))) {
+        long double transverse = 0;
+        long double norm = 0;
+        for(unsigned i = 0; i < constraint.size(); ++i) { transverse += PolynomialValue(PolynomialDerivative(constraint[i]),height)*ReferencePower(middle,i); norm += PolynomialNorm(constraint[i]); }
+        if(std::abs(transverse) <= 65536*std::numeric_limits<long double>::epsilon()*norm) throw std::runtime_error("Unsupported non-transverse zero projection fiber.");
+        return 2;
+      }
+      return 1;
+    }
     std::vector<long double> roots;
     PolynomialRoots(polynomial,0,triangle ? 1-height : 1,roots);
     std::vector<long double> stationary;
     PolynomialRoots(PolynomialDerivative(polynomial),0,triangle ? 1-height : 1,stationary);
-    for(unsigned n = 0; n < stationary.size(); ++n) if(std::abs(PolynomialValue(polynomial,stationary[n])) <= 65536*std::numeric_limits<long double>::epsilon()*PolynomialBound(polynomial,stationary[n])) roots.push_back(stationary[n]);
+    const long double contactPadding = 65536*std::numeric_limits<long double>::epsilon()*PolynomialNorm(polynomial);
+    for(unsigned n = 0; n < stationary.size(); ++n) if(std::abs(PolynomialValue(polynomial,stationary[n])) <= contactPadding) roots.push_back(stationary[n]);
+    for(const long double boundary : {0.0L,triangle ? 1-height : 1.0L}) if(std::abs(PolynomialValue(polynomial,boundary)) <= contactPadding) roots.push_back(boundary);
     SortDistinct(roots);
     unsigned exponent = 1;
     for(unsigned n = 0; n < roots.size(); ++n) {
+      if(foldField != nullptr && !std::isfinite(FoldVertex(*foldField,roots[n],height,triangle))) continue;
       std::vector<long double> derivative = PolynomialDerivative(polynomial);
       unsigned multiplicity = 1;
-      while(derivative.size() > 1 && std::abs(PolynomialValue(derivative,roots[n])) <= 65536*std::numeric_limits<long double>::epsilon()*PolynomialBound(derivative,roots[n])) { ++multiplicity; derivative = PolynomialDerivative(derivative); }
-      if(multiplicity < 2) continue;
+      while(derivative.size() > 1 && std::abs(PolynomialValue(derivative,roots[n])) <= 65536*std::numeric_limits<long double>::epsilon()*PolynomialNorm(derivative)) { ++multiplicity; derivative = PolynomialDerivative(derivative); }
+      if(multiplicity < 2) {
+        const long double upper = triangle ? 1-height : 1;
+        const long double padding = 65536*std::numeric_limits<long double>::epsilon();
+        if(foldField != nullptr && (roots[n] <= padding || roots[n] >= upper-padding)) exponent = CommonExponent(exponent,2);
+        continue;
+      }
       long double transverse = 0;
       for(unsigned i = 0; i < constraint.size(); ++i) transverse += PolynomialValue(PolynomialDerivative(constraint[i]),height)*ReferencePower(roots[n],i);
       long double norm = 0;
       for(unsigned i = 0; i < constraint.size(); ++i) norm += PolynomialNorm(constraint[i]);
-      if(!regularGraphBoundary && std::abs(transverse) <= 65536*std::numeric_limits<long double>::epsilon()*norm && (normalDerivative == nullptr || !RegularFaceTangency(constraint,*normalDerivative,roots[n],height))) throw std::runtime_error("Unsupported non-transverse projected endpoint; no regular-fold convergence claim is available.");
+      if(std::abs(transverse) <= 65536*std::numeric_limits<long double>::epsilon()*norm && normalDerivative != nullptr && RegularFaceTangency(constraint,*normalDerivative,roots[n],height)) continue;
+      if(!regularGraphBoundary && std::abs(transverse) <= 65536*std::numeric_limits<long double>::epsilon()*norm) throw std::runtime_error("Unsupported non-transverse projected endpoint; no regular-fold convergence claim is available.");
       if(multiplicity > 4) throw std::runtime_error("Unsupported projected contact multiplicity.");
       exponent = CommonExponent(exponent,CommonExponent(2,multiplicity));
     }
@@ -163,6 +193,7 @@ public:
     std::vector<long double> events = {0,1};
     std::vector<std::vector<std::vector<long double>>> constraints;
     std::vector<std::vector<std::vector<long double>>> normalDerivatives;
+    std::vector<std::vector<std::vector<std::vector<long double>>>> foldFields;
     for(unsigned inner = 0; inner < 3; ++inner) if(inner != outer && (certifiedInner == 3 || inner == certifiedInner)) {
       const std::vector<std::vector<std::vector<long double>>> field = Field(coefficient,outer,inner);
       for(unsigned side = 0; side < 2; ++side) {
@@ -170,6 +201,7 @@ public:
         AddConstraint(face,triangle,events,graphOnly);
         constraints.push_back(face);
         normalDerivatives.push_back(FaceNormalDerivative(field,side != 0,triangle));
+        foldFields.push_back({});
       }
       if(graphOnly) continue;
       bool quadratic = false;
@@ -181,12 +213,13 @@ public:
       AddConstraint(discriminant,triangle,events);
       constraints.push_back(discriminant);
       normalDerivatives.push_back({});
+      foldFields.push_back(quadratic ? field : std::vector<std::vector<std::vector<long double>>>());
     }
     SortDistinct(events);
     std::vector<EndpointProjectionEvent> result;
     for(unsigned n = 0; n < events.size(); ++n) {
-      unsigned exponent = graphOnly ? 1U : 2U;
-      for(unsigned i = 0; i < constraints.size(); ++i) exponent = CommonExponent(exponent,ContactExponent(constraints[i],events[n],triangle,graphOnly,normalDerivatives[i].empty() ? nullptr : &normalDerivatives[i]));
+      unsigned exponent = 1;
+      for(unsigned i = 0; i < constraints.size(); ++i) exponent = CommonExponent(exponent,ContactExponent(constraints[i],events[n],triangle,graphOnly,normalDerivatives[i].empty() ? nullptr : &normalDerivatives[i],foldFields[i].empty() ? nullptr : &foldFields[i]));
       result.push_back({events[n],exponent});
     }
     return result;

@@ -26,6 +26,8 @@ int main() {
     std::vector<double> estimate;
 #ifdef FEMUS_LINE_DOMAIN_INTEGRATION_HPP
     FELevelSetMoments::LineIntegration::Statistics() = FELevelSetMoments::LineIntegrationStatistics();
+      FELevelSetMoments::OuterIntervalQuadrature::Statistics(2) = FELevelSetMoments::OuterIntervalStatistics();
+      FELevelSetMoments::OuterIntervalQuadrature::Statistics(3) = FELevelSetMoments::OuterIntervalStatistics();
 #endif
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     try {
@@ -39,7 +41,7 @@ int main() {
       if(estimate.size() >= 7) std::cout << " accepted=" << estimate[2] << " evaluations=" << estimate[3] << " selected=" << estimate[4] << " compared=" << estimate[5] << " attempts=" << estimate[6];
 #ifdef FEMUS_LINE_DOMAIN_INTEGRATION_HPP
       const FELevelSetMoments::LineIntegrationStatistics& statistics = FELevelSetMoments::LineIntegration::Statistics();
-      std::cout << " fast=" << statistics.fastSamples << " full=" << statistics.fullSamples << " roots=" << statistics.rootSolves << " mapped=" << statistics.mappedPanels << " regular=" << statistics.regularGraphPanels << " pairs=" << statistics.pairPanels << " worstPairIndex=" << statistics.worstPairIndex << " worstPairRatio=" << static_cast<double>(statistics.worstPairRatio) << " pairValue=" << static_cast<double>(statistics.worstPairValue) << " pairError=" << static_cast<double>(statistics.worstPairError) << " pairTolerance=" << static_cast<double>(statistics.worstPairTolerance) << " pairLeft=" << static_cast<double>(statistics.worstPairLeft) << " pairRight=" << static_cast<double>(statistics.worstPairRight);
+      std::cout << " fast=" << statistics.fastSamples << " roots=" << statistics.rootSolves << " mapped=" << FELevelSetMoments::OuterIntervalQuadrature::Statistics(2).transformedPanels << " regular=" << FELevelSetMoments::OuterIntervalQuadrature::Statistics(2).regularPanels;
 #endif
       std::cout << "\n";
     }
@@ -49,7 +51,7 @@ int main() {
       std::cout << "CASE g=" << g << " degree=" << degrees[d] << " tol=" << tolerances[t] << " sign=" << sign << " FAIL time=" << seconds << " error=" << e.what();
 #ifdef FEMUS_LINE_DOMAIN_INTEGRATION_HPP
       const FELevelSetMoments::LineIntegrationStatistics& statistics = FELevelSetMoments::LineIntegration::Statistics();
-      std::cout << " fast=" << statistics.fastSamples << " full=" << statistics.fullSamples << " roots=" << statistics.rootSolves << " mapped=" << statistics.mappedPanels << " regular=" << statistics.regularGraphPanels << " pairs=" << statistics.pairPanels << " worstPairIndex=" << statistics.worstPairIndex << " worstPairRatio=" << static_cast<double>(statistics.worstPairRatio) << " pairValue=" << static_cast<double>(statistics.worstPairValue) << " pairError=" << static_cast<double>(statistics.worstPairError) << " pairTolerance=" << static_cast<double>(statistics.worstPairTolerance) << " pairLeft=" << static_cast<double>(statistics.worstPairLeft) << " pairRight=" << static_cast<double>(statistics.worstPairRight);
+      std::cout << " fast=" << statistics.fastSamples << " roots=" << statistics.rootSolves << " mapped=" << FELevelSetMoments::OuterIntervalQuadrature::Statistics(2).transformedPanels << " regular=" << FELevelSetMoments::OuterIntervalQuadrature::Statistics(2).regularPanels;
 #endif
       std::cout << "\n";
     }

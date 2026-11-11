@@ -14,7 +14,7 @@ unsigned ResolutionCase(unsigned exponent, unsigned ulps, int mapping, bool sele
   const unsigned count = 10;
   const long double endpoint = 0.54802043156957994162L;
   const long double delta = ulps*std::abs(std::nextafter(endpoint,1.0L)-endpoint);
-  if(FELevelSetMoments::SurfaceEndpointIntegration::ResolvedPanel<15>(0,1,mapping,endpoint,delta,exponent)) throw std::runtime_error("The coordinate-resolution regression no longer exercises a narrow strip.");
+  if(FELevelSetMoments::OuterIntervalQuadrature::Resolved<15>({endpoint,endpoint+mapping*delta,endpoint,delta,mapping,exponent,true},0,1)) throw std::runtime_error("The coordinate-resolution regression no longer exercises a narrow strip.");
   FELevelSetMoments::SurfaceEndpointData data;
   data.coefficient.assign(27,0);
   data.coefficient[0] = 0.75L;

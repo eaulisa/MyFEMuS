@@ -1,0 +1,79 @@
+[1794359253.410309] [f07d7b07ca06:5    :f]        vfs_fuse.c:413  UCX  ERROR failed to create VFS socket: Operation not permitted
+hwloc/linux: failed to find sysfs cpu topology directory, aborting linux discovery.
+ FemusInit(): PETSC_COMM_WORLD initialized
+
+
+
+==========================================================================================
+Element: hex | Psi: ball | Mesh: analytic curved ball | kappa: 0.4
+==========================================================================================
+ Mesh Level                  : 0
+ Number of elements          : 1
+ Number of linear nodes      : 8
+ Number of quadratic nodes   : 20
+ Number of biquadratic nodes : 27
+
+Physical references (closed form): V=0.06806784082777885 S=0.80625833861728446 Vr2=0.0026605362785088555 Sr2=0.05220411440407189
+------------------------------------------------------------------------------------------
+Level 0 (1 mesh level(s))
+
+ Add variable Psi discretized with FE type            3 and time discretzation order 0
+
+------------------------------------------------------------------------------------------
+Test    Method   Domain          Numerical           Exact      Abs. error      Rel. error
+------------------------------------------------------------------------------------------
+1       Moment   Omega+     6.80678408e-02  6.80678408e-02  1.80411242e-16  2.65046223e-15
+1       Moment   Gamma      8.06258339e-01  8.06258339e-01  3.33066907e-15  4.13101969e-15
+r^2     Moment   Omega+     2.66053628e-03  2.66053628e-03  1.60461922e-17  6.03118713e-15
+r^2     Moment   Gamma      5.22041144e-02  5.22041144e-02  1.49880108e-15  2.87104015e-14
+------------------------------------------------------------------------------------------
+Level 1 (1 mesh level(s))
+
+ Mesh Level                  : 1
+ Number of elements          : 8
+ Number of linear nodes      : 27
+ Number of quadratic nodes   : 81
+ Number of biquadratic nodes : 125
+
+ Add variable Psi discretized with FE type            3 and time discretzation order 0
+
+------------------------------------------------------------------------------------------
+Test    Method   Domain          Numerical           Exact      Abs. error      Rel. error
+------------------------------------------------------------------------------------------
+1       Moment   Omega+     6.80678408e-02  6.80678408e-02  4.16333634e-17  6.11645131e-16
+1       Moment   Gamma      8.06258339e-01  8.06258339e-01  6.21724894e-15  7.71123676e-15
+r^2     Moment   Omega+     2.66053628e-03  2.66053628e-03  6.59194921e-17  2.47767687e-14
+r^2     Moment   Gamma      5.22041144e-02  5.22041144e-02  2.15105711e-16  4.12047429e-15
+------------------------------------------------------------------------------------------
+Level 2 (2 mesh level(s))
+
+ Mesh Level                  : 2
+ Number of elements          : 64
+ Number of linear nodes      : 125
+ Number of quadratic nodes   : 425
+ Number of biquadratic nodes : 729
+
+ Add variable Psi discretized with FE type            3 and time discretzation order 0
+
+------------------------------------------------------------------------------------------
+Test    Method   Domain          Numerical           Exact      Abs. error      Rel. error
+------------------------------------------------------------------------------------------
+1       Moment   Omega+     6.80678408e-02  6.80678408e-02  5.68989300e-16  8.35915012e-15
+1       Moment   Gamma      8.06258339e-01  8.06258339e-01  2.66453526e-15  3.30481575e-15
+r^2     Moment   Omega+     2.66053628e-03  2.66053628e-03  1.43114687e-17  5.37916690e-15
+r^2     Moment   Gamma      5.22041144e-02  5.22041144e-02  2.42861287e-16  4.65214839e-15
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There are 10 unused database options. They are:
+Option left: name:--curved value: 1 source: command line
+Option left: name:--degree value: 8 source: command line
+Option left: name:--elements value: hex source: command line
+Option left: name:--gk-regular-2d value: 10/21 source: command line
+Option left: name:--gk-regular-3d value: 10/21 source: command line
+Option left: name:--gk-tangent-2d value: 15/31 source: command line
+Option left: name:--gk-tangent-3d value: 15/31 source: command line
+Option left: name:--levels value: 2 source: command line
+Option left: name:--psi value: ball source: command line
+Option left: name:--vtk value: 0 source: command line
+
+ ~FemusInit(): PETSC_COMM_WORLD ends
