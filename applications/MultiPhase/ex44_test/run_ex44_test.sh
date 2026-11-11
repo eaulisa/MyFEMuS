@@ -3,31 +3,31 @@ set -euo pipefail
 
 # ------------------ EDIT ONLY THIS SECTION ------------------
 ELEMENTS=(0 3)           # 0=HEX, 3=QUAD; TRI/TET remain available for BALL
-PSI="nonconvex"          # ball or nonconvex (QUAD9/HEX27 only)
+PSI="ball"          # ball or nonconvex (QUAD9/HEX27 only)
 CURVED=0                 # 0=straight; 1=analytical curved BALL only
-LEVELS=4                 # levels 0..LEVELS, preserving the uploaded default
+LEVELS=2                 # levels 0..LEVELS, preserving the uploaded default
 CURVATURE=0.40           # used only for curved BALL
 
 # nonconvex: QUAD9 uses the original Stella Q2 oval.
 NONCONVEX_QUAD_A=4        # a>=4; a>4 for a strictly interior oval
 NONCONVEX_QUAD_B=4        # b>=4; b>4 for a strictly interior oval
-NONCONVEX_QUAD_C=160
+NONCONVEX_QUAD_C=1600
 
 # nonconvex: HEX27 uses the Lauricella F_D interface reference.
 NONCONVEX_HEX_A=4        # a,b>=1 in [-1,1]^3 coordinates
 NONCONVEX_HEX_B=4
-NONCONVEX_HEX_C=160000      # chi=c/(a*b)>3 for nonconvex geometry
+NONCONVEX_HEX_C=1600      # chi=c/(a*b)>3 for nonconvex geometry
 
 MODE="moment"            # moment, algoim, compare
-DEGREE=8
-CUTFEM_ABS_TOL=1e-8      # CutFEM moment-fitting absolute tolerance
-CUTFEM_REL_TOL=1e-8      # CutFEM moment-fitting relative tolerance
+DEGREE=5
+CUTFEM_ABS_TOL=1e-4      # CutFEM moment-fitting absolute tolerance
+CUTFEM_REL_TOL=1e-4      # CutFEM moment-fitting relative tolerance
 ALGOIM_ORDER=8
 ALGOIM_SUBDIVISIONS=0
 VTK=1
-GK_REGULAR_2D="${GK_REGULAR_2D:-7/15}"  # n/(2n+1), n=1,...,15
+GK_REGULAR_2D="${GK_REGULAR_2D:-3/7}"  # n/(2n+1), n=1,...,15
 GK_TANGENT_2D="${GK_TANGENT_2D:-7/15}"
-GK_REGULAR_3D="${GK_REGULAR_3D:-7/15}"
+GK_REGULAR_3D="${GK_REGULAR_3D:-3/7}"
 GK_TANGENT_3D="${GK_TANGENT_3D:-7/15}"
 EXECUTABLE="./MultiPhase_ex44_test"
 # ------------------------------------------------------------

@@ -24,6 +24,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <chrono>
 
 // These match the precision choices in applications/MultiPhase/includeLS/Utils.hpp.
 // AlgoimDirectRule.hpp currently returns double-valued nodes and weights.
@@ -37,15 +38,17 @@ enum class IntegrationMode {
   Compare
 };
 
+
 struct IntegrationOptions {
   IntegrationMode mode = IntegrationMode::MomentFitting;
   unsigned momentDegree = 5;
-  double absoluteTolerance = 1.e-5;
-  double relativeTolerance = 1.e-5;
+  double absoluteTolerance = 1.e-10;
+  double relativeTolerance = 1.e-10;
   unsigned algoimOrder = 5;
   unsigned algoimSubdivisions = 0;
-  FELevelSetMoments::OuterQuadratureRules outerQuadratureRules;
+  
 };
+
 
 struct IntegrationResult {
   double omega1 = 0.;
@@ -203,6 +206,8 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
   // moment-fitting transforms are lazily cached across integration tests.
   femus::Fem fem(2U * options.momentDegree, dim);
 
+  const auto elementLoopStart = std::chrono::steady_clock::now();
+
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
     const unsigned geom = msh->GetElementType(iel);
     const unsigned nDofs = msh->GetElementDofNumber(iel, xType);
@@ -294,6 +299,14 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
       }
     }
   }
+
+  const double localElementLoopTime = std::chrono::duration<double>(std::chrono::steady_clock::now() - elementLoopStart).count();
+  double elementLoopTime = 0.;
+  MPI_Allreduce(&localElementLoopTime, &elementLoopTime, 1,
+                MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  if(iproc == 0)
+    std::cout << "Element loop time (max MPI rank): "
+              << elementLoopTime << " s\n";
 
   // Collective reductions: all ranks run the selected paths, but only rank 0
   // prints. Inactive method slots remain exactly zero.
