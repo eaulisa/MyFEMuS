@@ -49,6 +49,8 @@ bool printdb = false;
 
 std::vector<std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > > PMatrix(6); //projection matrix between elements;
 
+CutFemIntegration cutFemIntegration;
+
 struct TaylorHood {
   struct Variable {
     FEFamily family;
@@ -145,6 +147,8 @@ int main(int argc, char **argv) {
   static const unsigned requestedDim = args.dim;
   const unsigned symmetric = args.symmetric;
   const unsigned axisymmetric = args.axisymmetric;
+
+  cutFemIntegration = args.cutFemIntegration;
 
   const ElemType elementType = (requestedDim == 2) ? QUAD9 : HEX27;
 
@@ -905,6 +909,11 @@ int main(int argc, char **argv) {
         if(levelC < levelF) RestrictPWDCField(*mlsol1, cName, levelC, levelF);
 
         for(unsigned i = 0; i < cfw.size(); i++) cfw[i]->ClearMap();
+        if(cutFemIntegration == CutFemIntegration::Quadratic) {
+          for(auto* rule : cfwLS) {
+            if(rule != nullptr) rule->ClearCache();
+          }
+        }
 
         LevelSetDiagnostics diagnostics = ComputeLevelSetDiagnostics(*mlsol1, psiName, vName, pName, levelC, simulation, cfg, symmetric, axisymmetric, axisCoordinate, symmetryCoordinates);
         PrintLevelSetDiagnostics(diagnostics, iproc, time, diagnosticsFile);
@@ -1153,6 +1162,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
   start_time = clock();
 
+  double A = 0;
+  double Per = 0;
+
   for (unsigned l = levelC; l <= levelF; ++l) {
     Solution* sol0 = mlSol0->GetLevel(l);
 
@@ -1388,7 +1400,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           }
         }
 
-        std::vector<double> a;
+        std::vector<double> a(dim);
         double d;
 
         std::vector<std::vector<double>> Jacob, JacI;
@@ -1430,26 +1442,62 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           std::vector<const double *> xg(dim);
           for(unsigned d = 0; d < dim; d++) xg[d] = (femPsi->GetGaussRule()).GetGaussCoordinatePointer(d);
 
-          BestFitLinearInterpolation(xg, psig, a);
-          d = a[dim];
-          a.resize(dim);
+          if(cutFemIntegration == CutFemIntegration::Linear) {
+            BestFitLinearInterpolation(xg, psig, a);
+            d = a[dim];
+            a.resize(dim);
+          }
         }
 
-        std::vector <TypeIO> weightCF(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
-        std::vector <TypeIO> weightCFInt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
-        std::vector <TypeIO> weightCFExt(cfw[ielGeom]->GetGaussQuadraturePointNumber(), 0.);
+        
+        const unsigned nGauss = femV->GetGaussPointNumber();
+
+        std::vector<TypeIO> weightCF(nGauss, 0.);
+        std::vector<TypeIO> weightCFInt(nGauss, 0.);
+        std::vector<TypeIO> weightCFExt(nGauss, 0.);
 
         if(cut == 1) {
-          cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
-          for(unsigned i = 0; i < weightCFInt.size(); i++) weightCFExt[i] = 1. - weightCFInt[i];
-          cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
+
+          if(cutFemIntegration == CutFemIntegration::Linear) {
+
+            if(cfw[ielGeom]->GetGaussQuadraturePointNumber() != nGauss) {
+              throw std::runtime_error("Linear CutFEM Gauss rule mismatch");
+            }
+
+            cfw[ielGeom]->GetWeightWithMap(0, a, d, weightCFInt);
+            cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
+
+          }
+          else {
+
+            auto* rule = cfwLS[ielGeom];
+
+            if(rule == nullptr) {
+              throw std::runtime_error("Quadratic CutFEM does not support WEDGE");
+            }
+
+            if(rule->GetGaussQuadraturePointNumber() != nGauss) {
+              throw std::runtime_error("Quadratic CutFEM Gauss rule mismatch");
+            }
+
+            rule->SetIntegrationDirection(0);
+            rule->SetDirectionValidation(0);
+
+            rule->GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCF, 1.e-8, 1.e-8);
+          }
+
+          for(unsigned i = 0; i < nGauss; ++i) {
+            weightCFExt[i] = 1. - weightCFInt[i];
+          }
         }
         else {
-          for(unsigned i = 0; i < weightCFInt.size(); i++) {
+
+          for(unsigned i = 0; i < nGauss; ++i) {
             weightCFInt[i] = C;
             weightCFExt[i] = 1. - C;
           }
         }
+
 
         // *** Gauss point loop ***
         std::vector<double> Nf(dim);
@@ -1590,6 +1638,21 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             }
           }
 
+          double surfaceWeight = 0.;
+
+          if(cut == 1) {
+
+            if(cutFemIntegration == CutFemIntegration::Quadratic) {
+              surfaceWeight = cfwLS[ielGeom]->GetGaussWeightPointer()[ig] * weightCF[ig];
+            }
+            else {
+              surfaceWeight = weight * weightCF[ig] * dsN;
+            }
+          }
+
+          A += weight * weightCFInt[ig];
+          Per += surfaceWeight;
+
           for (unsigned d = 0; d < dim; ++d) {
             solV_gss[d] = 0.0;
             solVOld_gss[d] = 0.0;
@@ -1674,11 +1737,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
               // surface tension stabilization -- rhs contribution
               if(cut == 1) {
                 for (int d = 0; d < dim; d++) {
-                  Res[I * nDofsV + i] += - sigma * axisWeight * P[I][d] * phiV_x[i * dim + d] * weight * weightCF[ig] * dsN;
+                  Res[I * nDofsV + i] += - sigma * axisWeight * P[I][d] * phiV_x[i * dim + d] * surfaceWeight;
                 }
 
                 if(axisymmetric && I == 0) {
-                  Res[I * nDofsV + i] += -sigma * phiV[i] * weight * weightCF[ig] * dsN;
+                  Res[I * nDofsV + i] += -sigma * phiV[i] * surfaceWeight;
                 }
 
                 double stabSF = 0.0;
@@ -1701,7 +1764,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                   stabSF += (cnew * solV_gss[0] - cold * solVOld_gss[0]) * phiV[i] / (r * r);
                 }
 
-                Res[I * nDofsV + i] += -cnew * sigma * dt * stabSF * weight * weightCF[ig] * dsN * axisWeight;
+                Res[I * nDofsV + i] += -cnew * sigma * dt * stabSF * surfaceWeight * axisWeight;
               }
             }
           } // end phiV_i loop
@@ -1753,7 +1816,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             }
           }
 
-          double surfaceTensionCoefficient = cnew * cnew * sigma * dt * weight * weightCF[ig] * dsN * axisWeight;
+          double surfaceTensionCoefficient = cnew * cnew * sigma * dt * surfaceWeight * axisWeight;
 
           for(unsigned i = 0; i < nDofsV; i++) {
             for(unsigned j = 0; j < nDofsV; j++) {
@@ -2170,6 +2233,18 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   KK->close();
 
   std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
+
+  MPI_Allreduce(MPI_IN_PLACE, &A, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &Per, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+
+  double radius  = 0.25;
+  double radius2 = radius * radius;
+  double radius3 = radius2 * radius;
+  double per_th = (dim == 2) ? 2 * M_PI * radius : 4. * M_PI * radius2;
+  double A_th = (dim == 2) ? M_PI * radius2 : 4. / 3. * M_PI * radius3;
+  std::cout << " Area error " << std::abs(A - A_th)/A_th << std::endl;
+  std::cout << " Perimetro error " << std::abs(Per - per_th)/per_th << std::endl;
 
 }
 

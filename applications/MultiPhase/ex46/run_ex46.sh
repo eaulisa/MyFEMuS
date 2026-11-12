@@ -28,7 +28,7 @@ AXISYMMETRIC=0
 
 UNIFORM_LEVELS=(2)
 ADAPTIVE_LEVELS=(6)
-LEVEL_OFFSET_PSI=2
+LEVEL_OFFSET_PSI=0
 LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
@@ -36,6 +36,12 @@ LEVEL_OFFSET=2
 # ------------------------------------------------------------
 
 NSTEPS=(3000)
+
+# ------------------------------------------------------------
+# Cutfem integration
+# ------------------------------------------------------------
+
+CUTFEM_INTEGRATION="linear"     # linear | quadratic
 
 # ------------------------------------------------------------
 # Velocity multigrid
@@ -81,6 +87,12 @@ fi
 
 if (( SYMMETRIC == 1 && AXISYMMETRIC == 1 )); then
   echo "ERROR: SYMMETRIC and AXISYMMETRIC cannot both be 1."
+  exit 1
+fi
+
+if [[ "${CUTFEM_INTEGRATION}" != "linear" &&
+      "${CUTFEM_INTEGRATION}" != "quadratic" ]]; then
+  echo "ERROR: CUTFEM_INTEGRATION must be linear or quadratic."
   exit 1
 fi
 
@@ -283,16 +295,18 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
       echo "============================================================"
       echo "ex43 run ${RUN_INDEX}/${TOTAL_RUNS}"
       echo "============================================================"
-      echo "MPI ranks        : ${NPROC}"
-      echo "Uniform levels   : ${uniform_levels}"
-      echo "Adaptive levels  : ${adaptive_levels}"
-      echo "Level offset     : ${LEVEL_OFFSET}"
-      echo "Solver levels    : ${NLEVELS}"
-      echo "Number of steps  : ${nsteps}"
-      echo "Dimension        : ${DIM}"
-      echo "Simulation       : ${SIMULATION}"
-      echo "Velocity MG      : ${MULTIGRID_TYPE}"
-      echo "Options file     : ${OPTIONS_FILE}"
+      echo "MPI ranks          : ${NPROC}"
+      echo "Uniform levels     : ${uniform_levels}"
+      echo "Adaptive levels    : ${adaptive_levels}"
+      echo "Level offset       : ${LEVEL_OFFSET}"
+      echo "Level offset psi   : ${LEVEL_OFFSET_PSI}"
+      echo "CutFEM integration : ${CUTFEM_INTEGRATION}"
+      echo "Solver levels      : ${NLEVELS}"
+      echo "Number of steps    : ${nsteps}"
+      echo "Dimension          : ${DIM}"
+      echo "Simulation         : ${SIMULATION}"
+      echo "Velocity MG        : ${MULTIGRID_TYPE}"
+      echo "Options file       : ${OPTIONS_FILE}"
       echo "============================================================"
       echo
 
@@ -304,6 +318,7 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
         --adaptive-levels "${adaptive_levels}" \
         --level-offset "${LEVEL_OFFSET}" \
         --level-offset-psi "${LEVEL_OFFSET_PSI}" \
+        --cutfem-integration "${CUTFEM_INTEGRATION}" \
         --nsteps "${nsteps}" \
         --dim "${DIM}" \
         --simulation "${SIMULATION}" \

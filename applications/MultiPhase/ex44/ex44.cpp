@@ -51,13 +51,13 @@ bool printdb = false;
 #include "../includeLS/Utils.hpp"
 #include "CutFemWeight_LS.hpp"
 
-CutFemWeight_LS<TypeIO, TypeA> hexLS(HEX, hex.GetCutFEMQuadratureOrder(), "legendre");
-CutFemWeight_LS<TypeIO, TypeA> tetLS(TET, tet.GetCutFEMQuadratureOrder(), "legendre");
-CutFemWeight_LS<TypeIO, TypeA> quadLS(QUAD, quad.GetCutFEMQuadratureOrder(), "legendre");
-CutFemWeight_LS<TypeIO, TypeA> triLS(TRI, tri.GetCutFEMQuadratureOrder(), "legendre");
-CutFemWeight_LS<TypeIO, TypeA> lineLS(LINE, line.GetCutFEMQuadratureOrder(), "legendre");
+// CutFemWeight_LS<TypeIO, TypeA> hexLS(HEX, hex.GetCutFEMQuadratureOrder(), "legendre");
+// CutFemWeight_LS<TypeIO, TypeA> tetLS(TET, tet.GetCutFEMQuadratureOrder(), "legendre");
+// CutFemWeight_LS<TypeIO, TypeA> quadLS(QUAD, quad.GetCutFEMQuadratureOrder(), "legendre");
+// CutFemWeight_LS<TypeIO, TypeA> triLS(TRI, tri.GetCutFEMQuadratureOrder(), "legendre");
+// CutFemWeight_LS<TypeIO, TypeA> lineLS(LINE, line.GetCutFEMQuadratureOrder(), "legendre");
 FELevelSetMoments::OuterQuadratureRules outerQuadratureRules;
-const std::vector<CutFemWeight_LS<TypeIO, TypeA>*> cfwLS = {&hexLS, &tetLS, nullptr, &quadLS, &triLS, &lineLS};
+// const std::vector<CutFemWeight_LS<TypeIO, TypeA>*> cfwLS = {&hexLS, &tetLS, nullptr, &quadLS, &triLS, &lineLS};
 
 std::vector<std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > > PMatrix(6); //projection matrix between elements;
 

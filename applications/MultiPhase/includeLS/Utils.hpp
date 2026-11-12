@@ -25,6 +25,23 @@ CutFemWeight <TypeIO, TypeA> line = CutFemWeight<TypeIO, TypeA >(LINE, 5, "legen
 
 const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&hex, &tet, &wedge, &quad, &tri, &line};
 
+#include "CutFemWeight_LS.hpp"
+
+enum class CutFemIntegration {
+  Linear,
+  Quadratic
+};
+
+CutFemWeight_LS<TypeIO, TypeA> hexLS(HEX, hex.GetCutFEMQuadratureOrder(), "legendre");
+CutFemWeight_LS<TypeIO, TypeA> tetLS(TET, tet.GetCutFEMQuadratureOrder(), "legendre");
+CutFemWeight_LS<TypeIO, TypeA> quadLS(QUAD, quad.GetCutFEMQuadratureOrder(), "legendre");
+CutFemWeight_LS<TypeIO, TypeA> triLS(TRI, tri.GetCutFEMQuadratureOrder(), "legendre");
+CutFemWeight_LS<TypeIO, TypeA> lineLS(LINE, line.GetCutFEMQuadratureOrder(), "legendre");
+
+const std::vector<CutFemWeight_LS<TypeIO, TypeA>*> cfwLS = {
+  &hexLS, &tetLS, nullptr, &quadLS, &triLS, &lineLS
+};
+
 // unsigned qM = 5;
 // double dx = .5;
 // double dtetha = 30.;
@@ -3634,10 +3651,12 @@ struct SimulationArgs {
 
   std::vector<unsigned> adaptiveLevels = {2};
   std::vector<unsigned> nSteps = {1200};
-  double period = 1.288;
+  double period = 3.;
 
   bool symmetric = false;
   bool axisymmetric = false;
+
+  CutFemIntegration cutFemIntegration = CutFemIntegration::Linear;
 
   unsigned elemtype = 3;
 };
@@ -3799,6 +3818,27 @@ SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
       }
 
       args.axisymmetric = std::stoul(argv[++i]);
+    }
+
+    if(std::string(argv[i]) == "--cutfem-integration") {
+
+      if(i + 1 >= argc) {
+        throw std::runtime_error("Missing --cutfem-integration value");
+      }
+
+      const std::string mode = argv[++i];
+
+      if(mode == "linear") {
+        args.cutFemIntegration = CutFemIntegration::Linear;
+      }
+      else if(mode == "quadratic") {
+        args.cutFemIntegration = CutFemIntegration::Quadratic;
+      }
+      else {
+        throw std::runtime_error(
+          "--cutfem-integration must be linear or quadratic"
+        );
+      }
     }
 
     else if (option == "--help" || option == "-h") {
