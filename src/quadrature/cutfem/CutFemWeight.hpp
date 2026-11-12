@@ -1,21 +1,24 @@
-#ifndef __femus_cut_fem_int_hpp__
-#define __femus_cut_fem_int_hpp__
+#ifndef FEMUS_CUT_FEM_WEIGHT_HPP
+#define FEMUS_CUT_FEM_WEIGHT_HPP
 
 #include "GeomElTypeEnum.hpp"
-
 #include "CutLine.hpp"
 #include "CutHyperCube.hpp"
 #include "CutTriangle.hpp"
 #include "CutTetrahedron.hpp"
 #include "CutPrism.hpp"
-
 #include "CutFem.hpp"
-
 #include "GramSchmidt.hpp"
-
 #include "GaussPoints.hpp"
-
+#include <Eigen/Dense>
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <iostream>
+#include <map>
+#include <string>
+#include <utility>
+#include <vector>
 #include <boost/multiprecision/cpp_bin_float.hpp>
 
 namespace boost {
@@ -33,45 +36,43 @@ using boost::multiprecision::cpp_bin_float_quad;
 
 using namespace femus;
 
-static const std::vector<std::string> geomName = {"hex", "tet", "wedge", "quad", "tri", "line", "point"};
-
 template <class TypeIO, class TypeA>
 class CutFemWeight {
   public:
-    CutFemWeight(const GeomElType &geomElemType, const unsigned &qM, const std::string &gaussType) {
-      _geomElemType = geomElemType;
-      _qM = qM;
-      _gaussType = gaussType;
-
-      _tetBaseType = 0;
+    CutFemWeight(const GeomElType &geomElemType, const unsigned &qM, const std::string &gaussType) : _geomElemType(geomElemType), _gauss(NULL), _qM(qM), _gaussType(gaussType), _cntCall(0), _obj(NULL), _tetBaseType(0) {
 
       if(_geomElemType == HEX || _geomElemType == WEDGE || _geomElemType == TET) _dim = 3;
-      if(_geomElemType == QUAD || _geomElemType == TRI) _dim = 2;
-      if(_geomElemType == LINE) _dim = 1;
-      this->build();
+      else if(_geomElemType == QUAD || _geomElemType == TRI) _dim = 2;
+      else if(_geomElemType == LINE) _dim = 1;
+      else {
+        std::cout << " No " << _geomElemType << " implemented" << std::endl;
+        abort();
+      }
+
+      build();
     }
 
     void build() {
 
-      //time1 = time2 = time3 = 0;
-
       _cntCall = 0;
 
       if(_geomElemType == HEX || _geomElemType == QUAD || _geomElemType == LINE) {
-        _obj = new HCImap <TypeA, TypeA> (_dim, _qM, 0);
+        _obj = new HCImap<TypeA, TypeA>(_dim, _qM, 0);
       }
       else if(_geomElemType == TET) {
-        _obj = new TTImap <TypeA, TypeA> (_dim, _qM, 0);
+        _obj = new TTImap<TypeA, TypeA>(_dim, _qM, 0);
       }
       else if(_geomElemType == TRI) {
-        _obj = new TRImap <TypeA, TypeA> (_dim, _qM, 0);
+        _obj = new TRImap<TypeA, TypeA>(_dim, _qM, 0);
       }
       else if(_geomElemType == WEDGE) {
+        _obj = NULL;
       }
       else {
         std::cout << " No " << _geomElemType << " implemented" << std::endl;
         abort();
       }
+
       _gaussOrder = 2 * _qM;
       _gauss = new Gauss(_geomElemType, _gaussOrder, _gaussType.c_str());
 
@@ -86,32 +87,103 @@ class CutFemWeight {
         _L *= (_qM + 1 + idim);
         _L /= (idim + 1);
       }
-      Get_GS_ATA_Matrix(_geomElemType, _qM, _ATAoct, false);
-      _ATA.resize(_ATAoct.size(), _ATAoct.size());
-      for(unsigned i = 0; i < _ATAoct.size(); i++) {
-        for(unsigned j = 0; j < _ATAoct[i].size(); j++) {
-          _ATA(i, j) = static_cast <TypeA >(_ATAoct[i][j]);
+
+      std::vector<std::vector<cpp_bin_float_oct> > ATAoct;
+      Get_GS_ATA_Matrix(_geomElemType, _qM, ATAoct, false);
+
+      Eigen::Matrix<TypeA,Eigen::Dynamic,Eigen::Dynamic> gramInverse(ATAoct.size(),ATAoct.size());
+      for(unsigned i = 0; i < ATAoct.size(); i++) {
+        for(unsigned j = 0; j < ATAoct[i].size(); j++) {
+          gramInverse(i,j) = static_cast<TypeA>(ATAoct[i][j]);
         }
       }
+
       _f.resize(_L);
+
+      // Cache the combined moment-to-Gauss map in TypeA for each orientation.
+      const unsigned numberOfB0Matrices = (_geomElemType == TET) ? 2u : 1u;
+      _momentToWeight.resize(numberOfB0Matrices);
+
+      std::vector<TypeA> x(_dim);
+      std::vector<std::vector<TypeA>> powers(_dim,std::vector<TypeA>(_qM+1U,TypeA(1)));
+
+      for(unsigned iMatrix = 0; iMatrix < numberOfB0Matrices; iMatrix++) {
+        const unsigned TETtype = iMatrix + 1u;
+
+        Eigen::Matrix<TypeA,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> basis(_gn,_L);
+
+        for(unsigned ig = 0; ig < _gn; ig++) {
+
+          if(_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX) {
+            for(unsigned k = 0; k < _dim; k++) {
+              x[k] = (TypeA(1)+TypeA(_xgp[k][ig]))/TypeA(2);
+            }
+          }
+          else if(_geomElemType == TRI) {
+            x[0] = TypeA(1)-TypeA(_xgp[0][ig]);
+            x[1] = TypeA(_xgp[1][ig]);
+          }
+          else if(_geomElemType == WEDGE) {
+            x[0] = TypeA(1)-TypeA(_xgp[0][ig]);
+            x[1] = TypeA(_xgp[1][ig]);
+            x[2] = (TypeA(1)+TypeA(_xgp[2][ig]))/TypeA(2);
+          }
+          else { // TET
+            x[0] = TypeA(_xgp[0][ig])+TypeA(_xgp[1][ig])+TypeA(_xgp[2][ig]);
+            if(TETtype == 1) {
+              x[1] = TypeA(_xgp[1][ig])+TypeA(_xgp[2][ig]);
+              x[2] = TypeA(_xgp[2][ig]);
+            }
+            else { // TETtype == 2
+              x[1] = TypeA(_xgp[2][ig])+TypeA(_xgp[0][ig]);
+              x[2] = TypeA(_xgp[0][ig]);
+            }
+          }
+
+          for(unsigned d = 0; d < _dim; ++d) {
+            for(unsigned i = 1; i <= _qM; ++i) powers[d][i] = powers[d][i-1U]*x[d];
+          }
+          unsigned index = 0;
+          for(unsigned q = 0; q <= _qM; ++q) {
+            if(_dim == 1) basis(ig,index++) = powers[0][q];
+            else {
+              for(int ii = q; ii >= 0; --ii) {
+                unsigned i = static_cast<unsigned>(ii);
+                if(_dim == 2) basis(ig,index++) = powers[0][i]*powers[1][q-i];
+                else {
+                  for(int jj = q-i; jj >= 0; --jj) {
+                    unsigned j = static_cast<unsigned>(jj);
+                    basis(ig,index++) = powers[0][i]*powers[1][j]*powers[2][q-i-j];
+                  }
+                }
+              }
+            }
+          }
+        }
+        _momentToWeight[iMatrix].noalias() = basis*gramInverse;
+      }
     }
 
     ~CutFemWeight() {
       clear();
       delete _gauss;
-      if(_geomElemType != WEDGE) delete _obj;
-    };
+      delete _obj;
+    }
 
     void clear() {
-      if(_geomElemType != WEDGE) _obj->clear();
-    };
+      if(_obj != NULL) _obj->clear();
+    }
 
-    void operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF);
-    void GetWeightWithMap(const int &s, const std::vector <TypeIO> &a, const TypeIO & d, std::vector <TypeIO> &weightCF);
+    void operator()(const int &s, const std::vector<TypeIO> &a, const TypeIO &d, std::vector<TypeIO> &weightCF);
+
+    void GetWeightWithMap(const int &s, const std::vector<TypeIO> &a, const TypeIO &d, std::vector<TypeIO> &weightCF);
 
     void UpdateQuadratureRule(const unsigned &qM) {
       clear();
       delete _gauss;
+      delete _obj;
+      _gauss = NULL;
+      _obj = NULL;
       ClearMap();
 
       _qM = qM;
@@ -121,31 +193,34 @@ class CutFemWeight {
     unsigned GetCutFEMQuadratureOrder() {
       return _qM;
     }
+
     unsigned GetGaussQuadratureOrder() {
       return _gaussOrder;
     }
-    
+
     unsigned GetDimension() {
       return _dim;
     }
+
     unsigned GetGaussQuadraturePointNumber() {
       return _gn;
     }
 
     const double* GetGaussWeightPointer() {
       return _gauss->GetGaussWeightsPointer();
-    };
+    }
+
     const double* GetGaussCoordinatePointer(const unsigned &k) {
       return _gauss->GetGaussCoordinatePointer(k);
-    };
+    }
 
     const unsigned& GetCounter() {
       return _cntCall;
     }
 
     void ClearMap() {
-      for(unsigned i = 0; i < _WeightMap.size(); i++)  _WeightMap[i].clear();
-      _WeightMap.resize(0);
+      for(unsigned i = 0; i < _WeightMap.size(); i++) _WeightMap[i].clear();
+      _WeightMap.clear();
     }
 
     void SetTetBaseType(const unsigned &value) {
@@ -153,84 +228,73 @@ class CutFemWeight {
     }
 
   protected:
-    void PolyBasis(const std::vector<double> &x, std::vector<double> &bo);
+    void EvaluateMomentWeights(std::vector<TypeIO>& weightCF, unsigned basisIndex = 0) {
+      weightCF.resize(_gn);
+      for(unsigned ig = 0; ig < _gn; ++ig) {
+        const TypeA* basisRow = _momentToWeight[basisIndex].data()+ig*_L;
+        TypeA value = 0.;
+        for(unsigned i = 0; i < _L; ++i) {
+          value += basisRow[i]*_f[i];
+        }
+        weightCF[ig] = static_cast<TypeIO>(value);
+      }
+    }
 
-  private:
     unsigned _dim;
     GeomElType _geomElemType;
     Gauss *_gauss;
 
-    std::vector<std::vector<cpp_bin_float_oct>> _ATAoct;
-
-    Eigen::Matrix <TypeA, Eigen::Dynamic, Eigen::Dynamic> _ATA;
-    Eigen::Matrix <TypeA, Eigen::Dynamic, 1> _f;
-    Eigen::Matrix <TypeA, Eigen::Dynamic, 1> _Co;
+    std::vector<Eigen::Matrix<TypeA, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> _momentToWeight;
+    Eigen::Matrix<TypeA, Eigen::Dynamic, 1> _f;
     unsigned _L;
 
     unsigned _qM;
     std::string _gaussType;
     unsigned _gaussOrder;
     unsigned _gn;
-    const double * _xgp[3];
+    const double *_xgp[3];
 
     unsigned _cntCall;
 
-    CutFEMmap <TypeA> *_obj;
-
+    CutFEMmap<TypeA> *_obj;
 
     unsigned _tetBaseType;
 
-
-    std::vector < std::map < std::pair<std::vector<float>, float>, std::vector<TypeIO> > > _WeightMap;
-    typename std::map < std::pair<std::vector<float>, float>, std::vector<TypeIO> >::iterator _it;
+  private:
+    std::vector<std::map<std::pair<std::vector<float>, float>, std::vector<TypeIO> > > _WeightMap;
+    typename std::map<std::pair<std::vector<float>, float>, std::vector<TypeIO> >::iterator _it;
     std::pair<std::vector<float>, float> _key;
-
-
-    std::vector<std::vector<TypeIO>> _bOld2d;
-    std::vector<std::vector<TypeIO>> _bNew2d;
-
-    std::vector<std::vector<std::vector<TypeIO>>> _bOld3d;
-    std::vector<std::vector<std::vector<TypeIO>>> _bNew3d;
-
-    //clock_t time1, time2, time3;
-
 };
 
-
 template <class TypeIO, class TypeA>
-void CutFemWeight<TypeIO, TypeA>::GetWeightWithMap(const int &s, const std::vector <TypeIO> &a, const TypeIO & d,  std::vector <TypeIO> &weightCF) {
-  _WeightMap.resize(s + 2);
-  std::vector <float> af(a.begin(), a.end());
-  float df = static_cast<float>(d);
+void CutFemWeight<TypeIO, TypeA>::GetWeightWithMap(const int &s, const std::vector<TypeIO> &a, const TypeIO &d, std::vector<TypeIO> &weightCF) {
+  if(_WeightMap.size() < static_cast<unsigned>(s+2)) _WeightMap.resize(s+2);
+  std::vector<float> af(a.begin(), a.end());
+  const float df = static_cast<float>(d);
   _key = std::make_pair(af, df);
   _it = _WeightMap[s + 1].find(_key);
+
   if(_it != _WeightMap[s + 1].end()) {
-    weightCF.clear();
-    weightCF = _WeightMap[s + 1][_key];
+    weightCF = _it->second;
     return;
   }
 
   operator()(s, a, d, weightCF);
-
   _WeightMap[s + 1][_key] = weightCF;
-
 }
 
-
 template <class TypeIO, class TypeA>
-void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d,  std::vector <TypeIO> &weightCF) {
-
-  clock_t time = clock();
+void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector<TypeIO> &a, const TypeIO &d, std::vector<TypeIO> &weightCF) {
 
   _cntCall++;
 
-  std::vector< TypeA > aA(_dim);
-  for(unsigned i = 0; i < _dim; i++) aA[i] = static_cast<TypeA>(a[i]);
-  TypeA dA = static_cast<TypeA>(d);
+  std::vector<TypeA> aA(_dim);
+  for(unsigned i = 0; i < _dim; i++) {
+    aA[i] = static_cast<TypeA>(a[i]);
+  }
+  const TypeA dA = static_cast<TypeA>(d);
 
-  //time1 += clock() - time;
-  //time = clock();
-  _obj->SetBaseType(_tetBaseType);
+  if(_obj != NULL) _obj->SetBaseType(_tetBaseType);
 
   unsigned count = 0;
 
@@ -238,20 +302,19 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
     for(unsigned q = 0; q <= _qM; q++) {
       for(int ii = q; ii >= 0; ii--) {
         for(int jj = q - ii; jj >= 0; jj--) {
-          unsigned i = static_cast<unsigned>(ii);
-          unsigned j = static_cast<unsigned>(jj);
-          unsigned k = q - i - j;
+          const unsigned i = static_cast<unsigned>(ii);
+          const unsigned j = static_cast<unsigned>(jj);
+          const unsigned k = q - i - j;
           _f[count] = (_geomElemType == WEDGE) ? Prism<TypeA, TypeA>(s, {i, j, k}, aA, dA) : (*_obj)(s, {i, j, k}, aA, dA);
           count++;
         }
       }
     }
-
   }
   else if(_dim == 2) {
     for(unsigned q = 0; q <= _qM; q++) {
       for(unsigned j = 0; j <= q; j++) {
-        unsigned i = q - j;
+        const unsigned i = q - j;
         _f[count] = (*_obj)(s, {i, j}, aA, dA);
         count++;
       }
@@ -267,143 +330,24 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
     abort();
   }
 
+  unsigned B0index = 0;
 
-  _Co = _ATA * _f;
+  if(_geomElemType == TET) {
+    unsigned TETtype = _tetBaseType;
 
+    if(TETtype == 0) {
+      TETtype = (std::max(std::fabs(a[1] - a[0]), std::fabs(a[2] - a[1])) >= std::fabs(a[0] - a[2])) ? 1u : 2u;
+    }
 
-  //time2 += clock() - time;
-  //time = clock();
+    if(TETtype != 1 && TETtype != 2) {
+      std::cout << " TET base type = " << TETtype << " not admissible" << std::endl;
+      abort();
+    }
 
-  std::vector<double> bo(_L);
-  std::vector<double> x(_dim);
-  
-  unsigned TETtype = _tetBaseType;
-  if(_geomElemType == TET && _tetBaseType == 0) {
-    TETtype = (std::max(fabs(a[1] - a[0]), fabs(a[2] - a[1]))  >= fabs(a[0] - a[2])) ? 1 : 2;
+    B0index = TETtype - 1u;
   }
 
-  weightCF.assign(_gn, 0);
-  for(unsigned ig = 0; ig < _gn; ig++) {
-
-    if(_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX) {
-      for(unsigned k = 0; k < _dim; k++)  x[k] = 0.5 * (1. + _xgp[k][ig]);
-    }
-    else if(_geomElemType == TRI) {
-      x[0] = (1. - _xgp[0][ig]);
-      x[1] = _xgp[1][ig];
-    }
-    else if(_geomElemType == WEDGE) {
-      x[0] = (1. - _xgp[0][ig]);
-      x[1] = (_xgp[1][ig]);
-      x[2] = (0.5 * (1. + _xgp[2][ig]));
-    }
-    else {
-      x[0] = (_xgp[0][ig] + _xgp[1][ig] + _xgp[2][ig]);
-      if(TETtype == 1) {
-        x[1] = (_xgp[1][ig] + _xgp[2][ig]);
-        x[2] = (_xgp[2][ig]);
-      }
-      else { //TETtype == 2
-        x[1] = (_xgp[2][ig] + _xgp[0][ig]);
-        x[2] = (_xgp[0][ig]);
-      }
-    }
-
-    PolyBasis(x, bo);
-
-    double weight = 0.;
-    for(unsigned i = 0; i < _L; i++) {
-      weight += static_cast<double>(_Co[i] * bo[i]);
-    }
-    weightCF[ig] = static_cast<TypeIO>(weight);
-  }
-
-//   if(wMap) {
-//     _WeightMap[s+1][_key] = weightCF;
-//   }
-
-//time3 += clock() - time;
-//std::cout << time1 << " " << time2 << " " << time3 << std::endl;
-};
-
-
-template <class TypeIO, class TypeA>
-void CutFemWeight<TypeIO, TypeA>::PolyBasis(const std::vector<double> &x, std::vector<double> &bo) {
-  unsigned count = 0;
-
-  if(_dim == 3) {
-
-    _bOld3d.resize(_qM + 1);
-    _bNew3d.resize(_qM + 1);
-    for(unsigned q = 0; q <= _qM; q++) {
-      _bOld3d[q].assign(_qM + 1, std::vector<TypeIO>(_qM + 1));
-      _bNew3d[q].assign(_qM + 1, std::vector<TypeIO>(_qM + 1));
-    }
-
-    bo[0] = _bNew3d[0][0][0] = 1.;
-    for(unsigned q = 1; q <= _qM; q++) {
-      _bOld3d.swap(_bNew3d);
-      for(int ii = q; ii >= 0; ii--) {
-        for(int jj = q - ii; jj >= 0; jj--) {
-          count++;
-          unsigned i = static_cast<unsigned>(ii);
-          unsigned j = static_cast<unsigned>(jj);
-          unsigned k = q - i - j;
-          if(i > j) {
-            if(i > k) {
-              bo[count] = _bNew3d[i][j][k] = _bOld3d[i - 1][j][k] * x[0];
-            }
-            else {
-              bo[count] = _bNew3d[i][j][k] = _bOld3d[i][j][k - 1] * x[2];
-            }
-          }
-          else {
-            if(j > k) {
-              bo[count] = _bNew3d[i][j][k] = _bOld3d[i][j - 1][k] * x[1];
-            }
-            else {
-              bo[count] = _bNew3d[i][j][k] = _bOld3d[i][j][k - 1] * x[2];
-            }
-          }
-        }
-      }
-    }
-  }
-  else if(_dim == 2) {
-    _bOld2d.assign(_qM + 1, std::vector<TypeIO>(_qM + 1));
-    _bNew2d.assign(_qM + 1, std::vector<TypeIO>(_qM + 1));
-    bo[0] = _bNew2d[0][0] = 1.;
-    for(unsigned q = 1; q <= _qM; q++) {
-      _bOld2d.swap(_bNew2d);
-      for(unsigned j = 0; j <= q; j++) {
-        count++;
-        unsigned i = q - j;
-        if(i > j) bo[count] = _bNew2d[i][j] = _bOld2d[i - 1][j] * x[0];
-        else bo[count] = _bNew2d[i][j] = _bOld2d[i][j - 1] * x[1];
-      }
-    }
-  }
-  else if(_dim == 1) {
-    bo[0] = 1;
-    for(unsigned i = 1; i <= _qM; i++) {
-      bo[i] = bo[i - 1] * x[0];
-    }
-  }
-  else {
-    std::cout << " Dimension =" << _dim << " not admissible" << std::endl;
-    abort();
-  }
+  EvaluateMomentWeights(weightCF, B0index);
 }
 
 #endif
-
-
-
-
-
-
-
-
-
-
-

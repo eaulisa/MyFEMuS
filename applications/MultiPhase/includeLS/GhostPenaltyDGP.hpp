@@ -83,7 +83,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
 
     if (P1) {
       return (Ciel > 0.1 /*&& Ciel < 0.9*/);
-    } else {
+    }
+    else {
       return (Ciel < 0.9 /*&& Ciel > 0.1*/);
     }
 
@@ -95,7 +96,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
 
     double Ciel = (*mysolution->_Sol[indexSolC])(iel);
 
-     // if(Ciel > 0 && Ciel < 1) {
+    // if(Ciel > 0 && Ciel < 1) {
 //    if(true) {
     if (flag(iel_level, Ciel)) {
 
@@ -138,7 +139,6 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
       // double h11 = (vx[0][2] - vx[0][0]);
       // double h12 = (vx[1][2] - vx[1][0]);
 
-
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
         int jel = el->GetFaceElementIndex(iel, iface) - 1;
 
@@ -154,7 +154,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
             if ((flag(jel_level, Cjel) /*&& jel > iel*/) /*|| Cjel == P1*/) {
 
               //std::cout<<((P1)?"a":"b");
- //           if(jel > iel) {
+//           if(jel > iel) {
 
               solP2 = (*mysolution->_Sol[indexSol])(jel);
 
@@ -211,7 +211,6 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
                 std::vector < double> normal;
                 msh->_finiteElement[faceGeom][solTypeX]->JacobianSur(faceVx, ig, weight, phi, gradPhi, normal);
 
-
                 // double h = 0.5 * (fabs(h11 * normal[0] + h12 * normal[1]) + fabs(h21 * normal[0] + h22 * normal[1])); //characteristic lenght in normal direction
 
                 double C1 = C0 * /*10 **/ 0.05 * h;// / mu; // h * h / (sigma * dt); dt /(rho * h);
@@ -248,7 +247,6 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
     }
   }
 
-
   if(nprocs > 1) {
     for(unsigned kp = 0; kp < nprocs; kp++) {
       for(unsigned kel = msh->_elementOffset[kp]; kel < msh->_elementOffset[kp + 1]; kel++) {
@@ -262,9 +260,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
         MPI_Bcast(&kel_level, 1, MPI_UNSIGNED, kp, MPI_COMM_WORLD);
         MPI_Bcast(&Ckel, 1, MPI_DOUBLE, kp, MPI_COMM_WORLD);
 
-
         if (flag(kel_level, Ckel)) {
-        // if(Ckel > 0 && Ckel < 1) {
+          // if(Ckel > 0 && Ckel < 1) {
 //        if(true) {
           // double h11;
           // double h12;

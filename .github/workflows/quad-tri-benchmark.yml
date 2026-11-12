@@ -1,0 +1,48 @@
+name: QUAD TRI benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - rifat-cutfem-rebuild
+    paths:
+      - 'unittests/testCutFemWeightLSNative/benchmark_quad_tri.cpp'
+      - 'unittests/testCutFemWeightLSNative/compare_quad_tri_benchmark.py'
+      - '.github/workflows/quad-tri-benchmark.yml'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout rebuild
+        uses: actions/checkout@v4
+        with:
+          ref: rifat-cutfem-rebuild
+          path: candidate
+      - name: Checkout rifat baseline
+        uses: actions/checkout@v4
+        with:
+          ref: 0ff0669494e603be248d02c44c0a2e9b81f72b4d
+          path: baseline
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ python3 libboost-dev libeigen3-dev
+      - name: Build identical benchmark against both refs
+        run: |
+          COMMON="-std=c++14 -O3 -DNDEBUG -march=x86-64 -mtune=generic"
+          g++ $COMMON -Icandidate/src/quadrature/cutfem_ls -Icandidate/src/quadrature -Icandidate/src/enums -Icandidate/src/fe -I/usr/include/eigen3 candidate/unittests/testCutFemWeightLSNative/benchmark_quad_tri.cpp -o benchmark_candidate
+          g++ $COMMON -Ibaseline/src/quadrature/cutfem_ls -Ibaseline/src/quadrature -Ibaseline/src/enums -Ibaseline/src/fe -I/usr/include/eigen3 candidate/unittests/testCutFemWeightLSNative/benchmark_quad_tri.cpp -o benchmark_baseline
+      - name: Run interleaved benchmark
+        run: |
+          taskset -c 0 ./benchmark_baseline > baseline_a.csv
+          taskset -c 0 ./benchmark_candidate > candidate_a.csv
+          taskset -c 0 ./benchmark_candidate > candidate_b.csv
+          taskset -c 0 ./benchmark_baseline > baseline_b.csv
+      - name: Compare results
+        run: python3 candidate/unittests/testCutFemWeightLSNative/compare_quad_tri_benchmark.py baseline_a.csv candidate_a.csv candidate_b.csv baseline_b.csv | tee benchmark_summary.txt
+      - name: Print raw failures
+        run: |
+          echo "=== BASELINE FAILURES ==="
+          grep ',FAIL,' baseline_a.csv || true
+          echo "=== REBUILD FAILURES ==="
+          grep ',FAIL,' candidate_a.csv || true

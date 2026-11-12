@@ -1,0 +1,51 @@
+name: TRI circle source comparison
+
+on:
+  push:
+    branches:
+      - rifat-cutfem-fastgraph-result
+    paths:
+      - 'src/quadrature/cutfem_ls/LineDomainIntegration.hpp'
+      - 'src/quadrature/cutfem_ls/TriangleIntegration.hpp'
+      - 'src/quadrature/cutfem_ls/Tri7DirectionSelection.hpp'
+      - 'unittests/testCutFemWeightLSNative/tri_circle_probe.cpp'
+      - '.github/workflows/tri-circle-source-comparison.yml'
+  workflow_dispatch:
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: candidate
+          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with:
+          ref: 39bdedb4b93e6e5f7a21ab4a154eaf3e3538fdaa
+          path: reviewed
+      - uses: actions/checkout@v4
+        with:
+          ref: 0ff0669494e603be248d02c44c0a2e9b81f72b4d
+          path: baseline
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ libboost-dev libeigen3-dev
+      - name: Build probes
+        run: |
+          COMMON="-std=c++14 -O3 -DNDEBUG -march=x86-64 -mtune=generic"
+          SRC=candidate/unittests/testCutFemWeightLSNative/tri_circle_probe.cpp
+          g++ $COMMON -Icandidate/src/quadrature/cutfem_ls -Icandidate/src/quadrature -Icandidate/src/enums -Icandidate/src/fe -I/usr/include/eigen3 $SRC -o probe_candidate
+          g++ $COMMON -Ireviewed/src/quadrature/cutfem_ls -Ireviewed/src/quadrature -Ireviewed/src/enums -Ireviewed/src/fe -I/usr/include/eigen3 $SRC -o probe_reviewed
+          g++ $COMMON -Ibaseline/src/quadrature/cutfem_ls -Ibaseline/src/quadrature -Ibaseline/src/enums -Ibaseline/src/fe -I/usr/include/eigen3 $SRC -o probe_baseline
+      - name: Run candidate
+        run: ./probe_candidate > candidate.log && cat candidate.log
+      - name: Report historical 39bdedb4 probe
+        if: always()
+        continue-on-error: true
+        run: ./probe_reviewed > reviewed.log && cat reviewed.log
+      - name: Report historical rifat probe
+        if: always()
+        continue-on-error: true
+        run: ./probe_baseline > baseline.log && cat baseline.log

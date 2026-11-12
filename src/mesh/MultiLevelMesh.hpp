@@ -16,7 +16,6 @@ PURPOSE.  See the above copyright notice for more information.
 #ifndef __femus_mesh_MultiLevelMesh_hpp__
 #define __femus_mesh_MultiLevelMesh_hpp__
 
-
 #include <vector>
 #include "ElemTypeEnum.hpp"
 #include "GeomElTypeEnum.hpp"
@@ -25,133 +24,146 @@ PURPOSE.  See the above copyright notice for more information.
 #include <vector>
 namespace femus {
 
-
 //------------------------------------------------------------------------------
 // Forward declarations
 //------------------------------------------------------------------------------
-class elem_type;
-class Mesh;
-class Domain;
+  class elem_type;
+  class Mesh;
+  class Domain;
 
-/**
-* This class is a black box container to handle multilevel mesh.
-*/
+  /**
+  * This class is a black box container to handle multilevel mesh.
+  */
 
-class MultiLevelMesh {
+  class MultiLevelMesh {
 
-public:
+    public:
 
-    /** Constructor */
-    MultiLevelMesh();
+      /** Constructor */
+      MultiLevelMesh();
 
-    MultiLevelMesh(MultiLevelMesh& mlmsh0, const unsigned level0, const unsigned levelN, const char GaussOrder[]);
+      MultiLevelMesh(MultiLevelMesh& mlmsh0, const unsigned level0, const unsigned levelN, const char GaussOrder[]);
 
-    MultiLevelMesh(const unsigned short &igridn,const unsigned short &igridr,
-                   const char mesh_file[], const char GaussOrder[], const double Lref,
-                   bool (* SetRefinementFlag)(const std::vector < double > &x,
-                           const int &ElemGroupNumber,const int &level));
-    
-    /** Destructor */
-    ~MultiLevelMesh();
-    void clear();
-    void resize(const unsigned Nlevels);
+      MultiLevelMesh(const unsigned short &igridn, const unsigned short &igridr,
+                     const char mesh_file[], const char GaussOrder[], const double Lref,
+                     bool (* SetRefinementFlag)(const std::vector < double > &x,
+                         const int &ElemGroupNumber, const int &level));
 
-    /** Read the coarse-mesh from an input file (call the right reader from the extension) */
-    void ReadCoarseMesh(const char mesh_file[], const char GaussOrder[], const double Lref);
+      /** Destructor */
+      ~MultiLevelMesh();
+      void clear();
+      void resize(const unsigned Nlevels);
 
-    /** Read the coarse-mesh from an input file (call the right reader from the extension) */
-    void ReadCoarseMesh(const char mesh_file[], const char GaussOrder[], const double Lref, const bool read_groups, const bool read_boundary_groups);
+      /** Read the coarse-mesh from an input file (call the right reader from the extension) */
+      void ReadCoarseMesh(const char mesh_file[], const char GaussOrder[], const double Lref);
 
-    /** Built-in cube-structured mesh generator */
-    void GenerateCoarseBoxMesh( const unsigned int nx,
-                               const unsigned int ny,
-                               const unsigned int nz,
-                               const double xmin, const double xmax,
-                               const double ymin, const double ymax,
-                               const double zmin, const double zmax,
-                               const ElemType type,
-                               const char GaussOrder[]
-                             );
+      /** Read the coarse-mesh from an input file (call the right reader from the extension) */
+      void ReadCoarseMesh(const char mesh_file[], const char GaussOrder[], const double Lref, const bool read_groups, const bool read_boundary_groups);
 
-    /** Refine the coarse mesh (totally or selectively (in according to the SetRefinementFlag user-function) ) */
-    void RefineMesh(const unsigned short &igridn, const unsigned short &igridr,
-                    bool (* SetRefinementFlag)(const std::vector < double >& x,
-                            const int &ElemGroupNumber,const int &level));
+      /** Built-in cube-structured mesh generator */
+      void GenerateCoarseBoxMesh( const unsigned int nx,
+                                  const unsigned int ny,
+                                  const unsigned int nz,
+                                  const double xmin, const double xmax,
+                                  const double ymin, const double ymax,
+                                  const double zmin, const double zmax,
+                                  const ElemType type,
+                                  const char GaussOrder[]
+                                );
 
-    /** Add a partially refined mesh level in the AMR alghorithm **/
-    void AddAMRMeshLevel(const bool AMR_ALREADY_FLAGGED = false);
-    
-    
-    /** Get the mesh pointer to level i */
-    Mesh* GetLevel(const unsigned i) {
+      /** Refine the coarse mesh (totally or selectively (in according to the SetRefinementFlag user-function) ) */
+      void RefineMesh(const unsigned short &igridn, const unsigned short &igridr,
+                      bool (* SetRefinementFlag)(const std::vector < double >& x,
+                          const int &ElemGroupNumber, const int &level));
+
+      /** Add a partially refined mesh level in the AMR alghorithm **/
+      void AddAMRMeshLevel(const bool AMR_ALREADY_FLAGGED = false);
+
+      /** Get the mesh pointer to level i */
+      Mesh* GetLevel(const unsigned i) {
         return _level[i];
-    };
+      };
 
-    /** Get the mesh pointer to level i */
-    const Mesh* GetLevel(const unsigned i) const {
+      /** Get the mesh pointer to level i */
+      const Mesh* GetLevel(const unsigned i) const {
         return _level[i];
-    };
+      };
 
-    /** Get the number of grid */
-    unsigned GetNumberOfLevels() {
+      /** Get the number of grid */
+      unsigned GetNumberOfLevels() {
         return _gridn;
-    };
+      };
 
-    unsigned GetNumberOfLevels() const{
+      unsigned GetNumberOfLevels() const {
         return _gridn;
-    };
+      };
 
-    /** Erase levels_to_be_erased levels from the mesh array */
-    void EraseCoarseLevels(unsigned levels_to_be_erased);
-   
-    /** Print the mesh info for each level */
-    void PrintInfo();
+      /** Erase levels_to_be_erased levels from the mesh array */
+      void EraseCoarseLevels(unsigned levels_to_be_erased);
 
-    // data
-    const elem_type *_finiteElement[6][5];
-    
-    /** To be Added */
-    Writer* GetWriter() const {return _writer; }
+      /** Print the mesh info for each level */
+      void PrintInfo();
 
-    /** To be Added */
-    void SetWriter(const WriterEnum format) { _writer = Writer::build(format,this).release(); }
-    
-    /** Get the dimension of the problem (1D, 2D, 3D) */
-    const unsigned GetDimension() const;
+      // data
+      const elem_type *_finiteElement[6][5];
 
-    /** Domain (optional) */
-    Domain* GetDomain() const;
-    
-    /** Domain (optional) */
-    void    SetDomain(Domain* );    
-    
-protected:
+      /** To be Added */
+      Writer* GetWriter() const {
+        return _writer;
+      }
 
-private:
-    
-    void BuildElemType(const char GaussOrder[]);
-    
-    /**  */
-    unsigned short _gridn0;
-    unsigned short _gridn;
+      /** To be Added */
+      void SetWriter(const WriterEnum format) {
+        _writer = Writer::build(format, this).release();
+      }
 
-    /** Array of mesh */
-    bool _level0IsOwned = true;
-    std::vector <Mesh*> _level0;
-    std::vector <Mesh*> _level;
+      /** Get the dimension of the problem (1D, 2D, 3D) */
+      const unsigned GetDimension() const;
 
-    std::vector <bool> _finiteElementGeometryFlag;
-    
-    /** MultilevelMesh  writer */
-    Writer* _writer;
-    
-    /** Domain (optional) */
-    Domain* _domain;
-};
+      /** Domain (optional) */
+      Domain* GetDomain() const;
 
+      /** Domain (optional) */
+      void    SetDomain(Domain* );
+
+      Mesh* GenerateSingleElementMesh(
+        const GeomElType geometry,
+        const std::array<double, 3>& lo,
+        const std::array<double, 3>& hi,
+        const char GaussOrder[]) ;
+
+      Mesh* GenerateSingleAnalyticBallElementMesh(
+        GeomElType geometry,
+        const std::array<double, 3>& lo,
+        const std::array<double, 3>& hi,
+        const std::array<double, 3>& center,
+        double curvature,
+        const char GaussOrder[]);
+
+    protected:
+
+    private:
+
+      void BuildElemType(const char GaussOrder[]);
+
+      /**  */
+      unsigned short _gridn0;
+      unsigned short _gridn;
+
+      /** Array of mesh */
+      bool _level0IsOwned = true;
+      std::vector <Mesh*> _level0;
+      std::vector <Mesh*> _level;
+
+      std::vector <bool> _finiteElementGeometryFlag;
+
+      /** MultilevelMesh  writer */
+      Writer* _writer;
+
+      /** Domain (optional) */
+      Domain* _domain;
+  };
 
 } //end namespace femus
-
-
 
 #endif

@@ -21,7 +21,6 @@ struct Psi {
   }
 };
 
-
 template <class PsiFunc>
 auto make_refine_pred(const PsiFunc &psi, double tau_refine, fem::u32 max_level_cap) {
   return [&, tau_refine, max_level_cap](fem::u32 /*leaf*/,
@@ -71,13 +70,10 @@ auto make_coarsen_pred(const PsiFunc& psi, double tau_coarse, u32 min_level) {
   };
 }
 
-
 auto rotVel = [](double x, double y, double time) -> std::array<double, 2> {
 
   // double u = -y;
   // double v =  x;
-
-
 
   double T = 8.;
   x += 0.5;
@@ -86,15 +82,11 @@ auto rotVel = [](double x, double y, double time) -> std::array<double, 2> {
   double u = -2. * sin(M_PI * x) * sin(M_PI * x) * sin(M_PI * y) * cos(M_PI * y) * cos(M_PI * time / T);
   double v =  2. * sin(M_PI * x) * cos(M_PI * x) * sin(M_PI * y) * sin(M_PI * y) * cos(M_PI * time / T);
 
-
-
   // y += 0.25;
   //
   //
   // double u = sin(M_PI * 2 * x) * sin(M_PI * 2 * y) * cos(M_PI * time / T);
   // double v = cos(M_PI * 2 * x) * cos(M_PI * 2 * y) * cos(M_PI * time / T);
-
-
 
   return { u, v };
 };
@@ -174,16 +166,11 @@ int main() {
   qt.write_binary_vtu(filename, fid, "u", /*cell_centered=*/false);
   std::cout << "Printing " << filename << "\n";
 
-
-
-
-
   double period = 8;
   unsigned nIterations = 320;
 
   // double period = 2. * M_PI;
   // unsigned nIterations = 100;
-
 
   double dt = period / nIterations;
 
@@ -192,9 +179,6 @@ int main() {
     std::vector<std::array<double, 2>> vOld = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
     std::vector<std::array<double, 2>> vNew = {{+1, -1}, { +1, +1}, {-1, +1}, {-1, -1}, {+1, 0}, {0, +1}, {-1, 0,}, {0, -1}, {0, 0}};
     // fill vOld, vNew with {u,v} at coarse nodes
-
-
-
 
     double time = k * dt;
 
@@ -230,17 +214,6 @@ int main() {
   ProfilerStop();
   return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
 
 // // ---------------- Refine predicate based on a field ----------------
 // inline auto make_refine_pred_field(const QuadTree2D& qt, u32 fid,
@@ -301,18 +274,6 @@ int main() {
 //     return (mn > +tau_coarse) || (mx < -tau_coarse);
 //   };
 // }
-
-
-
-
-
-
-
-
-
-
-
-
 
 // int main() {
 //   // -------- Explicit control --------
@@ -444,15 +405,6 @@ int main() {
 //
 // }
 
-
-
-
-
-
-
-
-
-
 // for (u32 k = 1; k <= 5; k++) {
 //
 //   auto coords = qt.extract_node_coords_in_level_range(maxDepth, maxDepth, Basis::Q2_Quad9);
@@ -500,8 +452,6 @@ int main() {
 // return 0;
 
 //}
-
-
 
 // #include "QuadTree2D.hpp"
 // #include <iostream>

@@ -1,0 +1,11 @@
+[1794357690.927651] [f07d7b07ca06:28   :f]        vfs_fuse.c:413  UCX  ERROR failed to create VFS socket: Operation not permitted
+hwloc/linux: failed to find sysfs cpu topology directory, aborting linux discovery.
+ FemusInit(): PETSC_COMM_WORLD initialized
+
+Command-line error: Missing value for --gk-tangent-3d
+WARNING! There are options you set that were not used!
+WARNING! could be spelling mistake, etc!
+There is one unused database option. It is:
+Option left: name:--gk-tangent-3d (no value) source: command line
+
+ ~FemusInit(): PETSC_COMM_WORLD ends

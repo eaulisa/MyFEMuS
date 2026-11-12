@@ -1,0 +1,38 @@
+make: Entering directory '/workspace/scratch/83f2ea880287/femus-build'
+[ 10%] Building CXX object applications/MultiPhase/ex44/CMakeFiles/MultiPhase_ex44.dir/ex44.cpp.o
+In file included from /workspace/scratch/3abad1a1b7d4/tmp/parabola_deps/boost/usr/include/boost/mpi/datatype.hpp:20,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/parallel/MyVector.hpp:25,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/mesh/Elem.hpp:26,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/mesh/Mesh.hpp:22,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquation.hpp:24,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolver.hpp:30,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetsc.hpp:30,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/algebra/LinearEquationSolverPetscFieldSplit.hpp:26,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/ex44.cpp:9:
+/workspace/scratch/3abad1a1b7d4/tmp/parabola_deps/boost/usr/include/boost/mpi/config.hpp:20:9: warning: "OMPI_SKIP_MPICXX" redefined
+   20 | #define OMPI_SKIP_MPICXX
+      |         ^~~~~~~~~~~~~~~~
+In file included from /workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscbag.h:3,
+                 from /workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petsc.h:6,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/src/utils/FemusInit.hpp:32,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/ex44.cpp:7:
+/workspace/scratch/83f2ea880287/femus-deps/usr/lib/petscdir/petsc3.22/x86_64-linux-gnu-real/include/petscsys.h:61:11: note: this is the location of the previous definition
+   61 |   #define OMPI_SKIP_MPICXX 1
+      |           ^~~~~~~~~~~~~~~~
+In file included from /workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/ex44.cpp:31:
+/workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/../includeLS/BBoxToIel.hpp: In member function ‘unsigned int BBoxToIel::Flatten(const std::vector<unsigned int>&) const’:
+/workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/../includeLS/BBoxToIel.hpp:388:5: warning: control reaches end of non-void function [-Wreturn-type]
+  388 |     }
+      |     ^
+In file included from /workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/ex44.cpp:51:
+/workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/../includeLS/Utils.hpp: In function ‘std::vector<double> Velocity(std::vector<double>&, double, double)’:
+/workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/../includeLS/Utils.hpp:419:1: warning: control reaches end of non-void function [-Wreturn-type]
+  419 | }
+      | ^
+In file included from /workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/../includeLS/Shape.hpp:3,
+                 from /workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/ex44.cpp:29:
+/workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/../includeLS/Mollifier.hpp: In member function ‘double Mollifier::Sigmoid(double) const’:
+/workspace/scratch/83f2ea880287/MyFEMuS/applications/MultiPhase/ex44/../includeLS/Mollifier.hpp:153:5: warning: control reaches end of non-void function [-Wreturn-type]
+  153 |     }
+      |     ^
+make: Leaving directory '/workspace/scratch/83f2ea880287/femus-build'

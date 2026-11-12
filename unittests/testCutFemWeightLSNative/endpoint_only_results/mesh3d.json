@@ -1,0 +1,80 @@
+[
+  {
+    "command": [
+      "/workspace/scratch/83f2ea880287/MyFEMuS/unittests/testCutFemWeightLSNative/build/hex_tet_validation",
+      "mesh",
+      "HEX",
+      "2",
+      "4",
+      "1e-10"
+    ],
+    "exit": 0,
+    "stdout": "PASS,HEX,mesh,2,4,64,1.14302014034284305e-15,4.85722573273505986e-17,8.24467989539445778e-17,3.90312782094781596e-18,5.35245410400000043\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/workspace/scratch/83f2ea880287/MyFEMuS/unittests/testCutFemWeightLSNative/build/hex_tet_validation",
+      "mesh",
+      "HEX",
+      "2",
+      "8",
+      "1e-10"
+    ],
+    "exit": 0,
+    "stdout": "PASS,HEX,mesh,2,8,512,6.45100292628875138e-18,2.60208521396521064e-17,4.47233396150270579e-19,6.34258270904020094e-18,2.22575182400000005\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/workspace/scratch/83f2ea880287/MyFEMuS/unittests/testCutFemWeightLSNative/build/hex_tet_validation",
+      "mesh",
+      "HEX",
+      "2",
+      "16",
+      "1e-10"
+    ],
+    "exit": 0,
+    "stdout": "PASS,HEX,mesh,2,16,4096,2.16840434497100887e-18,7.37257477290143015e-18,4.06575814682064163e-20,7.04731412115577882e-19,3.44286546500000012\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/workspace/scratch/83f2ea880287/MyFEMuS/unittests/testCutFemWeightLSNative/build/hex_tet_validation",
+      "mesh",
+      "TET",
+      "2",
+      "4",
+      "1e-10"
+    ],
+    "exit": 0,
+    "stdout": "PASS,TET,mesh,2,4,384,5.6600774414605759e-15,1.53089346754953226e-16,1.85032449973900059e-14,3.8807390460859903e-15,16.3141681890000001\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/workspace/scratch/83f2ea880287/MyFEMuS/unittests/testCutFemWeightLSNative/build/hex_tet_validation",
+      "mesh",
+      "TET",
+      "2",
+      "8",
+      "1e-10"
+    ],
+    "exit": 0,
+    "stdout": "PASS,TET,mesh,2,8,3072,9.57458938521948966e-16,3.20923843055709312e-17,2.27394465019889469e-15,3.31765864780564357e-17,9.40722501499999986\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/workspace/scratch/83f2ea880287/MyFEMuS/unittests/testCutFemWeightLSNative/build/hex_tet_validation",
+      "mesh",
+      "TET",
+      "2",
+      "16",
+      "1e-10"
+    ],
+    "exit": 0,
+    "stdout": "PASS,TET,mesh,2,16,24576,1.52764086103207575e-16,4.33680868994201774e-19,2.69695290405769228e-17,1.62630325872825665e-19,71.4784709980000059\n",
+    "stderr": ""
+  }
+]

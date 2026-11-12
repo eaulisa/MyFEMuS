@@ -1024,15 +1024,12 @@ namespace femus {
             std::vector <Mat> &Agmg = this->GetChild(i)->GetAgmg();
             if (level + 1 > Agmg.size())   Agmg.resize(level + 1, NULL);
 
-             std::vector <Mat> &Bgmg = this->GetChild(i)->GetBgmg();
+            std::vector <Mat> &Bgmg = this->GetChild(i)->GetBgmg();
             if (level + 1 > Bgmg.size())   Bgmg.resize(level + 1, NULL);
 
             Mat Amat;
             Mat Bmat;
             KSPGetOperators(kspLevelSplit[i], &Amat, &Bmat);
-
-
-
 
             Mat newBmat = nullptr;
             PetscBool isSchurMatrix = PETSC_FALSE;
@@ -1050,9 +1047,7 @@ namespace femus {
             if(Bgmg[level] != nullptr) PetscCallAbort(PETSC_COMM_WORLD, MatDestroy(&Bgmg[level]));
             Bgmg[level] = newBmat;
 
-
-            Agmg[level] = (true)? Amat : Bmat;
-
+            Agmg[level] = (true) ? Amat : Bmat;
 
             std::vector <Mat> &Pgmg = this->GetChild(i)->GetPgmg();
             std::vector <Mat> &Rgmg = this->GetChild(i)->GetRgmg();

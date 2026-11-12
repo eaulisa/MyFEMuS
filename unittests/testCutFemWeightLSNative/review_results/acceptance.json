@@ -1,0 +1,14 @@
+{
+  "accepted": true,
+  "input_sha": "1a4c2c5fefa6a783fe27c1e2132073307e839314",
+  "production_changes": "M src/quadrature/cutfem_ls/LineDomainIntegration.hpp\n M src/quadrature/cutfem_ls/Quad9DirectionSelection.hpp\n M src/quadrature/cutfem_ls/Tri7DirectionSelection.hpp",
+  "production_manifest_sha256": "156c6a532453b407fd272f79c282e74d15d389b985a4ee2ab5c4cfb8f825346e",
+  "elapsed_seconds": 469.0585891210003,
+  "standalone_regressions": "PASS",
+  "asan_ubsan": "PASS",
+  "checker_self_tests": "PASS",
+  "mesh_refinement": "PASS",
+  "mesh_refinement_cases": 30,
+  "momentwise_baseline_comparison": "PASS",
+  "momentwise_reviewed_comparison": "PASS"
+}

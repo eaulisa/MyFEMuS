@@ -1,0 +1,74 @@
+[
+  {
+    "application": "ex44",
+    "mode": "help",
+    "arguments": [
+      "--gk-regular-2d",
+      "2/5",
+      "--gk-tangent-2d",
+      "6/13",
+      "--gk-regular-3d",
+      "10/21",
+      "--gk-tangent-3d",
+      "14-29",
+      "--help"
+    ],
+    "exit_code": 0,
+    "passed": true
+  },
+  {
+    "application": "ex44",
+    "mode": "invalid",
+    "arguments": [
+      "--gk-regular-2d",
+      "7/31"
+    ],
+    "exit_code": 1,
+    "passed": true
+  },
+  {
+    "application": "ex44",
+    "mode": "missing",
+    "arguments": [
+      "--gk-tangent-3d"
+    ],
+    "exit_code": 1,
+    "passed": true
+  },
+  {
+    "application": "ex44_test",
+    "mode": "help",
+    "arguments": [
+      "--gk-regular-2d",
+      "2/5",
+      "--gk-tangent-2d",
+      "6/13",
+      "--gk-regular-3d",
+      "10/21",
+      "--gk-tangent-3d",
+      "14-29",
+      "--help"
+    ],
+    "exit_code": 0,
+    "passed": true
+  },
+  {
+    "application": "ex44_test",
+    "mode": "invalid",
+    "arguments": [
+      "--gk-regular-2d",
+      "7/31"
+    ],
+    "exit_code": 1,
+    "passed": true
+  },
+  {
+    "application": "ex44_test",
+    "mode": "missing",
+    "arguments": [
+      "--gk-tangent-3d"
+    ],
+    "exit_code": 1,
+    "passed": true
+  }
+]

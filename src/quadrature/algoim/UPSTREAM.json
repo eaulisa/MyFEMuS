@@ -1,0 +1,139 @@
+{
+  "repository": "https://github.com/algoim/algoim",
+  "commit": "da1d81499608e1d499695d255f0233140b8c81e8",
+  "modified_upstream_files": false,
+  "files": [
+    {
+      "file": "LICENSE",
+      "git_blob": "8c2302650552febe4ecaff957db0445ba28b6235",
+      "size_bytes": 2396,
+      "sha256": "b8f2406a7235fa82c2711a92e74af36da72debe0e88151064a436014e2f4e779"
+    },
+    {
+      "file": "README.md",
+      "git_blob": "5e61247d03d1f4bcd8cfce5d98a92cf053b7151f",
+      "size_bytes": 1070,
+      "sha256": "900f5da881a85324f0f00b3a32c75558323e5fe821bd9ddc59c77b4dd090b6e2"
+    },
+    {
+      "file": "bernstein.hpp",
+      "git_blob": "fd11a81341ec6146977a2319c3058db081ab2726",
+      "size_bytes": 38876,
+      "sha256": "dbfa3d44b821a1e44bdcba326d5f40c350f2506161168878089dc0897b12255d"
+    },
+    {
+      "file": "binomial.hpp",
+      "git_blob": "9d4017034a6e1c64f73b54a12de76743ac8ec4bd",
+      "size_bytes": 2212,
+      "sha256": "232b72bfd002a84af44ce4aea1632143d907563fc0bafaed6ec4c9f04175b4d2"
+    },
+    {
+      "file": "booluarray.hpp",
+      "git_blob": "b02795c41f60c44923c7e2e3249ef0c70538c1b7",
+      "size_bytes": 1463,
+      "sha256": "5acb420b9bdbde7c55b9a68575967cd4b03a01c96d838c9311b154db5195f0c1"
+    },
+    {
+      "file": "gaussquad.hpp",
+      "git_blob": "fddc70ab13a84b0a334f5140672be3e7ea4d5ba7",
+      "size_bytes": 241196,
+      "sha256": "79e8ac25ac6d3e843d5db7cee4df8a044a6017ef4d213334aaab9ac3cf538596"
+    },
+    {
+      "file": "hocp.hpp",
+      "git_blob": "f991c5fcfbca9225d314f934181d0386e350eb84",
+      "size_bytes": 9989,
+      "sha256": "e839512ad46a948277db97537aa9adafc5dd2e3f290aee0eee2a853fecc820a4"
+    },
+    {
+      "file": "hyperrectangle.hpp",
+      "git_blob": "9668a656bd5f85df852bd27609b2fdf6bd6ef155",
+      "size_bytes": 1853,
+      "sha256": "3683e72eb123eab749175924611c2b84083d4e4bd9c2af361c80373367eb52b6"
+    },
+    {
+      "file": "interval.hpp",
+      "git_blob": "416dfcd29dfe9f022ebea3138d34f12fc8ced13d",
+      "size_bytes": 13579,
+      "sha256": "18e1141aed5ee882850ca332753b6e8e65748980a8fb1de98b2acd19e5724ca1"
+    },
+    {
+      "file": "kdtree.hpp",
+      "git_blob": "ad8facd0df2dd6ca0e7c889329039f25b447ad55",
+      "size_bytes": 11688,
+      "sha256": "2190c175c166be4a2e280ad51f102e1986ebe79aa1b1f2634ed049a05a16d36e"
+    },
+    {
+      "file": "multiloop.hpp",
+      "git_blob": "77ba935e11a3d6f4adcff3a0a2c86ab333fe13ff",
+      "size_bytes": 1415,
+      "sha256": "bbf3b14776a83c203f671d167fb953ac84d1101282df23d7106fa24e7f1212b1"
+    },
+    {
+      "file": "newtoncp.hpp",
+      "git_blob": "005a37836626d6ed6d2384233e40738bda61310b",
+      "size_bytes": 6979,
+      "sha256": "14184e8e1a8e14dfc430d168d6f426da5a3f90c851608f0f954c1024283995f9"
+    },
+    {
+      "file": "polyset.hpp",
+      "git_blob": "08c8fd648d53511b1371e4a6e2959c06149b6e14",
+      "size_bytes": 1602,
+      "sha256": "2e4799398db2a3fc2cf163091d5dfed179ce74007691cf988a0ca8ca6c28f148"
+    },
+    {
+      "file": "quadrature_general.hpp",
+      "git_blob": "bb3e16de85cad1ba9501c72741753b857430c579",
+      "size_bytes": 31625,
+      "sha256": "94513cacb3f4af5af5a1674f5693ff25892c75704daf6bb71d93e5c0bbdf7083"
+    },
+    {
+      "file": "quadrature_multipoly.hpp",
+      "git_blob": "51e4a7bae13b72e678d8dfd7079b08f794daed44",
+      "size_bytes": 36716,
+      "sha256": "4f5879659e41d11a92f6f8f4b39e7917019fec5b0c66630262e7c1830e8d364f"
+    },
+    {
+      "file": "real.hpp",
+      "git_blob": "c2ec29b719eabcc7bf3d1153517df7aa2246f7c4",
+      "size_bytes": 663,
+      "sha256": "0efa793b989da85e19b310198bfc1d31fe14dda42f29373edd94b13b4d945f44"
+    },
+    {
+      "file": "sparkstack.hpp",
+      "git_blob": "b521a31bb13f53fa0b50c00f7ebbc00e95c45c12",
+      "size_bytes": 3670,
+      "sha256": "0244f49eafaa17c9f24cb5d50ed2430ac34555dcc02e9a61fd8e8540aee6e1c7"
+    },
+    {
+      "file": "stencilpoly.hpp",
+      "git_blob": "1966fa7b1ff63bceb746394e00a87500189cf277",
+      "size_bytes": 439479,
+      "sha256": "218a9cb33777855cdb7b71057eae241d015b1fe2225dadd1c6e76744be287ada"
+    },
+    {
+      "file": "tanhsinh.hpp",
+      "git_blob": "94a64b44fa1698e10b604ad20d845ffce1921c86",
+      "size_bytes": 6741,
+      "sha256": "633f9a3a4adec27627723a78f0b33c24190a60b4a4552ef2b9a9408907172cf9"
+    },
+    {
+      "file": "utility.hpp",
+      "git_blob": "a5cf3415752c4a1a84fc2c2c3fceb1383b38989a",
+      "size_bytes": 2173,
+      "sha256": "413c13d5997a55574842623403d3297e2b450fd1a4f223e86ceb781e8f968bce"
+    },
+    {
+      "file": "uvector.hpp",
+      "git_blob": "e8d8d36503d6d4e43132a0e28467490801e6bb7a",
+      "size_bytes": 15190,
+      "sha256": "43c93ea63c4d1d0f46a91a0dd9e59c80ffee42facd6148fce42df0b6a2c354e9"
+    },
+    {
+      "file": "xarray.hpp",
+      "git_blob": "68439eb0ae86687029ba698bfba7cebdc33a8e59",
+      "size_bytes": 10808,
+      "sha256": "58bc0f20011485c0e31c35c370096db59142a07abd1a5a3c10fc84d82e0c0194"
+    }
+  ]
+}

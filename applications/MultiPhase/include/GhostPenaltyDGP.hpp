@@ -79,7 +79,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
     double Ciel = (*mysolution->_Sol[indexSolC])(iel);
 
 //     if(Ciel > 0 && Ciel < 1) {
-    if(true){
+    if(true) {
 
       short unsigned ielt1 = msh->GetElementType(iel);
       unsigned nDofsX = msh->GetElementDofNumber(iel, solTypeX);    // number of solution element dofs
@@ -90,7 +90,6 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
       solP1 = (*mysolution->_Sol[indexSol])(iel);
       sysDofsP1[0] = myLinEqSolver->GetSystemDof(indexSol, indexPde, 0, iel);
 
-
       for(unsigned i = 0; i < nDofsX; i++) {
         unsigned idofX = msh->GetSolutionDof(i, iel, solTypeX);
         for(unsigned  k = 0; k < dim; k++) {
@@ -99,7 +98,6 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
       }
       double h11 = (vx[0][2] - vx[0][0]);
       double h12 = (vx[1][2] - vx[1][0]);
-
 
       for(unsigned iface = 0; iface < msh->GetElementFaceNumber(iel); iface++) {
         int jel = el->GetFaceElementIndex(iel, iface) - 1;
@@ -111,7 +109,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
             double Cjel = (*mysolution->_Sol[indexSolC])(jel);
 
 //             if((Cjel > 0 && Cjel < 1 && jel > iel) || Cjel == P1) {
-            if(jel > iel){
+            if(jel > iel) {
 
               solP2 = (*mysolution->_Sol[indexSol])(jel);
 
@@ -180,7 +178,6 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
     }
   }
 
-
   if(nprocs > 1) {
     for(unsigned kp = 0; kp < nprocs; kp++) {
       for(unsigned kel = msh->_elementOffset[kp]; kel < msh->_elementOffset[kp + 1]; kel++) {
@@ -191,9 +188,8 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
         }
         MPI_Bcast(&Ckel, 1, MPI_DOUBLE, kp, MPI_COMM_WORLD);
 
-
 //         if(Ckel > 0 && Ckel < 1) {
-        if(true){
+        if(true) {
           double h11;
           double h12;
           unsigned nFaces;
@@ -235,7 +231,7 @@ void AssembleGhostPenaltyDGP(MultiLevelProblem& ml_prob, const bool &P1) {
                   Cjel = (*mysolution->_Sol[indexSolC])(jel);
                   MPI_Send(&Cjel, 1, MPI_DOUBLE, kp, 0, MPI_COMM_WORLD);
 //                   if((Cjel > 0 && Cjel < 1 && jel > kel) || Cjel == P1) {
-                  if(jel > kel){    
+                  if(jel > kel) {
                     double solP2d = (*mysolution->_Sol[indexSol])(jel);
                     unsigned idofX0 = msh->GetSolutionDof(0, jel, solTypeX);
                     unsigned idofX2 = msh->GetSolutionDof(2, jel, solTypeX);

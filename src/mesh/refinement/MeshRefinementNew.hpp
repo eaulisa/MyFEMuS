@@ -23,7 +23,6 @@
 
 namespace femus {
 
-
   class Mesh;
   class elem_type;
 
@@ -57,7 +56,6 @@ namespace femus {
       /** Flag the elements to be refined in according to AMR criteria */
       bool FlagElementsToBeRefined();
 
-
     private:
 
       void FlagElementsToRefine(const unsigned& type);
@@ -71,7 +69,6 @@ namespace femus {
       Mesh& _mesh;                 //< reference to the mesh which is built by refinement
 
   };
-
 
   const unsigned coarse2FineFaceMapping[6][6][4][2] = { // fine element,fine face=c2FFM[element type][coarse face][face split index][0,1]
     {
@@ -173,9 +170,6 @@ namespace femus {
     }
   };
 
-
 }   //end namespace femus
-
-
 
 #endif

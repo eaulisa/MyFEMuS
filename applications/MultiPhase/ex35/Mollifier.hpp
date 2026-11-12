@@ -140,9 +140,13 @@ class Mollifier {
       return -1. + 2. * GetSmoothStepFunctionC1(dg1);
     }
 
-    inline double eps() const noexcept { return _eps; }
+    inline double eps() const noexcept {
+      return _eps;
+    }
 
-    inline double c1() const noexcept { return _c1; }
+    inline double c1() const noexcept {
+      return _c1;
+    }
 
   private:
     // Shared half-width of the transition (exact 0/1 outside ±eps)

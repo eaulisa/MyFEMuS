@@ -54,13 +54,20 @@ inline void writeMeshFieldVTU(const std::string& filename,
   // ---- precompute total connectivity size ----
   auto cellNConn = [](unsigned et) -> std::size_t {
     switch (et) {
-    case 0: return 27; // Hex27
-    case 1: return 10; // Tet15 -> Tet10
-    case 2: return 18; // Wedge21 -> Wedge18
-    case 3: return 9;  // Quad9
-    case 4: return 6;  // Tri7 -> Tri6
-    case 5: return 3;  // Line3
-    default: throw std::runtime_error("writeMeshFieldVTU: unknown elType");
+      case 0:
+        return 27; // Hex27
+      case 1:
+        return 10; // Tet15 -> Tet10
+      case 2:
+        return 18; // Wedge21 -> Wedge18
+      case 3:
+        return 9;  // Quad9
+      case 4:
+        return 6;  // Tri7 -> Tri6
+      case 5:
+        return 3;  // Line3
+      default:
+        throw std::runtime_error("writeMeshFieldVTU: unknown elType");
     }
   };
 
@@ -93,11 +100,21 @@ inline void writeMeshFieldVTU(const std::string& filename,
     else {
       for (std::size_t j = 0; j < n; ++j) connectivity[w++] = static_cast<int32_t>(connU[j]);
       switch (et) {
-      case 1: types[e] = VTK_QUADRATIC_TETRA; break;
-      case 2: types[e] = VTK_BIQUADRATIC_QUADRATIC_WEDGE; break;
-      case 3: types[e] = VTK_BIQUADRATIC_QUAD; break;
-      case 4: types[e] = VTK_QUADRATIC_TRIANGLE; break;
-      case 5: types[e] = VTK_QUADRATIC_EDGE; break;
+        case 1:
+          types[e] = VTK_QUADRATIC_TETRA;
+          break;
+        case 2:
+          types[e] = VTK_BIQUADRATIC_QUADRATIC_WEDGE;
+          break;
+        case 3:
+          types[e] = VTK_BIQUADRATIC_QUAD;
+          break;
+        case 4:
+          types[e] = VTK_QUADRATIC_TRIANGLE;
+          break;
+        case 5:
+          types[e] = VTK_QUADRATIC_EDGE;
+          break;
       }
       off += static_cast<int32_t>(n);
     }
@@ -155,5 +172,3 @@ inline void writeMeshFieldVTU(const std::string& filename,
 
   std::cout << "Mesh+Field written to " << filename << " (VTU UNSTRUCTURED_GRID)\n";
 }
-
-

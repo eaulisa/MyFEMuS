@@ -1,4 +1,4 @@
- 
+
 #include <string>
 #include <vector>
 #include <stdexcept>
@@ -37,15 +37,16 @@ struct SimConfig {
 static inline unsigned dimFromSeed(MeshSeedFactory::Type t) {
   switch (t) {
     case MeshSeedFactory::Type::SquareQuad9:
-    case MeshSeedFactory::Type::SquareTri7:  return 2;
+    case MeshSeedFactory::Type::SquareTri7:
+      return 2;
     case MeshSeedFactory::Type::CubeHex27:
     case MeshSeedFactory::Type::CubeWedge21:
     case MeshSeedFactory::Type::CubeTet15:
-    case MeshSeedFactory::Type::SphereTet15:   return 3;
+    case MeshSeedFactory::Type::SphereTet15:
+      return 3;
   }
   throw std::runtime_error("Unknown mesh seed type");
 }
-
 
 static inline void applyDefaults(SimConfig& c) {
   c.dim = dimFromSeed(c.meshSeed);
@@ -56,7 +57,8 @@ static inline void applyDefaults(SimConfig& c) {
     if (c.delta_depth == 0) c.delta_depth = 5;
     if (c.shift.empty()) c.shift = {0.0, 0.0};
     if (c.xc.empty())    c.xc    = {0.0, 0.25};
-  } else {
+  }
+  else {
     if (c.levelNstart == 0) c.levelNstart = 6;
     if (c.delta_depth == 0) c.delta_depth = 4;
     if (c.shift.empty()) c.shift = {0.0, 0.0, 0.0};
@@ -66,7 +68,8 @@ static inline void applyDefaults(SimConfig& c) {
   // period rules
   if (c.velocityType == RungeKutta::VelKind::Rotation) {
     c.period = (c.dim == 2) ? 2.0 * M_PI :  2. * M_PI / sqrt(3.);
-  } else {
+  }
+  else {
     c.period = (c.dim == 2 ? 8.0 : 4.0);
   }
 
@@ -76,11 +79,13 @@ static inline void applyDefaults(SimConfig& c) {
       // needs +0.5 in y (unless user already overrode shift)
       if (c.shift.size() != 2) c.shift = {0.0, 0.0};
       c.shift[1] = 0.5;
-    } else {
+    }
+    else {
       if (c.shift.size() != 3) c.shift = {0.0, 0.0, 0.0};
       c.shift[2] = 0.5;
     }
-  } else {
+  }
+  else {
     // vortex/rotation default box => shift 0
     // (only if user didn't override shift explicitly)
     // If you want "always force zero", remove this guard.
@@ -95,7 +100,6 @@ static inline void applyDefaults(SimConfig& c) {
   if (c.shift.size() != c.dim) throw std::runtime_error("shift has wrong size");
   if (c.xc.size()    != c.dim) throw std::runtime_error("xc has wrong size");
 }
-
 
 static inline bool starts_with(const char* s, const char* pref) {
   return std::strncmp(s, pref, std::strlen(pref)) == 0;
@@ -124,7 +128,7 @@ static inline MeshSeedFactory::Reshape parseShape(const std::string& v) {
 
 static inline MeshSeedFactory::Type parseSeed(const std::string& v) {
   const std::string s = toLower(v);
-  std::cout<<s<<std::endl;
+  std::cout << s << std::endl;
   if (s == "tri7")  return MeshSeedFactory::Type::SquareTri7;
   if (s == "quad9") return MeshSeedFactory::Type::SquareQuad9;
   if (s == "hex27") return MeshSeedFactory::Type::CubeHex27;
@@ -148,119 +152,113 @@ static inline void parseVec(std::vector<double>& out, const char* s) {
   }
 }
 
-
-
 static inline void printHelp(const char* prog) {
   std::cout
-  << "\n"
-  << "Usage:\n"
-  << "  " << prog << " [options]\n"
-  << "\n"
-  << "Goal:\n"
-  << "  Run a 2D or 3D simulation choosing velocity test, mesh seed, and domain reshape.\n"
-  << "  Most defaults depend on dimension (2D vs 3D) and velocity test.\n"
-  << "\n"
-  << "Options (all optional):\n"
-  << "  --help\n"
-  << "      Print this help and exit.\n"
-  << "\n"
-  << "  --vel <vortex|rotation|rising|risingBubble|bubble>\n"
-  << "      Velocity test.\n"
-  << "      Default: vortex\n"
-  << "\n"
-  << "  --mesh <quad9|tri7|hex27|wedge21|tet15>\n"
-  << "      Mesh seed type.\n"
-  << "      2D: quad9, tri7\n"
-  << "      3D: hex27, wedge21, tet15\n"
-  << "      Default: quad9 (2D)\n"
-  << "\n"
-  << "  --shape <box|identity|ball|funnel>\n"
-  << "      Domain reshape applied to the default box [-0.5,0.5]^dim.\n"
-  << "      Default: box (identity)\n"
-  << "\n"
-  << "  --steps <N>\n"
-  << "      Number of time steps.\n"
-  << "      Default: 320\n"
-  << "\n"
-  << "  --print <k>\n"
-  << "      Output frequency (print every k steps).\n"
-  << "      Default: 10\n"
-  << "\n"
-  << "  --uniformRef <L>\n"
-  << "      Uniform refinement level before adaptive refinement.\n"
-  << "      Default: 1 (but tet15 is forced to at least 2)\n"
-  << "\n"
-  << "  --levelNstart <L>\n"
-  << "      Starting AMR level (depends on dimension).\n"
-  << "      Default: 8 in 2D, 6 in 3D\n"
-  << "\n"
-  << "  --deltaDepth <D>\n"
-  << "      AMR depth increment (depends on dimension).\n"
-  << "      Default: 5 in 2D, 4 in 3D\n"
-  << "\n"
-  << "  --shift a,b[,c]\n"
-  << "      Shift applied to the domain/mesh seed.\n"
-  << "      Default depends on velocity test:\n"
-  << "        - vortex/rotation: (0,0) in 2D or (0,0,0) in 3D\n"
-  << "        - rising bubble:   forced to (0,0.5) in 2D or (0,0,0.5) in 3D\n"
-  << "      Note: shift length must match dimension.\n"
-  << "\n"
-  << "  --xc a,b[,c]\n"
-  << "      Bubble center location.\n"
-  << "      Default: (0,0.25) in 2D, (0,0,0.25) in 3D\n"
-  << "      Note: xc length must match dimension.\n"
-  << "\n"
-  << "  --r <radius>\n"
-  << "      Bubble radius.\n"
-  << "      Default: 0.15\n"
-  << "\n"
-  << "  --period <T>\n"
-  << "      Override the default period.\n"
-  << "      Default rule:\n"
-  << "        - rotation: 2*pi\n"
-  << "        - vortex or rising bubble: 8 (2D) or 4 (3D)\n"
-  << "\n"
-  << "  --reinit <n>\n"
-  << "      Enable field reinitialization each <n> iterations.\n"
-  << "      Default rule: off"
-  << "\n"
-  << "  --reinitAd <t>\n"
-  << "      Enable field reinitialization with adaptive frequence based on the tolerance <t>.\n"
-  << "      Default rule: off"
-  << "\n"
-  << "  --advectMarkers\n"
-  << "      Enable advection of markers.\n"
-  << "      Default rule: off"
-  << "\n"
-  << "Defaults summary (if you do not set anything):\n"
-  << "  --vel vortex\n"
-  << "  --mesh quad9  (=> 2D)\n"
-  << "  --shape box\n"
-  << "  --steps 320\n"
-  << "  --print 10\n"
-  << "  --uniformRef 1\n"
-  << "  2D defaults: levelNstart=8, deltaDepth=5, xc=(0,0.25), shift=(0,0)\n"
-  << "  3D defaults: levelNstart=6, deltaDepth=4, xc=(0,0,0.25), shift=(0,0,0)\n"
-  << "  Rising bubble forces shift to +0.5 in the vertical direction (y in 2D, z in 3D).\n"
-  << "\n"
-  << "Examples:\n"
-  << "  # 2D vortex on tri7 in a ball domain, short run\n"
-  << "  " << prog << " --vel vortex --mesh tri7 --shape ball --steps 80\n"
-  << "\n"
-  << "  # 2D rising bubble: shift is forced to (0,0.5)\n"
-  << "  " << prog << " --vel rising --mesh quad9 --steps 160\n"
-  << "\n"
-  << "  # 3D rotation on hex27 in funnel domain\n"
-  << "  " << prog << " --vel rotation --mesh hex27 --shape funnel\n"
-  << "\n"
-  << "  # Override bubble center and radius explicitly\n"
-  << "  " << prog << " --vel rising --mesh wedge21 --xc 0,0,0.3 --r 0.12\n"
-  << "\n";
+      << "\n"
+      << "Usage:\n"
+      << "  " << prog << " [options]\n"
+      << "\n"
+      << "Goal:\n"
+      << "  Run a 2D or 3D simulation choosing velocity test, mesh seed, and domain reshape.\n"
+      << "  Most defaults depend on dimension (2D vs 3D) and velocity test.\n"
+      << "\n"
+      << "Options (all optional):\n"
+      << "  --help\n"
+      << "      Print this help and exit.\n"
+      << "\n"
+      << "  --vel <vortex|rotation|rising|risingBubble|bubble>\n"
+      << "      Velocity test.\n"
+      << "      Default: vortex\n"
+      << "\n"
+      << "  --mesh <quad9|tri7|hex27|wedge21|tet15>\n"
+      << "      Mesh seed type.\n"
+      << "      2D: quad9, tri7\n"
+      << "      3D: hex27, wedge21, tet15\n"
+      << "      Default: quad9 (2D)\n"
+      << "\n"
+      << "  --shape <box|identity|ball|funnel>\n"
+      << "      Domain reshape applied to the default box [-0.5,0.5]^dim.\n"
+      << "      Default: box (identity)\n"
+      << "\n"
+      << "  --steps <N>\n"
+      << "      Number of time steps.\n"
+      << "      Default: 320\n"
+      << "\n"
+      << "  --print <k>\n"
+      << "      Output frequency (print every k steps).\n"
+      << "      Default: 10\n"
+      << "\n"
+      << "  --uniformRef <L>\n"
+      << "      Uniform refinement level before adaptive refinement.\n"
+      << "      Default: 1 (but tet15 is forced to at least 2)\n"
+      << "\n"
+      << "  --levelNstart <L>\n"
+      << "      Starting AMR level (depends on dimension).\n"
+      << "      Default: 8 in 2D, 6 in 3D\n"
+      << "\n"
+      << "  --deltaDepth <D>\n"
+      << "      AMR depth increment (depends on dimension).\n"
+      << "      Default: 5 in 2D, 4 in 3D\n"
+      << "\n"
+      << "  --shift a,b[,c]\n"
+      << "      Shift applied to the domain/mesh seed.\n"
+      << "      Default depends on velocity test:\n"
+      << "        - vortex/rotation: (0,0) in 2D or (0,0,0) in 3D\n"
+      << "        - rising bubble:   forced to (0,0.5) in 2D or (0,0,0.5) in 3D\n"
+      << "      Note: shift length must match dimension.\n"
+      << "\n"
+      << "  --xc a,b[,c]\n"
+      << "      Bubble center location.\n"
+      << "      Default: (0,0.25) in 2D, (0,0,0.25) in 3D\n"
+      << "      Note: xc length must match dimension.\n"
+      << "\n"
+      << "  --r <radius>\n"
+      << "      Bubble radius.\n"
+      << "      Default: 0.15\n"
+      << "\n"
+      << "  --period <T>\n"
+      << "      Override the default period.\n"
+      << "      Default rule:\n"
+      << "        - rotation: 2*pi\n"
+      << "        - vortex or rising bubble: 8 (2D) or 4 (3D)\n"
+      << "\n"
+      << "  --reinit <n>\n"
+      << "      Enable field reinitialization each <n> iterations.\n"
+      << "      Default rule: off"
+      << "\n"
+      << "  --reinitAd <t>\n"
+      << "      Enable field reinitialization with adaptive frequence based on the tolerance <t>.\n"
+      << "      Default rule: off"
+      << "\n"
+      << "  --advectMarkers\n"
+      << "      Enable advection of markers.\n"
+      << "      Default rule: off"
+      << "\n"
+      << "Defaults summary (if you do not set anything):\n"
+      << "  --vel vortex\n"
+      << "  --mesh quad9  (=> 2D)\n"
+      << "  --shape box\n"
+      << "  --steps 320\n"
+      << "  --print 10\n"
+      << "  --uniformRef 1\n"
+      << "  2D defaults: levelNstart=8, deltaDepth=5, xc=(0,0.25), shift=(0,0)\n"
+      << "  3D defaults: levelNstart=6, deltaDepth=4, xc=(0,0,0.25), shift=(0,0,0)\n"
+      << "  Rising bubble forces shift to +0.5 in the vertical direction (y in 2D, z in 3D).\n"
+      << "\n"
+      << "Examples:\n"
+      << "  # 2D vortex on tri7 in a ball domain, short run\n"
+      << "  " << prog << " --vel vortex --mesh tri7 --shape ball --steps 80\n"
+      << "\n"
+      << "  # 2D rising bubble: shift is forced to (0,0.5)\n"
+      << "  " << prog << " --vel rising --mesh quad9 --steps 160\n"
+      << "\n"
+      << "  # 3D rotation on hex27 in funnel domain\n"
+      << "  " << prog << " --vel rotation --mesh hex27 --shape funnel\n"
+      << "\n"
+      << "  # Override bubble center and radius explicitly\n"
+      << "  " << prog << " --vel rising --mesh wedge21 --xc 0,0,0.3 --r 0.12\n"
+      << "\n";
 }
-
-
-
-
 
 static inline SimConfig parseArgs(int argc, char** argv) {
   SimConfig c;
@@ -360,4 +358,3 @@ static inline SimConfig parseArgs(int argc, char** argv) {
   applyDefaults(c);
   return c;
 }
-

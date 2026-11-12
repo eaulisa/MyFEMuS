@@ -1,0 +1,138 @@
+[
+  {
+    "test": "planar_suite",
+    "exit": 0
+  },
+  {
+    "test": "mesh_refinement",
+    "exit": 0
+  },
+  {
+    "test": "native_suite",
+    "exit": 0
+  },
+  {
+    "test": "test_contract",
+    "exit": 0
+  },
+  {
+    "test": "test_ls_output_range",
+    "exit": 0
+  },
+  {
+    "test": "test_order_ls_first",
+    "exit": 0
+  },
+  {
+    "test": "test_order_planar_first",
+    "exit": 0
+  },
+  {
+    "test": "test_ls_multiprecision",
+    "exit": 0
+  },
+  {
+    "test": "wide_unit_mesh",
+    "exit": 0
+  },
+  {
+    "test": "wide_unit_validation",
+    "exit": 0
+  },
+  {
+    "test": "unit_element_moments",
+    "exit": 0
+  },
+  {
+    "test": "line_integration",
+    "exit": 0
+  },
+  {
+    "test": "tri_endpoint_regressions",
+    "exit": 0
+  },
+  {
+    "test": "review_regressions",
+    "exit": 0
+  },
+  {
+    "test": "test_reference_coefficients",
+    "exit": 0
+  },
+  {
+    "test": "tri_circle_probe",
+    "exit": 0
+  },
+  {
+    "test": "tet_standard_moments",
+    "exit": 0
+  },
+  {
+    "test": "test_root_candidate_regression",
+    "exit": 0
+  },
+  {
+    "test": "test_tet_slice_regression",
+    "exit": 0
+  },
+  {
+    "test": "quad_tri_standard_moments",
+    "exit": 0
+  },
+  {
+    "test": "quad_native_quadrants",
+    "exit": 0
+  },
+  {
+    "test": "quad_scaled_plane",
+    "exit": 0
+  },
+  {
+    "test": "simplex_high_degree",
+    "exit": 0
+  },
+  {
+    "test": "test_hex_native",
+    "exit": 0
+  },
+  {
+    "test": "endpoint_surface_regressions",
+    "exit": 0
+  },
+  {
+    "test": "hex_tet_validation",
+    "exit": 0
+  },
+  {
+    "test": "enriched_3d",
+    "exit": 0
+  },
+  {
+    "test": "direct_parent_moments",
+    "exit": 0
+  },
+  {
+    "test": "single_graph_root",
+    "exit": 0
+  },
+  {
+    "test": "endpoint_strip_circle",
+    "exit": 0
+  },
+  {
+    "test": "benchmark_graph_dimensions",
+    "exit": 0
+  },
+  {
+    "test": "endpoint_exponents",
+    "exit": 0
+  },
+  {
+    "test": "endpoint_nested_contacts",
+    "exit": 0
+  },
+  {
+    "test": "endpoint_strip_benchmark",
+    "exit": 0
+  }
+]

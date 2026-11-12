@@ -32,7 +32,6 @@ void BuildMarkersOnConicArc(const double &dt1, const unsigned &nMin,
                             const std::vector<double> &P2,
                             std::vector<std::vector<double>> &P) {
 
-
   std::vector<double> N1 = {A[3] + 2. * A[0] * P1[0] + A[1] * P1[1], A[4] + A[1] * P1[0] + 2. * A[2] * P1[1]};
 
   double den = sqrt(N1[0] * N1[0] + N1[1] * N1[1]);
@@ -91,7 +90,6 @@ void BuildMarkersOnConicArc(const double &dt1, const unsigned &nMin,
   P.assign(n, std::vector<double>(2));
   P[n0] = (!reverse) ? P1 : P2;
   P[nk] = (!reverse) ? P2 : P1;
-
 
 //   std::cout << "aaaaaaaaaaa " << n << " " << dt << std::endl;
 
@@ -269,14 +267,13 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
   }
 
   nInt = cnt;
-      if(cnt >= 2) nInt = 2;
+  if(cnt >= 2) nInt = 2;
 
 //   std::cout<< " cnt size() =" << cnt <<endl;
 
   if(cnt == 2) {
 
     std::vector<double> Xg(2, 0);
-
 
     for(unsigned i = 0; i < nve; i++) {
       Xg[0] += xv[0][i];
@@ -296,7 +293,7 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
 //     }
 //     std::cout << std::endl;
 
-    BuildMarkersOnConicArc(2*M_PI, npt, Cf, Xg, P1, P2, xe);
+    BuildMarkersOnConicArc(2 * M_PI, npt, Cf, Xg, P1, P2, xe);
 
     npt = xe.size();
 //     std::cout<< " xe size() =" << npt <<endl;
@@ -305,8 +302,6 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
 //       std::cout << k << " " << xe[k][0] << " " << xe[k][1] << std::endl;
 //     }
 //     std::cout << std::endl;
-
-
 
     ds.assign(npt, 0);
     for(unsigned i = 0; i < xe.size() - 1; i++) {
@@ -317,11 +312,8 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
 
     //}
 
-
-
     return std::pair<std::vector<std::vector<double>>, std::vector<double>>(xe, ds);
   }
 }
-
 
 #endif

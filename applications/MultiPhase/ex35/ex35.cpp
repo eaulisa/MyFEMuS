@@ -18,7 +18,6 @@
 #include "Errors.hpp"
 #include "MeshSeed.hpp"
 
-
 #include "FemusInit.hpp"
 #include "MultiLevelSolution.hpp"
 #include "MultiLevelProblem.hpp"
@@ -30,10 +29,7 @@
 
 #include "Reinit.hpp"
 
-
-
 int main(int argc, char** args) {
-
 
 //   femus::FemusInit mpinit(argc, args, MPI_COMM_WORLD);
 //
@@ -87,33 +83,7 @@ int main(int argc, char** args) {
 //
 //   return 0;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   ProfilerStart("profiling.prof");
-
 
   SimConfig cfg = parseArgs(argc, args);
 
@@ -123,9 +93,8 @@ int main(int argc, char** args) {
             << " shape=" << (int)cfg.meshShape
             << " period=" << cfg.period
             << " steps=" << cfg.nSteps
-            << " uniformRefinementLevel=" <<cfg.uniformRefinementLevel
+            << " uniformRefinementLevel=" << cfg.uniformRefinementLevel
             << "\n";
-
 
   std::array<std::unique_ptr<FemProjection>, 6> elProj;
   elProj[0].reset(new Hex27Projection());
@@ -149,7 +118,6 @@ int main(int argc, char** args) {
   const bool reinit_adaptive = cfg.reinit_adaptive;
   const double reinit_tol = cfg.reinit_tol;
 
-
   std::vector<std::tuple<double, double, double >> Er;
   Er.reserve(delta_depth);
 
@@ -157,7 +125,6 @@ int main(int argc, char** args) {
   Time.reserve(delta_depth);
 
   unsigned reinit_cnt[delta_depth];
-
 
   //BEGIN LEVEL LOOP
   for (unsigned levelN = levelNstart; levelN < levelNstart + delta_depth; levelN++) {
@@ -174,7 +141,6 @@ int main(int argc, char** args) {
     std::vector<std::vector<std::vector<unsigned>>> nodeElements0(levelN + 1);
     std::vector<std::vector<std::vector<unsigned>>> neighbors0(levelN + 1);
 
-
     std::vector<std::vector<std::vector<double>>> X1(levelN + 1);
     std::vector<std::vector<unsigned>> elType1(levelN + 1);
     std::vector<std::vector<std::vector<unsigned>>> elTplgy1(levelN + 1);
@@ -185,7 +151,6 @@ int main(int argc, char** args) {
     std::vector<std::vector<std::vector<unsigned>>> nodeElements1(levelN + 1);
     std::vector<std::vector<std::vector<unsigned>>> neighbors1(levelN + 1);
 
-
     std::vector<std::vector<std::vector<double>>> X2(levelN + 1);
     std::vector<std::vector<unsigned>> elType2(levelN + 1);
     std::vector<std::vector<std::vector<unsigned>>> elTplgy2(levelN + 1);
@@ -195,9 +160,6 @@ int main(int argc, char** args) {
     std::vector<std::vector<std::vector<unsigned>>> elChildern2(levelN + 1);
     std::vector<std::vector<std::vector<unsigned>>> nodeElements2(levelN + 1);
     std::vector<std::vector<std::vector<unsigned>>> neighbors2(levelN + 1);
-
-
-
 
     std::vector<Mesh> mesh0, mesh1, mesh2;
     std::vector<Field> field0, field1, field2;
@@ -220,7 +182,6 @@ int main(int argc, char** args) {
       mesh2.emplace_back(elTplgy2[l], elType2[l], elLevel2[l], X2[l], AMR2[l], elFather2[l], elChildern2[l], nodeElements2[l], neighbors2[l]);
       field2.emplace_back(mesh2[l]);
     }
-
 
     //BEGIN MESH AND FIELD INITIALIZATION
     MeshSeed seed = MeshSeedFactory::make(cfg.meshSeed, cfg.meshShape, cfg.shift);
@@ -277,7 +238,6 @@ int main(int argc, char** args) {
     for (unsigned l = 0; l <= levelN; l++) field2[l] = field0[l];
     //END MESH AND FIELD INITIALIZATION
 
-
     //BEGIN TIME LOOP
     std::vector<std::vector<double>> Xp;
     PointLocator pl = PointLocator(mesh0[0], .1);
@@ -285,7 +245,7 @@ int main(int argc, char** args) {
 
     const unsigned nIter = 320;
     const double dt = period / static_cast<double>(nIter);
-    reinit_cnt[levelN-levelNstart] = 0;
+    reinit_cnt[levelN - levelNstart] = 0;
 
     mesh1[0] = mesh0[0];
 
@@ -294,17 +254,18 @@ int main(int argc, char** args) {
     Reinit reinit(elProj, field0, psiId0, psi2D._m);
     reinit.computeMarkersAdvection(markers);
     // END MARKERS PLACEMENT
-    
+
     for (unsigned k = 1; k <= nSteps; ++k) {
       const double time = k * dt;
       bool reinit_flag = (k % reinit_step == 0);
 
       out.clear();
 
-      if (advect_markers) { 
+      if (advect_markers) {
         RungeKutta::rkForward(markers, time, dt, velocityType);
         pl.locateAll(out, markers);
-      } else {
+      }
+      else {
         field0[topLevel].extractInterfaceVerticesAndCentersByName("Psi", Xp, topLevel, levelN + 1);
         RungeKutta::rkForward(Xp, time, dt, velocityType);
         pl.locateAll(out, Xp);
@@ -356,12 +317,13 @@ int main(int argc, char** args) {
         // reinitialization step
         if (reinit_flag) {
           reinit.reinitializeSignedDistance();
-          reinit_cnt[levelN-levelNstart]++;
-        } else if (reinit_adaptive) {
+          reinit_cnt[levelN - levelNstart]++;
+        }
+        else if (reinit_adaptive) {
           double error = reinit.fieldDistortion(markers, false);
           if (error > reinit_tol) {
             reinit.reinitializeSignedDistance();
-            reinit_cnt[levelN-levelNstart]++;
+            reinit_cnt[levelN - levelNstart]++;
           }
         }
       }
@@ -375,7 +337,6 @@ int main(int argc, char** args) {
       std::cout << "Iteration = " << k << " Number of Points = " << mesh1[topLevel].X()[0].size() << std::endl;
       if (k % print_step == 0) writeMeshFieldVTU(filename + std::to_string(k / print_step) + ".vtu", field0[topLevel]);
 
-      
     }
     //END TIME LOOP
 
@@ -397,7 +358,6 @@ int main(int argc, char** args) {
         Xp[d].insert(Xp[d].end(), Yp[d].begin(), Yp[d].end());
       }
       pl.locateAll(out, Xp);
-
 
       mesh2[0].setRefinementFromLocatedPoints_OneRing(out, neighMode);
       mesh2[0].adjustAMRForOneLevelDiscontinuity();
@@ -454,7 +414,6 @@ int main(int argc, char** args) {
   }
   //END LEVEL LOOP
 
-
   std::cout << "Max_Depth\tMass_Error\tGeom_Error\tScaled_Geom_Error\tCompt_Time(s)\tReinit_Counter" << std::endl;
   for (unsigned i = 0; i < delta_depth; i++) {
     std::cout << levelNstart + i << "\t\t"
@@ -479,7 +438,6 @@ int main(int argc, char** args) {
               << log((double)Time[delta_depth - 1] / (double)Time[0]) / ((delta_depth - 1) * log(2.)) << std::endl;
   }
   return 0;
-
 
   ProfilerStop();
 

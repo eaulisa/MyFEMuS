@@ -1,5 +1,4 @@
 
-
 #pragma once
 #include "QuadTree2DOld.hpp"
 #include <array>
@@ -60,7 +59,6 @@ namespace fem {
     const auto& X = qt.get_X();
     const auto& Y = qt.get_Y();
 
-
     for (int a = 0; a < 9; ++a) {
       dXdxi  += dNdxi[a] * X[a];
       dXdeta += dNdeta[a] * X[a];
@@ -104,7 +102,6 @@ namespace fem {
     xiEta[1] += dt / 6.0 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
     return xiEta;
   }
-
 
 //----------------------------------------
 // 3. Forward advection of markers (parent RK)

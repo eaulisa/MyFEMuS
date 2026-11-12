@@ -21,7 +21,7 @@ class Shape {
 class Circle : public Shape {
   public:
     Circle(const std::vector<double>& xc, const double r)
-      : _xc(xc), _r(r) , _dim(xc.size()){
+      : _xc(xc), _r(r), _dim(xc.size()) {
       assert(_xc.size() == _dim);
       assert(_r > 0.);
     }
@@ -57,8 +57,7 @@ class Circle : public Shape {
       return _r - dist;
     }
 
-    void GetMarkers(std::vector<std::vector<double>>& X, const double marker_density) const override
-    {
+    void GetMarkers(std::vector<std::vector<double>>& X, const double marker_density) const override {
       if(marker_density <= 0.) {
         return;
       }
@@ -71,20 +70,20 @@ class Circle : public Shape {
 
       if(_dim == 2) {
         nmarkers = std::max(
-            1u,
-            static_cast<unsigned>(
-                std::ceil(2. * pi * angular_density)
-            )
-        );
+                     1u,
+                     static_cast<unsigned>(
+                       std::ceil(2. * pi * angular_density)
+                     )
+                   );
       }
       else if(_dim == 3) {
         nmarkers = std::max(
-            1u,
-            static_cast<unsigned>(
-                std::ceil(4. * pi *
-                          angular_density * angular_density)
-            )
-        );
+                     1u,
+                     static_cast<unsigned>(
+                       std::ceil(4. * pi *
+                                 angular_density * angular_density)
+                     )
+                   );
       }
 
       for (int d = 0; d < _dim; ++d)
@@ -93,12 +92,12 @@ class Circle : public Shape {
       if(_dim == 2) {
 
         const double dtheta =
-            2. * pi / static_cast<double>(nmarkers);
+          2. * pi / static_cast<double>(nmarkers);
 
         for(unsigned i = 0; i < nmarkers; ++i) {
 
           const double theta =
-              static_cast<double>(i) * dtheta;
+            static_cast<double>(i) * dtheta;
 
           X[0][i] = _xc[0] + _r * std::cos(theta);
           X[1][i] = _xc[1] + _r * std::sin(theta);
@@ -107,29 +106,29 @@ class Circle : public Shape {
       else if(_dim == 3) {
 
         const double golden_angle =
-            pi * (3. - std::sqrt(5.));
+          pi * (3. - std::sqrt(5.));
 
         for(unsigned i = 0; i < nmarkers; ++i) {
 
           const double z =
-              1. - 2. *
-              (static_cast<double>(i) + 0.5) /
-              static_cast<double>(nmarkers);
+            1. - 2. *
+            (static_cast<double>(i) + 0.5) /
+            static_cast<double>(nmarkers);
 
           const double rho =
-              std::sqrt(std::max(0., 1. - z * z));
+            std::sqrt(std::max(0., 1. - z * z));
 
           const double theta =
-              golden_angle * static_cast<double>(i);
+            golden_angle * static_cast<double>(i);
 
           X[0][i] =
-              _xc[0] + _r * rho * std::cos(theta);
+            _xc[0] + _r * rho * std::cos(theta);
 
           X[1][i] =
-              _xc[1] + _r * rho * std::sin(theta);
+            _xc[1] + _r * rho * std::sin(theta);
 
           X[2][i] =
-              _xc[2] + _r * z;
+            _xc[2] + _r * z;
         }
       }
     }

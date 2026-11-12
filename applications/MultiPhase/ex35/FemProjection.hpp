@@ -11,7 +11,6 @@
 #include <iostream>
 #include "Fem.hpp"
 
-
 // convenience aliases for Eigen
 using SpMat   = Eigen::SparseMatrix<double>;
 using Triplet = Eigen::Triplet<double>;
@@ -42,7 +41,6 @@ class FemProjection {
     unsigned childNumber()   const {
       return _numChildren;
     }
-
 
     const SpMat& GetProjection() const {
       return _P;
@@ -197,8 +195,8 @@ class Q2RefinementProjection : public FemProjection {
         _childVerts(nChild, std::vector<unsigned>(nVert, 0u)) {}
 
     virtual void LinearToQuadraticCoordinates(const Node &X0,
-                                              const Node &X1,
-                                              std::vector<Node> &X) const = 0;
+        const Node &X1,
+        std::vector<Node> &X) const = 0;
 
     virtual Node getParentMin() const = 0;
     virtual Node getParentMax() const = 0;
@@ -389,7 +387,6 @@ class Q2RefinementProjection : public FemProjection {
     }
 };
 
-
 // =============================
 // Intermediate box base: BoxQ2RefinementProjection
 // shared by Hex27 and Quad9
@@ -431,8 +428,6 @@ class BoxQ2RefinementProjection : public Q2RefinementProjection {
       return false;
     }
 };
-
-
 
 // =============================
 // Hex27Projection
@@ -484,8 +479,12 @@ class Hex27Projection : public BoxQ2RefinementProjection {
                                       const Node &X1,
                                       std::vector<Node> &X) const override {
 
-      const double x0 = X0[0]; const double y0 = X0[1]; const double z0 = X0[2];
-      const double x1 = X1[0]; const double y1 = X1[1]; const double z1 = X1[2];
+      const double x0 = X0[0];
+      const double y0 = X0[1];
+      const double z0 = X0[2];
+      const double x1 = X1[0];
+      const double y1 = X1[1];
+      const double z1 = X1[2];
 
       const double xm = 0.5 * (x0 + x1);
       const double ym = 0.5 * (y0 + y1);
@@ -503,8 +502,6 @@ class Hex27Projection : public BoxQ2RefinementProjection {
       };
     }
 };
-
-
 
 // =============================
 // Quad9Projection
@@ -700,8 +697,8 @@ class Tri7Projection : public Q2RefinementProjection {
     }
 
     void LinearToQuadraticCoordinatesUsingVertices(const Node &v0, const Node &v1,
-                                                   const Node &v2,
-                                                   std::vector<Node> &X) const {
+        const Node &v2,
+        std::vector<Node> &X) const {
 
       auto Barycenter = [this](std::initializer_list<Node> pts) {
         Node x = {0., 0., 0.};
@@ -726,7 +723,6 @@ class Tri7Projection : public Q2RefinementProjection {
           };
     }
 };
-
 
 class Tet15Projection : public Q2RefinementProjection {
   public:
@@ -806,8 +802,8 @@ class Tet15Projection : public Q2RefinementProjection {
     }
 
     void LinearToQuadraticCoordinatesUsingVertices(const Node &v0, const Node &v1,
-                                                   const Node &v2, const Node &v3,
-                                                   std::vector<Node> &X) const {
+        const Node &v2, const Node &v3,
+        std::vector<Node> &X) const {
 
       auto Barycenter = [this](std::initializer_list<Node> pts) {
         Node x = {0., 0., 0.};
@@ -926,9 +922,9 @@ class Wedge21Projection : public Q2RefinementProjection {
     }
 
     void LinearToQuadraticCoordinatesUsingVertices(const Node &v0, const Node &v1,
-                                                   const Node &v2, const Node &v3,
-                                                   const Node &v4, const Node &v5,
-                                                   std::vector<Node> &X) const {
+        const Node &v2, const Node &v3,
+        const Node &v4, const Node &v5,
+        std::vector<Node> &X) const {
 
       auto Barycenter = [this](std::initializer_list<Node> pts) {
         Node x = {0., 0., 0.};

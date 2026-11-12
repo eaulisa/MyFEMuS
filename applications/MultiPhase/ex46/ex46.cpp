@@ -40,7 +40,7 @@ using namespace femus;
 
 bool printdb = false;
 
-const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Zero;
+// const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Zero;
 //const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Translation;
 //const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
 //const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;

@@ -19,14 +19,22 @@ namespace fem {
   struct ShapeDispatch<2> {
     static inline int eval_N(Basis2D b, const Point2& s, double* N) {
       switch (b) {
-      case Basis2D::Q4: Shapes2D::Q4(s, N); return 4;
-      case Basis2D::Q8: Shapes2D::Q8(s, N); return 8;
-      case Basis2D::Q9: Shapes2D::Q9(s, N); return 9;
-      default: return 0;
+        case Basis2D::Q4:
+          Shapes2D::Q4(s, N);
+          return 4;
+        case Basis2D::Q8:
+          Shapes2D::Q8(s, N);
+          return 8;
+        case Basis2D::Q9:
+          Shapes2D::Q9(s, N);
+          return 9;
+        default:
+          return 0;
       }
     }
     static inline int eval_dN_geom(const Point2& s, double* dNdxi, double* dNdeta) {
-      Shapes2D::Q9_dN(s, dNdxi, dNdeta); return 9; // geometry via Q9
+      Shapes2D::Q9_dN(s, dNdxi, dNdeta);
+      return 9; // geometry via Q9
     }
   };
 
@@ -34,14 +42,22 @@ namespace fem {
   struct ShapeDispatch<3> {
     static inline int eval_N(Basis3D b, const Point3& s, double* N) {
       switch (b) {
-      case Basis3D::H8:  Shapes3D::H8(s,  N); return 8;
-      case Basis3D::H20: Shapes3D::H20(s, N); return 20;
-      case Basis3D::H27: Shapes3D::H27(s, N); return 27;
-      default: return 0;
+        case Basis3D::H8:
+          Shapes3D::H8(s,  N);
+          return 8;
+        case Basis3D::H20:
+          Shapes3D::H20(s, N);
+          return 20;
+        case Basis3D::H27:
+          Shapes3D::H27(s, N);
+          return 27;
+        default:
+          return 0;
       }
     }
     static inline int eval_dN_geom(const Point3& s, double* dNdxi, double* dNdeta, double* dNdz) {
-      Shapes3D::H27_dN(s, dNdxi, dNdeta, dNdz); return 27; // geometry via H27
+      Shapes3D::H27_dN(s, dNdxi, dNdeta, dNdz);
+      return 27; // geometry via H27
     }
   };
 
@@ -106,8 +122,10 @@ namespace fem {
       const auto& X = tree.get_X();
       const auto& Y = tree.get_Y();
       for (int a = 0; a < 9; ++a) {
-        J[0][0] += dNdxi[a]  * X[a];  J[0][1] += dNdeta[a] * X[a];
-        J[1][0] += dNdxi[a]  * Y[a];  J[1][1] += dNdeta[a] * Y[a];
+        J[0][0] += dNdxi[a]  * X[a];
+        J[0][1] += dNdeta[a] * X[a];
+        J[1][0] += dNdxi[a]  * Y[a];
+        J[1][1] += dNdeta[a] * Y[a];
       }
     }
     else {
@@ -119,9 +137,15 @@ namespace fem {
       const auto& Y = tree.get_Y();
       const auto& Z = tree.get_Z();
       for (int a = 0; a < 27; ++a) {
-        J[0][0] += dNdxi[a]  * X[a];  J[0][1] += dNdeta[a] * X[a];  J[0][2] += dNdz[a] * X[a];
-        J[1][0] += dNdxi[a]  * Y[a];  J[1][1] += dNdeta[a] * Y[a];  J[1][2] += dNdz[a] * Y[a];
-        J[2][0] += dNdxi[a]  * Z[a];  J[2][1] += dNdeta[a] * Z[a];  J[2][2] += dNdz[a] * Z[a];
+        J[0][0] += dNdxi[a]  * X[a];
+        J[0][1] += dNdeta[a] * X[a];
+        J[0][2] += dNdz[a] * X[a];
+        J[1][0] += dNdxi[a]  * Y[a];
+        J[1][1] += dNdeta[a] * Y[a];
+        J[1][2] += dNdz[a] * Y[a];
+        J[2][0] += dNdxi[a]  * Z[a];
+        J[2][1] += dNdeta[a] * Z[a];
+        J[2][2] += dNdz[a] * Z[a];
       }
     }
 
@@ -166,7 +190,9 @@ namespace fem {
   template<std::size_t DIM, class VelEval>
   inline Point<DIM> rk4_advect_parent(const Point<DIM>& s0, double dt, VelEval&& vel_eval) {
     auto add = [](const Point<DIM>& a, const Point<DIM>& b, double s) {
-      Point<DIM> r = a; for (std::size_t k = 0; k < DIM; ++k) r[k] += s * b[k]; return r;
+      Point<DIM> r = a;
+      for (std::size_t k = 0; k < DIM; ++k) r[k] += s * b[k];
+      return r;
     };
     const Point<DIM> k1 = vel_eval(s0,                 0.0);
     const Point<DIM> k2 = vel_eval(add(s0, k1, 0.5 * dt), 0.5 * dt);

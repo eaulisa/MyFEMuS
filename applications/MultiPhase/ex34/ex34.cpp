@@ -14,7 +14,6 @@
 #include <omp.h>
 #endif
 
-
 #include "Mollifier.hpp"
 #include "Reinitializer.hpp"
 #include "OctTree.hpp"
@@ -120,7 +119,9 @@ RotationVel3D(double x, double y, double z, double time) noexcept {
 
 static inline std::array<double, 2>
 VortexVel2D(double x, double y, double time) noexcept {
-  const double T = 8.0; x += 0.5; y += 0.5;
+  const double T = 8.0;
+  x += 0.5;
+  y += 0.5;
   double u = -2.*std::sin(M_PI * x) * std::sin(M_PI * x)
              * std::sin(M_PI * y) * std::cos(M_PI * y)
              * std::cos(M_PI * time / T);
@@ -132,7 +133,9 @@ VortexVel2D(double x, double y, double time) noexcept {
 
 static inline std::array<double, 3>
 VortexVel3D(double x, double y, double z, double time) noexcept {
-  x += 0.5; y += 0.5; z += 0.5;
+  x += 0.5;
+  y += 0.5;
+  z += 0.5;
   double sx, cx, sy, cy, sz, cz;
   ::sincos(M_PI * x, &sx, &cx);
   ::sincos(M_PI * y, &sy, &cy);
@@ -143,7 +146,6 @@ VortexVel3D(double x, double y, double z, double time) noexcept {
   const double k = 2.0 * cosT;
   return { k*s2x*(-sycy + szcz), k*s2y*(-szcz + sxcx), k*s2z*(-sxcx + sycy) };
 }
-
 
 // ---------------- Geometry builders ----------------
 template<std::size_t DIM> struct Box;
@@ -157,11 +159,24 @@ template<> struct Box<2> {
     const double ax = minCorner[0], bx = maxCorner[0];
     const double ay = minCorner[1], by = maxCorner[1];
     const double xm = 0.5 * (ax + bx), ym = 0.5 * (ay + by);
-    X[0][0] = ax; X[1][0] = ay;  X[0][1] = bx; X[1][1] = ay;
-    X[0][2] = bx; X[1][2] = by;  X[0][3] = ax; X[1][3] = by;
-    X[0][4] = xm; X[1][4] = ay;  X[0][5] = bx; X[1][5] = ym;
-    X[0][6] = xm; X[1][6] = by;  X[0][7] = ax; X[1][7] = ym;
-    X[0][8] = xm; X[1][8] = ym;
+    X[0][0] = ax;
+    X[1][0] = ay;
+    X[0][1] = bx;
+    X[1][1] = ay;
+    X[0][2] = bx;
+    X[1][2] = by;
+    X[0][3] = ax;
+    X[1][3] = by;
+    X[0][4] = xm;
+    X[1][4] = ay;
+    X[0][5] = bx;
+    X[1][5] = ym;
+    X[0][6] = xm;
+    X[1][6] = by;
+    X[0][7] = ax;
+    X[1][7] = ym;
+    X[0][8] = xm;
+    X[1][8] = ym;
     return X;
   }
 };
@@ -180,13 +195,33 @@ template<> struct Box<3> {
       X[1][i] = y;
       X[2][i] = z;
     };
-    set(0, ax, ay, az); set(1, bx, ay, az); set(2, bx, by, az); set(3, ax, by, az);
-    set(4, ax, ay, bz); set(5, bx, ay, bz); set(6, bx, by, bz); set(7, ax, by, bz);
-    set(8, xm, ay, az); set(9, bx, ym, az); set(10, xm, by, az); set(11, ax, ym, az);
-    set(12, xm, ay, bz); set(13, bx, ym, bz); set(14, xm, by, bz); set(15, ax, ym, bz);
-    set(16, ax, ay, zm); set(17, bx, ay, zm); set(18, bx, by, zm); set(19, ax, by, zm);
-    set(20, xm, ay, zm); set(21, bx, ym, zm); set(22, xm, by, zm); set(23, ax, ym, zm);
-    set(24, xm, ym, az); set(25, xm, ym, bz); set(26, xm, ym, zm);
+    set(0, ax, ay, az);
+    set(1, bx, ay, az);
+    set(2, bx, by, az);
+    set(3, ax, by, az);
+    set(4, ax, ay, bz);
+    set(5, bx, ay, bz);
+    set(6, bx, by, bz);
+    set(7, ax, by, bz);
+    set(8, xm, ay, az);
+    set(9, bx, ym, az);
+    set(10, xm, by, az);
+    set(11, ax, ym, az);
+    set(12, xm, ay, bz);
+    set(13, bx, ym, bz);
+    set(14, xm, by, bz);
+    set(15, ax, ym, bz);
+    set(16, ax, ay, zm);
+    set(17, bx, ay, zm);
+    set(18, bx, by, zm);
+    set(19, ax, by, zm);
+    set(20, xm, ay, zm);
+    set(21, bx, ym, zm);
+    set(22, xm, by, zm);
+    set(23, ax, ym, zm);
+    set(24, xm, ym, az);
+    set(25, xm, ym, bz);
+    set(26, xm, ym, zm);
     return X;
   }
 };
@@ -241,34 +276,72 @@ template<> struct Ball<3> {
 
     // ---- z = -1 edges (8..11): bottom ring ----
     // order: 0-1, 1-2, 2-3, 3-0
-    XYZ[0][ 8] =  0.0; XYZ[1][ 8] = -b;  XYZ[2][ 8] = -b;  // between (-a,-a,-a) and (+a,-a,-a)
-    XYZ[0][ 9] = +b;  XYZ[1][ 9] =  0.0; XYZ[2][ 9] = -b;  // between (+a,-a,-a) and (+a,+a,-a)
-    XYZ[0][10] = 0.0; XYZ[1][10] = +b;  XYZ[2][10] = -b;  // between (+a,+a,-a) and (-a,+a,-a)
-    XYZ[0][11] = -b;  XYZ[1][11] = 0.0; XYZ[2][11] = -b;  // between (-a,+a,-a) and (-a,-a,-a)
+    XYZ[0][ 8] =  0.0;
+    XYZ[1][ 8] = -b;
+    XYZ[2][ 8] = -b;  // between (-a,-a,-a) and (+a,-a,-a)
+    XYZ[0][ 9] = +b;
+    XYZ[1][ 9] =  0.0;
+    XYZ[2][ 9] = -b;  // between (+a,-a,-a) and (+a,+a,-a)
+    XYZ[0][10] = 0.0;
+    XYZ[1][10] = +b;
+    XYZ[2][10] = -b;  // between (+a,+a,-a) and (-a,+a,-a)
+    XYZ[0][11] = -b;
+    XYZ[1][11] = 0.0;
+    XYZ[2][11] = -b;  // between (-a,+a,-a) and (-a,-a,-a)
 
     // ---- z = +1 edges (12..15): top ring ----
     // order: 4-5, 5-6, 6-7, 7-4
-    XYZ[0][12] =  0.0; XYZ[1][12] = -b;  XYZ[2][12] = +b;  // between (-a,-a,+a) and (+a,-a,+a)
-    XYZ[0][13] = +b;  XYZ[1][13] =  0.0; XYZ[2][13] = +b;  // between (+a,-a,+a) and (+a,+a,+a)
-    XYZ[0][14] =  0.0; XYZ[1][14] = +b;  XYZ[2][14] = +b;  // between (+a,+a,+a) and (-a,+a,+a)
-    XYZ[0][15] = -b;  XYZ[1][15] =  0.0; XYZ[2][15] = +b;  // between (-a,+a,+a) and (-a,-a,+a)
+    XYZ[0][12] =  0.0;
+    XYZ[1][12] = -b;
+    XYZ[2][12] = +b;  // between (-a,-a,+a) and (+a,-a,+a)
+    XYZ[0][13] = +b;
+    XYZ[1][13] =  0.0;
+    XYZ[2][13] = +b;  // between (+a,-a,+a) and (+a,+a,+a)
+    XYZ[0][14] =  0.0;
+    XYZ[1][14] = +b;
+    XYZ[2][14] = +b;  // between (+a,+a,+a) and (-a,+a,+a)
+    XYZ[0][15] = -b;
+    XYZ[1][15] =  0.0;
+    XYZ[2][15] = +b;  // between (-a,+a,+a) and (-a,-a,+a)
 
     // ---- vertical edges (16..19): 0-4, 1-5, 2-6, 3-7 ----
-    XYZ[0][16] = -b;  XYZ[1][16] = -b;  XYZ[2][16] = 0.0;  // 0-4
-    XYZ[0][17] = +b;  XYZ[1][17] = -b;  XYZ[2][17] = 0.0;  // 1-5
-    XYZ[0][18] = +b;  XYZ[1][18] = +b;  XYZ[2][18] = 0.0;  // 2-6
-    XYZ[0][19] = -b;  XYZ[1][19] = +b;  XYZ[2][19] = 0.0;  // 3-7
+    XYZ[0][16] = -b;
+    XYZ[1][16] = -b;
+    XYZ[2][16] = 0.0;  // 0-4
+    XYZ[0][17] = +b;
+    XYZ[1][17] = -b;
+    XYZ[2][17] = 0.0;  // 1-5
+    XYZ[0][18] = +b;
+    XYZ[1][18] = +b;
+    XYZ[2][18] = 0.0;  // 2-6
+    XYZ[0][19] = -b;
+    XYZ[1][19] = +b;
+    XYZ[2][19] = 0.0;  // 3-7
 
     // ---- face centers (20..25): (y=-1, x=+1, y=+1, x=-1, z=-1, z=+1) ----
-    XYZ[0][20] =  0.0; XYZ[1][20] = -R;  XYZ[2][20] =  0.0; // y = -1 (−Y)
-    XYZ[0][21] = +R;   XYZ[1][21] =  0.0; XYZ[2][21] =  0.0; // x = +1 (+X)
-    XYZ[0][22] =  0.0; XYZ[1][22] = +R;  XYZ[2][22] =  0.0; // y = +1 (+Y)
-    XYZ[0][23] = -R;   XYZ[1][23] =  0.0; XYZ[2][23] =  0.0; // x = -1 (−X)
-    XYZ[0][24] =  0.0; XYZ[1][24] =  0.0; XYZ[2][24] = -R;  // z = -1 (bottom)
-    XYZ[0][25] =  0.0; XYZ[1][25] =  0.0; XYZ[2][25] = +R;  // z = +1 (top)
+    XYZ[0][20] =  0.0;
+    XYZ[1][20] = -R;
+    XYZ[2][20] =  0.0; // y = -1 (−Y)
+    XYZ[0][21] = +R;
+    XYZ[1][21] =  0.0;
+    XYZ[2][21] =  0.0; // x = +1 (+X)
+    XYZ[0][22] =  0.0;
+    XYZ[1][22] = +R;
+    XYZ[2][22] =  0.0; // y = +1 (+Y)
+    XYZ[0][23] = -R;
+    XYZ[1][23] =  0.0;
+    XYZ[2][23] =  0.0; // x = -1 (−X)
+    XYZ[0][24] =  0.0;
+    XYZ[1][24] =  0.0;
+    XYZ[2][24] = -R;  // z = -1 (bottom)
+    XYZ[0][25] =  0.0;
+    XYZ[1][25] =  0.0;
+    XYZ[2][25] = +R;  // z = +1 (top)
 
     // ---- cell center (26) ----
-    XYZ[0][26] = 0.0; XYZ[1][26] = 0.0; XYZ[2][26] = 0.0;
+    XYZ[0][26] = 0.0;
+    XYZ[1][26] = 0.0;
+    XYZ[2][26] = 0.0;
 
     // translate by (cx, cy, cz)
     for (int j = 0; j < 27; ++j) {
@@ -280,7 +353,6 @@ template<> struct Ball<3> {
     return XYZ;
   }
 };
-
 
 // ---------------- Funnel geometry builder ----------------
 template<std::size_t DIM> struct Funnel;
@@ -310,17 +382,26 @@ struct Funnel<2> {
     const double xr1 = x_from_y(y1, +1.0);
 
     // Fill Q9 nodes (same order as Box<2>)
-    X[0][0] = xl0;  X[1][0] = y0;  // bottom-left
-    X[0][1] = xr0;  X[1][1] = y0;  // bottom-right
-    X[0][2] = xr1;  X[1][2] = y1;  // top-right
-    X[0][3] = xl1;  X[1][3] = y1;  // top-left
+    X[0][0] = xl0;
+    X[1][0] = y0;  // bottom-left
+    X[0][1] = xr0;
+    X[1][1] = y0;  // bottom-right
+    X[0][2] = xr1;
+    X[1][2] = y1;  // top-right
+    X[0][3] = xl1;
+    X[1][3] = y1;  // top-left
 
-    X[0][4] = h;     X[1][4] = y0;  // mid-bottom
-    X[0][5] = xrm;   X[1][5] = ym;  // mid-right
-    X[0][6] = h;     X[1][6] = y1;  // mid-top
-    X[0][7] = xlm;   X[1][7] = ym;  // mid-left
+    X[0][4] = h;
+    X[1][4] = y0;  // mid-bottom
+    X[0][5] = xrm;
+    X[1][5] = ym;  // mid-right
+    X[0][6] = h;
+    X[1][6] = y1;  // mid-top
+    X[0][7] = xlm;
+    X[1][7] = ym;  // mid-left
 
-    X[0][8] = 0.5 * (xlm + xrm);  X[1][8] = ym;  // center (approx average midsection)
+    X[0][8] = 0.5 * (xlm + xrm);
+    X[1][8] = ym;  // center (approx average midsection)
 
     return X;
   }
@@ -353,7 +434,9 @@ struct Funnel<3> {
     const double ax1 = a * s1, ay1 = b * s1;
 
     auto set = [&](int i, double x, double y, double z) {
-      X[0][i] = x;  X[1][i] = y;  X[2][i] = z;
+      X[0][i] = x;
+      X[1][i] = y;
+      X[2][i] = z;
     };
 
     // --- Corner nodes (bottom z=z0, top z=z1) -------------------------------
@@ -399,7 +482,6 @@ struct Funnel<3> {
     return X;
   }
 };
-
 
 // ---------------- Dimension traits (as you had) ----------------
 template<std::size_t DIM> struct DimOps;
@@ -478,7 +560,6 @@ static inline Scenario parse_scenario(const std::string& s) {
   return Scenario::VX2D;
 }
 
-
 // ======================= Helpers for DIM-dependent types =======================
 
 // Velocity pointer types (match your advectors: scalar args)
@@ -507,18 +588,26 @@ static inline std::pair<std::array<double, DIM>, std::array<double, DIM>>
 make_domain(Scenario s) {
   if constexpr(DIM == 2) {
     switch (s) {
-    case Scenario::RB2D: return { { -0.5,  0.0 }, { +0.5, 1.0 } };
-    case Scenario::VX2D: return { { -0.5, -0.5 }, { +0.5, +0.5 } };
-    case Scenario::ROT2D: return { { -0.5, -0.5 }, { +0.5, +0.5 } };
-    default:             return { { -0.5, -0.5 }, { +0.5, +0.5 } };
+      case Scenario::RB2D:
+        return { { -0.5,  0.0 }, { +0.5, 1.0 } };
+      case Scenario::VX2D:
+        return { { -0.5, -0.5 }, { +0.5, +0.5 } };
+      case Scenario::ROT2D:
+        return { { -0.5, -0.5 }, { +0.5, +0.5 } };
+      default:
+        return { { -0.5, -0.5 }, { +0.5, +0.5 } };
     }
   }
   else {
     switch (s) {
-    case Scenario::RB3D: return { { -0.5, -0.5, 0.0 }, { +0.5, +0.5, 1.0 } };
-    case Scenario::VX3D: return { { -0.5, -0.5, -0.5 }, { +0.5, +0.5, +0.5 } };
-    case Scenario::ROT3D: return { { -0.5, -0.5, -0.5 }, { +0.5, +0.5, +0.5 } };
-    default:             return { { -0.5, -0.5, -0.5 }, { +0.5, +0.5, +0.5 } };
+      case Scenario::RB3D:
+        return { { -0.5, -0.5, 0.0 }, { +0.5, +0.5, 1.0 } };
+      case Scenario::VX3D:
+        return { { -0.5, -0.5, -0.5 }, { +0.5, +0.5, +0.5 } };
+      case Scenario::ROT3D:
+        return { { -0.5, -0.5, -0.5 }, { +0.5, +0.5, +0.5 } };
+      default:
+        return { { -0.5, -0.5, -0.5 }, { +0.5, +0.5, +0.5 } };
     }
   }
 }
@@ -570,10 +659,10 @@ static inline double period_for(Scenario s) {
 // DIM-generic VTU vector write (phi must already exist as field 0)
 template<std::size_t DIM>
 static inline void write_vtu_frame_generic(OctTree<DIM>& ot,
-                                           unsigned max_depth, unsigned k, double time,
-                                           Vel<DIM> evalVelocity,
-                                           BasisT<DIM> bHi,
-                                           const char* stem) {
+    unsigned max_depth, unsigned k, double time,
+    Vel<DIM> evalVelocity,
+    BasisT<DIM> bHi,
+    const char* stem) {
   static const std::array<const char*, 3> names = {"u", "v", "w"};
   std::array<u32, DIM> fidv{};
   for (size_t d = 0; d < DIM; ++d) fidv[d] = ot.add_field(bHi, names[d]);
@@ -644,7 +733,6 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
 
   ot.set_physical_coordinates(X);
 
-
   double eps = (DIM == 2) ? 1. / pow(2, std::max(maxDepth - 7u, 1u)) : 1. / pow(2, std::max(maxDepth - 4u, 1u)); //this parameter is fundamental, if I make it too small the convergence breaks.
   //double eps = 1. / pow(2, 5);
 
@@ -692,47 +780,53 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
   };
 
   if (uniform) {  //NEW
-      // Costruisci una griglia uniforme fino a maxDepth usando refine_to_contain_points
-      std::vector<Pt<DIM>> pts;
+    // Costruisci una griglia uniforme fino a maxDepth usando refine_to_contain_points
+    std::vector<Pt<DIM>> pts;
 
-      const int n_per_dim = 1 << maxDepth; // 2^maxDepth
-      pts.reserve(std::pow(n_per_dim, (int)DIM));
+    const int n_per_dim = 1 << maxDepth; // 2^maxDepth
+    pts.reserve(std::pow(n_per_dim, (int)DIM));
 
-      // punti ai centri delle celle uniformi
-      if constexpr (DIM == 2) {
-        for (int i = 0; i < n_per_dim; ++i) {
-          for (int j = 0; j < n_per_dim; ++j) {
+    // punti ai centri delle celle uniformi
+    if constexpr (DIM == 2) {
+      for (int i = 0; i < n_per_dim; ++i) {
+        for (int j = 0; j < n_per_dim; ++j) {
+          double x = minCorner[0] + ( (i + 0.5) / n_per_dim ) * (maxCorner[0] - minCorner[0]);
+          double y = minCorner[1] + ( (j + 0.5) / n_per_dim ) * (maxCorner[1] - minCorner[1]);
+          Pt<2> p;
+          p[0] = x;
+          p[1] = y;
+          pts.push_back(p);
+        }
+      }
+    }
+    else if constexpr (DIM == 3) {
+      for (int i = 0; i < n_per_dim; ++i) {
+        for (int j = 0; j < n_per_dim; ++j) {
+          for (int k = 0; k < n_per_dim; ++k) {
             double x = minCorner[0] + ( (i + 0.5) / n_per_dim ) * (maxCorner[0] - minCorner[0]);
             double y = minCorner[1] + ( (j + 0.5) / n_per_dim ) * (maxCorner[1] - minCorner[1]);
-            Pt<2> p; p[0] = x; p[1] = y;
+            double z = minCorner[2] + ( (k + 0.5) / n_per_dim ) * (maxCorner[2] - minCorner[2]);
+            Pt<3> p;
+            p[0] = x;
+            p[1] = y;
+            p[2] = z;
             pts.push_back(p);
           }
         }
-      } else if constexpr (DIM == 3) {
-        for (int i = 0; i < n_per_dim; ++i) {
-          for (int j = 0; j < n_per_dim; ++j) {
-            for (int k = 0; k < n_per_dim; ++k) {
-              double x = minCorner[0] + ( (i + 0.5) / n_per_dim ) * (maxCorner[0] - minCorner[0]);
-              double y = minCorner[1] + ( (j + 0.5) / n_per_dim ) * (maxCorner[1] - minCorner[1]);
-              double z = minCorner[2] + ( (k + 0.5) / n_per_dim ) * (maxCorner[2] - minCorner[2]);
-              Pt<3> p; p[0] = x; p[1] = y; p[2] = z;
-              pts.push_back(p);
-            }
-          }
-        }
       }
-
-      ot.refine_to_contain_points(pts, ot.max_depth());
-      ot.enlarge_top_layer_and_enforce_balance(); // se disponibile anche su ot
-
-      std::cout << "[UNIFORM] Leaves after full refinement: "
-                << ot.leaf_count() << "\n";
-    } else {
-      std::size_t changed = ot.adapt_cycle(coarsen1, refine1, /*max_passes=*/10);
-      std::cout << "Adapt-cycle changed " << changed << " cells\n";
-      std::cout << "Leaves after cycle: " << ot.leaf_count() << "\n";
     }
 
+    ot.refine_to_contain_points(pts, ot.max_depth());
+    ot.enlarge_top_layer_and_enforce_balance(); // se disponibile anche su ot
+
+    std::cout << "[UNIFORM] Leaves after full refinement: "
+              << ot.leaf_count() << "\n";
+  }
+  else {
+    std::size_t changed = ot.adapt_cycle(coarsen1, refine1, /*max_passes=*/10);
+    std::cout << "Adapt-cycle changed " << changed << " cells\n";
+    std::cout << "Leaves after cycle: " << ot.leaf_count() << "\n";
+  }
 
   // Scalar field "phi"
   const u32 fid = ot.add_field(bHi, "phi");
@@ -747,7 +841,6 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
       fld.nodal[gid] = DimOps<DIM>::evalPsi(psi, p);
     }
   }
-
 
   Mollifier m(eps);
 
@@ -779,7 +872,7 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     markers.clear();
     markers = reinitializer.collect_markers(0. /*marker density*/, 3 /*min segments*/);
   }
-  
+
   int cnt = 0;
   for (u32 k = 1; k <= nSteps; ++k) {
     const double time = k * dt;
@@ -838,7 +931,8 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
                 << std::endl;
     }
 
-    using std::swap; swap(ot, ot1);
+    using std::swap;
+    swap(ot, ot1);
 
     if (reinit) {
       markers.clear();
@@ -866,7 +960,7 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
     }
   }
 
-  std::cout<<"Numero di reinit: "<<cnt<<std::endl;
+  std::cout << "Numero di reinit: " << cnt << std::endl;
 
   // --- Calcolo di h_min ---
   const double domain_length = maxCorner[0] - minCorner[0];  // vale 1.0 per te
@@ -927,7 +1021,6 @@ std::pair<double, double> run(int /*argc*/, char** /*argv*/, unsigned nSteps, Sc
   return {Em, Eg};
 }
 
-
 // ---------------- CLI dispatcher ----------------
 static void print_usage(const char* prog) {
   std::cerr
@@ -960,7 +1053,6 @@ static void print_usage(const char* prog) {
       << "  while dt is computed with a fixed nIter=320.\n";
 }
 
-
 int main(int argc, char** argv) {
   int dim = 2;            // default dimension
   unsigned nSteps = 320;  // default steps
@@ -972,11 +1064,9 @@ int main(int argc, char** argv) {
   double reinit_tau = 0.2;
   Scenario scenario = Scenario::VX2D; // default; reconciled with dim inside run
 
-
 #ifdef USE_OPENMP
   std::cout << "We are runnig with OPENMP\n";
 #endif
-
 
   unsigned max_depth = 8;
   unsigned delta_depth = 1;
@@ -1010,7 +1100,8 @@ int main(int argc, char** argv) {
       scenario = parse_scenario(argv[++i]);
     }
     else if (a == "-h" || a == "--help") {
-      print_usage(argv[0]); return 0;
+      print_usage(argv[0]);
+      return 0;
     }
     else if (a == "--profiling") {
       pprof = true;
@@ -1066,13 +1157,15 @@ int main(int argc, char** argv) {
             size_t pos = 0;
             double tmp = std::stod(next, &pos);
             if (pos == next.size()) {
-              reinit_tau = tmp;   
-              ++i;                
-            } else {
+              reinit_tau = tmp;
+              ++i;
+            }
+            else {
               std::cerr << "Valore non valido per --reinit_criteria (atteso double, es. 0.1 o 1e-3)\n";
               return 1;
             }
-          } catch (...) {
+          }
+          catch (...) {
             std::cerr << "Valore non valido per --reinit_criteria (atteso double, es. 0.1 o 1e-3)\n";
             return 1;
           }
@@ -1089,20 +1182,20 @@ int main(int argc, char** argv) {
 
   for (unsigned i = 0; i < delta_depth; ++i) {
     switch (dim) {
-    case 2:
-      start_time = clock();
-      Er[i] = run<2>(argc, argv, nSteps, scenario, vtu, pprof, max_depth + i, box_domain, reinit, reinit_criteria, reinit_tau);
-      Time[i] = clock() - start_time;
-      break;
-    case 3:
-      start_time = clock();
-      Er[i] = run<3>(argc, argv, nSteps, scenario, vtu, pprof, max_depth + i, box_domain, reinit, reinit_criteria, reinit_tau);
-      Time[i] = clock() - start_time;
-      break;
-    default:
-      std::cerr << "Error: DIM must be 2 or 3 (got " << dim << ")\n";
-      print_usage(argv[0]);
-      return 2;
+      case 2:
+        start_time = clock();
+        Er[i] = run<2>(argc, argv, nSteps, scenario, vtu, pprof, max_depth + i, box_domain, reinit, reinit_criteria, reinit_tau);
+        Time[i] = clock() - start_time;
+        break;
+      case 3:
+        start_time = clock();
+        Er[i] = run<3>(argc, argv, nSteps, scenario, vtu, pprof, max_depth + i, box_domain, reinit, reinit_criteria, reinit_tau);
+        Time[i] = clock() - start_time;
+        break;
+      default:
+        std::cerr << "Error: DIM must be 2 or 3 (got " << dim << ")\n";
+        print_usage(argv[0]);
+        return 2;
     }
   }
 
@@ -1124,4 +1217,3 @@ int main(int argc, char** argv) {
   return 0;
 
 }
-

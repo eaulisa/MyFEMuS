@@ -1,0 +1,7 @@
+{
+  "accepted": true,
+  "exit": 0,
+  "seconds": 0.1755546679996769,
+  "stdout": "REVIEW partition, tiny-region, degree-8/10 moment regressions passed\nREVIEW selective cross-stage fallback regressions passed\nREVIEW explicit heavy validation mode passed on regular graphs\nREVIEW circle convergence cases=144 failures=0 tolerances=1e-8,1e-10,1e-12\nREVIEW mapped quartic endpoint arithmetic passed\nREVIEW translated ellipse cases=48 failures=0\nREVIEW independent 60-digit graph and TRI bubble references passed\nREVIEW PASS checks=12345 maximum_actual_error_fraction=5.676656089804211e-05 seconds=0.172881453\n",
+  "stderr": ""
+}

@@ -5,7 +5,6 @@
 #include "CutLine.hpp"
 #include "CutFem.hpp"
 
-
 template <class TypeIO, class TypeA>
 class TRImap : /*public CutFEMmap<TypeIO, TypeA>,*/ public LSImap <TypeA> {
   public:
@@ -46,11 +45,11 @@ class TRImap : /*public CutFEMmap<TypeIO, TypeA>,*/ public LSImap <TypeA> {
     TypeIO operator()(const int &s, const std::vector<unsigned> &m, const std::vector<TypeIO> &a, const TypeIO &d) {
       return static_cast<TypeIO>(this->tria(s, m, {static_cast<TypeA>(-a[0]), static_cast<TypeA>(a[1])}, static_cast<TypeA>(d + a[0])));
     }
-    
-protected:
+
+  protected:
     TypeA tria(const int &s, const std::vector<unsigned> &m, const std::vector<TypeA> &a, const TypeA &d) {
 
-       return TriangleA(s, m, a, d);
+      return TriangleA(s, m, a, d);
 
       // _key = std::make_pair(a, d);
       // _it = _TRImap[s + 1][m[0]][m[1]].find(_key);
@@ -64,13 +63,13 @@ protected:
       //   return _it->second;
       // }
     }
-   
+
   private:
     TypeA TriangleA(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
     TypeA TriangleBReduced(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d);
     TypeA TriangleBFull(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
-    TypeA TriangleC(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);  
-      
+    TypeA TriangleC(const int &s, const std::vector<unsigned> &m, const std::vector <TypeA> &a, const TypeA &d);
+
     // std::vector<std::vector<std::vector<std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA > > > > _TRImap;
     // typename std::map < std::pair<std::vector<TypeA>, TypeA>, TypeA >::iterator _it;
     //std::pair<std::vector<TypeA>, TypeA> _key;
@@ -163,8 +162,6 @@ TypeA TRImap<TypeIO, TypeA>::TriangleBReduced(const int &s, const std::vector<un
   return TRI;
 }
 
-
-
 template <class TypeIO, class TypeA>
 TypeA TRImap<TypeIO, TypeA>::TriangleBFull(const int &s, const std::vector<unsigned> &m_input, const std::vector <TypeA> &a_input, const TypeA &d) {
 
@@ -239,4 +236,3 @@ TypeA TRImap<TypeIO, TypeA>::TriangleC(const int &s, const std::vector<unsigned>
 }
 
 #endif
-

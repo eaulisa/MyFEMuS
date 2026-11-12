@@ -20,7 +20,6 @@
 #include <omp.h>
 #endif
 
-
 double computeHSnapElementBased(const Mesh& mesh, double rel = 1e-2) {
 
   const std::vector<std::vector<double>>& X = mesh.X();
@@ -122,7 +121,6 @@ void dedupNodesHash(Mesh &mesh,
   //   }
   // }
 
-
   const double inv_h = 1.0 / h_snap;
   // Key for hash map
   struct Key {
@@ -184,7 +182,6 @@ void dedupNodesHash(Mesh &mesh,
     }
   }
 
-
   #pragma omp parallel for schedule(static)
   for (long long i = 0; i < (long long)N; ++i) {
     unsigned ui = (unsigned)i;
@@ -203,8 +200,6 @@ void dedupNodesHash(Mesh &mesh,
     return;
   }
 
-
-
   const unsigned* map = old2new.data();
 
   #pragma omp parallel for schedule(static)
@@ -215,16 +210,12 @@ void dedupNodesHash(Mesh &mesh,
     }
   }
 
-
-
-
   // // 5) Update connectivity
   // for (auto& conn : elTplgy) {
   //   for (auto& v : conn) {
   //     v = old2new[v];
   //   }
   // }
-
 
   // 6) Compact X to size numUnique (faster + OpenMP)
   std::vector<unsigned> reps;
@@ -245,8 +236,6 @@ void dedupNodesHash(Mesh &mesh,
     X[d].swap(Xnew);
   }
 
-
-
   /*
     // 6) Compact XF to size numUnique
     for (unsigned d = 0; d < dim; ++d) {
@@ -260,7 +249,6 @@ void dedupNodesHash(Mesh &mesh,
       X[d].swap(Xnew);
     }*/
 }
-
 
 void refineAndProjectMesh(
   const std::array<std::unique_ptr<FemProjection>, 6>& elProj,
@@ -427,12 +415,3 @@ void refineAndProjectMesh(
   meshC.checkAll("refineAndProjectMesh: coarse");
   meshF.checkAll("refineAndProjectMesh: fine");
 }
-
-
-
-
-
-
-
-
-

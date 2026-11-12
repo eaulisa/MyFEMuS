@@ -33,9 +33,7 @@
 #include "GeomElTypeEnum.hpp"
 #include <boost/optional.hpp>
 
-
 namespace femus {
-
 
 //------------------------------------------------------------------------------
 // Forward declarations
@@ -67,9 +65,7 @@ namespace femus {
       /** To be Added */
       void BuildProlongation(const Mesh& mymesh, const int& iel, SparseMatrix* Projmat, NumericVector* NNZ_d, NumericVector* NNZ_o, const unsigned& itype) const;
 
-
       ///////////////////////////////////
-
 
       /* mixed adept - double */
       void GetGaussQuantities(const vector < vector < adept::adouble > >& vt, const unsigned& ig,
@@ -77,7 +73,6 @@ namespace femus {
                               const double *&phi,
                               boost::optional < vector < adept::adouble >& > gradphi = boost::none,
                               boost::optional < vector < adept::adouble > & > nablaphi = boost::none) const;
-
 
       /* all double */
       void GetGaussQuantities(const vector < vector < double > >& vt, const unsigned& ig,
@@ -103,7 +98,6 @@ namespace femus {
                              double& det,
                              vector < vector < double > > & Jac,
                              vector < vector < double > > & JacI) const;
-
 
       /////////////////////////////////////
 
@@ -134,6 +128,17 @@ namespace femus {
 
       virtual void JacobianSur(const vector < vector < double > >& vt, const unsigned& ig, double& Weight,
                                vector < double >& other_phi, vector < double >& gradphi, vector < double >& normal) const = 0;
+
+      //////////////////////
+
+      virtual void GetJacobianSurMatrix(const vector < vector < double > >& vt, const unsigned& ig, double& Weight,
+                                        vector < vector < double > >& Jac, vector < vector < double > >& JacI) const = 0;
+
+      virtual void GetJacobianSurMatrix(const vector < vector < adept::adouble > >& vt, const unsigned& ig, adept::adouble& Weight,
+                                        vector < vector < adept::adouble > >& Jac, vector < vector < adept::adouble > >& JacI) const = 0;
+
+      //////////////////////
+
       /** To be Added */
       virtual double* GetPhi(const unsigned& ig) const = 0;
       virtual void GetPhi(std::vector<double> &phi, const vector < double >& xi) const = 0;
@@ -153,7 +158,6 @@ namespace femus {
         abort();
       };
 
-
       /** To be Added */
       virtual void GetDPhiDXi(std::vector<double> &dphi, const vector < double >& xi) const = 0;
 
@@ -168,7 +172,6 @@ namespace femus {
         std::cout << "GetDPhiDZeta does not apply to this element dimension\n";
         abort();
       };
-
 
 //   /** To be Added */
 //   void GetArea(const double *vt,const double *vty, const double *vtz, const unsigned &ig,
@@ -220,19 +223,16 @@ namespace femus {
 
       void GetSparsityPatternSize(const Mesh& Mesh, const int& iel, NumericVector* NNZ_d, NumericVector* NNZ_o, const unsigned& itype) const;
 
-
       virtual void fill_volume_shape_funcs_at_boundary_quadrature_points_on_current_elem(const vector < vector < double > > &vt,
-                                                                                         const vector < vector < double> > & vt_bdry,
-                                                                                         const unsigned & jface,
-                                                                                         const unsigned & ig,
-                                                                                         vector < double > & phi,
-                                                                                         vector < double > & gradphi) const = 0;
-
+          const vector < vector < double> > & vt_bdry,
+          const unsigned & jface,
+          const unsigned & ig,
+          vector < double > & phi,
+          vector < double > & gradphi) const = 0;
 
       basis* GetBasis() const {
         return _pt_basis;
       }
-
 
       virtual void fill_volume_shape_at_reference_boundary_quadrature_points_per_face(/*const vector < vector < double> > & vt_bdry,  */const unsigned jface) const = 0;
 
@@ -269,7 +269,6 @@ namespace femus {
       virtual void allocate_volume_shape_at_reference_boundary_quadrature_points() = 0;
 
       virtual void deallocate_volume_shape_at_reference_boundary_quadrature_points() = 0; /*they say you shouldn't call virtual function from constr/destr, so for now I am not using them in there*/
-
 
       // ====================================
       // member data
@@ -313,7 +312,6 @@ namespace femus {
 
   };
 
-
   class elem_type_1D : public elem_type {
 
     public:
@@ -347,7 +345,6 @@ namespace femus {
       template <class type>
       void GetJacobianMatrix_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
                                   vector < vector < type > >& Jac, vector < vector < type > >& JacI) const;
-
 
       ////////////////////////////////////////////
 
@@ -388,7 +385,6 @@ namespace femus {
         Jacobian_type(vt, xi, Weight, phi, gradphi, nablaphi);
       }
 
-
       template <class type>
       void JacobianSur_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
                             vector < double >& phi, vector < type >& gradphi, vector < type >& normal) const;
@@ -402,6 +398,22 @@ namespace femus {
                        vector < double >& phi, vector < double >& gradphi, vector < double >& normal) const {
         JacobianSur_type(vt, ig, Weight, phi, gradphi, normal);
       }
+
+      //////////////////////
+      template <class type>
+      void GetJacobianSurMatrix_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
+                                     vector < vector < type > >& Jac, vector < vector < type > >& JacI) const;
+
+      void GetJacobianSurMatrix(const vector < vector < double > >& vt, const unsigned& ig, double& Weight,
+                                vector < vector < double > >& Jac, vector < vector < double > >& JacI) const {
+        GetJacobianSurMatrix_type(vt, ig, Weight, Jac, JacI);
+      }
+
+      void GetJacobianSurMatrix(const vector < vector < adept::adouble > >& vt, const unsigned& ig, adept::adouble& Weight,
+                                vector < vector < adept::adouble > >& Jac, vector < vector < adept::adouble > >& JacI) const {
+        GetJacobianSurMatrix_type(vt, ig, Weight, Jac, JacI);
+      }
+      //////////////////////
 
       inline double* GetPhi(const unsigned& ig) const {
         return _phi[ig];
@@ -435,7 +447,6 @@ namespace femus {
 
       const basis* set_FE_family_and_linear_element(const char* geom_elem, unsigned int FEType_in);
 
-
       void allocate_and_fill_shape_at_quadrature_points();
 
       void deallocate_shape_at_quadrature_points();
@@ -463,7 +474,6 @@ namespace femus {
       double** _d2phidxi2;
       double* _d2phidxi2_memory;
 
-
       // values at boundary gauss points
       double ** _phi_vol_at_bdry;
       double * _phi_memory_vol_at_bdry;
@@ -471,7 +481,6 @@ namespace femus {
       double * _dphidxi_memory_vol_at_bdry;
 
   };
-
 
   class elem_type_2D : public elem_type {
 
@@ -487,7 +496,6 @@ namespace femus {
 
         deallocate_volume_shape_at_reference_boundary_quadrature_points();
       }
-
 
       ///////////////////////////////////
 
@@ -564,6 +572,23 @@ namespace femus {
         JacobianSur_type(vt, ig, Weight, phi, gradphi, normal);
       }
 
+      //////////////////////
+      template <class type>
+      void GetJacobianSurMatrix_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
+                                     vector < vector < type > >& Jac, vector < vector < type > >& JacI) const;
+
+      void GetJacobianSurMatrix(const vector < vector < double > >& vt, const unsigned& ig, double& Weight,
+                                vector < vector < double > >& Jac, vector < vector < double > >& JacI) const {
+        GetJacobianSurMatrix_type(vt, ig, Weight, Jac, JacI);
+      }
+
+      void GetJacobianSurMatrix(const vector < vector < adept::adouble > >& vt, const unsigned& ig, adept::adouble& Weight,
+                                vector < vector < adept::adouble > >& Jac, vector < vector < adept::adouble > >& JacI) const {
+        GetJacobianSurMatrix_type(vt, ig, Weight, Jac, JacI);
+      }
+
+      //////////////////////
+
       inline double* GetPhi(const unsigned& ig) const {
         return _phi[ig];
       }
@@ -596,7 +621,6 @@ namespace femus {
         }
       };
 
-
       void fill_volume_shape_at_reference_boundary_quadrature_points_per_face(/*const vector < vector < double> > & vt_bdry,  */const unsigned jface) const;
 
     protected:
@@ -613,9 +637,7 @@ namespace femus {
 
       void deallocate_volume_shape_at_reference_boundary_quadrature_points();
 
-
       void fill_volume_shape_funcs_at_boundary_quadrature_points_on_current_elem(const vector < vector < double > >& vt_vol, const vector < vector < double> > & vt_bdry,  const unsigned& jface, const unsigned& ig, vector < double >& phi, vector < double >& gradphi) const;
-
 
       // ====================================
       // member data
@@ -644,11 +666,7 @@ namespace femus {
       double ** _dphideta_vol_at_bdry;
       double *  _dphideta_memory_vol_at_bdry;
 
-
   };
-
-
-
 
   class elem_type_3D : public elem_type {
 
@@ -664,7 +682,6 @@ namespace femus {
 
         deallocate_volume_shape_at_reference_boundary_quadrature_points();
       }
-
 
       ///////////////////////////////////
 
@@ -687,7 +704,6 @@ namespace femus {
                                   vector < vector < type > >& Jac, vector < vector < type > >& JacI) const;
 
       /////////////////////////////////////
-
 
       /* templated: mixed type - double */
       template <class type>
@@ -737,6 +753,24 @@ namespace femus {
         abort();
       }
 
+      //////////////////////
+      template <class type>
+      void GetJacobianSurMatrix_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
+                                     vector < vector < type > >& Jac, vector < vector < type > >& JacI) const;
+
+      void GetJacobianSurMatrix(const vector < vector < double > >& vt, const unsigned& ig, double& Weight,
+                                vector < vector < double > >& Jac, vector < vector < double > >& JacI) const {
+        std::cout << "GetJacobianSurMatrix surface non-defined for elem_type_3D objects" << std::endl;
+        abort();
+      }
+
+      void GetJacobianSurMatrix(const vector < vector < adept::adouble > >& vt, const unsigned& ig, adept::adouble& Weight,
+                                vector < vector < adept::adouble > >& Jac, vector < vector < adept::adouble > >& JacI) const {
+        std::cout << "GetJacobianSurMatrix surface non-defined for elem_type_3D objects" << std::endl;
+        abort();
+      }
+
+      //////////////////////
 
       //---------------------------------------------------------------------------------------------------------
       inline double* GetPhi(const unsigned& ig) const {
@@ -799,8 +833,6 @@ namespace femus {
 
       void fill_volume_shape_funcs_at_boundary_quadrature_points_on_current_elem(const vector < vector < double > >& vt_vol, const vector < vector < double> > & vt_bdry,  const unsigned& jface, const unsigned& ig, vector < double >& phi, vector < double >& gradphi) const;
 
-
-
       // ====================================
       // member data
       // ====================================
@@ -838,17 +870,9 @@ namespace femus {
       double ** _dphidzeta_vol_at_bdry;
       double *  _dphidzeta_memory_vol_at_bdry;
 
-
-
-
   };
 
-
-
-
-
   //---------------------------------------------------------------------------------------------------------
-
 
 //---------------------------------------------------------------------------------------------------------
 
@@ -889,7 +913,6 @@ namespace femus {
     }
 
   }
-
 
   //---------------------------------------------------------------------------------------------------------
 
@@ -983,7 +1006,51 @@ namespace femus {
       phi[inode] = _phi[ig][inode];
     }
 
-    ///@todo warning the surface gradient is missing!!!!!!!!!!!!!!!
+  }
+
+  template <class type>
+  void elem_type_1D::GetJacobianSurMatrix_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
+      vector < vector < type > >& Jac, vector < vector < type > >& JacInv) const {
+
+    Jac.resize(2);
+    JacInv.resize(2);
+    for(unsigned i = 0; i < 2; i++) {
+      Jac[i].resize(2);
+      JacInv[i].resize(2);
+    }
+
+    const double* dfeta = _dphidxi[ig];
+
+    Jac[0][0] = Jac[1][0] = 0.;
+
+    for(int inode = 0; inode < _nc; inode++, dfeta++) {
+      Jac[0][0] += (*dfeta) * vt[0][inode];
+      Jac[1][0] += (*dfeta) * vt[1][inode];
+    }
+
+    std::vector<type> normal(2);
+    type modn = sqrt(Jac[0][0] * Jac[0][0] + Jac[1][0] * Jac[1][0]);
+
+    normal[0] =  Jac[1][0] / modn;
+    normal[1] = -Jac[0][0] / modn;
+
+    //The derivative of x with respect to eta (dx/deta) has the opposite sign with respect to the normal
+    //obtained as cross product between (dx/deta , dy/deta, 0) x (0,0,1)
+    //The Jacobian has the structure
+    // |dx/deta  -nx|
+    // |dy/deta  -ny|
+    Jac[0][1] = -normal[0];
+    Jac[1][1] = -normal[1];
+
+    //The determinant of that matrix is the area
+    type det = (Jac[0][0] * Jac[1][1] - Jac[0][1] * Jac[1][0]);
+
+    JacInv[0][0] =  Jac[1][1] / det;
+    JacInv[0][1] = -Jac[0][1] / det;
+    JacInv[1][0] = -Jac[1][0] / det;
+    JacInv[1][1] =  Jac[0][0] / det;
+
+    Weight = det * _gauss.GetGaussWeightsPointer()[ig];
 
   }
 
@@ -998,8 +1065,6 @@ namespace femus {
 //     if( &nablaphi == NULL ) {
 //       hermitianMatrix = false;
 //     }
-
-
 
     phi.resize(_nc);
     gradphi.resize(_nc * 2);
@@ -1042,14 +1107,14 @@ namespace femus {
 
       if(nablaphi) {
         (*nablaphi)[3 * inode + 0] =
-        ((*dxi2)   * JacI[0][0] + (*dxideta) * JacI[0][1]) * JacI[0][0] +
-        ((*dxideta) * JacI[0][0] + (*deta2)  * JacI[0][1]) * JacI[0][1];
+          ((*dxi2)   * JacI[0][0] + (*dxideta) * JacI[0][1]) * JacI[0][0] +
+          ((*dxideta) * JacI[0][0] + (*deta2)  * JacI[0][1]) * JacI[0][1];
         (*nablaphi)[3 * inode + 1] =
-        ((*dxi2)   * JacI[1][0] + (*dxideta) * JacI[1][1]) * JacI[1][0] +
-        ((*dxideta) * JacI[1][0] + (*deta2)  * JacI[1][1]) * JacI[1][1];
+          ((*dxi2)   * JacI[1][0] + (*dxideta) * JacI[1][1]) * JacI[1][0] +
+          ((*dxideta) * JacI[1][0] + (*deta2)  * JacI[1][1]) * JacI[1][1];
         (*nablaphi)[3 * inode + 2] =
-        ((*dxi2)   * JacI[0][0] + (*dxideta) * JacI[0][1]) * JacI[1][0] +
-        ((*dxideta) * JacI[0][0] + (*deta2)  * JacI[0][1]) * JacI[1][1];
+          ((*dxi2)   * JacI[0][0] + (*dxideta) * JacI[0][1]) * JacI[1][0] +
+          ((*dxideta) * JacI[0][0] + (*deta2)  * JacI[0][1]) * JacI[1][1];
       }
     }
   }
@@ -1115,21 +1180,19 @@ namespace femus {
 
       if(nablaphi) {
         (*nablaphi)[3 * inode + 0] =
-        ((*dxi2)   * JacI[0][0] + (*dxideta) * JacI[0][1]) * JacI[0][0] +
-        ((*dxideta) * JacI[0][0] + (*deta2)  * JacI[0][1]) * JacI[0][1];
+          ((*dxi2)   * JacI[0][0] + (*dxideta) * JacI[0][1]) * JacI[0][0] +
+          ((*dxideta) * JacI[0][0] + (*deta2)  * JacI[0][1]) * JacI[0][1];
         (*nablaphi)[3 * inode + 1] =
-        ((*dxi2)   * JacI[1][0] + (*dxideta) * JacI[1][1]) * JacI[1][0] +
-        ((*dxideta) * JacI[1][0] + (*deta2)  * JacI[1][1]) * JacI[1][1];
+          ((*dxi2)   * JacI[1][0] + (*dxideta) * JacI[1][1]) * JacI[1][0] +
+          ((*dxideta) * JacI[1][0] + (*deta2)  * JacI[1][1]) * JacI[1][1];
         (*nablaphi)[3 * inode + 2] =
-        ((*dxi2)   * JacI[0][0] + (*dxideta) * JacI[0][1]) * JacI[1][0] +
-        ((*dxideta) * JacI[0][0] + (*deta2)  * JacI[0][1]) * JacI[1][1];
+          ((*dxi2)   * JacI[0][0] + (*dxideta) * JacI[0][1]) * JacI[1][0] +
+          ((*dxideta) * JacI[0][0] + (*deta2)  * JacI[0][1]) * JacI[1][1];
       }
     }
   }
 
 //---------------------------------------------------------------------------------------------------------
-
-
 
   template <class type>
   void elem_type_2D::JacobianSur_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
@@ -1180,7 +1243,61 @@ namespace femus {
     ///@todo warning the surface gradient is missing!!!!!!!!!!!!!!!
   }
 
+  template <class type>
+  void elem_type_2D::GetJacobianSurMatrix_type(const vector < vector < type > >& vt, const unsigned& ig, type& Weight,
+      vector < vector < type > >& Jac, vector < vector < type > >& JacInv) const {
 
+    std::vector<type> normal(3);
+    Jac.resize(3);
+    JacInv.resize(3);
+    for (unsigned i = 0; i < 3; i++) {
+      Jac[i].resize(3);
+      JacInv[i].resize(3);
+    }
+
+    const double* dfx = _dphidxi[ig];
+    const double* dfy = _dphideta[ig];
+
+    Jac[0][0] = Jac[1][0] = Jac[2][0] = Jac[0][1] = Jac[1][1] = Jac[2][1] = 0.;
+
+    for (unsigned inode = 0; inode < _nc; inode++, dfx++, dfy++) {
+      Jac[0][0] += (*dfx) * vt[0][inode];
+      Jac[1][0] += (*dfx) * vt[1][inode];
+      Jac[2][0] += (*dfx) * vt[2][inode];
+
+      Jac[0][1] += (*dfy) * vt[0][inode];
+      Jac[1][1] += (*dfy) * vt[1][inode];
+      Jac[2][1] += (*dfy) * vt[2][inode];
+    }
+
+    type nx = Jac[1][0] * Jac[2][1] - Jac[1][1] * Jac[2][0];
+    type ny = Jac[2][0] * Jac[0][1] - Jac[0][0] * Jac[2][1];
+    type nz = Jac[0][0] * Jac[1][1] - Jac[1][0] * Jac[0][1];
+    type det = sqrt(nx * nx + ny * ny + nz * nz);
+    type invDet = 1. / det;
+
+    normal[0] = nx * invDet;
+    normal[1] = ny * invDet;
+    normal[2] = nz * invDet;
+
+    Jac[0][2] = normal[0];
+    Jac[1][2] = normal[1];
+    Jac[2][2] = normal[2];
+
+    JacInv[0][0] = (Jac[1][1] * Jac[2][2] - Jac[1][2] * Jac[2][1]) * invDet;
+    JacInv[0][1] = (Jac[0][2] * Jac[2][1] - Jac[0][1] * Jac[2][2]) * invDet;
+    JacInv[0][2] = (Jac[0][1] * Jac[1][2] - Jac[0][2] * Jac[1][1]) * invDet;
+
+    JacInv[1][0] = (Jac[1][2] * Jac[2][0] - Jac[1][0] * Jac[2][2]) * invDet;
+    JacInv[1][1] = (Jac[0][0] * Jac[2][2] - Jac[0][2] * Jac[2][0]) * invDet;
+    JacInv[1][2] = (Jac[0][2] * Jac[1][0] - Jac[0][0] * Jac[1][2]) * invDet;
+
+    JacInv[2][0] = normal[0];
+    JacInv[2][1] = normal[1];
+    JacInv[2][2] = normal[2];
+
+    Weight = det * _gauss.GetGaussWeightsPointer()[ig];
+  }
 
 //---------------------------------------------------------------------------------------------------------
   template <class type>
@@ -1196,7 +1313,6 @@ namespace femus {
     phi.resize(_nc);
     gradphi.resize(_nc * 3);
     if(nablaphi) nablaphi->resize(_nc * 6);
-
 
     type Jac[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
     type JacI[3][3];
@@ -1254,35 +1370,33 @@ namespace femus {
 
       if(nablaphi) {
         (*nablaphi)[6 * inode + 0] =
-        ((*dxi2)    * JacI[0][0] + (*dxideta)  * JacI[0][1] + (*dzetadxi) * JacI[0][2]) * JacI[0][0] +
-        ((*dxideta) * JacI[0][0] + (*deta2)    * JacI[0][1] + (*detadzeta) * JacI[0][2]) * JacI[0][1] +
-        ((*dzetadxi) * JacI[0][0] + (*detadzeta) * JacI[0][1] + (*dzeta2)   * JacI[0][2]) * JacI[0][2];
+          ((*dxi2)    * JacI[0][0] + (*dxideta)  * JacI[0][1] + (*dzetadxi) * JacI[0][2]) * JacI[0][0] +
+          ((*dxideta) * JacI[0][0] + (*deta2)    * JacI[0][1] + (*detadzeta) * JacI[0][2]) * JacI[0][1] +
+          ((*dzetadxi) * JacI[0][0] + (*detadzeta) * JacI[0][1] + (*dzeta2)   * JacI[0][2]) * JacI[0][2];
         (*nablaphi)[6 * inode + 1] =
-        ((*dxi2)    * JacI[1][0] + (*dxideta)  * JacI[1][1] + (*dzetadxi) * JacI[1][2]) * JacI[1][0] +
-        ((*dxideta) * JacI[1][0] + (*deta2)    * JacI[1][1] + (*detadzeta) * JacI[1][2]) * JacI[1][1] +
-        ((*dzetadxi) * JacI[1][0] + (*detadzeta) * JacI[1][1] + (*dzeta2)   * JacI[1][2]) * JacI[1][2];
+          ((*dxi2)    * JacI[1][0] + (*dxideta)  * JacI[1][1] + (*dzetadxi) * JacI[1][2]) * JacI[1][0] +
+          ((*dxideta) * JacI[1][0] + (*deta2)    * JacI[1][1] + (*detadzeta) * JacI[1][2]) * JacI[1][1] +
+          ((*dzetadxi) * JacI[1][0] + (*detadzeta) * JacI[1][1] + (*dzeta2)   * JacI[1][2]) * JacI[1][2];
         (*nablaphi)[6 * inode + 2] =
-        ((*dxi2)    * JacI[2][0] + (*dxideta)  * JacI[2][1] + (*dzetadxi) * JacI[2][2]) * JacI[2][0] +
-        ((*dxideta) * JacI[2][0] + (*deta2)    * JacI[2][1] + (*detadzeta) * JacI[2][2]) * JacI[2][1] +
-        ((*dzetadxi) * JacI[2][0] + (*detadzeta) * JacI[2][1] + (*dzeta2)   * JacI[2][2]) * JacI[2][2];
+          ((*dxi2)    * JacI[2][0] + (*dxideta)  * JacI[2][1] + (*dzetadxi) * JacI[2][2]) * JacI[2][0] +
+          ((*dxideta) * JacI[2][0] + (*deta2)    * JacI[2][1] + (*detadzeta) * JacI[2][2]) * JacI[2][1] +
+          ((*dzetadxi) * JacI[2][0] + (*detadzeta) * JacI[2][1] + (*dzeta2)   * JacI[2][2]) * JacI[2][2];
         (*nablaphi)[6 * inode + 3] =
-        ((*dxi2)    * JacI[0][0] + (*dxideta)  * JacI[0][1] + (*dzetadxi) * JacI[0][2]) * JacI[1][0] +
-        ((*dxideta) * JacI[0][0] + (*deta2)    * JacI[0][1] + (*detadzeta) * JacI[0][2]) * JacI[1][1] +
-        ((*dzetadxi) * JacI[0][0] + (*detadzeta) * JacI[0][1] + (*dzeta2)   * JacI[0][2]) * JacI[1][2];
+          ((*dxi2)    * JacI[0][0] + (*dxideta)  * JacI[0][1] + (*dzetadxi) * JacI[0][2]) * JacI[1][0] +
+          ((*dxideta) * JacI[0][0] + (*deta2)    * JacI[0][1] + (*detadzeta) * JacI[0][2]) * JacI[1][1] +
+          ((*dzetadxi) * JacI[0][0] + (*detadzeta) * JacI[0][1] + (*dzeta2)   * JacI[0][2]) * JacI[1][2];
         (*nablaphi)[6 * inode + 4] =
-        ((*dxi2)    * JacI[1][0] + (*dxideta)  * JacI[1][1] + (*dzetadxi) * JacI[1][2]) * JacI[2][0] +
-        ((*dxideta) * JacI[1][0] + (*deta2)    * JacI[1][1] + (*detadzeta) * JacI[1][2]) * JacI[2][1] +
-        ((*dzetadxi) * JacI[1][0] + (*detadzeta) * JacI[1][1] + (*dzeta2)   * JacI[1][2]) * JacI[2][2];
+          ((*dxi2)    * JacI[1][0] + (*dxideta)  * JacI[1][1] + (*dzetadxi) * JacI[1][2]) * JacI[2][0] +
+          ((*dxideta) * JacI[1][0] + (*deta2)    * JacI[1][1] + (*detadzeta) * JacI[1][2]) * JacI[2][1] +
+          ((*dzetadxi) * JacI[1][0] + (*detadzeta) * JacI[1][1] + (*dzeta2)   * JacI[1][2]) * JacI[2][2];
         (*nablaphi)[6 * inode + 5] =
-        ((*dxi2)    * JacI[2][0] + (*dxideta)  * JacI[2][1] + (*dzetadxi) * JacI[2][2]) * JacI[0][0] +
-        ((*dxideta) * JacI[2][0] + (*deta2)    * JacI[2][1] + (*detadzeta) * JacI[2][2]) * JacI[0][1] +
-        ((*dzetadxi) * JacI[2][0] + (*detadzeta) * JacI[2][1] + (*dzeta2)   * JacI[2][2]) * JacI[0][2];
+          ((*dxi2)    * JacI[2][0] + (*dxideta)  * JacI[2][1] + (*dzetadxi) * JacI[2][2]) * JacI[0][0] +
+          ((*dxideta) * JacI[2][0] + (*deta2)    * JacI[2][1] + (*detadzeta) * JacI[2][2]) * JacI[0][1] +
+          ((*dzetadxi) * JacI[2][0] + (*detadzeta) * JacI[2][1] + (*dzeta2)   * JacI[2][2]) * JacI[0][2];
       }
     }
 
   }
-
-
 
 //---------------------------------------------------------------------------------------------------------
   template <class type>
@@ -1320,7 +1434,6 @@ namespace femus {
       d2phidetadzeta[j] = _pt_basis->eval_d2phidydz(_IND[j], &xi[0]);
       d2phidzetadxi[j] = _pt_basis->eval_d2phidzdx(_IND[j], &xi[0]);
     }
-
 
     type Jac[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
     type JacI[3][3];
@@ -1375,49 +1488,35 @@ namespace femus {
       gradphi[3 * inode + 2] = (*dxi) * JacI[2][0] + (*deta) * JacI[2][1] + (*dzeta) * JacI[2][2];
       if(nablaphi) {
         (*nablaphi)[6 * inode + 0] =
-        ((*dxi2)    * JacI[0][0] + (*dxideta)  * JacI[0][1] + (*dzetadxi) * JacI[0][2]) * JacI[0][0] +
-        ((*dxideta) * JacI[0][0] + (*deta2)    * JacI[0][1] + (*detadzeta) * JacI[0][2]) * JacI[0][1] +
-        ((*dzetadxi) * JacI[0][0] + (*detadzeta) * JacI[0][1] + (*dzeta2)   * JacI[0][2]) * JacI[0][2];
+          ((*dxi2)    * JacI[0][0] + (*dxideta)  * JacI[0][1] + (*dzetadxi) * JacI[0][2]) * JacI[0][0] +
+          ((*dxideta) * JacI[0][0] + (*deta2)    * JacI[0][1] + (*detadzeta) * JacI[0][2]) * JacI[0][1] +
+          ((*dzetadxi) * JacI[0][0] + (*detadzeta) * JacI[0][1] + (*dzeta2)   * JacI[0][2]) * JacI[0][2];
         (*nablaphi)[6 * inode + 1] =
-        ((*dxi2)    * JacI[1][0] + (*dxideta)  * JacI[1][1] + (*dzetadxi) * JacI[1][2]) * JacI[1][0] +
-        ((*dxideta) * JacI[1][0] + (*deta2)    * JacI[1][1] + (*detadzeta) * JacI[1][2]) * JacI[1][1] +
-        ((*dzetadxi) * JacI[1][0] + (*detadzeta) * JacI[1][1] + (*dzeta2)   * JacI[1][2]) * JacI[1][2];
+          ((*dxi2)    * JacI[1][0] + (*dxideta)  * JacI[1][1] + (*dzetadxi) * JacI[1][2]) * JacI[1][0] +
+          ((*dxideta) * JacI[1][0] + (*deta2)    * JacI[1][1] + (*detadzeta) * JacI[1][2]) * JacI[1][1] +
+          ((*dzetadxi) * JacI[1][0] + (*detadzeta) * JacI[1][1] + (*dzeta2)   * JacI[1][2]) * JacI[1][2];
         (*nablaphi)[6 * inode + 2] =
-        ((*dxi2)    * JacI[2][0] + (*dxideta)  * JacI[2][1] + (*dzetadxi) * JacI[2][2]) * JacI[2][0] +
-        ((*dxideta) * JacI[2][0] + (*deta2)    * JacI[2][1] + (*detadzeta) * JacI[2][2]) * JacI[2][1] +
-        ((*dzetadxi) * JacI[2][0] + (*detadzeta) * JacI[2][1] + (*dzeta2)   * JacI[2][2]) * JacI[2][2];
+          ((*dxi2)    * JacI[2][0] + (*dxideta)  * JacI[2][1] + (*dzetadxi) * JacI[2][2]) * JacI[2][0] +
+          ((*dxideta) * JacI[2][0] + (*deta2)    * JacI[2][1] + (*detadzeta) * JacI[2][2]) * JacI[2][1] +
+          ((*dzetadxi) * JacI[2][0] + (*detadzeta) * JacI[2][1] + (*dzeta2)   * JacI[2][2]) * JacI[2][2];
         (*nablaphi)[6 * inode + 3] =
-        ((*dxi2)    * JacI[0][0] + (*dxideta)  * JacI[0][1] + (*dzetadxi) * JacI[0][2]) * JacI[1][0] +
-        ((*dxideta) * JacI[0][0] + (*deta2)    * JacI[0][1] + (*detadzeta) * JacI[0][2]) * JacI[1][1] +
-        ((*dzetadxi) * JacI[0][0] + (*detadzeta) * JacI[0][1] + (*dzeta2)   * JacI[0][2]) * JacI[1][2];
+          ((*dxi2)    * JacI[0][0] + (*dxideta)  * JacI[0][1] + (*dzetadxi) * JacI[0][2]) * JacI[1][0] +
+          ((*dxideta) * JacI[0][0] + (*deta2)    * JacI[0][1] + (*detadzeta) * JacI[0][2]) * JacI[1][1] +
+          ((*dzetadxi) * JacI[0][0] + (*detadzeta) * JacI[0][1] + (*dzeta2)   * JacI[0][2]) * JacI[1][2];
         (*nablaphi)[6 * inode + 4] =
-        ((*dxi2)    * JacI[1][0] + (*dxideta)  * JacI[1][1] + (*dzetadxi) * JacI[1][2]) * JacI[2][0] +
-        ((*dxideta) * JacI[1][0] + (*deta2)    * JacI[1][1] + (*detadzeta) * JacI[1][2]) * JacI[2][1] +
-        ((*dzetadxi) * JacI[1][0] + (*detadzeta) * JacI[1][1] + (*dzeta2)   * JacI[1][2]) * JacI[2][2];
+          ((*dxi2)    * JacI[1][0] + (*dxideta)  * JacI[1][1] + (*dzetadxi) * JacI[1][2]) * JacI[2][0] +
+          ((*dxideta) * JacI[1][0] + (*deta2)    * JacI[1][1] + (*detadzeta) * JacI[1][2]) * JacI[2][1] +
+          ((*dzetadxi) * JacI[1][0] + (*detadzeta) * JacI[1][1] + (*dzeta2)   * JacI[1][2]) * JacI[2][2];
         (*nablaphi)[6 * inode + 5] =
-        ((*dxi2)    * JacI[2][0] + (*dxideta)  * JacI[2][1] + (*dzetadxi) * JacI[2][2]) * JacI[0][0] +
-        ((*dxideta) * JacI[2][0] + (*deta2)    * JacI[2][1] + (*detadzeta) * JacI[2][2]) * JacI[0][1] +
-        ((*dzetadxi) * JacI[2][0] + (*detadzeta) * JacI[2][1] + (*dzeta2)   * JacI[2][2]) * JacI[0][2];
+          ((*dxi2)    * JacI[2][0] + (*dxideta)  * JacI[2][1] + (*dzetadxi) * JacI[2][2]) * JacI[0][0] +
+          ((*dxideta) * JacI[2][0] + (*deta2)    * JacI[2][1] + (*detadzeta) * JacI[2][2]) * JacI[0][1] +
+          ((*dzetadxi) * JacI[2][0] + (*detadzeta) * JacI[2][1] + (*dzeta2)   * JacI[2][2]) * JacI[0][2];
       }
     }
   }
 
-
 //---------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
 
 } //end namespace femus
 
-
-
 #endif
-
-
-

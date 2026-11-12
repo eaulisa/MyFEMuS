@@ -1,0 +1,18 @@
+[
+  {
+    "test": "benchmark_graph_dimensions",
+    "exit": 0
+  },
+  {
+    "test": "endpoint_strip_benchmark",
+    "exit": 0
+  },
+  {
+    "test": "wide_unit_validation",
+    "exit": 0
+  },
+  {
+    "test": "line_mesh_refinement",
+    "exit": 0
+  }
+]

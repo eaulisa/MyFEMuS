@@ -31,6 +31,8 @@
 #include <cmath>
 #include <cstring>
 #include <algorithm>
+#include <array>
+#include <stdexcept>
 
 namespace femus {
 
@@ -1618,5 +1620,290 @@ namespace femus {
       }
     }
   }
+
+  void Mesh::BuildSingleElement(const GeomElType geometry,
+                                const std::array<double, 3>& lo,
+                                const std::array<double, 3>& hi) {
+    if (geometry != QUAD && geometry != TRI &&
+        geometry != HEX  && geometry != TET)
+      throw std::invalid_argument("Supported types: QUAD, TRI, HEX, TET");
+
+    const unsigned dim = (geometry == HEX || geometry == TET) ? 3u : 2u;
+    if (!(lo[0] < hi[0]) || !(lo[1] < hi[1]) ||
+        (dim == 3u && !(lo[2] < hi[2])))
+      throw std::invalid_argument("Invalid single-element bounds");
+
+    // FEMuS geometry: HEX=0, TET=1, QUAD=3, TRI=4.
+    const unsigned g = static_cast<unsigned>(geometry);
+    const unsigned nLinear = NVE[g][0];
+    const unsigned nQuadratic = NVE[g][1];
+    const unsigned nBiquadratic = NVE[g][2];
+    const unsigned nFaces = NFC[g][1];
+
+    typedef std::array<double, 3> Point;
+    std::vector<Point> reference;
+    switch (geometry) {
+      case QUAD:
+        reference = {
+          {{0,0,0}}, {{1,0,0}}, {{1,1,0}}, {{0,1,0}},
+          {{.5,0,0}}, {{1,.5,0}}, {{.5,1,0}}, {{0,.5,0}},
+          {{.5,.5,0}}
+        };
+        break;
+      case TRI:
+        reference = {
+          {{0,0,0}}, {{1,0,0}}, {{0,1,0}},
+          {{.5,0,0}}, {{.5,.5,0}}, {{0,.5,0}},
+          {{1./3.,1./3.,0}}
+        };
+        break;
+      case HEX:
+        reference = {
+          {{0,0,0}}, {{1,0,0}}, {{1,1,0}}, {{0,1,0}},
+          {{0,0,1}}, {{1,0,1}}, {{1,1,1}}, {{0,1,1}},
+          {{.5,0,0}}, {{1,.5,0}}, {{.5,1,0}}, {{0,.5,0}},
+          {{.5,0,1}}, {{1,.5,1}}, {{.5,1,1}}, {{0,.5,1}},
+          {{0,0,.5}}, {{1,0,.5}}, {{1,1,.5}}, {{0,1,.5}},
+          {{.5,0,.5}}, {{1,.5,.5}}, {{.5,1,.5}}, {{0,.5,.5}},
+          {{.5,.5,0}}, {{.5,.5,1}}, {{.5,.5,.5}}
+        };
+        break;
+      case TET:
+        reference = {
+          {{0,0,0}}, {{1,0,0}}, {{0,1,0}}, {{0,0,1}},
+          {{.5,0,0}}, {{.5,.5,0}}, {{0,.5,0}},
+          {{0,0,.5}}, {{.5,0,.5}}, {{0,.5,.5}},
+          {{1./3.,1./3.,0}}, {{1./3.,0,1./3.}},
+          {{1./3.,1./3.,1./3.}}, {{0,1./3.,1./3.}},
+          {{.25,.25,.25}}
+        };
+        break;
+      default: break;
+    }
+
+    SetDimension(dim);
+    SetLevel(0);
+    SetIfHomogeneous(true);
+    SetNumberOfElements(1);
+    SetNumberOfNodes(nBiquadratic);
+
+    _coords.assign(3, std::vector<double>(nBiquadratic, 0.));
+    for (unsigned i = 0; i < nBiquadratic; ++i)
+      for (unsigned d = 0; d < dim; ++d)
+        _coords[d][i] = lo[d] + (hi[d] - lo[d]) * reference[i][d];
+
+    // The only element has identity local-to-global connectivity.
+    el = new elem(1);
+    el->SetElementType(0, static_cast<short unsigned>(g));
+    el->SetElementGroupNumber(1);
+    el->SetElementGroup(0, 1);
+    el->SetElementMaterial(0, 2); // fluid, like BuildBox
+    el->SetElementLevel(0, 0);
+    el->AddToElementNumber(1, static_cast<short unsigned>(g));
+    el->SetMaterialElementCounter({1, 0, 0});
+    for (unsigned i = 0; i < nBiquadratic; ++i)
+      el->SetElementDofIndex(0, i, i);
+
+    // No neighbors: every face is a boundary (IDs 1..nFaces).
+    static const char* const quadNames[] = {"bottom", "right", "top", "left"};
+    static const char* const triNames[]  = {"bottom", "diagonal", "left"};
+    static const char* const hexNames[]  = {"ymin", "xmax", "ymax", "xmin", "zmin", "zmax"};
+    static const char* const tetNames[]  = {"zmin", "ymin", "diagonal", "xmin"};
+    const char* const* names = (geometry == QUAD) ? quadNames :
+                               (geometry == TRI) ? triNames :
+                               (geometry == HEX) ? hexNames : tetNames;
+    for (unsigned face = 0; face < nFaces; ++face) {
+      el->SetFaceElementIndex(0, face, -static_cast<int>(face) - 2);
+      _boundaryinfo[face] = names[face];
+    }
+
+    el->ShrinkToFit();
+    el->SetNodeNumber(nBiquadratic);
+
+    // Explicit one-element partition: rank 0 owns all DOFs, other ranks none.
+    // No METIS and no node remapping: connectivity is already ordered P1/P2/Q2.
+    _elementOffset.assign(_nprocs + 1u, 1u);
+    _elementOffset[0] = 0u;
+    const unsigned dofs[5] = {nLinear, nQuadratic, nBiquadratic,
+                              1u, dim + 1u};
+    for (unsigned k = 0; k < 5; ++k) {
+      _ownSize[k].assign(_nprocs, 0u);
+      _ownSize[k][0] = dofs[k];
+      _dofOffset[k].assign(_nprocs + 1u, dofs[k]);
+      _dofOffset[k][0] = 0u;
+      _ghostDofs[k].assign(_nprocs, std::vector<int>());
+    }
+    _originalOwnSize[0].assign(_nprocs, 0u);
+    _originalOwnSize[1].assign(_nprocs, 0u);
+    _originalOwnSize[0][0] = nLinear;
+    _originalOwnSize[1][0] = nQuadratic;
+    el->SetElementOffsets(_elementOffset, _iproc, _nprocs);
+
+    el->BuildElementNearVertex();
+    el->BuildElementNearElement();
+    el->DeleteElementNearVertex();
+
+    // Complete coordinate, AMR, and solid-marker solution containers.
+    _topology = new Solution(this);
+    for (const char* name : {"X", "Y", "Z"}) {
+      _topology->AddSolution(name, LAGRANGE, SECOND, 1, 0);
+      _topology->ResizeSolutionVector(name);
+    }
+    _topology->GetSolutionName("X") = _coords[0];
+    _topology->GetSolutionName("Y") = _coords[1];
+    _topology->GetSolutionName("Z") = _coords[2];
+
+    _topology->AddSolution("AMR", DISCONTINUOUS_POLYNOMIAL, ZERO, 1, 0);
+    _topology->ResizeSolutionVector("AMR");
+    _topology->AddSolution("solidMrk", LAGRANGE, SECOND, 1, 0);
+    _topology->ResizeSolutionVector("solidMrk");
+    _topology->GetSolutionName("solidMrk").zero();
+    _topology->GetSolutionName("solidMrk").close();
+
+    const double dx = hi[0] - lo[0], dy = hi[1] - lo[1];
+    const double dz = (dim == 3u) ? hi[2] - lo[2] : 0.;
+    _cLenght = std::sqrt(dx*dx + dy*dy + dz*dz);
+
+    el->ScatterElementQuantities();
+    el->ScatterElementDof();
+    el->ScatterElementNearFace();
+    _amrRestriction.resize(3);
+    PrintInfo();
+  }
+
+void Mesh::EvaluateAnalyticBallMap(
+    GeomElType geometry,
+    const std::array<double,3>& center,
+    double curvature,
+    const std::array<double,3>& q,
+    std::array<double,3>& x) {
+
+  if(geometry!=TRI && geometry!=QUAD &&
+     geometry!=TET && geometry!=HEX)
+    throw std::invalid_argument("Analytic BALL: unsupported geometry");
+  if(!(curvature>=0.) || !std::isfinite(curvature))
+    throw std::invalid_argument("Analytic BALL: invalid curvature");
+
+  const double p0=q[0]-center[0];
+  const double p1=q[1]-center[1];
+  x=q;
+
+  if(geometry==TRI || geometry==QUAD) {
+    // Complex map z -> z + curvature*z^2.
+    x[0]=center[0]+p0+curvature*(p0*p0-p1*p1);
+    x[1]=center[1]+p1+2.*curvature*p0*p1;
+  } else {
+    // Axially symmetric quadratic map.
+    const double p2=q[2]-center[2];
+    const double a=1.+2.*curvature*p2;
+    x[0]=center[0]+a*p0;
+    x[1]=center[1]+a*p1;
+    x[2]=center[2]+p2+curvature*(p2*p2-p0*p0-p1*p1);
+  }
+}
+
+std::array<double,3> Mesh::InvertAnalyticBallMap(
+    GeomElType geometry,
+    const std::array<double,3>& center,
+    double curvature,
+    const std::array<double,3>& x) {
+
+  if(geometry!=TRI && geometry!=QUAD &&
+     geometry!=TET && geometry!=HEX)
+    throw std::invalid_argument("Analytic BALL: unsupported geometry");
+  if(!(curvature>=0.) || !std::isfinite(curvature))
+    throw std::invalid_argument("Analytic BALL: invalid curvature");
+
+  if(curvature==0.) return x;
+
+  std::array<double,3> q=x;
+  if(geometry==TRI || geometry==QUAD) {
+    // Stable inverse of z + curvature*z^2 = w.
+    // Choose the branch continuous with the identity at curvature=0.
+    const std::complex<double> w(x[0]-center[0],x[1]-center[1]);
+    const std::complex<double> z =
+      (2.*w)/(1.+std::sqrt(std::complex<double>(1.,0.)+4.*curvature*w));
+    q[0]=center[0]+z.real();
+    q[1]=center[1]+z.imag();
+  } else {
+    // Let a = 1 + 2*curvature*(q_z-c_z) > 0.
+    // From x_perp = a*q_perp and the z map:
+    //   a^4 - (1+4*curvature*Z)*a^2 - 4*curvature^2*R^2 = 0.
+    const double X=x[0]-center[0];
+    const double Y=x[1]-center[1];
+    const double Z=x[2]-center[2];
+    const double R2=X*X+Y*Y;
+    const double b=1.+4.*curvature*Z;
+    const double discriminant=std::sqrt(b*b+16.*curvature*curvature*R2);
+    const double a2=0.5*(b+discriminant);
+    if(!(a2>0.) || !std::isfinite(a2))
+      throw std::runtime_error("Analytic BALL: non-invertible 3D map");
+    const double a=std::sqrt(a2);
+    q[0]=center[0]+X/a;
+    q[1]=center[1]+Y/a;
+    // Stable form of (a-1)/(2*curvature).
+    q[2]=center[2]+2.*(Z+curvature*R2/a2)/(a+1.);
+  }
+
+  // Detect a point outside the selected invertible branch.
+  std::array<double,3> check;
+  EvaluateAnalyticBallMap(geometry,center,curvature,q,check);
+  const unsigned dim=(geometry==TRI || geometry==QUAD) ? 2u : 3u;
+  for(unsigned d=0;d<dim;++d) {
+    if(!std::isfinite(q[d]) ||
+       std::abs(check[d]-x[d])>1.e-10*std::max(1.,std::abs(x[d])))
+      throw std::runtime_error("Analytic BALL: inverse-map check failed");
+  }
+  return q;
+}
+
+void Mesh::CurveSingleElementAnalyticBall(
+    const std::array<double,3>& center,
+    double curvature) {
+
+  if(GetNumberOfElements()!=1u)
+    throw std::runtime_error("Analytic BALL requires exactly one element");
+  const unsigned geometry=GetElementType(0);
+  if(geometry!=TRI && geometry!=QUAD &&
+     geometry!=TET && geometry!=HEX)
+    throw std::invalid_argument("Analytic BALL: unsupported geometry");
+  if(!(curvature>=0.) || !std::isfinite(curvature))
+    throw std::invalid_argument("Analytic BALL: invalid curvature");
+
+  const unsigned dim=(geometry==TET || geometry==HEX) ? 3u : 2u;
+  const unsigned nNodes=GetElementDofNumber(0,2);
+
+  std::vector<std::vector<double>> newCoords(dim);
+  for(unsigned d=0;d<dim;++d) newCoords[d]=_coords[d];
+
+  for(unsigned i=0;i<nNodes;++i) {
+    const unsigned dof=GetSolutionDof(i,0,2);
+    std::array<double,3> q={{0.,0.,0.}},x;
+    for(unsigned d=0;d<dim;++d) q[d]=_coords[d][dof];
+
+    // Sufficient for the chosen quadratic maps on convex input elements:
+    // in 2D the real part of 1+2*k*z stays positive;
+    // in 3D a=1+2*k*p_z stays positive.
+    const unsigned axis=(dim==2u)?0u:2u;
+    const double branch=1.+2.*curvature*(q[axis]-center[axis]);
+    if(!(branch>1.e-8))
+      throw std::runtime_error("Analytic BALL: map is not regular");
+
+    EvaluateAnalyticBallMap(static_cast<GeomElType>(geometry),center,curvature,q,x);
+    for(unsigned d=0;d<dim;++d) newCoords[d][dof]=x[d];
+  }
+
+  // Replace all geometry coordinates and keep topology solution synchronized.
+  static const char* names[3]={"X","Y","Z"};
+  for(unsigned d=0;d<dim;++d) {
+    _coords[d].swap(newCoords[d]);
+    _topology->GetSolutionName(names[d])=_coords[d];
+    _topology->GetSolutionName(names[d]).close();
+  }
+}
+
+
+
+
 
 } //end namespace femus

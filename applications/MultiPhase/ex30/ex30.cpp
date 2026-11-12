@@ -8,7 +8,6 @@
 #include "NonLinearImplicitSystem.hpp"
 #include "adept.h"
 
-
 #include "petsc.h"
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
@@ -27,7 +26,6 @@
 CutFemWeight <TypeIO, TypeA> quad  = CutFemWeight<TypeIO, TypeA >(QUAD, 1, "legendre");
 CutFemWeight <TypeIO, TypeA> tri  = CutFemWeight<TypeIO, TypeA >(TRI, 1, "legendre");
 Fem fem = Fem(tri.GetGaussQuadratureOrder(), tri.GetDimension());*/
-
 
 #include "../include/MyMarker/MyMarker.hpp"
 #include "../include/MyMarker/MyMarker.cpp"
@@ -168,19 +166,14 @@ double SetInitialCondition(const MultiLevelProblem * ml_prob, const std::vector 
   return value;
 }
 
-
 double GetAnalyticPSI(const std::vector < double >& x) {
   return -1.;
 }
 
-
-
 int main(int argc, char** args) {
- // ProfilerStart("profiling.prof");
-
+// ProfilerStart("profiling.prof");
 
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
-
 
   MultiLevelMesh mlMsh;
 
@@ -189,7 +182,6 @@ int main(int argc, char** args) {
   //mlMsh.GenerateCoarseBoxMesh(256, 256, 0, -0.75, 0.75, -0.75, 0.75, 0., 0., TRI6, "seventh");
   //mlMsh.GenerateCoarseBoxMesh(16 * 3 / 2, 16 * 3 / 2, 0, -0.75, 0.75, -0.75, 0.75, 0., 0., QUAD9, "seventh");
   mlMsh.GenerateCoarseBoxMesh(16 * 3 / 2, 16 * 3 / 2, 16 * 3 / 2, -0.75, 0.75, -0.75, 0.75, -0.75, 0.75, HEX27, "seventh");
-
 
   unsigned dim = mlMsh.GetDimension();
 
@@ -211,7 +203,6 @@ int main(int argc, char** args) {
   if(dim == 3) mlSol.AddSolution("W", LAGRANGE, SECOND, 2);
 
   mlSol.AddSolution("PSI", LAGRANGE, SECOND, 2);
-
 
   MultiLevelProblem mlProb(&mlSol);
 
@@ -246,7 +237,6 @@ int main(int argc, char** args) {
   vtkIO.SetDebugOutput(true);
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
-
   unsigned nIterations = 320;
   //unsigned nIterations = 100;
   double time = 0;
@@ -264,7 +254,7 @@ int main(int argc, char** args) {
     LevelSetAdvection(stages, velocity, levelSet, dt, sol);
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, it);
   }
- // ProfilerStop();
+// ProfilerStop();
   return 0;
 }
 
@@ -310,7 +300,6 @@ const double XI[6][27][3] = {
     {-1,}, {1,}, {0,}
   }
 };
-
 
 void LevelSetAdvection(const unsigned & stages, const std::vector<std::string> &U, std::string &PSI, const double & dt, Solution *_sol) {
 
@@ -665,13 +654,3 @@ void LevelSetAdvection(const unsigned & stages, const std::vector<std::string> &
   }
   _sol->_Sol[solPSIIndex]->close();
 }
-
-
-
-
-
-
-
-
-
-

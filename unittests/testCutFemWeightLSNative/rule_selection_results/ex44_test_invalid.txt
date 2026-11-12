@@ -1,0 +1,15 @@
+[1794357692.365837] [f07d7b07ca06:42   :f]        vfs_fuse.c:413  UCX  ERROR failed to create VFS socket: Operation not permitted
+hwloc/linux: failed to find sysfs cpu topology directory, aborting linux discovery.
+ FemusInit(): PETSC_COMM_WORLD initialized
+
+Argument error: Invalid Gauss-Kronrod pair: 7/31; expected n/(2n+1) for n=1,...,15.
+Use --help for options.
+--------------------------------------------------------------------------
+MPI_ABORT was invoked on rank 0 in communicator MPI_COMM_WORLD
+  Proc: [[46340,0],0]
+  Errorcode: 1
+
+NOTE: invoking MPI_ABORT causes Open MPI to kill all MPI processes.
+You may or may not see output from other processes, depending on
+exactly when Open MPI kills them.
+--------------------------------------------------------------------------

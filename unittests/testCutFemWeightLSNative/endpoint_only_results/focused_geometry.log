@@ -1,0 +1,7 @@
+REVIEW full triangle, tiny region, and degree-8/10 moments passed
+REVIEW selective refinement regressions passed
+REVIEW explicit heavy validation mode passed on regular graphs
+REVIEW circle convergence cases=144 failures=0 tolerances=1e-8,1e-10,1e-12
+REVIEW mapped quartic endpoint arithmetic passed
+REVIEW translated ellipse cases=48 failures=0
+REVIEW PASS checks=12116 maximum_actual_error_fraction=0.001255873595970459 seconds=1.233392757

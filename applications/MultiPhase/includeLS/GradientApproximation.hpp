@@ -15,8 +15,7 @@
 inline bool solveSmallSystem2x2(const double a00, const double a01,
                                 const double a10, const double a11,
                                 const double b0,  const double b1,
-                                std::vector<double>& x)
-{
+                                std::vector<double>& x) {
   const double det = a00 * a11 - a01 * a10;
   const double scale = std::abs(a00) + std::abs(a01) + std::abs(a10) + std::abs(a11);
   const double tol = (scale > 0.0) ? 1.e-14 * scale * scale : 1.e-14;
@@ -43,8 +42,7 @@ inline bool solveSmallSystem3x3(const double a00, const double a01, const double
                                 const double a10, const double a11, const double a12,
                                 const double a20, const double a21, const double a22,
                                 const double b0,  const double b1,  const double b2,
-                                std::vector<double>& x)
-{
+                                std::vector<double>& x) {
   const double c00 =  a11 * a22 - a12 * a21;
   const double c01 = -a10 * a22 + a12 * a20;
   const double c02 =  a10 * a21 - a11 * a20;
@@ -60,9 +58,9 @@ inline bool solveSmallSystem3x3(const double a00, const double a01, const double
   const double det = a00 * c00 + a01 * c01 + a02 * c02;
 
   const double scale =
-      std::abs(a00) + std::abs(a01) + std::abs(a02) +
-      std::abs(a10) + std::abs(a11) + std::abs(a12) +
-      std::abs(a20) + std::abs(a21) + std::abs(a22);
+    std::abs(a00) + std::abs(a01) + std::abs(a02) +
+    std::abs(a10) + std::abs(a11) + std::abs(a12) +
+    std::abs(a20) + std::abs(a21) + std::abs(a22);
 
   const double tol = (scale > 0.0) ? 1.e-14 * scale * scale * scale : 1.e-14;
 
@@ -94,10 +92,9 @@ inline bool solveSmallSystem3x3(const double a00, const double a01, const double
 // No shape functions are used.
 // -----------------------------------------------------------------------------
 inline void computeElementGradientFromLocalData(
-    const std::vector<std::vector<double>>& xloc,
-    const std::vector<double>& uloc,
-    std::vector<double>& grad)
-{
+  const std::vector<std::vector<double>>& xloc,
+  const std::vector<double>& uloc,
+  std::vector<double>& grad) {
   const std::size_t dim = xloc.size();
   if(dim != 2u && dim != 3u) {
     throw std::runtime_error("computeElementGradientFromLocalData: dim must be 2 or 3");
@@ -154,8 +151,7 @@ inline void computeElementGradientFromLocalData(
     if(!solveSmallSystem2x2(m00, m01,
                             m01, m11,
                             r0s, r1s,
-                            grad))
-    {
+                            grad)) {
       grad[0] = 0.0;
       grad[1] = 0.0;
     }
@@ -202,8 +198,7 @@ inline void computeElementGradientFromLocalData(
                           m01, m11, m12,
                           m02, m12, m22,
                           r0s, r1s, r2s,
-                          grad))
-  {
+                          grad)) {
     grad[0] = 0.0;
     grad[1] = 0.0;
     grad[2] = 0.0;

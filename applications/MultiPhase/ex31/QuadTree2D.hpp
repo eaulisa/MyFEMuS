@@ -14,8 +14,6 @@
 #include <functional>
 #include <utility>
 
-
-
 #include "Encoder.hpp"
 
 namespace fem {
@@ -26,23 +24,20 @@ namespace fem {
 
   enum class Basis : uint8_t { Q1_Quad4 = 0, Serendipity8 = 1, Q2_Quad9 = 2 };
 
-
 //--------------------------------------------
 // VTK cell-type helper
 //--------------------------------------------
   inline unsigned char vtk_cell_type(Basis b) {
     switch (b) {
-    case Basis::Q1_Quad4:
-      return 9;   // VTK_QUAD
-    case Basis::Serendipity8:
-      return 23;  // VTK_QUADRATIC_QUAD
-    case Basis::Q2_Quad9:
-      return 28;  // VTK_BIQUADRATIC_QUAD
+      case Basis::Q1_Quad4:
+        return 9;   // VTK_QUAD
+      case Basis::Serendipity8:
+        return 23;  // VTK_QUADRATIC_QUAD
+      case Basis::Q2_Quad9:
+        return 28;  // VTK_BIQUADRATIC_QUAD
     }
     return 9; // sensible default
   }
-
-
 
 //--------------------------------------------
 // Morton helpers
@@ -191,12 +186,6 @@ namespace fem {
     }
   };
 
-
-
-
-
-
-
   struct Shapes {
     static inline void Q1(double xi, double eta, double N4[4]) {
       const double a = 0.25 * (1 - xi), b = 0.25 * (1 + xi);
@@ -330,7 +319,6 @@ namespace fem {
         // f.dofs_per_cell = (b == Basis::Q1_Quad4 ? 4 : (b == Basis::Serendipity8 ? 8 : 9));
         // f.coeffs.resize(leaf_count() * f.dofs_per_cell, 0.0);
 
-
         // Ensure registry exists so we can size nodal storage
         _activeBases.insert(b);
         rebuild_connectivity_active_bases();
@@ -376,7 +364,7 @@ namespace fem {
       // ---- node generators (parent & physical) ----
       // Fill vector with parent-space coordinates of interpolation nodes (by basis) for leaf
       void extract_node_parent_coords_in_level_range(Basis basis, u32 leaf_idx,
-                                                     std::vector<std::array<double, 2>>& out_pts) const {
+          std::vector<std::array<double, 2>>& out_pts) const {
 
         // Map leaf_idx → actual TreeNode
         const TreeNode& leaf = _tree_nodes[_leaves[leaf_idx]];
@@ -387,35 +375,34 @@ namespace fem {
         out_pts.clear();
         out_pts.reserve(9);
         switch (basis) {
-        case Basis::Q1_Quad4: {
-          out_pts = {
-            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1}
-          };
-        }
-        break;
+          case Basis::Q1_Quad4: {
+            out_pts = {
+              {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1}
+            };
+          }
+          break;
 
-        case Basis::Serendipity8: {
-          const double xm = 0.5 * (xi0 + xi1);
-          const double ym = 0.5 * (eta0 + eta1);
-          out_pts = {
-            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-            {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
-          };
-        }
-        break;
+          case Basis::Serendipity8: {
+            const double xm = 0.5 * (xi0 + xi1);
+            const double ym = 0.5 * (eta0 + eta1);
+            out_pts = {
+              {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+              {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
+            };
+          }
+          break;
 
-        case Basis::Q2_Quad9: {
-          const double xm = 0.5 * (xi0 + xi1);
-          const double ym = 0.5 * (eta0 + eta1);
-          out_pts = {
-            {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-            {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
-          };
-        }
-        break;
+          case Basis::Q2_Quad9: {
+            const double xm = 0.5 * (xi0 + xi1);
+            const double ym = 0.5 * (eta0 + eta1);
+            out_pts = {
+              {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+              {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
+            };
+          }
+          break;
         }
       }
-
 
       void leaf_physical_nodes(Basis basis, u32 leaf_idx,
                                std::vector<std::array<double, 2>>& out_xy) const {
@@ -476,7 +463,6 @@ namespace fem {
                 child.is_leaf = true;
                 child.parent  = leaf_node_idx;
                 child.child[0] = child.child[1] = child.child[2] = child.child[3] = npos32;
-
 
                 u32 child_idx = (u32)_tree_nodes.size();
                 _tree_nodes.push_back(child);
@@ -562,21 +548,21 @@ namespace fem {
           pts_xi.reserve(9);
           const double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
           switch (probe_basis) {
-          case Basis::Q1_Quad4:
-            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1} }};
-            break;
-          case Basis::Serendipity8:
-            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-                {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
-              }
-            };
-            break;
-          case Basis::Q2_Quad9:
-            pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
-                {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
-              }
-            };
-            break;
+            case Basis::Q1_Quad4:
+              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1} }};
+              break;
+            case Basis::Serendipity8:
+              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+                  {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}
+                }
+              };
+              break;
+            case Basis::Q2_Quad9:
+              pts_xi = {{ {xi0, eta0}, {xi1, eta0}, {xi1, eta1}, {xi0, eta1},
+                  {xm, eta0}, {xi1, ym}, {xm, eta1}, {xi0, ym}, {xm, ym}
+                }
+              };
+              break;
           }
 
           std::vector<std::array<double, 2>> pts_xy;
@@ -615,17 +601,12 @@ namespace fem {
 //          rebuild_connectivity_active_bases();
 //          resize_fields_to_leaves();
 
-
           rebuild_connectivity_active_bases();
           resize_fields_to_nodes();
 
         }
         return coarsened;
       }
-
-
-
-
 
 // ---- geometry map ----
       std::array<double, 2> parent_to_physical(double xi, double eta) const {
@@ -639,7 +620,6 @@ namespace fem {
         }
         return {X, Y};
       }
-
 
       bool write_binary_vtu(const std::string &filename, u32 fid, const std::string &name,
                             bool cell_centered = false) const {
@@ -734,7 +714,6 @@ namespace fem {
           pointData = fld.nodal;
         }
 
-
         // -------------------------
         // Write XML
         // -------------------------
@@ -777,8 +756,6 @@ namespace fem {
         return true;
       }
 
-
-
 // Accessors for coarse geometry coordinates (const-ref)
       inline const std::array<double, 9>& get_X() const {
         return _X;
@@ -813,7 +790,6 @@ namespace fem {
         return _tree_nodes[node_idx].level;        // get level from TreeNode
       }
 
-
 //Return global maximum depth allowed
       u32 max_depth() const {
         return _maxDepth;
@@ -846,7 +822,6 @@ namespace fem {
         return node;
       }
 
-
 // Evaluate field directly in parent coordinates (xi, eta).
 // Locates the leaf, maps to local [-1,1]^2, and interpolates.
       bool evaluate_field_on_parent(u32 fid, double xi, double eta, double& value, bool debug = false) const {
@@ -860,13 +835,9 @@ namespace fem {
           return false;
         }
 
-
-
         // 2) leaf node index -> position in coefficient storage
         const u32 leaf_pos = leaf_position(leaf_node_idx);
         if (leaf_pos == npos32) return false;
-
-
 
         // 3) access field + coefficients
         const Field& f = _fields[fid];
@@ -877,41 +848,40 @@ namespace fem {
 
         // 4) interpolate
         switch (f.basis) {
-        case Basis::Q1_Quad4: {
-          double N4[4];
-          Shapes::Q1(shat, that, N4);
-          //value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-          value = 0.0;
-          for (int a = 0; a < 4; ++a) value += N4[a] * f.nodal[conn[a]];
-        }
-        break;
-        case Basis::Serendipity8: {
-          double N8[8];
-          Shapes::Serendipity8(shat, that, N8);
-          //double v = 0.0;
-          //for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-          //value = v;
-          value = 0.0;
-          for (int a = 0; a < 8; ++a) value += N8[a] * f.nodal[conn[a]];
-        }
-        break;
-        case Basis::Q2_Quad9: {
-          double N9[9];
-          Quad9Shape::N(shat, that, N9);
-
-
-          //if (debug) std::cout << "AAAA\n" << xi << " " << eta << " " << leaf_node_idx << " " << leaf_pos << " " << shat << " " << that << std::endl;
-
-          // double v = 0.0;
-          // for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-          // value = v;
-          value = 0.0;
-          for (int a = 0; a < 9; ++a) {
-            value += N9[a] * f.nodal[conn[a]];
-            //if (debug) std::cout << a << " " << conn[a] << " " << N9[a] << " " << f.nodal[conn[a]] << std::endl;
+          case Basis::Q1_Quad4: {
+            double N4[4];
+            Shapes::Q1(shat, that, N4);
+            //value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+            value = 0.0;
+            for (int a = 0; a < 4; ++a) value += N4[a] * f.nodal[conn[a]];
           }
-        }
-        break;
+          break;
+          case Basis::Serendipity8: {
+            double N8[8];
+            Shapes::Serendipity8(shat, that, N8);
+            //double v = 0.0;
+            //for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+            //value = v;
+            value = 0.0;
+            for (int a = 0; a < 8; ++a) value += N8[a] * f.nodal[conn[a]];
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            double N9[9];
+            Quad9Shape::N(shat, that, N9);
+
+            //if (debug) std::cout << "AAAA\n" << xi << " " << eta << " " << leaf_node_idx << " " << leaf_pos << " " << shat << " " << that << std::endl;
+
+            // double v = 0.0;
+            // for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+            // value = v;
+            value = 0.0;
+            for (int a = 0; a < 9; ++a) {
+              value += N9[a] * f.nodal[conn[a]];
+              //if (debug) std::cout << a << " " << conn[a] << " " << N9[a] << " " << f.nodal[conn[a]] << std::endl;
+            }
+          }
+          break;
         }
         return true;
       }
@@ -985,7 +955,6 @@ namespace fem {
         enforce_balance();
       }
 
-
 // // --- public: refine so that each physical point is inside a leaf at least 'maxDepthTarget' ---
 //       void refine_to_contain_points(const std::vector<std::array<double, 2>>& pts,
 //                                     u32 maxDepthTarget) {
@@ -1013,7 +982,6 @@ namespace fem {
 //         rebuild_connectivity_active_bases();
 //         resize_fields_to_leaves();
 //       }
-
 
       // ---- Public: enforce 1-irregularity ---------------------------------
     public:
@@ -1055,8 +1023,6 @@ namespace fem {
         resize_fields_to_nodes();
       }
 
-
-
       // Conservative coarsen cycle using snapshot + parent coords; rebuild all fields
       std::size_t coarsen_only_cycle_safe(u32 fid,
                                           double tau_coarse,
@@ -1095,7 +1061,6 @@ namespace fem {
           std::size_t c = coarsen_pass(pred, probe_basis);
           if (c == 0) break;
           total += c;
-
 
         }
 
@@ -1137,7 +1102,6 @@ namespace fem {
       const std::vector<std::vector<int>>& basis_connectivity(Basis b) const {
         return _basisReg[(int)b].elem2glob;
       }
-
 
       // ---- Private helpers -------------------------------------------------
     private:
@@ -1188,9 +1152,6 @@ namespace fem {
         }
       }
 
-
-
-
       // Compute a neighbor leaf by probing an edge midpoint in parent space.
       // dir: 0=left (−x), 1=right (+x), 2=down (−y), 3=up (+y).
       u32 neighbor_leaf_by_dir(u32 leaf_node_idx, int dir) const {
@@ -1210,22 +1171,22 @@ namespace fem {
 
         double qx, qy;
         switch (dir) {
-        case 0:
-          qx = xi0 - epsx;
-          qy = ym;
-          break; // left
-        case 1:
-          qx = xi1 + epsx;
-          qy = ym;
-          break; // right
-        case 2:
-          qx = xm;
-          qy = eta0 - epsy;
-          break; // down
-        default:/*3*/
-          qx = xm;
-          qy = eta1 + epsy;
-          break; // up
+          case 0:
+            qx = xi0 - epsx;
+            qy = ym;
+            break; // left
+          case 1:
+            qx = xi1 + epsx;
+            qy = ym;
+            break; // right
+          case 2:
+            qx = xm;
+            qy = eta0 - epsy;
+            break; // down
+          default:/*3*/
+            qx = xm;
+            qy = eta1 + epsy;
+            break; // up
         }
 
         // outside global domain? no neighbor
@@ -1281,7 +1242,6 @@ namespace fem {
         return true;
       }
 
-
 // ======= internal helpers =======
 // Ensure all leaves are refined down to at least _minDepth
       void ensure_min_depth() {
@@ -1314,7 +1274,6 @@ namespace fem {
                   child.parent  = leaf_idx;
                   child.child[0] = child.child[1] = child.child[2] = child.child[3] = npos32;
 
-
                   _tree_nodes.push_back(child);
                   _tree_nodes[leaf_idx].child[(dy << 1) | dx] = cindex;
                   newLeaves.push_back(cindex);
@@ -1345,7 +1304,6 @@ namespace fem {
       // const std::vector<std::vector<int>>& basis_connectivity(Basis b) const {
       //   return _basisReg[(int)b].elem2glob;
       // }
-
 
 // Compute physical bounds in parent space [-1,1]^2 for a given TreeNode
       inline void leaf_bounds(const TreeNode& node,
@@ -1442,8 +1400,6 @@ namespace fem {
           std::vector<int> conn;
           conn.reserve(xi.size());
 
-
-
           bool print = false;
           for (auto &p : xi) {
             int gid = get_or_insert_gid(R, p[0], p[1]); // now uses registry
@@ -1456,10 +1412,6 @@ namespace fem {
           R.elem2glob.push_back(std::move(conn));
         }
       }
-
-
-
-
 
 // ======= VTU (ASCII) =======
       bool write_ascii_vtu(const std::string& filename, u32 fid, const std::string& name,
@@ -1559,7 +1511,6 @@ namespace fem {
         os << "</VTKFile>\n";
         return true;
       }
-
 
 // // Insert a unique FEM node (global interpolation node) based on parent coords (xi, eta)
 // // into the registry for the given basis
@@ -1709,34 +1660,9 @@ namespace fem {
 
       std::unordered_set<Basis, BasisHasher> _activeBases;
 
-
   };
 
 } // namespace fem
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // #pragma once
 // #include <vector>
@@ -3644,5 +3570,3 @@ namespace fem {
 // } // namespace fem
 //
 //
-
-

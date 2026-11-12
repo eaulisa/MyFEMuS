@@ -33,8 +33,6 @@ class PointLocator {
         _gradPhi.reserve(27);
       }
 
-
-
     }
 
     void setBinScale(double binScale) {
@@ -248,7 +246,6 @@ class PointLocator {
           std::vector<double> xi(d, 0.0);
           femus::GetClosestPointInReferenceElement(_Xall[e], xc, et_su, xi);
 
-
           const bool ok = femus::GetInverseMapping_fast(2u, et_su, _aPall[e], xc, xi, 100u, _phi, _gradPhi);
 
           // If inverse fails, we still keep the element in the bin list,
@@ -324,7 +321,6 @@ class PointLocator {
         out[i] = locateOne(Xp);
       }
     }
-
 
     double meshScale() const {
       return _meshScale;
@@ -497,7 +493,6 @@ class PointLocator {
 
         const unsigned et_u = _mesh.elType()[e];
         unsigned short et_su = static_cast<unsigned short>(et_u);
-
 
         std::vector<double> xi = _binXi[id][j]; // seed at bin center; may be EMPTY
 

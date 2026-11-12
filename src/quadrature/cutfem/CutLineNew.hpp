@@ -21,7 +21,6 @@ class LimLimap {
       }
     }
 
-
     // LimLimap(const unsigned &sMax) {
     //   //_LimLimap.resize(2u + sMax);
     // };
@@ -56,13 +55,10 @@ class LimLimap {
       // }
     }
 
-
-
     std::vector<Type> _factorials;
 
   private:
     Type LimLi(const int &s, const Type &x);
-
 
     //std::vector< std::map < Type, Type > > _LimLimap;
     //typename std::map< Type, Type >::iterator _it;
@@ -187,146 +183,138 @@ template <class Type>
 Type LSImap<Type>::LSI(const int &s, const unsigned &m, const Type &a, const Type &d) {
 
   switch (s) {
-  case -1:
-    return this->LSIm1(m, a, d);
-    break;
+    case -1:
+      return this->LSIm1(m, a, d);
+      break;
 
-  default:
+    default:
 
-    if (a == 0) {
-      return -this->limLi(s, d) / Type(m + 1);
-    }
+      if (a == 0) {
+        return -this->limLi(s, d) / Type(m + 1);
+      }
 
-    Type INT(0);
-    Type x(a + d);
+      Type INT(0);
+      Type x(a + d);
 
+      if (x <= 0 || d <= 0) {
+        if (x > 0) {
+          const Type minus_a = -a;
+          const Type ratio = x / minus_a;
 
-
-
-
-
-
-
-    if (x <= 0 || d <= 0) {
-      if (x > 0) {
-        const Type minus_a = -a;
-        const Type ratio = x / minus_a;
-
-        Type term = this->limLi(s + 1, x) / minus_a;
-        INT += term;
-
-        for (unsigned i = 1; i <= m; ++i) {
-          term *= ratio;
-          term *= (m + 1 - i);
-          term /= (s + i + 1);
-
+          Type term = this->limLi(s + 1, x) / minus_a;
           INT += term;
+
+          for (unsigned i = 1; i <= m; ++i) {
+            term *= ratio;
+            term *= (m + 1 - i);
+            term /= (s + i + 1);
+
+            INT += term;
+          }
+        }
+        else if (d > 0) {
+          INT -= this->limLi(s + m + 1, d)
+                 * this->_factorials[m]
+                 / pow(-a, m + 1);
         }
       }
-      else if (d > 0) {
-        INT -= this->limLi(s + m + 1, d)
-               * this->_factorials[m]
-               / pow(-a, m + 1);
-      }
-    }
-    else {
-      // This branch already guarantees x > 0 and d > 0.
-      const Type ratio = -a / x;
+      else {
+        // This branch already guarantees x > 0 and d > 0.
+        const Type ratio = -a / x;
 
-      Type poly = 1;
+        Type poly = 1;
 
-      for (unsigned i = s; i > 0; --i) {
-        poly *= ratio;
-        poly *= (s + 1 - i);
-        poly /= (m + 1 + i);
-        poly += 1;
-      }
-
-      Type term = this->limLi(s, x);
-      term /= this->_factorials[m + 1];
-
-      INT -= term * poly;
-      INT *= this->_factorials[m];
-    }
-
-
-/*
-
-
-
-
-
-
-
-
-
-
-
-    if (x <= 0 || d <= 0) { // in all these cases no-significant digit cancellation occurs
-//         if(x > 0) {
-//           Type mxoa = -x / a;
-//           Type c = this->limLi(s, x) * mxoa / (s + 1);
-//           for(unsigned i = 1; i < m + 1; i++, c *= (m + 2 - i) * mxoa / (s + i)) {
-//             INT += c;
-//           }
-//           INT += c;
-//         }
-
-      // if (x > 0) {
-      //   Type g =  1 / (-a);
-      //   for (unsigned i = 1; i <= m + 1; i++) {
-      //     INT += g * this->limLi(s + i, x);
-      //     g *= (m + 1 - i) / (-a);
-      //   }
-      // }
-
-      if (x > 0) {
-        Type g = 1 / (-a);
-        Type li = this->limLi(s + 1, x);
-
-        for (unsigned i = 1; i <= m + 1;
-             li = (li * x) / (s + i + 1), ++i) {
-          INT += g * li;
-          g *= (m + 1 - i) / (-a);
+        for (unsigned i = s; i > 0; --i) {
+          poly *= ratio;
+          poly *= (s + 1 - i);
+          poly /= (m + 1 + i);
+          poly += 1;
         }
+
+        Type term = this->limLi(s, x);
+        term /= this->_factorials[m + 1];
+
+        INT -= term * poly;
+        INT *= this->_factorials[m];
       }
 
-      else if (d > 0) {
-        //INT -= this->limLi(s + m + 1, d) * factorial<Type>(m) / pow(-a, m + 1);
-        INT -= this->limLi(s + m + 1, d) * this->_factorials[m] / pow(-a, m + 1);
-      }
-    }
+      /*
 
-    else {
-      const Type minus_a = -a;
-      const Type inv_x = (x > 0) ? Type(1) / x : Type(0);
 
-      Type li = this->limLi(s, x);
-      Type coeff = Type(1) / this->_factorials[m + 1];
 
-      for (unsigned i = 0; i < s;
-           li = (li * (s - i)) * inv_x,
-           coeff = (coeff * minus_a) / (m + 2 + i), ++i) {
-        INT -= coeff * li;
-      }
 
-      INT += coeff;
-      INT *= this->_factorials[m];
-    }
 
-    // else { //alternative formula to avoid significant digit cancellations when s>1, and (a+d) and d are non-negative and d >> a
-    //
-    //   for (unsigned i = 0; i < s; i++) {
-    //     //INT -= pow(-a, i) / factorial<Type>(m + 1 + i) * this->limLi(s - i, x) ;
-    //     INT -= pow(-a, i) / this->_factorials[m + 1 + i] * this->limLi(s - i, x) ;
-    //   }
-    //
-    //   //INT += pow(-a, s) / factorial<Type>(m + 1 + s);
-    //   INT += pow(-a, s) / this->_factorials[m + 1 + s];
-    //   //INT *= factorial<Type>(m);
-    //   INT *= this->_factorials[m];
-    // }*/
-    return INT;
+
+
+
+
+
+
+          if (x <= 0 || d <= 0) { // in all these cases no-significant digit cancellation occurs
+      //         if(x > 0) {
+      //           Type mxoa = -x / a;
+      //           Type c = this->limLi(s, x) * mxoa / (s + 1);
+      //           for(unsigned i = 1; i < m + 1; i++, c *= (m + 2 - i) * mxoa / (s + i)) {
+      //             INT += c;
+      //           }
+      //           INT += c;
+      //         }
+
+            // if (x > 0) {
+            //   Type g =  1 / (-a);
+            //   for (unsigned i = 1; i <= m + 1; i++) {
+            //     INT += g * this->limLi(s + i, x);
+            //     g *= (m + 1 - i) / (-a);
+            //   }
+            // }
+
+            if (x > 0) {
+              Type g = 1 / (-a);
+              Type li = this->limLi(s + 1, x);
+
+              for (unsigned i = 1; i <= m + 1;
+                   li = (li * x) / (s + i + 1), ++i) {
+                INT += g * li;
+                g *= (m + 1 - i) / (-a);
+              }
+            }
+
+            else if (d > 0) {
+              //INT -= this->limLi(s + m + 1, d) * factorial<Type>(m) / pow(-a, m + 1);
+              INT -= this->limLi(s + m + 1, d) * this->_factorials[m] / pow(-a, m + 1);
+            }
+          }
+
+          else {
+            const Type minus_a = -a;
+            const Type inv_x = (x > 0) ? Type(1) / x : Type(0);
+
+            Type li = this->limLi(s, x);
+            Type coeff = Type(1) / this->_factorials[m + 1];
+
+            for (unsigned i = 0; i < s;
+                 li = (li * (s - i)) * inv_x,
+                 coeff = (coeff * minus_a) / (m + 2 + i), ++i) {
+              INT -= coeff * li;
+            }
+
+            INT += coeff;
+            INT *= this->_factorials[m];
+          }
+
+          // else { //alternative formula to avoid significant digit cancellations when s>1, and (a+d) and d are non-negative and d >> a
+          //
+          //   for (unsigned i = 0; i < s; i++) {
+          //     //INT -= pow(-a, i) / factorial<Type>(m + 1 + i) * this->limLi(s - i, x) ;
+          //     INT -= pow(-a, i) / this->_factorials[m + 1 + i] * this->limLi(s - i, x) ;
+          //   }
+          //
+          //   //INT += pow(-a, s) / factorial<Type>(m + 1 + s);
+          //   INT += pow(-a, s) / this->_factorials[m + 1 + s];
+          //   //INT *= factorial<Type>(m);
+          //   INT *= this->_factorials[m];
+          // }*/
+      return INT;
   }
 }
 

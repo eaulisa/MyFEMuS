@@ -95,10 +95,9 @@ TypeIO TTImap<TypeIO, TypeA>::operator()(const int &s, const std::vector<unsigne
     return this->lsi(s, m[0] + m[1] + m[2] + 2, std::make_pair<TypeA, TypeA>(static_cast<TypeA>(a[0]), static_cast<TypeA>(d))) / ((m[2] + 1) * (m[1] + m[2] + 2));
   }
 
-
   TypeIO m1 = std::max(fabs(a[1] - a[0]), fabs(a[2] - a[1]));
   TypeIO m2 = fabs(a[0] - a[2]);
-  
+
   if((_baseType == 0 && m1 >= m2) || _baseType == 1) {
     //std::cout << "case x ";
     return static_cast<TypeIO>(
@@ -193,14 +192,5 @@ TypeA TTImap<TypeIO, TypeA>::TetrahedronC(const int &s, const std::vector<unsign
 
   return TET;
 }
-
-
-
-
-
-
-
-
-
 
 #endif

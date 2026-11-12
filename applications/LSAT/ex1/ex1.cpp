@@ -8,7 +8,6 @@
  *  \author Eugenio Aulisa
  */
 
-
 #include "FemusInit.hpp"
 #include "MultiLevelSolution.hpp"
 #include "MultiLevelProblem.hpp"
@@ -19,7 +18,6 @@
 #include "TransientSystem.hpp"
 #include "adept.h"
 
-
 const unsigned DIM = 2;
 const double BETA = 0.25;
 const double GAMMA = 0.5;
@@ -29,7 +27,6 @@ double dt = 0.025;
 double SetVariableTimeStep(const double time) {
   return dt;
 }
-
 
 using namespace std;
 using namespace femus;
@@ -52,7 +49,6 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
 
   return dirichlet;
 }
-
 
 void NewmarkUpdate(MultiLevelSolution *mlSol);
 void NewmarkUpdateWithD(MultiLevelSolution *mlSol);
@@ -146,7 +142,6 @@ int main(int argc, char** args) {
   system.init();
   system.SetOuterSolver(PREONLY);
 
-
   const unsigned level = mlMsh.GetNumberOfLevels() - 1;
   Solution* sol = mlSol.GetSolutionLevel(level);
 
@@ -159,17 +154,14 @@ int main(int argc, char** args) {
   VTKWriter vtkIO(&mlSol);
   vtkIO.SetDebugOutput(false);
 
-
   vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, 0);
 
   const unsigned int n_timesteps = 150;
-
 
   for (unsigned j = 0; j < cascadeIterations; j++) {
     std::string ZjOld = "Z" + std::to_string(j) + "Old";
     sol->_Sol[(mlSol.GetIndex(ZjOld.c_str()))]->zero();
   }
-
 
   for (unsigned t = 1; t <= n_timesteps; t++) {
 
@@ -177,7 +169,6 @@ int main(int argc, char** args) {
 
     sol->_Sol[mlSol.GetIndex("Z")]->zero();
     *(sol->_Sol[mlSol.GetIndex("Ei")]) = *(sol->_Sol[(mlSol.GetIndex("R"))]);
-
 
     for (unsigned j = 0; j < cascadeIterations; j++) {
       std::string Zj = "Z" + std::to_string(j);
@@ -198,7 +189,6 @@ int main(int argc, char** args) {
 
     vtkIO.Write(DEFAULT_OUTPUTDIR, "biquadratic", variablesToBePrinted, t);
 
-
     for (unsigned j = 0; j < cascadeIterations; j++) {
       std::string Zj = "Z" + std::to_string(j);
       std::string ZjOld = "Z" + std::to_string(j) + "Old";
@@ -210,11 +200,8 @@ int main(int argc, char** args) {
 
   }
 
-
-
   return 0;
 }
-
 
 double flc4hs(double const & x, double const & eps) {
 
@@ -272,7 +259,6 @@ void SetTarget(Solution *sol, const std::string &R, const double &time) {
   sol->_Sol[rIndex]->close();
 }
 
-
 double CheckIfInsideB(const std::vector<double> &xv) {
   return (xv[0] > 0.5 && xv[0] < 1. && xv[1] > 0.25 && xv[1] < 0.75);
 }
@@ -317,16 +303,12 @@ double SetRegions(Solution *sol) {
   sol->_Sol[IndexC]->close();
 }
 
-
-
-
 //Assemble Residual using A to update D amd V
 void AssembleResAD(MultiLevelProblem& ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
   //  level is the level of the PDE system to be assembled
   //  levelMax is the Maximum level of the MultiLevelProblem
   //  assembleMatrix is a flag that tells if only the residual or also the matrix should be assembled
-
 
   adept::Stack& s = FemusInit::_adeptStack;
 
@@ -340,7 +322,6 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   MultiLevelSolution*  mlSol        = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution*    sol        = ml_prob._ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
 
-
   LinearEquationSolver* pdeSys        = mlPdeSys->_LinSolver[level]; // pointer to the equation (level) object
   SparseMatrix*    KK         = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector*   RES          = pdeSys->_RES; // pointer to the global residual std::vector object in pdeSys (level)
@@ -352,7 +333,6 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   double dt =  mlPdeSys->GetIntervalTime();
   double time =  mlPdeSys->GetTime();
 
-
   //solution variable
   unsigned solIndexZ = mlSol->GetIndex("Zi");
   unsigned solIndexX = mlSol->GetIndex("Xi");
@@ -363,15 +343,11 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   unsigned solIndexB = mlSol->GetIndex("B");
   unsigned solIndexC = mlSol->GetIndex("C");
 
-
-
   unsigned solType = mlSol->GetSolutionType(solIndexZ);
-
 
   unsigned solPdeIndexZ = mlPdeSys->GetSolPdeIndex("Zi");
   unsigned solPdeIndexX = mlPdeSys->GetSolPdeIndex("Xi");
   unsigned solPdeIndexY = mlPdeSys->GetSolPdeIndex("Yi");
-
 
   std::vector < double > solZOld;    // local solution
 
@@ -493,7 +469,6 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
         adept::adouble aResX = - (CsC > 0.5) * (r - (1. - beta) * Zg - beta * Yg) * phi[i];
         adept::adouble aResY = - (BBs > 0.5) * Xg / alpha * phi[i];
 
-
         for (unsigned j = 0; j < dim; j++) { // second index j in each equation
           aResZ +=  mu * gradPhi[i * dim + j] * gradZg[j]; // diffusion
           aResX +=  mu * gradPhi[i * dim + j] * gradXg[j]; // diffusion
@@ -542,5 +517,3 @@ void AssembleResAD(MultiLevelProblem& ml_prob) {
   // std::cin>>a;
 
 }
-
-

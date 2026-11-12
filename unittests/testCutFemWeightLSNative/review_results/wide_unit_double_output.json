@@ -1,0 +1,643 @@
+{
+  "accepted": true,
+  "cases": 16,
+  "checks": 16822,
+  "records": [
+    {
+      "case": {
+        "id": "e1_q10_plane_identity",
+        "element": 1,
+        "degree": 10,
+        "field": "plane",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-12,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 0.04583868000190705,
+      "assessment": {
+        "assertions": 467,
+        "maximum_asserted_normalized_error": 3.019806626980427e-14,
+        "maximum_error_fraction_of_limit": 0.0006039613253960855,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 5.284661597215745e-14,
+          "raw_delta": 5.3790305543088834e-14,
+          "surface_inside": 5.3790305543088834e-14,
+          "surface_outside": 5.384581669432009e-14,
+          "physical_inside": 5.3790305543088834e-14,
+          "physical_outside": 5.390132784555135e-14,
+          "physical_volume": 5.262457136723242e-14
+        },
+        "approximate_formulations": [],
+        "reference_quadrature_discrepancy": 1.1657341758564144e-15
+      }
+    },
+    {
+      "case": {
+        "id": "e1_q10_graph_identity",
+        "element": 1,
+        "degree": 10,
+        "field": "graph",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-10,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 0.054629311998724006,
+      "assessment": {
+        "assertions": 335,
+        "maximum_asserted_normalized_error": 6.4235128255473e-14,
+        "maximum_error_fraction_of_limit": 3.16429203228931e-05,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 4.1300296516055823e-14,
+          "raw_delta": 1.2773115898312426e-13,
+          "surface_inside": 4.574118861455645e-14,
+          "surface_outside": 4.5855849614249045e-05,
+          "physical_inside": 4.770668258198953e-14,
+          "physical_outside": 4.5855849614245596e-05,
+          "physical_volume": 4.1300296516055823e-14
+        },
+        "approximate_formulations": [
+          {
+            "method": "surface_outside",
+            "actual": 2.0499934003018634,
+            "expected": 2.0499933977760714,
+            "absolute_error": 2.5257920199805994e-09,
+            "relative_error": 1.2320976363732179e-09
+          },
+          {
+            "method": "physical_outside",
+            "actual": 2.0499934003018634,
+            "expected": 2.0499933977760714,
+            "absolute_error": 2.5257920199805994e-09,
+            "relative_error": 1.2320976363732179e-09
+          }
+        ],
+        "reference_quadrature_discrepancy": 1.1934897514720433e-15
+      }
+    },
+    {
+      "case": {
+        "id": "e1_q10_sphere_identity",
+        "element": 1,
+        "degree": 10,
+        "field": "sphere",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-10,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 0.0379627160000382,
+      "assessment": {
+        "assertions": 335,
+        "maximum_asserted_normalized_error": 1.0759635346120209e-12,
+        "maximum_error_fraction_of_limit": 0.0005300312978384339,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 1.2168860889123473e-12,
+          "raw_delta": 1.9537710208364367e-12,
+          "surface_inside": 6.519005712850301e-13,
+          "surface_outside": 0.04949178541778654,
+          "physical_inside": 1.0080825063596421e-13,
+          "physical_outside": 0.049491785417786094,
+          "physical_volume": 1.2168860844124848e-12
+        },
+        "approximate_formulations": [
+          {
+            "method": "surface_outside",
+            "actual": 3.8194029697255374,
+            "expected": 3.769911184307751,
+            "absolute_error": 0.04949178541778654,
+            "relative_error": 0.013128103819473524
+          },
+          {
+            "method": "physical_outside",
+            "actual": 3.819402969725537,
+            "expected": 3.769911184307751,
+            "absolute_error": 0.049491785417786094,
+            "relative_error": 0.013128103819473406
+          }
+        ],
+        "reference_quadrature_discrepancy": 0.0
+      }
+    },
+    {
+      "case": {
+        "id": "e1_q10_plane_stretch",
+        "element": 1,
+        "degree": 10,
+        "field": "plane",
+        "mapping": "stretch",
+        "scale": 1.0,
+        "tolerance": 1e-12,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 0.022258406002947595,
+      "assessment": {
+        "assertions": 456,
+        "maximum_asserted_normalized_error": 3.019806626980427e-14,
+        "maximum_error_fraction_of_limit": 0.0006039613253960855,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 5.284661597215745e-14,
+          "raw_delta": 5.3790305543088834e-14,
+          "surface_inside": 5.3790305543088834e-14,
+          "surface_outside": 5.384581669432009e-14,
+          "physical_inside": 5.3790305543088834e-14,
+          "physical_outside": 5.390132784555135e-14,
+          "physical_volume": 1.5802206985993106e-06
+        },
+        "approximate_formulations": [],
+        "reference_quadrature_discrepancy": 1.1657341758564144e-15
+      }
+    },
+    {
+      "case": {
+        "id": "e2_q10_plane_identity",
+        "element": 2,
+        "degree": 10,
+        "field": "plane",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-12,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 0.1210481960006291,
+      "assessment": {
+        "assertions": 467,
+        "maximum_asserted_normalized_error": 1.1213252548714081e-14,
+        "maximum_error_fraction_of_limit": 0.00022426505097428165,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 4.163336342344337e-15,
+          "raw_delta": 1.1213252548714081e-14,
+          "surface_inside": 1.0769163338864018e-14,
+          "surface_outside": 1.1213252548714081e-14,
+          "physical_inside": 1.304512053934559e-15,
+          "physical_outside": 1.1213252548714081e-14,
+          "physical_volume": 4.163336342344337e-15
+        },
+        "approximate_formulations": [],
+        "reference_quadrature_discrepancy": 1.1102230246251565e-16
+      }
+    },
+    {
+      "case": {
+        "id": "e2_q10_graph_identity",
+        "element": 2,
+        "degree": 10,
+        "field": "graph",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-10,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 0.13731903699954273,
+      "assessment": {
+        "assertions": 335,
+        "maximum_asserted_normalized_error": 1.6764367671839864e-14,
+        "maximum_error_fraction_of_limit": 8.258309197950671e-06,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 1.6486811915683575e-14,
+          "raw_delta": 1.5654144647214707e-14,
+          "surface_inside": 1.6764367671839864e-14,
+          "surface_outside": 1.0789883571294887e-07,
+          "physical_inside": 5.440092820663267e-15,
+          "physical_outside": 1.0789883571338255e-07,
+          "physical_volume": 1.6486811915683575e-14
+        },
+        "approximate_formulations": [
+          {
+            "method": "surface_outside",
+            "actual": 0.7338539951093249,
+            "expected": 0.7338539986388817,
+            "absolute_error": 3.529556757975172e-09,
+            "relative_error": 4.809617123462746e-09
+          },
+          {
+            "method": "physical_outside",
+            "actual": 0.7338539951093248,
+            "expected": 0.7338539986388817,
+            "absolute_error": 3.5295568689974743e-09,
+            "relative_error": 4.809617274749381e-09
+          }
+        ],
+        "reference_quadrature_discrepancy": 1.1102230246251565e-16
+      }
+    },
+    {
+      "case": {
+        "id": "e2_q10_sphere_identity",
+        "element": 2,
+        "degree": 10,
+        "field": "sphere",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-10,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 0.13218094000330893,
+      "assessment": {
+        "assertions": 335,
+        "maximum_asserted_normalized_error": 2.7918202203957536e-14,
+        "maximum_error_fraction_of_limit": 1.3752808967466765e-05,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 1.6375789613221059e-15,
+          "raw_delta": 7.505107646466058e-14,
+          "surface_inside": 3.4638958368304884e-14,
+          "surface_outside": 0.0035468653315620102,
+          "physical_inside": 3.5083047578154947e-14,
+          "physical_outside": 0.0035468653315620102,
+          "physical_volume": 1.6375789613221059e-15
+        },
+        "approximate_formulations": [
+          {
+            "method": "surface_outside",
+            "actual": 1.2601839267674793,
+            "expected": 1.2566370614359172,
+            "absolute_error": 0.0035468653315620102,
+            "relative_error": 0.002822505749996841
+          },
+          {
+            "method": "physical_outside",
+            "actual": 1.2601839267674793,
+            "expected": 1.2566370614359172,
+            "absolute_error": 0.0035468653315620102,
+            "relative_error": 0.002822505749996841
+          }
+        ],
+        "reference_quadrature_discrepancy": 0.0
+      }
+    },
+    {
+      "case": {
+        "id": "e2_q10_plane_stretch",
+        "element": 2,
+        "degree": 10,
+        "field": "plane",
+        "mapping": "stretch",
+        "scale": 1.0,
+        "tolerance": 1e-12,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 0.16754505100107053,
+      "assessment": {
+        "assertions": 456,
+        "maximum_asserted_normalized_error": 1.1213252548714081e-14,
+        "maximum_error_fraction_of_limit": 0.00022426505097428165,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 4.163336342344337e-15,
+          "raw_delta": 1.1213252548714081e-14,
+          "surface_inside": 1.0769163338864018e-14,
+          "surface_outside": 1.1213252548714081e-14,
+          "physical_inside": 1.304512053934559e-15,
+          "physical_outside": 1.1213252548714081e-14,
+          "physical_volume": 4.409337929500712e-10
+        },
+        "approximate_formulations": [],
+        "reference_quadrature_discrepancy": 1.1102230246251565e-16
+      }
+    },
+    {
+      "case": {
+        "id": "e3_q10_plane_identity",
+        "element": 3,
+        "degree": 10,
+        "field": "plane",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-12,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 2.397122064001451,
+      "assessment": {
+        "assertions": 2007,
+        "maximum_asserted_normalized_error": 1.941502514313243e-14,
+        "maximum_error_fraction_of_limit": 0.00038830050286264866,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 2.7405958452075626e-14,
+          "raw_delta": 7.743805596760467e-14,
+          "surface_inside": 7.743805596760467e-14,
+          "surface_outside": 7.754907827006718e-14,
+          "physical_inside": 7.743805596760467e-14,
+          "physical_outside": 7.76601005725297e-14,
+          "physical_volume": 2.7381835072851832e-14
+        },
+        "approximate_formulations": [],
+        "reference_quadrature_discrepancy": 2.3314683517128287e-15
+      }
+    },
+    {
+      "case": {
+        "id": "e3_q10_graph_identity",
+        "element": 3,
+        "degree": 10,
+        "field": "graph",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-10,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 2.608016062004026,
+      "assessment": {
+        "assertions": 1435,
+        "maximum_asserted_normalized_error": 3.003915506714166e-14,
+        "maximum_error_fraction_of_limit": 1.4797613333567319e-05,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 3.241851231905457e-14,
+          "raw_delta": 5.773159728050814e-14,
+          "surface_inside": 1.056932319443149e-13,
+          "surface_outside": 0.00013368691687196514,
+          "physical_inside": 1.2168044349891716e-13,
+          "physical_outside": 0.0001336869168719654,
+          "physical_volume": 3.197442310920451e-14
+        },
+        "approximate_formulations": [
+          {
+            "method": "surface_outside",
+            "actual": 4.050727899261047,
+            "expected": 4.050727899201711,
+            "absolute_error": 5.933653568490627e-11,
+            "relative_error": 1.4648363741390752e-11
+          },
+          {
+            "method": "physical_outside",
+            "actual": 4.050727899261047,
+            "expected": 4.050727899201711,
+            "absolute_error": 5.933653568490627e-11,
+            "relative_error": 1.4648363741390752e-11
+          }
+        ],
+        "reference_quadrature_discrepancy": 2.3314683517128287e-15
+      }
+    },
+    {
+      "case": {
+        "id": "e3_q10_sphere_identity",
+        "element": 3,
+        "degree": 10,
+        "field": "sphere",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-10,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 6.660612863997812,
+      "assessment": {
+        "assertions": 1435,
+        "maximum_asserted_normalized_error": 3.5511649434689826e-10,
+        "maximum_error_fraction_of_limit": 0.17493423366842278,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 9.369509637022672e-11,
+          "raw_delta": 1.3387576437705319e-09,
+          "surface_inside": 1.2088843447937846e-09,
+          "surface_outside": 0.008912406407697304,
+          "physical_inside": 6.838732014266556e-12,
+          "physical_outside": 0.008912406407696416,
+          "physical_volume": 9.369509762044735e-11
+        },
+        "approximate_formulations": [
+          {
+            "method": "surface_outside",
+            "actual": 4.532805827576998,
+            "expected": 4.5238934211693005,
+            "absolute_error": 0.008912406407697304,
+            "relative_error": 0.0019700743536512615
+          },
+          {
+            "method": "physical_outside",
+            "actual": 4.532805827576997,
+            "expected": 4.5238934211693005,
+            "absolute_error": 0.008912406407696416,
+            "relative_error": 0.001970074353651065
+          }
+        ],
+        "reference_quadrature_discrepancy": 0.0
+      }
+    },
+    {
+      "case": {
+        "id": "e3_q10_plane_stretch",
+        "element": 3,
+        "degree": 10,
+        "field": "plane",
+        "mapping": "stretch",
+        "scale": 1.0,
+        "tolerance": 1e-12,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 2.472121437000169,
+      "assessment": {
+        "assertions": 1941,
+        "maximum_asserted_normalized_error": 1.941502514313243e-14,
+        "maximum_error_fraction_of_limit": 0.00038830050286264866,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 2.7405958452075626e-14,
+          "raw_delta": 7.743805596760467e-14,
+          "surface_inside": 7.743805596760467e-14,
+          "surface_outside": 7.754907827006718e-14,
+          "physical_inside": 7.743805596760467e-14,
+          "physical_outside": 7.76601005725297e-14,
+          "physical_volume": 3.1604413984753776e-06
+        },
+        "approximate_formulations": [],
+        "reference_quadrature_discrepancy": 2.3314683517128287e-15
+      }
+    },
+    {
+      "case": {
+        "id": "e4_q10_plane_identity",
+        "element": 4,
+        "degree": 10,
+        "field": "plane",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-12,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 22.659708084996964,
+      "assessment": {
+        "assertions": 2007,
+        "maximum_asserted_normalized_error": 2.609024107869118e-15,
+        "maximum_error_fraction_of_limit": 5.2180482157382364e-05,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 6.38378239159465e-16,
+          "raw_delta": 7.216449660063518e-16,
+          "surface_inside": 2.609024107869118e-15,
+          "surface_outside": 7.216449660063518e-16,
+          "physical_inside": 9.020562075079397e-16,
+          "physical_outside": 6.938893903907228e-16,
+          "physical_volume": 6.522560269672795e-16
+        },
+        "approximate_formulations": [],
+        "reference_quadrature_discrepancy": 1.1102230246251565e-16
+      }
+    },
+    {
+      "case": {
+        "id": "e4_q10_graph_identity",
+        "element": 4,
+        "degree": 10,
+        "field": "graph",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-10,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 25.586740695005574,
+      "assessment": {
+        "assertions": 1435,
+        "maximum_asserted_normalized_error": 2.0539125955565396e-15,
+        "maximum_error_fraction_of_limit": 1.0117796037224331e-06,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 1.1796119636642288e-15,
+          "raw_delta": 2.0539125955565396e-15,
+          "surface_inside": 5.828670879282072e-16,
+          "surface_outside": 3.6574708796398993e-09,
+          "physical_inside": 1.3322676295501878e-15,
+          "physical_outside": 3.6574708797752194e-09,
+          "physical_volume": 1.1796119636642288e-15
+        },
+        "approximate_formulations": [
+          {
+            "method": "surface_outside",
+            "actual": 0.30952784177578313,
+            "expected": 0.30952784177578796,
+            "absolute_error": 4.829470157119431e-15,
+            "relative_error": 1.5602700323862125e-14
+          },
+          {
+            "method": "physical_outside",
+            "actual": 0.3095278417757831,
+            "expected": 0.30952784177578796,
+            "absolute_error": 4.884981308350689e-15,
+            "relative_error": 1.578204170689502e-14
+          }
+        ],
+        "reference_quadrature_discrepancy": 1.1102230246251565e-16
+      }
+    },
+    {
+      "case": {
+        "id": "e4_q10_sphere_identity",
+        "element": 4,
+        "degree": 10,
+        "field": "sphere",
+        "mapping": "identity",
+        "scale": 1.0,
+        "tolerance": 1e-10,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 26.253703328002302,
+      "assessment": {
+        "assertions": 1435,
+        "maximum_asserted_normalized_error": 1.1746419809055553e-13,
+        "maximum_error_fraction_of_limit": 5.7864136990421435e-05,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 1.5417354892743873e-16,
+          "raw_delta": 1.1746419809055553e-13,
+          "surface_inside": 6.05057453792468e-14,
+          "surface_outside": 0.0036457384127860926,
+          "physical_inside": 6.050487801750881e-14,
+          "physical_outside": 0.0036457384127861203,
+          "physical_volume": 1.5439038936193583e-16
+        },
+        "approximate_formulations": [
+          {
+            "method": "surface_outside",
+            "actual": 0.19270380243657592,
+            "expected": 0.19634954084936201,
+            "absolute_error": 0.0036457384127860926,
+            "relative_error": 0.018567593267677044
+          },
+          {
+            "method": "physical_outside",
+            "actual": 0.1927038024365759,
+            "expected": 0.19634954084936201,
+            "absolute_error": 0.0036457384127861203,
+            "relative_error": 0.018567593267677183
+          }
+        ],
+        "reference_quadrature_discrepancy": 0.0
+      }
+    },
+    {
+      "case": {
+        "id": "e4_q10_plane_stretch",
+        "element": 4,
+        "degree": 10,
+        "field": "plane",
+        "mapping": "stretch",
+        "scale": 1.0,
+        "tolerance": 1e-12,
+        "validation": 1,
+        "timeout": 180
+      },
+      "seconds": 22.86394141100027,
+      "assessment": {
+        "assertions": 1941,
+        "maximum_asserted_normalized_error": 2.609024107869118e-15,
+        "maximum_error_fraction_of_limit": 5.2180482157382364e-05,
+        "failures": [],
+        "maximum_errors": {
+          "volume": 6.38378239159465e-16,
+          "raw_delta": 7.216449660063518e-16,
+          "surface_inside": 2.609024107869118e-15,
+          "surface_outside": 7.216449660063518e-16,
+          "physical_inside": 9.020562075079397e-16,
+          "physical_outside": 6.938893903907228e-16,
+          "physical_volume": 4.229391804225907e-11
+        },
+        "approximate_formulations": [],
+        "reference_quadrature_discrepancy": 1.1102230246251565e-16
+      }
+    }
+  ],
+  "source_changed": false,
+  "source_sha256": {
+    "src/quadrature/cutfem_ls/AdaptiveLineSliceMoments.hpp": "eac9a3d1d654162321a4790f406638d271b4528a8157fa546ceb6fbd6d2f00f3",
+    "src/quadrature/cutfem_ls/CutFemWeight_LS.hpp": "3e2cd06c918904ab2ccccc69f66998e8f884c8dda796cd4c6bdf07f32b8a625b",
+    "src/quadrature/cutfem_ls/FELevelSetMoments.hpp": "2d44666de2c41a2ce45352314fc2b8e79d219969dde3647e2679659a2fbd59e8",
+    "src/quadrature/cutfem_ls/GraphCellIntegration.hpp": "05f705d0fff56fc820e12cf6991e979caeb711b497ed6809edfa6aaba8b2715c",
+    "src/quadrature/cutfem_ls/Hex27DirectionSelection.hpp": "47a4b9e5f76ad99a2bcf6445807572498a8a524dd06acb096797e8aff4c72f02",
+    "src/quadrature/cutfem_ls/Hex27LevelSetMoments.hpp": "1b008e81defbbcd9852c34c083a52fc060fc7ba08d8532dc50afea0b548d6ac4",
+    "src/quadrature/cutfem_ls/LineDomainIntegration.hpp": "0017d77918b489e838da1ea7f95bdede32b0f4849f39d4d50d27dd9a01c5d230",
+    "src/quadrature/cutfem_ls/LineIntegration.hpp": "d7f65f4a59043bd11aefca92461ffe6b545c5a95d3ee2122aa7a28f7d2a68f3a",
+    "src/quadrature/cutfem_ls/Quad9DirectionSelection.hpp": "134dd27438cd0c590230822324ec2fb0bb3d6dd389f5d3d8e41a345ff22dbbb9",
+    "src/quadrature/cutfem_ls/ReferenceElementLS.hpp": "107c527ba19b34f992d1f2d1b5f9bf8a04096aec5b58ae08ab426f858d59669d",
+    "src/quadrature/cutfem_ls/ReferenceSurfaceMoments.hpp": "7704f3c72c19e75fec5da70a96dae9f1caf71d3f5501e16d63a19b165cb561fe",
+    "src/quadrature/cutfem_ls/Tet15LevelSet.hpp": "8f0c04d490554627efde7be9ad31d4ac21362080815e69e2b9bf565222db8379",
+    "src/quadrature/cutfem_ls/Tet15LevelSetMoments.hpp": "6891f2f83ba594bd7a42f951a69a36dd39bad97120e8ac85b848a4a87e9585d6",
+    "src/quadrature/cutfem_ls/Tri7DirectionSelection.hpp": "1d7576b2bfc221fd80332a557094c30e31267f056ad9a278e37d68eda6e3a58b",
+    "src/quadrature/cutfem_ls/TriangleIntegration.hpp": "182abb5e6e5cd6ba15899126fb901557bca15894edc4c2ad3c96d0a93459888e",
+    "src/quadrature/cutfem_ls/UnitElementMoments.hpp": "2b53d211816334af55147a6fafebea2180c92d84b97f4907a6e44abf2626628f",
+    "src/quadrature/cutfem_ls/gram_smithLS.hpp": "3055d2b6b8a1bbd05328fcb75b2da51834455ed7569972689d4a086197a68020"
+  }
+}

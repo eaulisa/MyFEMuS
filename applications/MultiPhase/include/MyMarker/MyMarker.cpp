@@ -23,9 +23,6 @@
 
 #include "PolynomialBases.hpp"
 
-
-
-
 const double faceNormal[6][6][3] = {
   {{0., -1., 0.}, {1., 0., 0.}, {0., 1., 0.}, { -1., 0., 0.}, {0., 0., -1.}, {0., 0., 1.}},
   {{0., 0., -1}, {0., -1., 0.}, {1. / sqrt(3.), 1. / sqrt(3.), 1. / sqrt(3.)}, { -1., 0., 0.}},
@@ -220,10 +217,8 @@ namespace femus {
         //  std::cout << "the smart search starts from element " << iel << std::endl;
       }
 
-
       //END SMART search:
     }
-
 
     bool elementHasBeenFound = false;
     bool pointIsOutsideThisProcess = false;
@@ -272,7 +267,6 @@ namespace femus {
       std::cout << std::flush;
       MPI_Barrier(PETSC_COMM_WORLD);
 
-
       if(elementHasBeenFound) {
         //  std::cout << " The marker belongs to element " << _elem << std::endl;
       }
@@ -282,7 +276,6 @@ namespace femus {
       else if(pointIsOutsideThisProcess) {
         //  std::cout << "proc " << _iproc << " believes the marker is in proc = " << nextProc << std::endl;
       }
-
 
       //END next element search
 
@@ -302,7 +295,6 @@ namespace femus {
         }
       }
 
-
       // check if any process found the element
       unsigned sumFlag = 0;
 
@@ -321,11 +313,9 @@ namespace femus {
         _mproc = _nprocs;
         _elem = UINT_MAX;
 
-
 //           for(unsigned j = 0 ; j < _nprocs; j++) {
 //             std::cout << " processorMarkerFlag[" << j << "] = " << processorMarkerFlag[j] <<  std::endl;
 //           }
-
 
         break;
       }
@@ -344,12 +334,9 @@ namespace femus {
           }
         }
 
-
 //           for(unsigned j = 0 ; j < _nprocs; j++) {
 //             std::cout << " processorMarkerFlag[" << j << "] = " << processorMarkerFlag[j] << "  " << nextElem[j] << std::endl;
 //           }
-
-
 
         //BEGIN SMART search among all the elements received by _iproc and sent from jprocs
         double modulus = 1.e10;
@@ -405,7 +392,6 @@ namespace femus {
 
   }
 
-
   bool MyMarker::SerialElementSearch(unsigned &previousElem, Solution* sol, const double &s) {
 
     unsigned currentElem = _elem;
@@ -456,7 +442,6 @@ namespace femus {
     return elementHasBeenFound;
   }
 
-
   int MyMarker::FastForward(const unsigned &iel, const unsigned &previousElem, Solution* sol, const double &s) {
 
     short unsigned linear = 0;
@@ -479,7 +464,6 @@ namespace femus {
       }
     }
     //END extraction
-
 
     //BEGIN projection nodal to polynomial coefficients
     std::vector < std::vector < double > > a;
@@ -543,10 +527,7 @@ namespace femus {
 
   }
 
-
-
   unsigned MyMarker::GetNextElement2D(const unsigned &currentElem, const unsigned &previousElem, Solution* sol, const double &s) {
-
 
     int nextElem ;
     bool markerIsInElement = false;
@@ -689,7 +670,6 @@ namespace femus {
                 }
               }
 
-
               if((xvr[0][i] * xvr[0][i]  + xvr[1][i] * xvr[1][i]) < epsilon2 ||
                   (xvr[0][i + 1]*xvr[0][i + 1] + xvr[1][i + 1]*xvr[1][i + 1]) < epsilon2) {
                 // std::cout << "intersection on a vertex of the edge" << std::endl;
@@ -714,7 +694,6 @@ namespace femus {
                 }
 
               }
-
 
               else if(xvr[0][i]*xvr[0][i + 1] < 0 || xvr[1][i]*xvr[1][i + 1] < 0) {
                 // std::cout << "intersection on an edge" << std::endl;
@@ -758,13 +737,11 @@ namespace femus {
       // std::cout << "The marker does not belong to element " << currentElem << std::endl;
     }
 
-
     // std::cout << "markerIsInElement = " << markerIsInElement << " , " << "nextElementFound= " << nextElementFound << ", " << "nextElem = " << nextElem << std::endl;
 
     return (nextElem >= 0) ? nextElem : UINT_MAX;
 
   }
-
 
   // unsigned MyMarker::GetNextElement3D(const unsigned & currentElem, const unsigned &previousElem, Solution* sol, const double &s) {
   //
@@ -1064,7 +1041,6 @@ namespace femus {
   //
   // }
 
-
   unsigned MyMarker::GetNextElement3D(const unsigned & currentElem, const unsigned &previousElem, Solution* sol, const double &s) {
 
     unsigned nDofs = sol->GetMesh()->GetElementDofNumber(currentElem, _solType);
@@ -1121,7 +1097,6 @@ namespace femus {
       double radius;
       GetConvexHullSphere(xvv, xcs, radius, 0.5);
 
-
       double radius2 = radius * radius;
       double d2 = 0.;
       for(int d = 0; d < _dim; d++) {
@@ -1161,7 +1136,6 @@ namespace femus {
         //BEGIN find initial guess
         GetClosestPointInReferenceElement(xvv, {0., 0., 0.}, elemType, _xi);
 
-
         //BEGIN Inverse mapping loop
         for(unsigned j = 0; j < _solType + 1; j++) {
 
@@ -1193,8 +1167,6 @@ namespace femus {
     return (nextElem >= 0) ? nextElem : UINT_MAX;
 
   }
-
-
 
   unsigned MyMarker::GetNextElement3D(const unsigned & currentElem, const std::vector <unsigned> &searchHistory, Solution* sol, const double &s) {
 
@@ -1331,7 +1303,6 @@ namespace femus {
               }
             }
 
-
             // let's find the plane passing through the vertices of the triangle itri
             double A = -(xv[1][2] - xv[1][0]) * (xv[2][1] - xv[2][0]) + (xv[2][2] - xv[2][0]) * (xv[1][1] - xv[1][0]);
             double B = -(xv[2][2] - xv[2][0]) * (xv[0][1] - xv[0][0]) + (xv[0][2] - xv[0][0]) * (xv[2][1] - xv[2][0]);
@@ -1414,7 +1385,6 @@ namespace femus {
 
                     }
 
-
                     else if(xv[0][i]*xv[0][i + 1] < 0 || xv[1][i]*xv[1][i + 1] < 0 || xv[2][i]*xv[2][i + 1] < 0) {
                       //   std::cout << "intersection on an edge of itri" << std::endl;
                       if(fabs(t) < epsilon || t < 0) {   //this means the marker is on one of the faces
@@ -1449,7 +1419,6 @@ namespace femus {
                 } // closes the for loop
               } // closes " if t < 1 "
             } // closes the "else" on tBottom = 0
-
 
             if(scalarCount == 3) {
               if(fabs(t) < epsilon || t < 0) {   //this means the marker is on one of the faces
@@ -1506,7 +1475,6 @@ namespace femus {
     }
     //  std::cout << "markerIsInElement = " << markerIsInElement << " , " << "nextElementFound= " << nextElementFound << ", " << "nextElem = " << nextElem << std::endl;
 
-
     return (nextElem >= 0) ? nextElem : UINT_MAX;
 
   }
@@ -1558,7 +1526,6 @@ namespace femus {
     }
   }
 
-
   void MyMarker::FindLocalCoordinates(const unsigned & solType, std::vector < std::vector < std::vector < std::vector < double > > > > &aX,
                                       const bool & pcElemUpdate, Solution* sol, const double &s) {
 
@@ -1586,7 +1553,6 @@ namespace femus {
           }
         }
         //END extraction
-
 
         //BEGIN projection nodal to polynomial coefficients
         aX[i1].resize(solType + 1);
@@ -1617,9 +1583,6 @@ namespace femus {
 
     //END Inverse mapping loop
   }
-
-
-
 
   void MyMarkerWithFSI::FindLocalCoordinates(const unsigned & solType, std::vector < std::vector < std::vector < std::vector < double > > > > &aX,
       const bool & pcElemUpdate, Solution* sol, const double &s) {
@@ -1655,7 +1618,6 @@ namespace femus {
         }
         //END extraction
 
-
         //BEGIN projection nodal to polynomial coefficients
         aX[i1].resize(solType + 1);
         for(unsigned j = 0; j < solType + 1; j++) {
@@ -1663,7 +1625,6 @@ namespace femus {
         }
         //END projection nodal to polynomial coefficients
       }
-
 
       //BEGIN find initial guess
       if(sol->GetIfFSI()) {
@@ -1676,12 +1637,10 @@ namespace femus {
       GetClosestPointInReferenceElement(xv[0], _x, elemType, _xi);
     }
 
-
     std::vector < std::vector < std::vector < double > > > aXs;
     if(sol->GetIfFSI()) {
       InterpolatePolynomialCoefficients(aXs, aX[0], aX[1], s);
     }
-
 
     //BEGIN Inverse mapping loop
     for(unsigned j = 0; j < solType + 1; j++) {
@@ -1702,19 +1661,4 @@ namespace femus {
     //END Inverse mapping loop
   }
 
-
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

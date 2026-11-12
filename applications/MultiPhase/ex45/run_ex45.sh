@@ -9,18 +9,19 @@ set -euo pipefail
 # MPI
 # ------------------------------------------------------------
 
-NPROC=48
-NPRINT=100
-NREINIT=100
+NPROC=1
+NPRINT=1000
+NREINIT=1
 
 # ------------------------------------------------------------
 # Problem
 # ------------------------------------------------------------
 
-DIM=3
-SIMULATION="pi"
+DIM=2
+SIMULATION="par"
 SYMMETRIC=0
 AXISYMMETRIC=0
+ELTYPE=4
 
 # ------------------------------------------------------------
 # Grid configurations
@@ -34,7 +35,7 @@ LEVEL_OFFSET=2
 # Time discretization
 # ------------------------------------------------------------
 
-NSTEPS=(5000)
+NSTEPS=(1000)
 
 # ------------------------------------------------------------
 # Velocity multigrid
@@ -46,8 +47,10 @@ MULTIGRID_TYPE="mg"
 # Executable / options
 # ------------------------------------------------------------
 
-EXECUTABLE="./MultiPhase_ex44"
+EXECUTABLE="./MultiPhase_ex45"
 OPTIONS_FILE="./input/FS_solver.options"
+ALGOIM_ORDER=20
+ALGOIM_SUBDIVISIONS=0
 
 # ------------------------------------------------------------
 # PETSc configuration
@@ -65,6 +68,11 @@ OPTIONS_LEFT=true
 if [[ "${MULTIGRID_TYPE}" != "hmg" &&
       "${MULTIGRID_TYPE}" != "mg" ]]; then
   echo "ERROR: MULTIGRID_TYPE must be 'hmg' or 'mg'."
+  exit 1
+fi
+
+if (( ALGOIM_ORDER < 1 || ALGOIM_ORDER > 100 || ALGOIM_SUBDIVISIONS < 0 || ALGOIM_SUBDIVISIONS > 32 )); then
+  echo "ERROR: Algoim order must be in [1,100] and subdivisions in [0,32]."
   exit 1
 fi
 
@@ -182,6 +190,7 @@ EOF_OPTIONS
 # Velocity
 # ------------------------------------------------------------
 
+#-level-${i}fieldsplit_0_ksp_monitor
 -level-${i}fieldsplit_0_ksp_type preonly
 -level-${i}fieldsplit_0_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_0_mg_levels_ksp_type chebyshev
@@ -192,6 +201,7 @@ EOF_OPTIONS
 # Pressure
 # ------------------------------------------------------------
 
+# -level-${i}fieldsplit_1_ksp_monitor
 -level-${i}fieldsplit_1_ksp_type preonly
 -level-${i}fieldsplit_1_pc_type ${MULTIGRID_TYPE}
 -level-${i}fieldsplit_1_mg_levels_ksp_type chebyshev
@@ -280,7 +290,7 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
 
       echo
       echo "============================================================"
-      echo "ex43 run ${RUN_INDEX}/${TOTAL_RUNS}"
+      echo "ex45 run ${RUN_INDEX}/${TOTAL_RUNS}"
       echo "============================================================"
       echo "MPI ranks        : ${NPROC}"
       echo "Uniform levels   : ${uniform_levels}"
@@ -292,6 +302,8 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
       echo "Simulation       : ${SIMULATION}"
       echo "Velocity MG      : ${MULTIGRID_TYPE}"
       echo "Options file     : ${OPTIONS_FILE}"
+      echo "Algoim order     : ${ALGOIM_ORDER}"
+      echo "Algoim divisions : ${ALGOIM_SUBDIVISIONS}"
       echo "============================================================"
       echo
 
@@ -299,6 +311,8 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
         "${EXECUTABLE}" \
         "${PETSC_OPTIONS[@]}" \
         -options_file "${OPTIONS_FILE}" \
+        -algoim_order "${ALGOIM_ORDER}" \
+        -algoim_subdivisions "${ALGOIM_SUBDIVISIONS}" \
         --uniform-levels "${uniform_levels}" \
         --adaptive-levels "${adaptive_levels}" \
         --level-offset "${LEVEL_OFFSET}" \
@@ -307,6 +321,7 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
         --simulation "${SIMULATION}" \
         --symmetric "${SYMMETRIC}" \
         --axisymmetric "${AXISYMMETRIC}" \
+        --eltype "${ELTYPE}" \
         --nprint "${NPRINT}" \
         --nreinit "${NREINIT}"  
 
@@ -315,3 +330,5 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
     done
   done
 done
+
+

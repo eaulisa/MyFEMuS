@@ -20,7 +20,8 @@ namespace fem {
     double t_abs,
     const AnalyticVel& vfun) {
     // Map to physical with Q9
-    double N9[9]; Shapes2D::Q9(s, N9);
+    double N9[9];
+    Shapes2D::Q9(s, N9);
     const auto& X = tree.get_X();
     const auto& Y = tree.get_Y();
 
@@ -39,8 +40,10 @@ namespace fem {
 
     double A11 = 0, A12 = 0, A21 = 0, A22 = 0;
     for (int a = 0; a < 9; ++a) {
-      A11 += dNdxi[a] * X[a];  A12 += dNdeta[a] * X[a];
-      A21 += dNdxi[a] * Y[a];  A22 += dNdeta[a] * Y[a];
+      A11 += dNdxi[a] * X[a];
+      A12 += dNdeta[a] * X[a];
+      A21 += dNdxi[a] * Y[a];
+      A22 += dNdeta[a] * Y[a];
     }
 
     const double det = A11 * A22 - A12 * A21;
@@ -83,7 +86,8 @@ namespace fem {
     double t_abs,
     const AnalyticVel& vfun) {
     // Map to physical with H27
-    double N27[27]; Shapes3D::H27(s, N27);
+    double N27[27];
+    Shapes3D::H27(s, N27);
     const auto& X = tree.get_X();
     const auto& Y = tree.get_Y();
     const auto& Z = tree.get_Z();
@@ -106,9 +110,15 @@ namespace fem {
            A21 = 0, A22 = 0, A23 = 0,
            A31 = 0, A32 = 0, A33 = 0;
     for (int a = 0; a < 27; ++a) {
-      A11 += dNdxi[a] * X[a];  A12 += dNdeta[a] * X[a];  A13 += dNdz[a] * X[a];
-      A21 += dNdxi[a] * Y[a];  A22 += dNdeta[a] * Y[a];  A23 += dNdz[a] * Y[a];
-      A31 += dNdxi[a] * Z[a];  A32 += dNdeta[a] * Z[a];  A33 += dNdz[a] * Z[a];
+      A11 += dNdxi[a] * X[a];
+      A12 += dNdeta[a] * X[a];
+      A13 += dNdz[a] * X[a];
+      A21 += dNdxi[a] * Y[a];
+      A22 += dNdeta[a] * Y[a];
+      A23 += dNdz[a] * Y[a];
+      A31 += dNdxi[a] * Z[a];
+      A32 += dNdeta[a] * Z[a];
+      A33 += dNdz[a] * Z[a];
     }
 
     const double det =
@@ -208,8 +218,8 @@ namespace fem {
     //tree0.extract_node_parent_coords_in_level_range(tree0.max_depth(), tree0.max_depth(), static_cast<BasisT<DIM>>(0), s0_all);
 
     tree0.extract_interface_leaf_parent_coords_in_level_range(tree0.max_depth(), tree0.max_depth(),
-                                                              static_cast<BasisT<DIM>>(2), fid0,
-                                                              s0_all);
+        static_cast<BasisT<DIM>>(2), fid0,
+        s0_all);
 
     const double t0_abs = time - dt;
 
@@ -233,12 +243,6 @@ namespace fem {
     }
   }
 
-
-
-
-
-
-
 // ======================================================================
 // 2) Forward advection of markers (analytic velocity, DIM=2/3)
 //    Integrates from (time - dt) to (time).
@@ -253,7 +257,6 @@ namespace fem {
     std::vector<Point<DIM>>& coordsLeftOld,
     std::vector<Point<DIM>>& coordsStayedNew) {
     assert(dt > 0.0 && "Forward advection expects dt > 0");
-
 
     coordsLeftOld.reserve(markers.size());
     coordsStayedNew.reserve(markers.size());
@@ -313,7 +316,6 @@ namespace fem {
       dst.nodal[gid] = val;
     }
   }
-
 
 // start new functions
 
@@ -424,7 +426,5 @@ namespace fem {
       }
     }
   }
-
-
 
 } // namespace fem

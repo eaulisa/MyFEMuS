@@ -1,0 +1,26 @@
+{
+  "accepted": true,
+  "cases": 155,
+  "checks": 10814,
+  "failures": [],
+  "source_sha256": {
+    "src/quadrature/cutfem_ls/UnitElementMoments.hpp": "c18a35baec720a7249529a3f9f3e4c817c459536e9ccec321d145df7592b8c8d",
+    "src/quadrature/cutfem_ls/gram_smithLS.hpp": "3055d2b6b8a1bbd05328fcb75b2da51834455ed7569972689d4a086197a68020",
+    "src/quadrature/cutfem_ls/Tet15LevelSet.hpp": "8f0c04d490554627efde7be9ad31d4ac21362080815e69e2b9bf565222db8379",
+    "src/quadrature/cutfem_ls/Hex27DirectionSelection.hpp": "47a4b9e5f76ad99a2bcf6445807572498a8a524dd06acb096797e8aff4c72f02",
+    "src/quadrature/cutfem_ls/GraphCellIntegration.hpp": "05f705d0fff56fc820e12cf6991e979caeb711b497ed6809edfa6aaba8b2715c",
+    "src/quadrature/cutfem_ls/Hex27LevelSetMoments.hpp": "1b008e81defbbcd9852c34c083a52fc060fc7ba08d8532dc50afea0b548d6ac4",
+    "src/quadrature/cutfem_ls/Quad9DirectionSelection.hpp": "134dd27438cd0c590230822324ec2fb0bb3d6dd389f5d3d8e41a345ff22dbbb9",
+    "src/quadrature/cutfem_ls/ReferenceSurfaceMoments.hpp": "7704f3c72c19e75fec5da70a96dae9f1caf71d3f5501e16d63a19b165cb561fe",
+    "src/quadrature/cutfem_ls/AdaptiveLineSliceMoments.hpp": "eac9a3d1d654162321a4790f406638d271b4528a8157fa546ceb6fbd6d2f00f3",
+    "src/quadrature/cutfem_ls/ReferenceElementLS.hpp": "107c527ba19b34f992d1f2d1b5f9bf8a04096aec5b58ae08ab426f858d59669d",
+    "src/quadrature/cutfem_ls/EndpointStripQuadrature.hpp": "861063621dc9ad6695fea0249cfb0d0f1bf86dbb56d89ae2b53883fb63b6badb",
+    "src/quadrature/cutfem_ls/FELevelSetMoments.hpp": "2d44666de2c41a2ce45352314fc2b8e79d219969dde3647e2679659a2fbd59e8",
+    "src/quadrature/cutfem_ls/LineDomainIntegration.hpp": "0017d77918b489e838da1ea7f95bdede32b0f4849f39d4d50d27dd9a01c5d230",
+    "src/quadrature/cutfem_ls/Tri7DirectionSelection.hpp": "6f922b685e06faf527d5a20cfa83162688900e802e6fb3c3e39aeaa7f8d60011",
+    "src/quadrature/cutfem_ls/Tet15LevelSetMoments.hpp": "6891f2f83ba594bd7a42f951a69a36dd39bad97120e8ac85b848a4a87e9585d6",
+    "src/quadrature/cutfem_ls/CutFemWeight_LS.hpp": "3e2cd06c918904ab2ccccc69f66998e8f884c8dda796cd4c6bdf07f32b8a625b",
+    "src/quadrature/cutfem_ls/LineIntegration.hpp": "d7f65f4a59043bd11aefca92461ffe6b545c5a95d3ee2122aa7a28f7d2a68f3a",
+    "src/quadrature/cutfem_ls/TriangleIntegration.hpp": "182abb5e6e5cd6ba15899126fb901557bca15894edc4c2ad3c96d0a93459888e"
+  }
+}

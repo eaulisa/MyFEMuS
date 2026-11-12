@@ -1,0 +1,150 @@
+{
+  "accepted": true,
+  "baseline_sha": "e2a9c1056812fe568a54b412e39acd3671e07bdd",
+  "maximum_requested_degree": 10,
+  "unit_checks": 4212,
+  "maximum_unit_moment_error": 5.421010862427522e-20,
+  "maximum_fitted_moment_error": 1.194031852558286e-13,
+  "native_cases": 386,
+  "native_assertions": 36860,
+  "supplemental_cases": 8,
+  "supplemental_assertions": 3176,
+  "focused_executions": 19,
+  "focused": [
+    {
+      "test": "unit_element_moments",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "single_graph_root",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "direct_parent_moments",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "line_integration",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "tri_domain_splitting",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "tri_circle_probe",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "test_contract",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "test_ls_multiprecision",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "test_ls_output_range",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "test_reference_coefficients",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "tet_standard_moments",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "test_tet_slice_regression",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "test_root_candidate_regression",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "quad_tri_standard_moments",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "quad_native_quadrants",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "quad_scaled_plane",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "simplex_high_degree",
+      "arguments": [],
+      "exit": 0
+    },
+    {
+      "test": "test_hex_native",
+      "arguments": [
+        "5",
+        "1e-12"
+      ],
+      "exit": 0
+    },
+    {
+      "test": "test_hex_native",
+      "arguments": [
+        "10",
+        "1e-12"
+      ],
+      "exit": 0
+    }
+  ],
+  "asan_ubsan": {
+    "exit": 0,
+    "checks": 4212,
+    "leak_detection": false,
+    "reason": "LeakSanitizer is unavailable under this runtime ptrace environment."
+  },
+  "source_sha256": {
+    "src/quadrature/cutfem_ls/AdaptiveLineSliceMoments.hpp": "eac9a3d1d654162321a4790f406638d271b4528a8157fa546ceb6fbd6d2f00f3",
+    "src/quadrature/cutfem_ls/CutFemWeight_LS.hpp": "9de35c911f83772f17dc999fa65128643a0c7136b9b41b6c2d94a2e1d50d090b",
+    "src/quadrature/cutfem_ls/FELevelSetMoments.hpp": "2d44666de2c41a2ce45352314fc2b8e79d219969dde3647e2679659a2fbd59e8",
+    "src/quadrature/cutfem_ls/GraphCellIntegration.hpp": "05f705d0fff56fc820e12cf6991e979caeb711b497ed6809edfa6aaba8b2715c",
+    "src/quadrature/cutfem_ls/Hex27DirectionSelection.hpp": "47a4b9e5f76ad99a2bcf6445807572498a8a524dd06acb096797e8aff4c72f02",
+    "src/quadrature/cutfem_ls/Hex27LevelSetMoments.hpp": "1b008e81defbbcd9852c34c083a52fc060fc7ba08d8532dc50afea0b548d6ac4",
+    "src/quadrature/cutfem_ls/LineDomainIntegration.hpp": "97f4104295e8810d6d7ffbec58b24add234dd3fed9cbcbe3ab0c7775ae04e55f",
+    "src/quadrature/cutfem_ls/LineIntegration.hpp": "d7f65f4a59043bd11aefca92461ffe6b545c5a95d3ee2122aa7a28f7d2a68f3a",
+    "src/quadrature/cutfem_ls/Quad9DirectionSelection.hpp": "54c921127ae6f43a3ad6cfb9efefc88e0ebf72ff8a3b9894870ffec33d20fbc6",
+    "src/quadrature/cutfem_ls/ReferenceElementLS.hpp": "107c527ba19b34f992d1f2d1b5f9bf8a04096aec5b58ae08ab426f858d59669d",
+    "src/quadrature/cutfem_ls/ReferenceSurfaceMoments.hpp": "7704f3c72c19e75fec5da70a96dae9f1caf71d3f5501e16d63a19b165cb561fe",
+    "src/quadrature/cutfem_ls/Tet15LevelSet.hpp": "8f0c04d490554627efde7be9ad31d4ac21362080815e69e2b9bf565222db8379",
+    "src/quadrature/cutfem_ls/Tet15LevelSetMoments.hpp": "ac81fbceee08619b3b2c2b1910a872ffb666f35feb9948386389a7a04cbcb1f0",
+    "src/quadrature/cutfem_ls/Tri7DirectionSelection.hpp": "1d7576b2bfc221fd80332a557094c30e31267f056ad9a278e37d68eda6e3a58b",
+    "src/quadrature/cutfem_ls/TriangleIntegration.hpp": "589c8383959cbaddf3b17e6942e573543351efc0571f723fedb4672ff1fe1656",
+    "src/quadrature/cutfem_ls/UnitElementMoments.hpp": "2b53d211816334af55147a6fafebea2180c92d84b97f4907a6e44abf2626628f",
+    "src/quadrature/cutfem_ls/gram_smithLS.hpp": "2c2c778f2ceb72403397a60088fc28633026753bd939f7ab0e561849210b2e08"
+  },
+  "scope": "Standalone tests use actual FEMuS nodal bases and Gaussian quadrature; full MPI/PETSc ex44 execution was not run.",
+  "planar_comparison": {
+    "cases": 147,
+    "flagged_cases": 0,
+    "weight_comparisons": 16258,
+    "moment_comparisons": 4552,
+    "maximum_normalized_weight_difference": 1.2017409289894406e-10,
+    "maximum_normalized_moment_difference": 1.5680732503209251e-13
+  }
+}

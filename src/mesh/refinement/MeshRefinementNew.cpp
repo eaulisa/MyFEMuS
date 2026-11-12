@@ -137,7 +137,6 @@ namespace femus {
     //END update elem
   }
 
-
   bool MeshRefinement::FlagElementsToRefineBaseOnError(const double& treshold, NumericVector& error) {
 
     unsigned type = 2;
@@ -151,7 +150,6 @@ namespace femus {
 
     numberOfRefinedElement->zero();
     //END temporary parallel vector initialization
-
 
     //BEGIN flag element to be refined
     for (int iel = _mesh._elementOffset[_iproc]; iel < _mesh._elementOffset[_iproc + 1]; iel++) {
@@ -179,15 +177,6 @@ namespace femus {
     return elementsHaveBeenRefined;
     //END update elem
   }
-
-
-
-
-
-
-
-
-
 
 //---------------------------------------------------------------------------------------------------------------
   void MeshRefinement::RefineMesh(const unsigned& igrid, Mesh* mshc, const elem_type* otherFiniteElement[6][5]) {
@@ -330,11 +319,9 @@ namespace femus {
       elc->FreeLocalizedElementQuantities();
     }
 
-
     if (_mesh.GetIfHomogeneous()) std::cout << "GGGGG the mesh is homogeneous\n";
     else std::cout << "GGGGG the mesh is AMR\n";
     _mesh.el->SetMaterialElementCounter(materialElementCounter);
-
 
     std::vector<unsigned> MaterialElementCounter = _mesh.el->GetMaterialElementCounter();
     //std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAA\n";
@@ -373,7 +360,6 @@ namespace femus {
             _mesh.el->SetElementDofIndex(iel, inode, nnodes  - 1u);
             unsigned im = _mesh.el->GetElementDofIndex(iel, edge2VerticesMapping[ielt][inode - istart][0]);
             unsigned ip = _mesh.el->GetElementDofIndex(iel, edge2VerticesMapping[ielt][inode - istart][1]);
-
 
             //find all the near elements which share the same middle edge point
             for (unsigned j = 0; j < _mesh.el->GetElementNearVertexNumber(im); j++) {
@@ -459,7 +445,6 @@ namespace femus {
 
     unsigned solType = 2;
 
-
     std::cout << "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBb\n" << std::flush;
 
     _mesh._topology->_Sol[0]->matrix_mult(*mshc->_topology->_Sol[0], *_mesh.GetCoarseToFineProjection(solType));
@@ -503,7 +488,6 @@ namespace femus {
 
     _fineElementHasBeenRefined.clear();
   }
-
 
   /**
    * This function generates face dof (for hex and wedge elements) and element dof (for hex and quad)
@@ -621,6 +605,5 @@ namespace femus {
     //std::cout << "nnodes after buildkmid= "  << nnodes << std::endl;
 
   }
-
 
 }

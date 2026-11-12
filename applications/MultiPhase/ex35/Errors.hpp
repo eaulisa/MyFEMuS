@@ -11,7 +11,9 @@
 #include "FemProjection.hpp"
 
 // phase 1 = Psi > 0
-static inline double Hpos(const double psi) { return (psi > 0.0) ? 1.0 : 0.0; }
+static inline double Hpos(const double psi) {
+  return (psi > 0.0) ? 1.0 : 0.0;
+}
 
 /**
  * Mass error:
@@ -32,11 +34,10 @@ static inline double Hpos(const double psi) { return (psi > 0.0) ? 1.0 : 0.0; }
  */
 inline std::tuple<double, double, double>
 computeMassAndGeometricError(
-    const std::string Psi0,
-    const std::string Psi1,
-    const Field& F,
-    const std::array<std::unique_ptr<FemProjection>, 6>& elProj)
-{
+  const std::string Psi0,
+  const std::string Psi1,
+  const Field& F,
+  const std::array<std::unique_ptr<FemProjection>, 6>& elProj) {
   const Mesh& m = F.mesh();
 
   const std::size_t dim = m.dim();

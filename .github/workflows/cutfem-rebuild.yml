@@ -1,0 +1,27 @@
+name: CutFEM native rebuild
+
+on:
+  push:
+    branches:
+      - rifat-cutfem-rebuild
+  workflow_dispatch:
+
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rifat-cutfem-rebuild
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ python3 python3-numpy libboost-dev libeigen3-dev
+      - name: Build standalone native suite
+        working-directory: unittests/testCutFemWeightLSNative
+        run: python3 build.py --jobs 2
+      - name: Run focused tests
+        working-directory: unittests/testCutFemWeightLSNative
+        run: python3 run_focused.py
+      - name: Run original regression matrix
+        working-directory: unittests/testCutFemWeightLSNative
+        run: python3 run.py --selection original

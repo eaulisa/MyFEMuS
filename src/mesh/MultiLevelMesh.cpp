@@ -25,10 +25,8 @@
 #include "MeshRefinement.hpp"
 #include "Domain.hpp"
 
-
 //C++ include
 #include <iostream>
-
 
 namespace femus {
 
@@ -47,7 +45,7 @@ namespace femus {
     _level0IsOwned = false;
     _level0.resize(_gridn0);
     _level.resize(_gridn0);
-    for(unsigned i = 0; i <_level0.size(); i++ ){
+    for(unsigned i = 0; i < _level0.size(); i++ ) {
       _level0[i] = mlmsh0.GetLevel(level0 + i);
       _level[i] = _level0[i];
     }
@@ -63,7 +61,6 @@ namespace femus {
 
     BuildElemType(GaussOrder);
   }
-
 
   void MultiLevelMesh::clear() {
 
@@ -121,10 +118,6 @@ namespace femus {
 
   }
 
-
-
-
-
 //---------------------------------------------------------------------------------------------------
   MultiLevelMesh::MultiLevelMesh(): _gridn0(0) {
 
@@ -138,7 +131,6 @@ namespace femus {
     _writer = NULL;
 
   }
-
 
   void MultiLevelMesh::BuildElemType(const char GaussOrder[]) {
     if(_finiteElementGeometryFlag[0]) {
@@ -185,14 +177,12 @@ namespace femus {
     if(_level0IsOwned) _level0[0]->SetFiniteElementPtr(_finiteElement);
   }
 
-
 //---------------------------------------------------------------------------------------------------
   MultiLevelMesh::MultiLevelMesh(const unsigned short &igridn, const unsigned short &igridr,
                                  const char mesh_file[], const char GaussOrder[], const double Lref,
                                  bool (* SetRefinementFlag)(const std::vector < double > &x,
                                      const int &ElemGroupNumber, const int &level) ):
     _gridn0(igridn) {
-
 
     _level0.resize(_gridn0);
     _finiteElementGeometryFlag.resize(6, false);
@@ -219,7 +209,6 @@ namespace femus {
       Mesh::_SetRefinementFlag = SetRefinementFlag;
       Mesh::_IsUserRefinementFunctionDefined = true;
     }
-
 
     //partially refined meshes
     for (unsigned i = igridr; i < _gridn0; i++) {
@@ -258,7 +247,6 @@ namespace femus {
 
   }
 
-
   void MultiLevelMesh::ReadCoarseMesh(const char mesh_file[], const char GaussOrder[], const double Lref, const bool read_groups, const bool read_boundary_groups) {
     _gridn0 = 1;
 
@@ -277,8 +265,6 @@ namespace femus {
     _level[0] = _level0[0];
 
   }
-
-
 
   void MultiLevelMesh::GenerateCoarseBoxMesh(
     const unsigned int nx, const unsigned int ny, const unsigned int nz,
@@ -304,7 +290,6 @@ namespace femus {
     _level[0] = _level0[0];
 
   }
-
 
   void MultiLevelMesh::RefineMesh( const unsigned short &igridn, const unsigned short &igridr,
                                    bool (* SetRefinementFlag)(const std::vector < double >& x,
@@ -352,7 +337,6 @@ namespace femus {
     unsigned refindex = _level0[0]->GetRefIndex();
     elem_type::_refindex = refindex;
 
-
     _gridn = _gridn0;
     _level.resize(_gridn);
     for(int i = 0; i < _gridn; i++)
@@ -383,7 +367,6 @@ namespace femus {
     _gridn0++;
     _gridn++;
   }
-
 
 //---------------------------------------------------------------------------------------------
 
@@ -424,6 +407,56 @@ namespace femus {
 
   }
 
+  Mesh* MultiLevelMesh::GenerateSingleElementMesh(
+    const GeomElType geometry,
+    const std::array<double, 3>& lo,
+    const std::array<double, 3>& hi,
+    const char GaussOrder[]) {
+
+    // Reinitialization is supported; owning MultiLevelMesh controls FE lifetimes.
+    clear();
+    _level0IsOwned = true;
+    _gridn0 = _gridn = 1;
+    _finiteElementGeometryFlag.assign(6, false);
+
+    switch (geometry) {
+      case HEX: _finiteElementGeometryFlag[0] = true;
+                _finiteElementGeometryFlag[3] = true; break;
+      case TET: _finiteElementGeometryFlag[1] = true;
+                _finiteElementGeometryFlag[4] = true; break;
+      case QUAD: _finiteElementGeometryFlag[3] = true; break;
+      case TRI: _finiteElementGeometryFlag[4] = true; break;
+      default: throw std::invalid_argument("Unsupported element geometry");
+    }
+
+    const bool is3D = (geometry == HEX || geometry == TET);
+    if (!(lo[0] < hi[0]) || !(lo[1] < hi[1]) ||
+        (is3D && !(lo[2] < hi[2])))
+      throw std::invalid_argument("Invalid single-element bounds");
+
+    _level0.resize(1);
+    _level0[0] = new Mesh();
+    _level0[0]->BuildSingleElement(geometry, lo, hi);
+    BuildElemType(GaussOrder);
+    _level = _level0;
+    return _level0[0];
+  }
+
+
+Mesh* MultiLevelMesh::GenerateSingleAnalyticBallElementMesh(
+    GeomElType geometry,
+    const std::array<double,3>& lo,
+    const std::array<double,3>& hi,
+    const std::array<double,3>& center,
+    double curvature,
+    const char GaussOrder[]) {
+
+  if(geometry!=TRI && geometry!=QUAD &&
+     geometry!=TET && geometry!=HEX)
+    throw std::invalid_argument("Analytic BALL: unsupported geometry");
+
+  Mesh* mesh=GenerateSingleElementMesh(geometry,lo,hi,GaussOrder);
+  mesh->CurveSingleElementAnalyticBall(center,curvature);
+  return mesh;
+}
 } //end namespace femus
-
-

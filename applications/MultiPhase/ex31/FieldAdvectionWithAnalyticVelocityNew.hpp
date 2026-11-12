@@ -197,6 +197,4 @@ namespace fem {
     }
   }
 
-
-
 } // namespace fem

@@ -1,0 +1,6 @@
+{
+  "matched_cases": 180,
+  "different_components": 0,
+  "maximum_component_difference": "0",
+  "description": "Guarded integer counter instrumentation; numerical formulas unchanged."
+}

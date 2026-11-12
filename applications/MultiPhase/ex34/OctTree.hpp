@@ -83,18 +83,26 @@ namespace fem {
 // Optional: names for printing/debug
   inline const char* basis_name(Basis2D b) noexcept {
     switch (b) {
-    case Basis2D::Q4: return "Q4";
-    case Basis2D::Q8: return "Q8";
-    case Basis2D::Q9: return "Q9";
-    default: return "Unknown2D";
+      case Basis2D::Q4:
+        return "Q4";
+      case Basis2D::Q8:
+        return "Q8";
+      case Basis2D::Q9:
+        return "Q9";
+      default:
+        return "Unknown2D";
     }
   }
   inline const char* basis_name(Basis3D b) noexcept {
     switch (b) {
-    case Basis3D::H8: return "H8";
-    case Basis3D::H20: return "H20";
-    case Basis3D::H27: return "H27";
-    default: return "Unknown3D";
+      case Basis3D::H8:
+        return "H8";
+      case Basis3D::H20:
+        return "H20";
+      case Basis3D::H27:
+        return "H27";
+      default:
+        return "Unknown3D";
     }
   }
   template <std::size_t DIM>
@@ -238,8 +246,10 @@ namespace fem {
                              double* __restrict__ dNdeta) noexcept {
       double Lx0, Lx1, Lx2, Ly0, Ly1, Ly2;
       double dLx0, dLx1, dLx2, dLy0, dLy1, dLy2;
-      q2_1d_vals(s[0], Lx0, Lx1, Lx2); q2_1d_derivs(s[0], dLx0, dLx1, dLx2);
-      q2_1d_vals(s[1], Ly0, Ly1, Ly2); q2_1d_derivs(s[1], dLy0, dLy1, dLy2);
+      q2_1d_vals(s[0], Lx0, Lx1, Lx2);
+      q2_1d_derivs(s[0], dLx0, dLx1, dLx2);
+      q2_1d_vals(s[1], Ly0, Ly1, Ly2);
+      q2_1d_derivs(s[1], dLy0, dLy1, dLy2);
 
       auto fill = [&](int i, double Lx, double Ly, double dLx, double dLy) {
         dNdxi[i]  = dLx * Ly;
@@ -393,22 +403,40 @@ namespace fem {
       const double a1 = 0.125 * (1 + eta) * (1 - z);
       const double a2 = 0.125 * (1 - eta) * (1 + z);
       const double a3 = 0.125 * (1 + eta) * (1 + z);
-      dNdxi[0] = -a0; dNdxi[1] =  a0; dNdxi[2] =  a1; dNdxi[3] = -a1;
-      dNdxi[4] = -a2; dNdxi[5] =  a2; dNdxi[6] =  a3; dNdxi[7] = -a3;
+      dNdxi[0] = -a0;
+      dNdxi[1] =  a0;
+      dNdxi[2] =  a1;
+      dNdxi[3] = -a1;
+      dNdxi[4] = -a2;
+      dNdxi[5] =  a2;
+      dNdxi[6] =  a3;
+      dNdxi[7] = -a3;
 
       const double b0 = 0.125 * (1 - xi) * (1 - z);
       const double b1 = 0.125 * (1 + xi) * (1 - z);
       const double b2 = 0.125 * (1 - xi) * (1 + z);
       const double b3 = 0.125 * (1 + xi) * (1 + z);
-      dNdeta[0] = -b0; dNdeta[1] = -b1; dNdeta[2] =  b1; dNdeta[3] =  b0;
-      dNdeta[4] = -b2; dNdeta[5] = -b3; dNdeta[6] =  b3; dNdeta[7] =  b2;
+      dNdeta[0] = -b0;
+      dNdeta[1] = -b1;
+      dNdeta[2] =  b1;
+      dNdeta[3] =  b0;
+      dNdeta[4] = -b2;
+      dNdeta[5] = -b3;
+      dNdeta[6] =  b3;
+      dNdeta[7] =  b2;
 
       const double c0 = 0.125 * (1 - xi) * (1 - eta);
       const double c1 = 0.125 * (1 + xi) * (1 - eta);
       const double c2 = 0.125 * (1 + xi) * (1 + eta);
       const double c3 = 0.125 * (1 - xi) * (1 + eta);
-      dNdz[0] = -c0; dNdz[1] = -c1; dNdz[2] = -c2; dNdz[3] = -c3;
-      dNdz[4] =  c0; dNdz[5] =  c1; dNdz[6] =  c2; dNdz[7] =  c3;
+      dNdz[0] = -c0;
+      dNdz[1] = -c1;
+      dNdz[2] = -c2;
+      dNdz[3] = -c3;
+      dNdz[4] =  c0;
+      dNdz[5] =  c1;
+      dNdz[6] =  c2;
+      dNdz[7] =  c3;
 
 #ifndef NDEBUG
       {
@@ -439,25 +467,40 @@ namespace fem {
       };
 
       // corners (0..7)
-      N[0] = S(Lx0, Ly0, Lz0); N[1] = S(Lx2, Ly0, Lz0); N[2] = S(Lx2, Ly2, Lz0); N[3] = S(Lx0, Ly2, Lz0);
-      N[4] = S(Lx0, Ly0, Lz2); N[5] = S(Lx2, Ly0, Lz2); N[6] = S(Lx2, Ly2, Lz2); N[7] = S(Lx0, Ly2, Lz2);
+      N[0] = S(Lx0, Ly0, Lz0);
+      N[1] = S(Lx2, Ly0, Lz0);
+      N[2] = S(Lx2, Ly2, Lz0);
+      N[3] = S(Lx0, Ly2, Lz0);
+      N[4] = S(Lx0, Ly0, Lz2);
+      N[5] = S(Lx2, Ly0, Lz2);
+      N[6] = S(Lx2, Ly2, Lz2);
+      N[7] = S(Lx0, Ly2, Lz2);
 
       // z=-1 edges (8..11)
-      N[ 8] = S(Lx1, Ly0, Lz0); N[ 9] = S(Lx2, Ly1, Lz0);
-      N[10] = S(Lx1, Ly2, Lz0); N[11] = S(Lx0, Ly1, Lz0);
+      N[ 8] = S(Lx1, Ly0, Lz0);
+      N[ 9] = S(Lx2, Ly1, Lz0);
+      N[10] = S(Lx1, Ly2, Lz0);
+      N[11] = S(Lx0, Ly1, Lz0);
 
       // z=+1 edges (12..15)
-      N[12] = S(Lx1, Ly0, Lz2); N[13] = S(Lx2, Ly1, Lz2);
-      N[14] = S(Lx1, Ly2, Lz2); N[15] = S(Lx0, Ly1, Lz2);
+      N[12] = S(Lx1, Ly0, Lz2);
+      N[13] = S(Lx2, Ly1, Lz2);
+      N[14] = S(Lx1, Ly2, Lz2);
+      N[15] = S(Lx0, Ly1, Lz2);
 
       // vertical edges (16..19)
-      N[16] = S(Lx0, Ly0, Lz1); N[17] = S(Lx2, Ly0, Lz1);
-      N[18] = S(Lx2, Ly2, Lz1); N[19] = S(Lx0, Ly2, Lz1);
+      N[16] = S(Lx0, Ly0, Lz1);
+      N[17] = S(Lx2, Ly0, Lz1);
+      N[18] = S(Lx2, Ly2, Lz1);
+      N[19] = S(Lx0, Ly2, Lz1);
 
       // face centers (20..25)
-      N[20] = S(Lx1, Ly0, Lz1); N[21] = S(Lx2, Ly1, Lz1);
-      N[22] = S(Lx1, Ly2, Lz1); N[23] = S(Lx0, Ly1, Lz1);
-      N[24] = S(Lx1, Ly1, Lz0); N[25] = S(Lx1, Ly1, Lz2);
+      N[20] = S(Lx1, Ly0, Lz1);
+      N[21] = S(Lx2, Ly1, Lz1);
+      N[22] = S(Lx1, Ly2, Lz1);
+      N[23] = S(Lx0, Ly1, Lz1);
+      N[24] = S(Lx1, Ly1, Lz0);
+      N[25] = S(Lx1, Ly1, Lz2);
 
       // cell center (26)
       N[26] = S(Lx1, Ly1, Lz1);
@@ -468,9 +511,12 @@ namespace fem {
                               double* __restrict__ dNdz) noexcept {
       double Lx0, Lx1, Lx2, Ly0, Ly1, Ly2, Lz0, Lz1, Lz2;
       double dLx0, dLx1, dLx2, dLy0, dLy1, dLy2, dLz0, dLz1, dLz2;
-      q2_1d_vals(s[0], Lx0, Lx1, Lx2); q2_1d_derivs(s[0], dLx0, dLx1, dLx2);
-      q2_1d_vals(s[1], Ly0, Ly1, Ly2); q2_1d_derivs(s[1], dLy0, dLy1, dLy2);
-      q2_1d_vals(s[2], Lz0, Lz1, Lz2); q2_1d_derivs(s[2], dLz0, dLz1, dLz2);
+      q2_1d_vals(s[0], Lx0, Lx1, Lx2);
+      q2_1d_derivs(s[0], dLx0, dLx1, dLx2);
+      q2_1d_vals(s[1], Ly0, Ly1, Ly2);
+      q2_1d_derivs(s[1], dLy0, dLy1, dLy2);
+      q2_1d_vals(s[2], Lz0, Lz1, Lz2);
+      q2_1d_derivs(s[2], dLz0, dLz1, dLz2);
 
       auto fill = [&](int i, double Lx, double Ly, double Lz,
       double dLx, double dLy, double dLz) {
@@ -670,7 +716,6 @@ namespace fem {
       dNe_z(+1, +1, dNdxi[18], dNdeta[18], dNdz[18]);
       dNe_z(-1, +1, dNdxi[19], dNdeta[19], dNdz[19]);
 
-
 #ifndef NDEBUG
       {
         constexpr double tol = 1e-12;
@@ -739,7 +784,6 @@ namespace fem {
 
   template<std::size_t DIM> class Reinitializer;
 
-
 // ---------- OctTree (minimum workable stub) ----------
   template<std::size_t DIM/*, class Derived*/>
   class OctTree {
@@ -760,11 +804,12 @@ namespace fem {
         TreeNode<DIM> root{};
 
         // 2) Reset topology containers and seed with root
-        _tree_nodes.clear();       _tree_nodes.push_back(root);
+        _tree_nodes.clear();
+        _tree_nodes.push_back(root);
         _root = 0;
-        _leaves.clear();           _leaves.push_back(_root);
+        _leaves.clear();
+        _leaves.push_back(_root);
         _leaf_ids.clear();
-
 
         // 3) Basis registries empty (fixed length = 3)
         for (int i = 0; i < 3; ++i) _basisReg[i].clear();
@@ -827,14 +872,12 @@ namespace fem {
         post_topology_update(); // very cheap (there is only one element)
       }
 
-
       // ---- Defaulted special members (move-only; copy disabled) (DIM-independent) ----
 
       OctTree(const OctTree&)            = default;
       OctTree& operator=(const OctTree&) = default;
       OctTree(OctTree&&) noexcept        = default;
       OctTree& operator=(OctTree&&) noexcept = default;
-
 
       OctTree(const OctTree& oct1, u32 fid1,
               const OctTree& oct2, u32 fid2)
@@ -1004,7 +1047,6 @@ namespace fem {
         });
       }
 
-
 // ---- Build offsets so that leaves of level L are in the half-open range [offsets[L], offsets[L+1]) of _leaves (DIM -independent) ----
       void compute_level_offsets() {
         _level_offset.clear();
@@ -1031,7 +1073,6 @@ namespace fem {
         }
         // Now: offsets[maxL+1] == _leaves.size() (the sentinel)
       }
-
 
 // ---- Re-sorts leaves by level/Morton order, refreshes lookups/registries, and resizes field storage (DIM-independent) ----
       inline void post_topology_update() {
@@ -1138,46 +1179,49 @@ namespace fem {
 
           // Explicit static_cast to the 2D enum so case labels match the type
           switch (static_cast<Basis2D>(basis)) {
-          case Basis2D::Q4: {
-            out_pts.reserve(4);
-            out_pts = {
-              Point<DIM>{x0, y0}, Point<DIM>{x1, y0},
-              Point<DIM>{x1, y1}, Point<DIM>{x0, y1}
-            };
-          } break;
+            case Basis2D::Q4: {
+              out_pts.reserve(4);
+              out_pts = {
+                Point<DIM>{x0, y0}, Point<DIM>{x1, y0},
+                Point<DIM>{x1, y1}, Point<DIM>{x0, y1}
+              };
+            }
+            break;
 
-          case Basis2D::Q8: {
-            out_pts.reserve(8);
-            // corners 0..3
-            out_pts = {
-              Point<DIM>{x0, y0}, Point<DIM>{x1, y0},
-              Point<DIM>{x1, y1}, Point<DIM>{x0, y1}
-            };
-            // edges 4..7: bottom, right, top, left
-            out_pts.push_back(Point<DIM> {xm, y0});
-            out_pts.push_back(Point<DIM> {x1, ym});
-            out_pts.push_back(Point<DIM> {xm, y1});
-            out_pts.push_back(Point<DIM> {x0, ym});
-          } break;
+            case Basis2D::Q8: {
+              out_pts.reserve(8);
+              // corners 0..3
+              out_pts = {
+                Point<DIM>{x0, y0}, Point<DIM>{x1, y0},
+                Point<DIM>{x1, y1}, Point<DIM>{x0, y1}
+              };
+              // edges 4..7: bottom, right, top, left
+              out_pts.push_back(Point<DIM> {xm, y0});
+              out_pts.push_back(Point<DIM> {x1, ym});
+              out_pts.push_back(Point<DIM> {xm, y1});
+              out_pts.push_back(Point<DIM> {x0, ym});
+            }
+            break;
 
-          case Basis2D::Q9: {
-            out_pts.reserve(9);
-            // corners 0..3
-            out_pts = {
-              Point<DIM>{x0, y0}, Point<DIM>{x1, y0},
-              Point<DIM>{x1, y1}, Point<DIM>{x0, y1}
-            };
-            // edges 4..7
-            out_pts.push_back(Point<DIM> {xm, y0});
-            out_pts.push_back(Point<DIM> {x1, ym});
-            out_pts.push_back(Point<DIM> {xm, y1});
-            out_pts.push_back(Point<DIM> {x0, ym});
-            // center 8
-            out_pts.push_back(Point<DIM> {xm, ym});
-          } break;
+            case Basis2D::Q9: {
+              out_pts.reserve(9);
+              // corners 0..3
+              out_pts = {
+                Point<DIM>{x0, y0}, Point<DIM>{x1, y0},
+                Point<DIM>{x1, y1}, Point<DIM>{x0, y1}
+              };
+              // edges 4..7
+              out_pts.push_back(Point<DIM> {xm, y0});
+              out_pts.push_back(Point<DIM> {x1, ym});
+              out_pts.push_back(Point<DIM> {xm, y1});
+              out_pts.push_back(Point<DIM> {x0, ym});
+              // center 8
+              out_pts.push_back(Point<DIM> {xm, ym});
+            }
+            break;
 
-          default:
-            out_pts.clear(); // unsupported 2D basis
+            default:
+              out_pts.clear(); // unsupported 2D basis
           }
 
         }
@@ -1188,79 +1232,82 @@ namespace fem {
 
           // Explicit static_cast to the 3D enum so case labels match the type
           switch (static_cast<Basis3D>(basis)) {
-          case Basis3D::H8: {
-            out_pts.reserve(8);
-            out_pts = {
-              PM::mk(x0, y0, z0), PM::mk(x1, y0, z0),
-              PM::mk(x1, y1, z0), PM::mk(x0, y1, z0),
-              PM::mk(x0, y0, z1), PM::mk(x1, y0, z1),
-              PM::mk(x1, y1, z1), PM::mk(x0, y1, z1)
-            };
-          } break;
+            case Basis3D::H8: {
+              out_pts.reserve(8);
+              out_pts = {
+                PM::mk(x0, y0, z0), PM::mk(x1, y0, z0),
+                PM::mk(x1, y1, z0), PM::mk(x0, y1, z0),
+                PM::mk(x0, y0, z1), PM::mk(x1, y0, z1),
+                PM::mk(x1, y1, z1), PM::mk(x0, y1, z1)
+              };
+            }
+            break;
 
-          case Basis3D::H20: {
-            out_pts.reserve(20);
-            // corners 0..7
-            out_pts = {
-              PM::mk(x0, y0, z0), PM::mk(x1, y0, z0),
-              PM::mk(x1, y1, z0), PM::mk(x0, y1, z0),
-              PM::mk(x0, y0, z1), PM::mk(x1, y0, z1),
-              PM::mk(x1, y1, z1), PM::mk(x0, y1, z1)
-            };
-            // bottom z=-1 edges 8..11
-            out_pts.push_back(PM::mk(xm, y0, z0));
-            out_pts.push_back(PM::mk(x1, ym, z0));
-            out_pts.push_back(PM::mk(xm, y1, z0));
-            out_pts.push_back(PM::mk(x0, ym, z0));
-            // top z=+1 edges 12..15
-            out_pts.push_back(PM::mk(xm, y0, z1));
-            out_pts.push_back(PM::mk(x1, ym, z1));
-            out_pts.push_back(PM::mk(xm, y1, z1));
-            out_pts.push_back(PM::mk(x0, ym, z1));
-            // vertical edges 16..19
-            out_pts.push_back(PM::mk(x0, y0, zm));
-            out_pts.push_back(PM::mk(x1, y0, zm));
-            out_pts.push_back(PM::mk(x1, y1, zm));
-            out_pts.push_back(PM::mk(x0, y1, zm));
-          } break;
+            case Basis3D::H20: {
+              out_pts.reserve(20);
+              // corners 0..7
+              out_pts = {
+                PM::mk(x0, y0, z0), PM::mk(x1, y0, z0),
+                PM::mk(x1, y1, z0), PM::mk(x0, y1, z0),
+                PM::mk(x0, y0, z1), PM::mk(x1, y0, z1),
+                PM::mk(x1, y1, z1), PM::mk(x0, y1, z1)
+              };
+              // bottom z=-1 edges 8..11
+              out_pts.push_back(PM::mk(xm, y0, z0));
+              out_pts.push_back(PM::mk(x1, ym, z0));
+              out_pts.push_back(PM::mk(xm, y1, z0));
+              out_pts.push_back(PM::mk(x0, ym, z0));
+              // top z=+1 edges 12..15
+              out_pts.push_back(PM::mk(xm, y0, z1));
+              out_pts.push_back(PM::mk(x1, ym, z1));
+              out_pts.push_back(PM::mk(xm, y1, z1));
+              out_pts.push_back(PM::mk(x0, ym, z1));
+              // vertical edges 16..19
+              out_pts.push_back(PM::mk(x0, y0, zm));
+              out_pts.push_back(PM::mk(x1, y0, zm));
+              out_pts.push_back(PM::mk(x1, y1, zm));
+              out_pts.push_back(PM::mk(x0, y1, zm));
+            }
+            break;
 
-          case Basis3D::H27: {
-            out_pts.reserve(27);
-            // corners 0..7
-            out_pts = {
-              PM::mk(x0, y0, z0), PM::mk(x1, y0, z0),
-              PM::mk(x1, y1, z0), PM::mk(x0, y1, z0),
-              PM::mk(x0, y0, z1), PM::mk(x1, y0, z1),
-              PM::mk(x1, y1, z1), PM::mk(x0, y1, z1)
-            };
-            // bottom z=-1 edges 8..11
-            out_pts.push_back(PM::mk(xm, y0, z0));
-            out_pts.push_back(PM::mk(x1, ym, z0));
-            out_pts.push_back(PM::mk(xm, y1, z0));
-            out_pts.push_back(PM::mk(x0, ym, z0));
-            // top z=+1 edges 12..15
-            out_pts.push_back(PM::mk(xm, y0, z1));
-            out_pts.push_back(PM::mk(x1, ym, z1));
-            out_pts.push_back(PM::mk(xm, y1, z1));
-            out_pts.push_back(PM::mk(x0, ym, z1));
-            // vertical edges 16..19
-            out_pts.push_back(PM::mk(x0, y0, zm));
-            out_pts.push_back(PM::mk(x1, y0, zm));
-            out_pts.push_back(PM::mk(x1, y1, zm));
-            out_pts.push_back(PM::mk(x0, y1, zm));
-            // face centers 20..25
-            out_pts.push_back(PM::mk(xm, y0, zm)); // y=y0
-            out_pts.push_back(PM::mk(x1, ym, zm)); // x=x1
-            out_pts.push_back(PM::mk(xm, y1, zm)); // y=y1
-            out_pts.push_back(PM::mk(x0, ym, zm)); // x=x0
-            out_pts.push_back(PM::mk(xm, ym, z0)); // bottom face center
-            out_pts.push_back(PM::mk(xm, ym, z1)); // top face center
-            // cell center 26
-            out_pts.push_back(PM::mk(xm, ym, zm));
-          } break;
+            case Basis3D::H27: {
+              out_pts.reserve(27);
+              // corners 0..7
+              out_pts = {
+                PM::mk(x0, y0, z0), PM::mk(x1, y0, z0),
+                PM::mk(x1, y1, z0), PM::mk(x0, y1, z0),
+                PM::mk(x0, y0, z1), PM::mk(x1, y0, z1),
+                PM::mk(x1, y1, z1), PM::mk(x0, y1, z1)
+              };
+              // bottom z=-1 edges 8..11
+              out_pts.push_back(PM::mk(xm, y0, z0));
+              out_pts.push_back(PM::mk(x1, ym, z0));
+              out_pts.push_back(PM::mk(xm, y1, z0));
+              out_pts.push_back(PM::mk(x0, ym, z0));
+              // top z=+1 edges 12..15
+              out_pts.push_back(PM::mk(xm, y0, z1));
+              out_pts.push_back(PM::mk(x1, ym, z1));
+              out_pts.push_back(PM::mk(xm, y1, z1));
+              out_pts.push_back(PM::mk(x0, ym, z1));
+              // vertical edges 16..19
+              out_pts.push_back(PM::mk(x0, y0, zm));
+              out_pts.push_back(PM::mk(x1, y0, zm));
+              out_pts.push_back(PM::mk(x1, y1, zm));
+              out_pts.push_back(PM::mk(x0, y1, zm));
+              // face centers 20..25
+              out_pts.push_back(PM::mk(xm, y0, zm)); // y=y0
+              out_pts.push_back(PM::mk(x1, ym, zm)); // x=x1
+              out_pts.push_back(PM::mk(xm, y1, zm)); // y=y1
+              out_pts.push_back(PM::mk(x0, ym, zm)); // x=x0
+              out_pts.push_back(PM::mk(xm, ym, z0)); // bottom face center
+              out_pts.push_back(PM::mk(xm, ym, z1)); // top face center
+              // cell center 26
+              out_pts.push_back(PM::mk(xm, ym, zm));
+            }
+            break;
 
-          default:
-            out_pts.clear(); // unsupported 3D basis
+            default:
+              out_pts.clear(); // unsupported 3D basis
           }
 
         }
@@ -1308,7 +1355,6 @@ namespace fem {
         }
         return x;
       }
-
 
 // ---- Returns the current number of leaves (DIM-independent) ----
       inline u32 leaf_count() const noexcept {
@@ -1687,9 +1733,12 @@ namespace fem {
         if (per.size() < N) per.resize(N);        // grow once, never shrink
         ++per_epoch;                              // bump generation
 
-        touched.clear(); touched.reserve(L / NCH + NCH);
-        to_add.clear();  to_add.reserve(L / NCH + NCH);
-        newLeaves.clear(); newLeaves.reserve(L);
+        touched.clear();
+        touched.reserve(L / NCH + NCH);
+        to_add.clear();
+        to_add.reserve(L / NCH + NCH);
+        newLeaves.clear();
+        newLeaves.reserve(L);
 
         // removal marks (epoch-tagged, no clears)
         static thread_local std::vector<uint32_t> mark_tag;
@@ -1744,26 +1793,39 @@ namespace fem {
             const double zm = 0.5 * (z0 + z1);
             int n = 0;
             // corners 0..7
-            sbuf[n++] = PM::mk(x0, y0, z0); sbuf[n++] = PM::mk(x1, y0, z0);
-            sbuf[n++] = PM::mk(x1, y1, z0); sbuf[n++] = PM::mk(x0, y1, z0);
-            sbuf[n++] = PM::mk(x0, y0, z1); sbuf[n++] = PM::mk(x1, y0, z1);
-            sbuf[n++] = PM::mk(x1, y1, z1); sbuf[n++] = PM::mk(x0, y1, z1);
+            sbuf[n++] = PM::mk(x0, y0, z0);
+            sbuf[n++] = PM::mk(x1, y0, z0);
+            sbuf[n++] = PM::mk(x1, y1, z0);
+            sbuf[n++] = PM::mk(x0, y1, z0);
+            sbuf[n++] = PM::mk(x0, y0, z1);
+            sbuf[n++] = PM::mk(x1, y0, z1);
+            sbuf[n++] = PM::mk(x1, y1, z1);
+            sbuf[n++] = PM::mk(x0, y1, z1);
             if (nprobe >= 20) {
               // z=-1 edges (8..11)
-              sbuf[n++] = PM::mk(xm, y0, z0); sbuf[n++] = PM::mk(x1, ym, z0);
-              sbuf[n++] = PM::mk(xm, y1, z0); sbuf[n++] = PM::mk(x0, ym, z0);
+              sbuf[n++] = PM::mk(xm, y0, z0);
+              sbuf[n++] = PM::mk(x1, ym, z0);
+              sbuf[n++] = PM::mk(xm, y1, z0);
+              sbuf[n++] = PM::mk(x0, ym, z0);
               // z=+1 edges (12..15)
-              sbuf[n++] = PM::mk(xm, y0, z1); sbuf[n++] = PM::mk(x1, ym, z1);
-              sbuf[n++] = PM::mk(xm, y1, z1); sbuf[n++] = PM::mk(x0, ym, z1);
+              sbuf[n++] = PM::mk(xm, y0, z1);
+              sbuf[n++] = PM::mk(x1, ym, z1);
+              sbuf[n++] = PM::mk(xm, y1, z1);
+              sbuf[n++] = PM::mk(x0, ym, z1);
               // vertical edges (16..19)
-              sbuf[n++] = PM::mk(x0, y0, zm); sbuf[n++] = PM::mk(x1, y0, zm);
-              sbuf[n++] = PM::mk(x1, y1, zm); sbuf[n++] = PM::mk(x0, y1, zm);
+              sbuf[n++] = PM::mk(x0, y0, zm);
+              sbuf[n++] = PM::mk(x1, y0, zm);
+              sbuf[n++] = PM::mk(x1, y1, zm);
+              sbuf[n++] = PM::mk(x0, y1, zm);
             }
             if (nprobe == 27) {
               // face centers (20..25)
-              sbuf[n++] = PM::mk(xm, y0, zm); sbuf[n++] = PM::mk(x1, ym, zm);
-              sbuf[n++] = PM::mk(xm, y1, zm); sbuf[n++] = PM::mk(x0, ym, zm);
-              sbuf[n++] = PM::mk(xm, ym, z0); sbuf[n++] = PM::mk(xm, ym, z1);
+              sbuf[n++] = PM::mk(xm, y0, zm);
+              sbuf[n++] = PM::mk(x1, ym, zm);
+              sbuf[n++] = PM::mk(xm, y1, zm);
+              sbuf[n++] = PM::mk(x0, ym, zm);
+              sbuf[n++] = PM::mk(xm, ym, z0);
+              sbuf[n++] = PM::mk(xm, ym, z1);
               // cell center (26)
               sbuf[n++] = PM::mk(xm, ym, zm);
             }
@@ -1880,7 +1942,6 @@ namespace fem {
         return coarsened;
       }
 
-
 // ---- Refines the given leaf into 2^DIM children and updates topology; returns true if a split occurred (DIM-independent) ----
       inline bool refine_leaf_once(u32 leaf_node_idx) noexcept {
         if (leaf_node_idx == npos32) return false;
@@ -1973,7 +2034,8 @@ namespace fem {
         // Descend from a subtree root to the leaf that touches the given face midpoint of `me`.
         auto descend_to_face_mid = [this, &me, dir](u32 subtree_root) -> u32 {
           assert(dir >= 0 && dir < int(2 * DIM) && "dir must be in [0, 2*DIM)");
-          Point<DIM> X0, X1; leaf_bounds(me, X0, X1);
+          Point<DIM> X0, X1;
+          leaf_bounds(me, X0, X1);
 
           // Build face midpoint q on `me` for the requested face.
           const u32  ax = u32(dir >> 1);
@@ -2055,7 +2117,6 @@ namespace fem {
           return false;
         }
 
-
         // 2) leaf node index -> position in coefficient storage
         const u32 leaf_pos = (leaf_node_idx < _tree_nodes.size()) ? _tree_nodes[leaf_node_idx].node2leafIdx : npos32;
         if (leaf_pos == npos32) return false;
@@ -2072,19 +2133,26 @@ namespace fem {
           Point2 s2{ shat[0], shat[1] };
 
           switch (static_cast<Basis2D>(to_basis<DIM>(f.basis_id))) {
-          case Basis2D::Q4: {
-            double N[4];  Shapes2D::Q4(s2, N);
-            for (int a = 0; a < 4; ++a) value += N[a] * f.nodal[conn[a]];
-          } break;
-          case Basis2D::Q8: {
-            double N[8];  Shapes2D::Q8(s2, N);
-            for (int a = 0; a < 8; ++a) value += N[a] * f.nodal[conn[a]];
-          } break;
-          case Basis2D::Q9: {
-            double N[9];  Shapes2D::Q9(s2, N);
-            for (int a = 0; a < 9; ++a) value += N[a] * f.nodal[conn[a]];
-          } break;
-          default: return false;
+            case Basis2D::Q4: {
+              double N[4];
+              Shapes2D::Q4(s2, N);
+              for (int a = 0; a < 4; ++a) value += N[a] * f.nodal[conn[a]];
+            }
+            break;
+            case Basis2D::Q8: {
+              double N[8];
+              Shapes2D::Q8(s2, N);
+              for (int a = 0; a < 8; ++a) value += N[a] * f.nodal[conn[a]];
+            }
+            break;
+            case Basis2D::Q9: {
+              double N[9];
+              Shapes2D::Q9(s2, N);
+              for (int a = 0; a < 9; ++a) value += N[a] * f.nodal[conn[a]];
+            }
+            break;
+            default:
+              return false;
           }
 
         }
@@ -2093,19 +2161,26 @@ namespace fem {
           Point3 s3{ shat[0], shat[1], shat[2] };
 
           switch (static_cast<Basis3D>(to_basis<DIM>(f.basis_id))) {
-          case Basis3D::H8: {
-            double N[8];   Shapes3D::H8(s3, N);
-            for (int a = 0; a < 8;  ++a) value += N[a] * f.nodal[conn[a]];
-          } break;
-          case Basis3D::H20: {
-            double N[20];  Shapes3D::H20(s3, N);
-            for (int a = 0; a < 20; ++a) value += N[a] * f.nodal[conn[a]];
-          } break;
-          case Basis3D::H27: {
-            double N[27];  Shapes3D::H27(s3, N);
-            for (int a = 0; a < 27; ++a) value += N[a] * f.nodal[conn[a]];
-          } break;
-          default: return false;
+            case Basis3D::H8: {
+              double N[8];
+              Shapes3D::H8(s3, N);
+              for (int a = 0; a < 8;  ++a) value += N[a] * f.nodal[conn[a]];
+            }
+            break;
+            case Basis3D::H20: {
+              double N[20];
+              Shapes3D::H20(s3, N);
+              for (int a = 0; a < 20; ++a) value += N[a] * f.nodal[conn[a]];
+            }
+            break;
+            case Basis3D::H27: {
+              double N[27];
+              Shapes3D::H27(s3, N);
+              for (int a = 0; a < 27; ++a) value += N[a] * f.nodal[conn[a]];
+            }
+            break;
+            default:
+              return false;
           }
 
         }
@@ -2144,28 +2219,32 @@ namespace fem {
           Point2 s2{ shat[0], shat[1] };
 
           switch (static_cast<Basis2D>(to_basis<DIM>(f.basis_id))) {
-          case Basis2D::Q4: {
-            std::array<std::array<double, 4>, 2> dN{};
-            Shapes2D::Q4_dN(s2, dN[0].data(), dN[1].data());
-            for (int a = 0; a < 4; ++a)
-              for (int idim = 0; idim < 2; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          case Basis2D::Q8: {
-            std::array<std::array<double, 8>, 2> dN{};
-            Shapes2D::Q8_dN(s2, dN[0].data(), dN[1].data());
-            for (int a = 0; a < 8; ++a)
-              for (int idim = 0; idim < 2; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          case Basis2D::Q9: {
-            std::array<std::array<double, 9>, 2> dN{};
-            Shapes2D::Q9_dN(s2, dN[0].data(), dN[1].data());
-            for (int a = 0; a < 9; ++a)
-              for (int idim = 0; idim < 2; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          default: return false;
+            case Basis2D::Q4: {
+              std::array<std::array<double, 4>, 2> dN{};
+              Shapes2D::Q4_dN(s2, dN[0].data(), dN[1].data());
+              for (int a = 0; a < 4; ++a)
+                for (int idim = 0; idim < 2; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            }
+            break;
+            case Basis2D::Q8: {
+              std::array<std::array<double, 8>, 2> dN{};
+              Shapes2D::Q8_dN(s2, dN[0].data(), dN[1].data());
+              for (int a = 0; a < 8; ++a)
+                for (int idim = 0; idim < 2; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            }
+            break;
+            case Basis2D::Q9: {
+              std::array<std::array<double, 9>, 2> dN{};
+              Shapes2D::Q9_dN(s2, dN[0].data(), dN[1].data());
+              for (int a = 0; a < 9; ++a)
+                for (int idim = 0; idim < 2; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            }
+            break;
+            default:
+              return false;
           }
 
         }
@@ -2174,28 +2253,32 @@ namespace fem {
           Point3 s3{ shat[0], shat[1], shat[2] };
 
           switch (static_cast<Basis3D>(to_basis<DIM>(f.basis_id))) {
-          case Basis3D::H8: {
-            std::array<std::array<double, 8>, 3> dN{};
-            Shapes3D::H8_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-            for (int a = 0; a < 8; ++a)
-              for (int idim = 0; idim < 3; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          case Basis3D::H20: {
-            std::array<std::array<double, 20>, 3> dN{};
-            Shapes3D::H20_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-            for (int a = 0; a < 20; ++a)
-              for (int idim = 0; idim < 3; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          case Basis3D::H27: {
-            std::array<std::array<double, 27>, 3> dN{};
-            Shapes3D::H27_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-            for (int a = 0; a < 27; ++a)
-              for (int idim = 0; idim < 3; idim++)
-                gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
-          } break;
-          default: return false;
+            case Basis3D::H8: {
+              std::array<std::array<double, 8>, 3> dN{};
+              Shapes3D::H8_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+              for (int a = 0; a < 8; ++a)
+                for (int idim = 0; idim < 3; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            }
+            break;
+            case Basis3D::H20: {
+              std::array<std::array<double, 20>, 3> dN{};
+              Shapes3D::H20_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+              for (int a = 0; a < 20; ++a)
+                for (int idim = 0; idim < 3; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            }
+            break;
+            case Basis3D::H27: {
+              std::array<std::array<double, 27>, 3> dN{};
+              Shapes3D::H27_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+              for (int a = 0; a < 27; ++a)
+                for (int idim = 0; idim < 3; idim++)
+                  gradient[idim] += dN[idim][a] * f.nodal[conn[a]];
+            }
+            break;
+            default:
+              return false;
           }
 
         }
@@ -2211,12 +2294,11 @@ namespace fem {
         return true;
       }
 
-
 // ---- evaluate jacobian at parent coords for quad/octant bases (DIM-independent) ----
       bool evaluate_jacobian_on_parent(u32 fid, const Point<DIM>& s,
-                                      double J[DIM][DIM],
-                                      double& detJ,
-                                      double invJ[DIM][DIM]) const {
+                                       double J[DIM][DIM],
+                                       double& detJ,
+                                       double invJ[DIM][DIM]) const {
 
         if (fid >= _fields.size()) return false;
 
@@ -2239,154 +2321,164 @@ namespace fem {
         std::vector<Point<DIM>> parent_coords;
         leaf_physical_nodes(to_basis<DIM>(f.basis_id), leaf_pos, parent_coords);
 
-        for (int a=0; a<DIM; ++a)
-          for (int b=0; b<DIM; ++b)
+        for (int a = 0; a < DIM; ++a)
+          for (int b = 0; b < DIM; ++b)
             J[a][b] = 0.0;
 
         if constexpr (DIM == 2) {
           Point2 s2{ shat[0], shat[1] };
 
           switch (static_cast<Basis2D>(to_basis<DIM>(f.basis_id))) {
-          case Basis2D::Q4: {
-            std::array<std::array<double, 4>, 2> dN{}; // dN[b][i]
-            Shapes2D::Q4_dN(s2, dN[0].data(), dN[1].data());
-            for (int i = 0; i < 4; ++i) {
-              const int gi = conn[i]; // global geom node (isop.)
-              for (int b = 0; b < 2; ++b) {
-                J[0][b] += parent_coords[i][0] * dN[b][i];
-                J[1][b] += parent_coords[i][1] * dN[b][i];
+            case Basis2D::Q4: {
+              std::array<std::array<double, 4>, 2> dN{}; // dN[b][i]
+              Shapes2D::Q4_dN(s2, dN[0].data(), dN[1].data());
+              for (int i = 0; i < 4; ++i) {
+                const int gi = conn[i]; // global geom node (isop.)
+                for (int b = 0; b < 2; ++b) {
+                  J[0][b] += parent_coords[i][0] * dN[b][i];
+                  J[1][b] += parent_coords[i][1] * dN[b][i];
+                }
               }
             }
-          } break;
+            break;
 
-          case Basis2D::Q8: {
-            std::array<std::array<double, 8>, 2> dN{};
-            Shapes2D::Q8_dN(s2, dN[0].data(), dN[1].data());
-            for (int i = 0; i < 8; ++i) {
-              const int gi = conn[i];
-              for (int b = 0; b < 2; ++b) {
-                J[0][b] += parent_coords[i][0] * dN[b][i];
-                J[1][b] += parent_coords[i][1] * dN[b][i];
+            case Basis2D::Q8: {
+              std::array<std::array<double, 8>, 2> dN{};
+              Shapes2D::Q8_dN(s2, dN[0].data(), dN[1].data());
+              for (int i = 0; i < 8; ++i) {
+                const int gi = conn[i];
+                for (int b = 0; b < 2; ++b) {
+                  J[0][b] += parent_coords[i][0] * dN[b][i];
+                  J[1][b] += parent_coords[i][1] * dN[b][i];
+                }
               }
             }
-          } break;
+            break;
 
-          case Basis2D::Q9: {
-            std::array<std::array<double, 9>, 2> dN{};
-            Shapes2D::Q9_dN(s2, dN[0].data(), dN[1].data());
-            for (int i = 0; i < 9; ++i) {
-              const int gi = conn[i];
-              for (int b = 0; b < 2; ++b) {
-                J[0][b] += parent_coords[i][0] * dN[b][i];
-                J[1][b] += parent_coords[i][1] * dN[b][i];
+            case Basis2D::Q9: {
+              std::array<std::array<double, 9>, 2> dN{};
+              Shapes2D::Q9_dN(s2, dN[0].data(), dN[1].data());
+              for (int i = 0; i < 9; ++i) {
+                const int gi = conn[i];
+                for (int b = 0; b < 2; ++b) {
+                  J[0][b] += parent_coords[i][0] * dN[b][i];
+                  J[1][b] += parent_coords[i][1] * dN[b][i];
+                }
               }
             }
-          } break;
+            break;
 
-          default:
+            default:
 
-            std::cout << "  -> ERROR: unsupported 2D basis\n";
+              std::cout << "  -> ERROR: unsupported 2D basis\n";
 
-            return false;
+              return false;
           }
 
-        } else { // DIM == 3
+        }
+        else {   // DIM == 3
           Point3 s3{ shat[0], shat[1], shat[2] };
 
           switch (static_cast<Basis3D>(to_basis<DIM>(f.basis_id))) {
-          case Basis3D::H8: {
-            std::array<std::array<double, 8>, 3> dN{};
-            Shapes3D::H8_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-            for (int i = 0; i < 8; ++i) {
-              const int gi = conn[i];
-              for (int b = 0; b < 3; ++b) {
-                J[0][b] += parent_coords[i][0] * dN[b][i];
-                J[1][b] += parent_coords[i][1] * dN[b][i];
-                J[2][b] += parent_coords[i][2] * dN[b][i];
+            case Basis3D::H8: {
+              std::array<std::array<double, 8>, 3> dN{};
+              Shapes3D::H8_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+              for (int i = 0; i < 8; ++i) {
+                const int gi = conn[i];
+                for (int b = 0; b < 3; ++b) {
+                  J[0][b] += parent_coords[i][0] * dN[b][i];
+                  J[1][b] += parent_coords[i][1] * dN[b][i];
+                  J[2][b] += parent_coords[i][2] * dN[b][i];
+                }
               }
             }
-          } break;
+            break;
 
-          case Basis3D::H20: {
-            std::array<std::array<double, 20>, 3> dN{};
-            Shapes3D::H20_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-            for (int i = 0; i < 20; ++i) {
-              const int gi = conn[i];
-              for (int b = 0; b < 3; ++b) {
-                J[0][b] += parent_coords[i][0] * dN[b][i];
-                J[1][b] += parent_coords[i][1] * dN[b][i];
-                J[2][b] += parent_coords[i][2] * dN[b][i];
+            case Basis3D::H20: {
+              std::array<std::array<double, 20>, 3> dN{};
+              Shapes3D::H20_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+              for (int i = 0; i < 20; ++i) {
+                const int gi = conn[i];
+                for (int b = 0; b < 3; ++b) {
+                  J[0][b] += parent_coords[i][0] * dN[b][i];
+                  J[1][b] += parent_coords[i][1] * dN[b][i];
+                  J[2][b] += parent_coords[i][2] * dN[b][i];
+                }
               }
             }
-          } break;
+            break;
 
-          case Basis3D::H27: {
-            std::array<std::array<double, 27>, 3> dN{};
-            Shapes3D::H27_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
-            for (int i = 0; i < 27; ++i) {
-              const int gi = conn[i];
-              for (int b = 0; b < 3; ++b) {
-                J[0][b] += parent_coords[i][0] * dN[b][i];
-                J[1][b] += parent_coords[i][1] * dN[b][i];
-                J[2][b] += parent_coords[i][2] * dN[b][i];
+            case Basis3D::H27: {
+              std::array<std::array<double, 27>, 3> dN{};
+              Shapes3D::H27_dN(s3, dN[0].data(), dN[1].data(), dN[2].data());
+              for (int i = 0; i < 27; ++i) {
+                const int gi = conn[i];
+                for (int b = 0; b < 3; ++b) {
+                  J[0][b] += parent_coords[i][0] * dN[b][i];
+                  J[1][b] += parent_coords[i][1] * dN[b][i];
+                  J[2][b] += parent_coords[i][2] * dN[b][i];
+                }
               }
             }
-          } break;
+            break;
 
-          default:
+            default:
 
-            std::cout << "  -> ERROR: unsupported 3D basis\n";
+              std::cout << "  -> ERROR: unsupported 3D basis\n";
 
-            return false;
+              return false;
           }
         }
 
         const u32   L     = _tree_nodes[leaf_pos].level;
         const double scale = std::ldexp(1.0, int(L)); // 2^L
-        for (int a=0; a<DIM; ++a)
-          for (int b=0; b<DIM; ++b)
+        for (int a = 0; a < DIM; ++a)
+          for (int b = 0; b < DIM; ++b)
             J[a][b] *= scale;
 
         if constexpr (DIM == 2) {
-          detJ = J[0][0]*J[1][1] - J[0][1]*J[1][0];
+          detJ = J[0][0] * J[1][1] - J[0][1] * J[1][0];
           if (std::abs(detJ) <= 1e-18) {
 
             std::cout << "  -> ERROR: detJ too small (2D), detJ=" << detJ << "\n";
 
             return false;
           }
-          const double id = 1.0/detJ;
-          invJ[0][0] =  J[1][1]*id; invJ[0][1] = -J[0][1]*id;
-          invJ[1][0] = -J[1][0]*id; invJ[1][1] =  J[0][0]*id;
-        } else {
-          const double a00=J[0][0], a01=J[0][1], a02=J[0][2];
-          const double a10=J[1][0], a11=J[1][1], a12=J[1][2];
-          const double a20=J[2][0], a21=J[2][1], a22=J[2][2];
+          const double id = 1.0 / detJ;
+          invJ[0][0] =  J[1][1] * id;
+          invJ[0][1] = -J[0][1] * id;
+          invJ[1][0] = -J[1][0] * id;
+          invJ[1][1] =  J[0][0] * id;
+        }
+        else {
+          const double a00 = J[0][0], a01 = J[0][1], a02 = J[0][2];
+          const double a10 = J[1][0], a11 = J[1][1], a12 = J[1][2];
+          const double a20 = J[2][0], a21 = J[2][1], a22 = J[2][2];
 
-          const double c00 =  (a11*a22 - a12*a21);
-          const double c01 = -(a10*a22 - a12*a20);
-          const double c02 =  (a10*a21 - a11*a20);
+          const double c00 =  (a11 * a22 - a12 * a21);
+          const double c01 = -(a10 * a22 - a12 * a20);
+          const double c02 =  (a10 * a21 - a11 * a20);
 
-          detJ = a00*c00 + a01*c01 + a02*c02;
+          detJ = a00 * c00 + a01 * c01 + a02 * c02;
           if (std::abs(detJ) <= 1e-20) {
 
             std::cout << "  -> ERROR: detJ too small (3D), detJ=" << detJ << "\n";
 
             return false;
           }
-          const double id = 1.0/detJ;
+          const double id = 1.0 / detJ;
 
-          invJ[0][0] =  c00*id;
-          invJ[0][1] = (-(a01*a22 - a02*a21))*id;
-          invJ[0][2] = ( (a01*a12 - a02*a11))*id;
+          invJ[0][0] =  c00 * id;
+          invJ[0][1] = (-(a01 * a22 - a02 * a21)) * id;
+          invJ[0][2] = ( (a01 * a12 - a02 * a11)) * id;
 
-          invJ[1][0] =  c01*id;
-          invJ[1][1] = ( (a00*a22 - a02*a20))*id;
-          invJ[1][2] = (-(a00*a12 - a02*a10))*id;
+          invJ[1][0] =  c01 * id;
+          invJ[1][1] = ( (a00 * a22 - a02 * a20)) * id;
+          invJ[1][2] = (-(a00 * a12 - a02 * a10)) * id;
 
-          invJ[2][0] =  c02*id;
-          invJ[2][1] = (-(a00*a21 - a01*a20))*id;
-          invJ[2][2] = ( (a00*a11 - a01*a10))*id;
+          invJ[2][0] =  c02 * id;
+          invJ[2][1] = (-(a00 * a21 - a01 * a20)) * id;
+          invJ[2][2] = ( (a00 * a11 - a01 * a10)) * id;
         }
 
         return true;
@@ -2394,8 +2486,8 @@ namespace fem {
 
 // ---- Locates the leaf for parent-space point s and maps it to that leaf’s local [-1,1]^DIM (DIM-independent) ----
       inline bool locate_leaf_on_parent_and_ref(const Point<DIM>& s,
-                                                u32& leaf_node_idx,
-                                                Point<DIM>& shat) const noexcept {
+          u32& leaf_node_idx,
+          Point<DIM>& shat) const noexcept {
         // 1) Find the leaf containing s in parent space.
         leaf_node_idx = locate_leaf_on_parent(s);
         if (leaf_node_idx == npos32) return false;
@@ -2583,7 +2675,6 @@ namespace fem {
         return nref;
       }
 
-
 // Return the [begin,end) range in _leaves for a given level.
       inline std::pair<u32, u32> leaf_level_range(u32 L) const {
         // _leaf_level_off[L] is the first index in _leaves at level L,
@@ -2711,8 +2802,6 @@ namespace fem {
         return nref_total;
       }
 
-
-
 // ---- Enforces 2:1 balance (1-irregularity): adjacent leaves may differ by at most one level (DIM-independent) ----
       inline void enforce_balance() {
         sort_leaves_by_level_then_morton(); // this is not needed, but it speeds up the leaf neighboor search
@@ -2739,7 +2828,8 @@ namespace fem {
         for (u32 l : _leaves) if (l < inq.size()) inq[l] = 1;
 
         while (!q.empty()) {
-          u32 leaf = q.front(); q.pop_front();
+          u32 leaf = q.front();
+          q.pop_front();
           if (leaf == npos32 || leaf >= _tree_nodes.size()) continue;
           inq[leaf] = 0;
 
@@ -2792,7 +2882,6 @@ namespace fem {
           }
         }
       }
-
 
 // ---- Fast copy that reuses capacity without recomputing registries (DIM-independent)
       void assign_from(const OctTree& rhs) {
@@ -2889,8 +2978,6 @@ namespace fem {
 
           return (mn > +tolerance[0]) || (mx < -tolerance[0]);
         };
-
-
 
         auto pred1 = [&](u64 /*parent_morton*/, u32 level,
                          const std::vector<Point<DIM>>& pts_s,     // Q9 (2D): 0..3 verts, 4..7 mids, 8 center
@@ -3051,8 +3138,6 @@ namespace fem {
         // Enforce 1-irregularity and refresh bookkeeping
         enforce_balance();
 
-
-
         // Rebuild all fields from the snapshot (conservative transfer) on nodal sets
         for (u32 f = 0; f < _fields.size(); ++f) {
           rebuild_field_from(snapshot, f);   // ensure rebuild_field_from is DIM-aware (2D/3D)
@@ -3088,7 +3173,8 @@ namespace fem {
 
           // Fallback: sample from src at the exact parent coord (works for DIM=2 or 3)
           double val = std::numeric_limits<double>::quiet_NaN();
-          Point<DIM> p{}; for (std::size_t k = 0; k < DIM; ++k) p[k] = pr[k];
+          Point<DIM> p{};
+          for (std::size_t k = 0; k < DIM; ++k) p[k] = pr[k];
           const bool ok = src.evaluate_field_on_parent(fid, p, val);
           dst.nodal[gid] = ok ? val : std::numeric_limits<double>::quiet_NaN();
         }
@@ -3138,16 +3224,22 @@ namespace fem {
         auto vtk_cell_type = [&](Basis bb) -> unsigned char {
           if constexpr(DIM == 3) {
             switch (static_cast<Basis3D>(bb)) {
-            case Basis3D::H8:  return 12;
-            case Basis3D::H20: return 25;
-            case Basis3D::H27: return 29;
+              case Basis3D::H8:
+                return 12;
+              case Basis3D::H20:
+                return 25;
+              case Basis3D::H27:
+                return 29;
             }
           }
           else {
             switch (static_cast<Basis2D>(bb)) {
-            case Basis2D::Q4: return 9;
-            case Basis2D::Q8: return 23;
-            case Basis2D::Q9: return 28;
+              case Basis2D::Q4:
+                return 9;
+              case Basis2D::Q8:
+                return 23;
+              case Basis2D::Q9:
+                return 28;
             }
           }
           return 0;
@@ -3271,7 +3363,8 @@ namespace fem {
                 }
                 const Field &f = _fields[fid];
                 if (to_basis<DIM>(f.basis_id) != b || f.nodal.size() != R.nodes.size()) {
-                  valid = false; break;
+                  valid = false;
+                  break;
                 }
                 vecFld.push_back(&f);
               }
@@ -3297,11 +3390,11 @@ namespace fem {
           // --- CellData: just the per-cell "level" ---
           os << "      <CellData Scalars=\"level\">\n";
           write_binary_array(os, "Int32", "level", 1, cellLevel);
-          if (_reinit_criteria.size() == cellLevel.size()) 
+          if (_reinit_criteria.size() == cellLevel.size())
             write_binary_array(os, "Float64", "reinit_criteria", 1, _reinit_criteria);
-          if (_reinit_sign_criteria.size() == cellLevel.size()) 
+          if (_reinit_sign_criteria.size() == cellLevel.size())
             write_binary_array(os, "Float64", "reinit_sign_criteria", 1, _reinit_sign_criteria);
-          if (_reinit_weight.size() == cellLevel.size()) 
+          if (_reinit_weight.size() == cellLevel.size())
             write_binary_array(os, "Float64", "reinit_weight", 1, _reinit_weight);
           os << "      </CellData>\n";
         }
@@ -3346,7 +3439,8 @@ namespace fem {
                 }
                 const Field &f = _fields[fid];
                 if (to_basis<DIM>(f.basis_id) != b || f.nodal.size() != R.nodes.size()) {
-                  valid = false; break;
+                  valid = false;
+                  break;
                 }
                 vecFld.push_back(&f);
               }
@@ -3363,7 +3457,8 @@ namespace fem {
 
               for (const auto &conn : R.elem2glob) {
                 auto avg_comp = [&](const Field * fptr) {
-                  double v = 0.0; for (int gid : conn) v += fptr->nodal[gid];
+                  double v = 0.0;
+                  for (int gid : conn) v += fptr->nodal[gid];
                   return v / static_cast<double>(conn.size());
                 };
                 cx.push_back(avg_comp(vecFld[0]));
@@ -3375,8 +3470,10 @@ namespace fem {
               combined3.reserve(numCells * 3);
               for (size_t i = 0; i < numCells; ++i) {
                 combined3.push_back(cx[i]);
-                if constexpr(DIM > 1) combined3.push_back(cy[i]); else combined3.push_back(0.0);
-                if constexpr(DIM == 3) combined3.push_back(cz[i]); else combined3.push_back(0.0);
+                if constexpr(DIM > 1) combined3.push_back(cy[i]);
+                else combined3.push_back(0.0);
+                if constexpr(DIM == 3) combined3.push_back(cz[i]);
+                else combined3.push_back(0.0);
               }
               write_binary_array(os, "Float64", vname, 3, combined3);
             }
@@ -3438,9 +3535,9 @@ namespace fem {
 
 // ---- Collect parent-space node coordinates from leaves with level in [lev_min, lev_max] (DIM-independent)
       inline void extract_node_parent_coords_in_level_range(u32 lev_min,
-                                                            u32 lev_max,
-                                                            Basis basis,
-                                                            std::vector<Point<DIM>>& coords) const {
+          u32 lev_max,
+          Basis basis,
+          std::vector<Point<DIM>>& coords) const {
         coords.clear();
 
         // Need level offsets prepared
@@ -3480,19 +3577,17 @@ namespace fem {
         }
       }
 
-
-
 // ---- Collect parent-space node coordinates from leaves in [lev_min, lev_max]
 //      that are "interface" for field `fid`, i.e., their nodal values have opposite signs.
 //      Zeros are treated as neutral; only strict sign-mix (pos & neg) marks interface.
 //      If you want zeros to count as interface, set `treat_zero_as_interface = true`.
       inline void extract_interface_leaf_parent_coords_in_level_range(u32  lev_min,
-                                                                      u32  lev_max,
-                                                                      Basis basis,
-                                                                      u32  fid,
-                                                                      std::vector<Point<DIM>>& coords,
-                                                                      double tol = 0.0,
-                                                                      bool treat_zero_as_interface = false) const {
+          u32  lev_max,
+          Basis basis,
+          u32  fid,
+          std::vector<Point<DIM>>& coords,
+          double tol = 0.0,
+          bool treat_zero_as_interface = false) const {
         coords.clear();
 
         if (_level_offset.empty()) return;
@@ -3514,10 +3609,12 @@ namespace fem {
         // Rough upper bound reserve (only a subset will be pushed)
         coords.reserve(static_cast<size_t>(hi - lo) * (1 << DIM));
 
-        std::vector<Point<DIM>> s; s.reserve(ndofs_per_leaf);
+        std::vector<Point<DIM>> s;
+        s.reserve(ndofs_per_leaf);
 
         // Scratch for field values at nodal parent coords
-        std::vector<double> vals; vals.reserve(ndofs_per_leaf);
+        std::vector<double> vals;
+        vals.reserve(ndofs_per_leaf);
 
         for (u32 leaf_pos = lo; leaf_pos < hi; ++leaf_pos) {
           s.clear();
@@ -3558,32 +3655,35 @@ namespace fem {
             }
           }
 
-
         }
       }
-
 
       // Inside the class (DIM is the template parameter)
 
 // Assumes: in 2D, s[0] = min corner, s[2] = max corner
 //          in 3D, s[0] = min corner, s[6] = max corner
       inline bool center_half_from_known_vertices(const std::vector<Point<DIM>>& s,
-                                                  Point<DIM>& c, Point<DIM>& h) const {
+          Point<DIM>& c, Point<DIM>& h) const {
         if constexpr(DIM == 2) {
           if (s.size() < 4) return false;
           const auto& pmin = s[0];
           const auto& pmax = s[2];
-          c[0] = 0.5 * (pmin[0] + pmax[0]);  h[0] = 0.5 * (pmax[0] - pmin[0]);
-          c[1] = 0.5 * (pmin[1] + pmax[1]);  h[1] = 0.5 * (pmax[1] - pmin[1]);
+          c[0] = 0.5 * (pmin[0] + pmax[0]);
+          h[0] = 0.5 * (pmax[0] - pmin[0]);
+          c[1] = 0.5 * (pmin[1] + pmax[1]);
+          h[1] = 0.5 * (pmax[1] - pmin[1]);
           return true;
         }
         else if constexpr(DIM == 3) {
           if (s.size() < 8) return false;
           const auto& pmin = s[0];
           const auto& pmax = s[6];
-          c[0] = 0.5 * (pmin[0] + pmax[0]);  h[0] = 0.5 * (pmax[0] - pmin[0]);
-          c[1] = 0.5 * (pmin[1] + pmax[1]);  h[1] = 0.5 * (pmax[1] - pmin[1]);
-          c[2] = 0.5 * (pmin[2] + pmax[2]);  h[2] = 0.5 * (pmax[2] - pmin[2]);
+          c[0] = 0.5 * (pmin[0] + pmax[0]);
+          h[0] = 0.5 * (pmax[0] - pmin[0]);
+          c[1] = 0.5 * (pmin[1] + pmax[1]);
+          h[1] = 0.5 * (pmax[1] - pmin[1]);
+          c[2] = 0.5 * (pmin[2] + pmax[2]);
+          h[2] = 0.5 * (pmax[2] - pmin[2]);
           return true;
         }
         else {
@@ -3607,12 +3707,11 @@ namespace fem {
         }
       }
 
-
 // ---- For each leaf (level in [lev_min, lev_max]), return parent-space coords of the Q9/H27 nodes where field fid reaches min and max on that leaf (DIM-independent) ----
       inline void extract_parent_coords_by_field_extremes_in_level_range(u32 lev_min,
-                                                                         u32 lev_max,
-                                                                         u32 fid,
-                                                                         std::vector<Point<DIM>>& out) const {
+          u32 lev_max,
+          u32 fid,
+          std::vector<Point<DIM>>& out) const {
         out.clear();
 
         // Must have offsets computed: offsets[L] = start of level L, offsets[maxL+1] = sentinel
@@ -3670,8 +3769,8 @@ namespace fem {
 
 // ---- Collect parent-space *centers* from leaves with level in [lev_min, lev_max] (DIM-independent)
       inline void extract_leaf_centers_in_level_range(u32 lev_min,
-                                                      u32 lev_max,
-                                                      std::vector<Point<DIM>>& centers) const {
+          u32 lev_max,
+          std::vector<Point<DIM>>& centers) const {
         centers.clear();
 
         // Need level offsets available
@@ -3874,8 +3973,10 @@ namespace fem {
           for (std::size_t a = 0; a < Nnodes; ++a) {
             const double dNa0 = dNx[a], dNa1 = dNy[a];
             const double X0 = _X[0][a], X1 = _X[1][a];
-            J[0][0] += dNa0 * X0;  J[0][1] += dNa1 * X0;
-            J[1][0] += dNa0 * X1;  J[1][1] += dNa1 * X1;
+            J[0][0] += dNa0 * X0;
+            J[0][1] += dNa1 * X0;
+            J[1][0] += dNa0 * X1;
+            J[1][1] += dNa1 * X1;
           }
           return J[0][0] * J[1][1] - J[0][1] * J[1][0];
         }
@@ -3890,9 +3991,15 @@ namespace fem {
             const double dNa0 = dNx[a], dNa1 = dNy[a], dNa2 = dNz[a];
             const double X0 = _X[0][a], X1 = _X[1][a], X2 = _X[2][a];
             // J(i,j) = sum_a dN_j(a) * X_i(a)
-            J[0][0] += dNa0 * X0;  J[0][1] += dNa1 * X0;  J[0][2] += dNa2 * X0;
-            J[1][0] += dNa0 * X1;  J[1][1] += dNa1 * X1;  J[1][2] += dNa2 * X1;
-            J[2][0] += dNa0 * X2;  J[2][1] += dNa1 * X2;  J[2][2] += dNa2 * X2;
+            J[0][0] += dNa0 * X0;
+            J[0][1] += dNa1 * X0;
+            J[0][2] += dNa2 * X0;
+            J[1][0] += dNa0 * X1;
+            J[1][1] += dNa1 * X1;
+            J[1][2] += dNa2 * X1;
+            J[2][0] += dNa0 * X2;
+            J[2][1] += dNa1 * X2;
+            J[2][2] += dNa2 * X2;
           }
           // det 3x3
           const double A11 = J[0][0], A12 = J[0][1], A13 = J[0][2];
@@ -4019,12 +4126,16 @@ namespace fem {
     std::vector<double> w7;
 
     if constexpr(DIM == 2) {
-      gauss3_pts.reserve(9);  w3.reserve(9);
-      gauss7_pts.reserve(49); w7.reserve(49);
+      gauss3_pts.reserve(9);
+      w3.reserve(9);
+      gauss7_pts.reserve(49);
+      w7.reserve(49);
     }
     else if constexpr(DIM == 3) {
-      gauss3_pts.reserve(27);  w3.reserve(27);
-      gauss7_pts.reserve(343); w7.reserve(343);
+      gauss3_pts.reserve(27);
+      w3.reserve(27);
+      gauss7_pts.reserve(343);
+      w7.reserve(343);
     }
 
     // ===============================
@@ -4106,7 +4217,6 @@ namespace fem {
         continue; // salta cella degenerata
       }
 
-
       // === Determina se la cella è tagliata ===
       double phi_min0 = 1e30, phi_max0 = -1e30;
       double phi_min1 = 1e30, phi_max1 = -1e30;
@@ -4131,7 +4241,6 @@ namespace fem {
       const double Jparent = 0.5 * (X1[0] - X0[0])
                              * 0.5 * (X1[1] - X0[1])
                              * ((DIM == 3) ? 0.5 * (X1[2] - X0[2]) : 1.0);
-
 
       for (size_t q = 0; q < gauss_pts.size(); ++q) {
         const auto& s = gauss_pts[q];
@@ -4167,28 +4276,3 @@ namespace fem {
   }
 
 } // namespace fem
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,0 +1,24 @@
+[1794357692.154755] [f07d7b07ca06:39   :f]        vfs_fuse.c:413  UCX  ERROR failed to create VFS socket: Operation not permitted
+hwloc/linux: failed to find sysfs cpu topology directory, aborting linux discovery.
+ FemusInit(): PETSC_COMM_WORLD initialized
+
+  --gk-regular-2d PAIR         2D regular intervals (default 7/15)
+  --gk-tangent-2d PAIR         2D vertical-tangent intervals (default 7/15)
+  --gk-regular-3d PAIR         3D regular intervals (default 7/15)
+  --gk-tangent-3d PAIR         3D vertical-tangent intervals (default 7/15)
+  PAIR: n/(2n+1), n=1,...,15 (1/3, 2/5, ..., 15/31); dash notation is also accepted.
+Usage: MultiPhase_ex44_test [options]
+  --elements tri,quad,tet,hex  Element types (comma-separated)
+  --psi ball,saye,stella       Level-set types (comma-separated)
+  --curved 0|1                 0=straight, 1=analytic curved BALL (default 0)
+  --levels N                   Number of AMR refinements, plus level 0 (default 3)
+  --curvature X                Analytical BALL deformation (default 0.40)
+  --stella-a X                 Stella x^2 coefficient (default 4)
+  --stella-b X                 Stella y^2 coefficient (default 4)
+  --stella-c X                 Stella x^2*y^2 coefficient (default 160)
+  --mode moment|algoim|compare Integration method (default moment)
+  --degree N                   Moment-fitting degree (default 7)
+  --algoim-order N             Algoim quadrature order (default 5)
+  --algoim-subdivisions N      Algoim subdivisions (default 0)
+  --vtk 0|1                    Write VTK at each level (default 1)
+  --help                       Show this help

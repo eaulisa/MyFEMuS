@@ -203,16 +203,16 @@ std::pair<std::vector<std::vector<double>>, std::vector<double>> GetCellPointsFr
   typedef cpp_bin_float_oct oct;
 
   unsigned cnt = 0;
-  const unsigned dim = xv.size();    //in this case it is 4. xv is defined by four vertices.
+  const unsigned dim = xv.size();    //in this case it is 2.
   std::vector < std::vector <double> > xe(((8 < npt) ? npt : 8), std::vector<double>(dim));       //xe is a matrix with size (min 8 by 2) TODO is this the other way around?
   std::vector <double> ds(npt);     //ds has size number of marker.
 
   //if(_A.find(iel) != _A.end()) {
 
-  const unsigned nve = xv[0].size();     //nve = 2 (x,y)
+  const unsigned nve = xv[0].size();     //nve = 4 points (x,y)
 //       std::cout<< " xv size() =" << nve <<endl;
   //const std::vector<double> &Cf = _A[iel];
-  std::vector<double> v(dim, 0.); // zero vector with size 4
+  std::vector<double> v(dim, 0.); // zero vector with size 2
 
   for(unsigned i = 0; i < nve; i++) {
     unsigned ip1 = (i + 1) % nve;

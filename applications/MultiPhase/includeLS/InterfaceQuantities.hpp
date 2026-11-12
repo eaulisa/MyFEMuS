@@ -10,24 +10,24 @@ void AssembleCurvature(MultiLevelProblem& ml_prob);
 void AssembleLevelSet(MultiLevelProblem& ml_prob);
 
 void RestrictFineSystem(
-    LinearImplicitSystem& system,
-    MultiLevelMesh& mlMsh,
-    const unsigned levelF,
-    const unsigned targetLevel);
+  LinearImplicitSystem& system,
+  MultiLevelMesh& mlMsh,
+  const unsigned levelF,
+  const unsigned targetLevel);
 
 void CopyRestrictedSystem(
-    LinearImplicitSystem& fineSystem,
-    const unsigned targetLevel,
-    LinearEquationSolver& coarseSolver);
+  LinearImplicitSystem& fineSystem,
+  const unsigned targetLevel,
+  LinearEquationSolver& coarseSolver);
 
 void CopyAndProlongRestrictedField(
-    MultiLevelSolution& fineSol,
-    MultiLevelMesh& fineMesh,
-    MultiLevelSolution& restrictedSol,
-    const std::string& fieldName,
-    const unsigned level0,
-    const unsigned targetLevel,
-    const unsigned levelF);
+  MultiLevelSolution& fineSol,
+  MultiLevelMesh& fineMesh,
+  MultiLevelSolution& restrictedSol,
+  const std::string& fieldName,
+  const unsigned level0,
+  const unsigned targetLevel,
+  const unsigned levelF);
 
 void AssembleCurvatureRestricted(MultiLevelProblem& mlProbRestricted);
 void AssembleLevelSetRestricted(MultiLevelProblem& mlProbRestricted);
@@ -41,98 +41,98 @@ void AssembleNormalAux(MultiLevelProblem& ml_prob) {
 }
 
 void RestrictFineSystem(
-    LinearImplicitSystem& system,
-    MultiLevelMesh& mlMsh,
-    const unsigned levelF,
-    const unsigned targetLevel) {
+  LinearImplicitSystem& system,
+  MultiLevelMesh& mlMsh,
+  const unsigned levelF,
+  const unsigned targetLevel) {
 
   std::vector<SparseMatrix*> PP =
-      system.GetProjectionMatrix();
+    system.GetProjectionMatrix();
 
   std::vector<SparseMatrix*> RR =
-      system.GetRestrictionMatrix();
+    system.GetRestrictionMatrix();
 
   std::vector<SparseMatrix*> PPamr =
-      system.GetAMRProjectionMatrix();
+    system.GetAMRProjectionMatrix();
 
   std::vector<SparseMatrix*> RRamr =
-      system.GetAMRRestrictionMatrix();
+    system.GetAMRRestrictionMatrix();
 
   std::vector<LinearEquationSolver*> LinSolver =
-      system.GetLinearSolver();
+    system.GetLinearSolver();
 
   for(unsigned level = levelF;
       level > targetLevel;
       --level) {
 
     if(!mlMsh.GetLevel(level)->GetIfHomogeneous()
-       && level == levelF) {
+        && level == levelF) {
 
       if(!RRamr[level]) {
 
         LinSolver[level]->_RESC->matrix_mult_transpose(
-            *LinSolver[level]->_RES,
-            *PPamr[level]);
+          *LinSolver[level]->_RES,
+          *PPamr[level]);
 
         *(LinSolver[level]->_RES) =
-            *(LinSolver[level]->_RESC);
+          *(LinSolver[level]->_RESC);
 
         LinSolver[level]->SwapMatrices();
 
         LinSolver[level]->_KK->matrix_PtAP(
-            *PPamr[level],
-            *LinSolver[level]->_KKamr,
-            false);
+          *PPamr[level],
+          *LinSolver[level]->_KKamr,
+          false);
       }
       else {
 
         LinSolver[level]->_RESC->matrix_mult(
-            *LinSolver[level]->_RES,
-            *RRamr[level]);
+          *LinSolver[level]->_RES,
+          *RRamr[level]);
 
         *(LinSolver[level]->_RES) =
-            *(LinSolver[level]->_RESC);
+          *(LinSolver[level]->_RESC);
 
         LinSolver[level]->SwapMatrices();
 
         LinSolver[level]->_KK->matrix_ABC(
-            *RRamr[level],
-            *LinSolver[level]->_KKamr,
-            *PPamr[level],
-            false);
+          *RRamr[level],
+          *LinSolver[level]->_KKamr,
+          *PPamr[level],
+          false);
       }
     }
 
     if(!RR[level]) {
 
       LinSolver[level - 1]->_RES->matrix_mult_transpose(
-          *LinSolver[level]->_RES,
-          *PP[level]);
+        *LinSolver[level]->_RES,
+        *PP[level]);
 
       LinSolver[level - 1]->_KK->matrix_PtAP(
-          *PP[level],
-          *LinSolver[level]->_KK,
-          false);
+        *PP[level],
+        *LinSolver[level]->_KK,
+        false);
     }
     else {
 
       LinSolver[level - 1]->_RES->matrix_mult(
-          *LinSolver[level]->_RES,
-          *RR[level]);
+        *LinSolver[level]->_RES,
+        *RR[level]);
 
       LinSolver[level - 1]->_KK->matrix_ABC(
-          *RR[level],
-          *LinSolver[level]->_KK,
-          *PP[level],
-          false);
+        *RR[level],
+        *LinSolver[level]->_KK,
+        *PP[level],
+        false);
     }
   }
 }
 
 void CopyRestrictedSystem(
-    LinearImplicitSystem& fineSystem,
-    const unsigned targetLevel,
-    LinearEquationSolver& coarseSolver) {
+  LinearImplicitSystem& fineSystem,
+  const unsigned targetLevel,
+  LinearEquationSolver& coarseSolver) {
 
   SparseMatrix* KKC = coarseSolver._KK;
   NumericVector* RESC = coarseSolver._RES;
@@ -144,12 +144,12 @@ void CopyRestrictedSystem(
   KKC->close();
 
   std::vector<LinearEquationSolver*> LinSolver =
-      fineSystem.GetLinearSolver();
+    fineSystem.GetLinearSolver();
 
   KKC->matrix_add(
-      1.,
-      *LinSolver[targetLevel]->_KK,
-      "different_nonzero_pattern");
+    1.,
+    *LinSolver[targetLevel]->_KK,
+    "different_nonzero_pattern");
 
   *RESC += *LinSolver[targetLevel]->_RES;
 
@@ -244,13 +244,13 @@ void CopyRestrictedSystem(
 // }
 
 void CopyAndProlongRestrictedField(
-    MultiLevelSolution& fineSol,
-    MultiLevelMesh& fineMesh,
-    MultiLevelSolution& restrictedSol,
-    const std::string& fieldName,
-    const unsigned level0,
-    const unsigned targetLevel,
-    const unsigned levelF) {
+  MultiLevelSolution& fineSol,
+  MultiLevelMesh& fineMesh,
+  MultiLevelSolution& restrictedSol,
+  const std::string& fieldName,
+  const unsigned level0,
+  const unsigned targetLevel,
+  const unsigned levelF) {
 
   const unsigned fineIndex = fineSol.GetIndex(fieldName.c_str());
   const unsigned restrictedIndex = restrictedSol.GetIndex(fieldName.c_str());
@@ -272,8 +272,8 @@ void CopyAndProlongRestrictedField(
     Mesh* mshF = fineMesh.GetLevel(l + 1);
 
     solF->_Sol[fineIndex]->matrix_mult(
-        *(solC->_Sol[fineIndex]),
-        *(mshF->GetCoarseToFineProjection(fieldType)));
+      *(solC->_Sol[fineIndex]),
+      *(mshF->GetCoarseToFineProjection(fieldType)));
 
     solF->_Sol[fineIndex]->close();
   }
@@ -314,7 +314,6 @@ void CopyAndProlongRestrictedField(
 //   unsigned  solKPdeIndex;
 //   solKPdeIndex = mlPdeSys->GetSolPdeIndex("K");    // get the position of "U" in the pdeSys object
 
-
 //   unsigned solKType = mlSol->GetSolutionType(solKIndex);
 
 //   // std::vector < double >  psi; // local solution
@@ -339,7 +338,6 @@ void CopyAndProlongRestrictedField(
 //   std::vector < double> normal_faceN;
 //   double weight_face = 0.;
 //   double weight_faceN = 0.;
-
 
 //   double weight; // gauss point weight
 //   double weightN;
@@ -370,7 +368,6 @@ void CopyAndProlongRestrictedField(
 //       normal[d].resize(nDofsN);
 //       coordX[d].resize(nDofsX);
 //     }
-
 
 //     for(unsigned i = 0; i < nDofs; i++) {
 //       unsigned KDof  = msh->GetSolutionDof(i, iel, solKType);
@@ -459,7 +456,6 @@ void CopyAndProlongRestrictedField(
 //         Res[i] += rhs * weight;
 //       } // end phiV_i loop
 
-
 //       //--------------------------------------------------------------------------------------------------------
 //       // Add the local Matrix/Vector into the global Matrix/Vector
 
@@ -478,7 +474,6 @@ void CopyAndProlongRestrictedField(
 
 //           // VIcolumn = VIrow;
 //           Jac[ VIrow * nDofs + VIcolumn] += (phi[i] * phi[j] + epsilon * helmotz_filter) * weight ; // inertia
-
 
 //         }
 //         // }
@@ -535,12 +530,10 @@ void CopyAndProlongRestrictedField(
 //     RES->add_vector_blocked(Res, sysDof);
 //     KK->add_matrix_blocked(Jac, sysDof, sysDof);
 
-
 //   } //end element loop for each process
 
 //   RES->close();
 //   KK->close();
-
 
 // }
 
@@ -705,7 +698,7 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
             helmholtz_filter += phi_x[i * dim + d] * phi_x[j * dim + d];
 
           Jac[i * nDofs + j] +=
-              (phi[i] * phi[j] + epsilon * helmholtz_filter) * weight;
+            (phi[i] * phi[j] + epsilon * helmholtz_filter) * weight;
         }
       }
     }
@@ -738,10 +731,10 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
             ++ig) {
 
           msh->_finiteElement[faceGeom][solKType]->JacobianSur(
-              faceCoordinates, ig, weight_face, bdphi, bdphi_x, normal_face);
+            faceCoordinates, ig, weight_face, bdphi, bdphi_x, normal_face);
 
           msh->_finiteElement[faceGeom][solNType]->JacobianSur(
-              faceCoordinates, ig, weight_faceN, bdphiN, bdphiN_x, normal_faceN);
+            faceCoordinates, ig, weight_faceN, bdphiN, bdphiN_x, normal_faceN);
 
           std::vector<double> normal_g(dim, 0.);
 
@@ -777,15 +770,15 @@ void AssembleCurvature(MultiLevelProblem& ml_prob) {
     const unsigned targetLevel = levelOut + mParam.level0;
 
     RestrictFineSystem(
-        *mlPdeSys,
-        *mlProbAssembly->_ml_msh,
-        mParam.levelF,
-        targetLevel);
+      *mlPdeSys,
+      *mlProbAssembly->_ml_msh,
+      mParam.levelF,
+      targetLevel);
 
     CopyRestrictedSystem(
-        *mlPdeSys,
-        targetLevel,
-        *mlPdeSysOut->_LinSolver[levelOut]);
+      *mlPdeSys,
+      targetLevel,
+      *mlPdeSysOut->_LinSolver[levelOut]);
   }
 }
 
@@ -822,7 +815,6 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
   unsigned  solKPdeIndex;
   solKPdeIndex = mlPdeSys->GetSolPdeIndex("K");    // get the position of "U" in the pdeSys object
 
-
   unsigned solKType = mlSol->GetSolutionType(solKIndex);
 
   // std::vector < double >  psi; // local solution
@@ -847,7 +839,6 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
   std::vector < double> normal_faceN;
   double weight_face = 0.;
   double weight_faceN = 0.;
-
 
   double weight; // gauss point weight
   double weightN;
@@ -875,99 +866,99 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
 
   for(unsigned iel = firstElem; iel < lastElem; ++iel) {
 
-      const unsigned localIel = iel - firstElem;
+    const unsigned localIel = iel - firstElem;
 
-      const int iel_level = msh->el->GetElementLevel(iel);
+    const int iel_level = msh->el->GetElementLevel(iel);
 
-      if(iel_level != static_cast<int>(level)) {
-          continue;
+    if(iel_level != static_cast<int>(level)) {
+      continue;
+    }
+
+    const unsigned nFaces = msh->GetElementFaceNumber(iel);
+
+    neighElem[localIel].assign(nFaces, -1);
+    neighLevel[localIel].assign(nFaces, -2);
+
+    for(unsigned jface = 0; jface < nFaces; ++jface) {
+
+      const int jel = el->GetFaceElementIndex(iel, jface) - 1;
+
+      neighElem[localIel][jface] = jel;
+
+      if(jel < 0) {
+        neighLevel[localIel][jface] = -1;
+        continue;
       }
 
-      const unsigned nFaces = msh->GetElementFaceNumber(iel);
+      const unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
 
-      neighElem[localIel].assign(nFaces, -1);
-      neighLevel[localIel].assign(nFaces, -2);
-
-      for(unsigned jface = 0; jface < nFaces; ++jface) {
-
-          const int jel = el->GetFaceElementIndex(iel, jface) - 1;
-
-          neighElem[localIel][jface] = jel;
-
-          if(jel < 0) {
-              neighLevel[localIel][jface] = -1;
-              continue;
-          }
-
-          const unsigned jproc = msh->IsdomBisectionSearch(jel, 3);
-
-          if(jproc == iproc) {
-              neighLevel[localIel][jface] = msh->el->GetElementLevel(jel);
-          }
-          else {
-              requestedElem[jproc].push_back(jel);
-              remoteSlot[jproc].push_back(std::make_pair(localIel, jface));
-          }
+      if(jproc == iproc) {
+        neighLevel[localIel][jface] = msh->el->GetElementLevel(jel);
       }
+      else {
+        requestedElem[jproc].push_back(jel);
+        remoteSlot[jproc].push_back(std::make_pair(localIel, jface));
+      }
+    }
   }
 
   std::vector<int> sendCounts(nprocs, 0);
   std::vector<int> recvCounts(nprocs, 0);
 
   for(unsigned p = 0; p < nprocs; ++p) {
-      sendCounts[p] = static_cast<int>(requestedElem[p].size());
+    sendCounts[p] = static_cast<int>(requestedElem[p].size());
   }
 
-  MPI_Alltoall(sendCounts.data(),1,MPI_INT,recvCounts.data(),1,MPI_INT,PETSC_COMM_WORLD);
+  MPI_Alltoall(sendCounts.data(), 1, MPI_INT, recvCounts.data(), 1, MPI_INT, PETSC_COMM_WORLD);
 
   std::vector<int> sendDispls(nprocs, 0);
   std::vector<int> recvDispls(nprocs, 0);
 
   for(unsigned p = 1; p < nprocs; ++p) {
-      sendDispls[p] = sendDispls[p - 1] + sendCounts[p - 1];
-      recvDispls[p] = recvDispls[p - 1] + recvCounts[p - 1];
+    sendDispls[p] = sendDispls[p - 1] + sendCounts[p - 1];
+    recvDispls[p] = recvDispls[p - 1] + recvCounts[p - 1];
   }
 
   int totalSend = 0;
   int totalRecv = 0;
 
   if(nprocs > 0) {
-      totalSend = sendDispls[nprocs - 1] + sendCounts[nprocs - 1];
-      totalRecv = recvDispls[nprocs - 1] + recvCounts[nprocs - 1];
+    totalSend = sendDispls[nprocs - 1] + sendCounts[nprocs - 1];
+    totalRecv = recvDispls[nprocs - 1] + recvCounts[nprocs - 1];
   }
 
   std::vector<int> sendElem(totalSend);
 
   for(unsigned p = 0; p < nprocs; ++p) {
-      for(unsigned q = 0; q < requestedElem[p].size(); ++q) {
-          sendElem[sendDispls[p] + static_cast<int>(q)] = requestedElem[p][q];
-      }
+    for(unsigned q = 0; q < requestedElem[p].size(); ++q) {
+      sendElem[sendDispls[p] + static_cast<int>(q)] = requestedElem[p][q];
+    }
   }
 
   std::vector<int> recvElem(totalRecv);
 
-  MPI_Alltoallv(sendElem.data(),sendCounts.data(),sendDispls.data(),MPI_INT,
-      recvElem.data(),recvCounts.data(),recvDispls.data(),MPI_INT,PETSC_COMM_WORLD);
+  MPI_Alltoallv(sendElem.data(), sendCounts.data(), sendDispls.data(), MPI_INT,
+                recvElem.data(), recvCounts.data(), recvDispls.data(), MPI_INT, PETSC_COMM_WORLD);
 
   std::vector<int> sendLevelBack(totalRecv, -1);
 
   for(int q = 0; q < totalRecv; ++q) {
-      const int jel = recvElem[q];
-      sendLevelBack[q] =msh->el->GetElementLevel(jel);
+    const int jel = recvElem[q];
+    sendLevelBack[q] = msh->el->GetElementLevel(jel);
   }
 
   std::vector<int> recvLevelBack(totalSend, -1);
 
-  MPI_Alltoallv(sendLevelBack.data(),recvCounts.data(),recvDispls.data(),MPI_INT,
-      recvLevelBack.data(),sendCounts.data(),sendDispls.data(),MPI_INT,PETSC_COMM_WORLD);
+  MPI_Alltoallv(sendLevelBack.data(), recvCounts.data(), recvDispls.data(), MPI_INT,
+                recvLevelBack.data(), sendCounts.data(), sendDispls.data(), MPI_INT, PETSC_COMM_WORLD);
 
   for(unsigned p = 0; p < nprocs; ++p) {
-      for(unsigned q = 0; q < remoteSlot[p].size(); ++q) {
-          const unsigned localIel = remoteSlot[p][q].first;
-          const unsigned jface = remoteSlot[p][q].second;
-          const int position = sendDispls[p] + static_cast<int>(q);
-          neighLevel[localIel][jface] = recvLevelBack[position];
-      }
+    for(unsigned q = 0; q < remoteSlot[p].size(); ++q) {
+      const unsigned localIel = remoteSlot[p][q].first;
+      const unsigned jface = remoteSlot[p][q].second;
+      const int position = sendDispls[p] + static_cast<int>(q);
+      neighLevel[localIel][jface] = recvLevelBack[position];
+    }
   }
 
   // END GATHER
@@ -996,7 +987,6 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
       normal[d].resize(nDofsN);
       coordX[d].resize(nDofsX);
     }
-
 
     for(unsigned i = 0; i < nDofs; i++) {
       unsigned KDof  = msh->GetSolutionDof(i, iel, solKType);
@@ -1076,7 +1066,6 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
         Res[i] += rhs * weight;
       } // end phiV_i loop
 
-
       //--------------------------------------------------------------------------------------------------------
       // Add the local Matrix/Vector into the global Matrix/Vector
 
@@ -1090,12 +1079,11 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
 
           for(unsigned d = 0; d < dim; d++) {
             helmotz_filter += phi_x[i * dim + d] *
-                      phi_x[j * dim + d];
+                              phi_x[j * dim + d];
           }
 
           VIcolumn = VIrow;
           Jac[ VIrow * nDofs + VIcolumn] += (phi[i] * phi[j] + epsilon * helmotz_filter) * weight ; // inertia
-
 
         }
         // }
@@ -1154,7 +1142,6 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
     RES->add_vector_blocked(Res, sysDof);
     KK->add_matrix_blocked(Jac, sysDof, sysDof);
 
-
   } //end element loop for each process
 
   RES->close();
@@ -1169,7 +1156,6 @@ void AssembleCurvatureLumped(MultiLevelProblem& ml_prob) {
   }
 
   sol->_Sol[solKIndex]->close();
-
 
 }
 
@@ -1296,7 +1282,6 @@ void AssembleNormalFromField(MultiLevelProblem& ml_prob, const char* psiName) {
       femN->Jacobian(coordX, ig, weight, phiN, phiN_x);
       femPsi->Jacobian(coordX, ig, weightPsi, phiPsi, phiPsi_x);
 
-
       std::vector<double> NN(dim, 0.);
       for (unsigned i = 0; i < nDofsPsi; i++) {
         for(unsigned d = 0; d < dim; d++) {
@@ -1324,7 +1309,7 @@ void AssembleNormalFromField(MultiLevelProblem& ml_prob, const char* psiName) {
           }
         }
       }
-      
+
       // *** phiV_i loop ***
       for(unsigned i = 0; i < nDofsN; i++) {
         for(unsigned  d = 0; d < dim; d++) {  //momentum equation in k
@@ -1336,7 +1321,6 @@ void AssembleNormalFromField(MultiLevelProblem& ml_prob, const char* psiName) {
           Res[d * nDofsN + i] +=  rhs * weight;
         }
       } // end phiV_i loop
-
 
       //--------------------------------------------------------------------------------------------------------
       // Add the local Matrix/Vector into the global Matrix/Vector
@@ -1350,12 +1334,11 @@ void AssembleNormalFromField(MultiLevelProblem& ml_prob, const char* psiName) {
             double helmotz_filter = 0;
             for(unsigned k = 0; k < dim; k++) {
               helmotz_filter += phiN_x[i * dim + k] *
-                        phiN_x[j * dim + k];
+                                phiN_x[j * dim + k];
             }
 
             // VIcolumn = VIrow;
-            Jac[ VIrow * nDofs + VIcolumn] += (phiN[i] * phiN[j] + epsilon * helmotz_filter)* weight ; // inertia
-
+            Jac[ VIrow * nDofs + VIcolumn] += (phiN[i] * phiN[j] + epsilon * helmotz_filter) * weight ; // inertia
 
           }
         }
@@ -1365,13 +1348,10 @@ void AssembleNormalFromField(MultiLevelProblem& ml_prob, const char* psiName) {
     RES->add_vector_blocked(Res, sysDof);
     KK->add_matrix_blocked(Jac, sysDof, sysDof);
 
-
   } //end element loop for each process
 
   RES->close();
   KK->close();
-
-
 
 }
 
@@ -1492,7 +1472,6 @@ void AssembleNormalLumped(MultiLevelProblem& ml_prob) {
       femN->Jacobian(coordX, ig, weight, phiN, phiN_x);
       femPsi->Jacobian(coordX, ig, weightPsi, phiPsi, phiPsi_x);
 
-
       std::vector<double> NN(dim, 0.);
       for (unsigned i = 0; i < nDofsPsi; i++) {
         for(unsigned d = 0; d < dim; d++) {
@@ -1524,7 +1503,6 @@ void AssembleNormalLumped(MultiLevelProblem& ml_prob) {
         }
       } // end phiV_i loop
 
-
       //--------------------------------------------------------------------------------------------------------
       // Add the local Matrix/Vector into the global Matrix/Vector
 
@@ -1537,7 +1515,6 @@ void AssembleNormalLumped(MultiLevelProblem& ml_prob) {
             VIcolumn = VIrow;
             Jac[ VIrow * nDofs + VIcolumn] += phiN[i] * phiN[j] * weight ; // inertia
 
-
           }
         }
       }
@@ -1545,7 +1522,6 @@ void AssembleNormalLumped(MultiLevelProblem& ml_prob) {
 
     RES->add_vector_blocked(Res, sysDof);
     KK->add_matrix_blocked(Jac, sysDof, sysDof);
-
 
   } //end element loop for each process
 
@@ -1576,72 +1552,72 @@ void AssembleNormalLumped(MultiLevelProblem& ml_prob) {
 void AssembleLevelSet(MultiLevelProblem& ml_prob) {
 
   LinearImplicitSystem* mlPdeSysRestricted =
-      &ml_prob.get_system<LinearImplicitSystem>("PsiAux");
+    &ml_prob.get_system<LinearImplicitSystem>("PsiAux");
 
   const unsigned levelRestricted =
-      mlPdeSysRestricted->GetLevelToAssemble();
+    mlPdeSysRestricted->GetLevelToAssemble();
 
   MultiphaseParams mParam =
-      ml_prob.GetMultiphaseParams();
+    ml_prob.GetMultiphaseParams();
 
   MultiLevelProblem* mlProbFine =
-      mParam.mlProbF;
+    mParam.mlProbF;
 
   const unsigned levelF =
-      mParam.levelF;
+    mParam.levelF;
 
   const unsigned level0 =
-      mParam.level0;
+    mParam.level0;
 
   const unsigned targetLevel =
-      levelRestricted + level0;
+    levelRestricted + level0;
 
   LinearImplicitSystem* mlPdeSys =
-      &mlProbFine->get_system<LinearImplicitSystem>("PsiAux");
+    &mlProbFine->get_system<LinearImplicitSystem>("PsiAux");
 
   Mesh* msh =
-      mlProbFine->_ml_msh->GetLevel(levelF);
+    mlProbFine->_ml_msh->GetLevel(levelF);
 
   MultiLevelSolution* mlSol =
-      mlProbFine->_ml_sol;
+    mlProbFine->_ml_sol;
 
   Solution* sol =
-      mlSol->GetSolutionLevel(levelF);
+    mlSol->GetSolutionLevel(levelF);
 
   LinearEquationSolver* pdeSys =
-      mlPdeSys->_LinSolver[levelF];
+    mlPdeSys->_LinSolver[levelF];
 
   SparseMatrix* KK =
-      pdeSys->_KK;
+    pdeSys->_KK;
 
   NumericVector* RES =
-      pdeSys->_RES;
+    pdeSys->_RES;
 
   MatSetOption(
-      (static_cast<PetscMatrix*>(KK))->mat(),
-      MAT_NEW_NONZERO_ALLOCATION_ERR,
-      PETSC_FALSE);
+    (static_cast<PetscMatrix*>(KK))->mat(),
+    MAT_NEW_NONZERO_ALLOCATION_ERR,
+    PETSC_FALSE);
 
   const unsigned dim =
-      msh->GetDimension();
+    msh->GetDimension();
 
   const unsigned iproc =
-      msh->processor_id();
+    msh->processor_id();
 
   const unsigned psiIndex =
-      mlSol->GetIndex("Psi");
+    mlSol->GetIndex("Psi");
 
   const unsigned psiAuxIndex =
-      mlSol->GetIndex("PsiAux");
+    mlSol->GetIndex("PsiAux");
 
   const unsigned psiType =
-      mlSol->GetSolutionType(psiIndex);
+    mlSol->GetSolutionType(psiIndex);
 
   const unsigned psiAuxType =
-      mlSol->GetSolutionType(psiAuxIndex);
+    mlSol->GetSolutionType(psiAuxIndex);
 
   const unsigned psiAuxPdeIndex =
-      mlPdeSys->GetSolPdeIndex("PsiAux");
+    mlPdeSys->GetSolPdeIndex("PsiAux");
 
   const unsigned solXType = 2;
 
@@ -1668,16 +1644,16 @@ void AssembleLevelSet(MultiLevelProblem& ml_prob) {
       ++iel) {
 
     const unsigned ielGeom =
-        msh->GetElementType(iel);
+      msh->GetElementType(iel);
 
     const unsigned nDofs =
-        msh->GetElementDofNumber(iel, psiAuxType);
+      msh->GetElementDofNumber(iel, psiAuxType);
 
     const unsigned nDofsPsi =
-        msh->GetElementDofNumber(iel, psiType);
+      msh->GetElementDofNumber(iel, psiType);
 
     const unsigned nDofsX =
-        msh->GetElementDofNumber(iel, solXType);
+      msh->GetElementDofNumber(iel, solXType);
 
     psi.resize(nDofsPsi);
     psiAux.resize(nDofs);
@@ -1692,43 +1668,43 @@ void AssembleLevelSet(MultiLevelProblem& ml_prob) {
     for(unsigned i = 0; i < nDofsPsi; ++i) {
 
       const unsigned dof =
-          msh->GetSolutionDof(i, iel, psiType);
+        msh->GetSolutionDof(i, iel, psiType);
 
       psi[i] =
-          (*sol->_Sol[psiIndex])(dof);
+        (*sol->_Sol[psiIndex])(dof);
     }
 
     for(unsigned i = 0; i < nDofs; ++i) {
 
       const unsigned dof =
-          msh->GetSolutionDof(i, iel, psiAuxType);
+        msh->GetSolutionDof(i, iel, psiAuxType);
 
       psiAux[i] =
-          (*sol->_Sol[psiAuxIndex])(dof);
+        (*sol->_Sol[psiAuxIndex])(dof);
 
       sysDof[i] =
-          pdeSys->GetSystemDof(
-              psiAuxIndex,
-              psiAuxPdeIndex,
-              i,
-              iel);
+        pdeSys->GetSystemDof(
+          psiAuxIndex,
+          psiAuxPdeIndex,
+          i,
+          iel);
     }
 
     for(unsigned i = 0; i < nDofsX; ++i) {
 
       const unsigned dof =
-          msh->GetSolutionDof(i, iel, solXType);
+        msh->GetSolutionDof(i, iel, solXType);
 
       for(unsigned d = 0; d < dim; ++d)
         coordX[d][i] =
-            (*msh->_topology->_Sol[d])(dof);
+          (*msh->_topology->_Sol[d])(dof);
     }
 
     const elem_type* fem =
-        msh->_finiteElement[ielGeom][psiAuxType];
+      msh->_finiteElement[ielGeom][psiAuxType];
 
     const elem_type* femPsi =
-        msh->_finiteElement[ielGeom][psiType];
+      msh->_finiteElement[ielGeom][psiType];
 
     for(unsigned ig = 0;
         ig < fem->GetGaussPointNumber();
@@ -1738,18 +1714,18 @@ void AssembleLevelSet(MultiLevelProblem& ml_prob) {
       double weightPsi = 0.;
 
       fem->Jacobian(
-          coordX,
-          ig,
-          weight,
-          phi,
-          phi_x);
+        coordX,
+        ig,
+        weight,
+        phi,
+        phi_x);
 
       femPsi->Jacobian(
-          coordX,
-          ig,
-          weightPsi,
-          phiPsi,
-          phiPsi_x);
+        coordX,
+        ig,
+        weightPsi,
+        phiPsi,
+        phiPsi_x);
 
       double psi_g = 0.;
       double psiAux_g = 0.;
@@ -1763,39 +1739,39 @@ void AssembleLevelSet(MultiLevelProblem& ml_prob) {
       for(unsigned i = 0; i < nDofs; ++i) {
 
         Res[i] +=
-            phi[i] *
-            (psi_g - psiAux_g) *
-            weight;
+          phi[i] *
+          (psi_g - psiAux_g) *
+          weight;
 
         for(unsigned j = 0; j < nDofs; ++j)
           Jac[i * nDofs + j] +=
-              phi[i] *
-              phi[j] *
-              weight;
+            phi[i] *
+            phi[j] *
+            weight;
       }
     }
 
     RES->add_vector_blocked(
-        Res,
-        sysDof);
+      Res,
+      sysDof);
 
     KK->add_matrix_blocked(
-        Jac,
-        sysDof,
-        sysDof);
+      Jac,
+      sysDof,
+      sysDof);
   }
 
   RES->close();
   KK->close();
 
   RestrictFineSystem(
-      *mlPdeSys,
-      *mlProbFine->_ml_msh,
-      levelF,
-      targetLevel);
+    *mlPdeSys,
+    *mlProbFine->_ml_msh,
+    levelF,
+    targetLevel);
 
   CopyRestrictedSystem(
-      *mlPdeSys,
-      targetLevel,
-      *mlPdeSysRestricted->_LinSolver[levelRestricted]);
+    *mlPdeSys,
+    targetLevel,
+    *mlPdeSysRestricted->_LinSolver[levelRestricted]);
 }

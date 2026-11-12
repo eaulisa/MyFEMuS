@@ -434,7 +434,7 @@ namespace BurstingBubbleDetail {
     shape.bPosition = FindNearestBubblePoint(A, shape.upper, position - 1u);
 
     double bubbleVolume = SphericalCapVolume(shape.upper[position],
-      shape.upper[position - 1u]);
+                          shape.upper[position - 1u]);
 
     for(unsigned i = 1u; i < shape.bottom.size(); ++i) {
       BurstingBubblePoint a = shape.bottom[i - 1u];
@@ -647,8 +647,8 @@ namespace BurstingBubbleDetail {
 
       for(std::size_t i = first + 1u; i < last; ++i) {
         const double d2 = PointSegmentDistanceSquared(points[i],
-          points[first],
-          points[last]);
+                          points[first],
+                          points[last]);
         if(d2 > maxDistanceSquared) {
           maxDistanceSquared = d2;
           maxIndex = i;
@@ -685,8 +685,8 @@ namespace BurstingBubbleDetail {
     for(std::size_t i = 0u; i + 1u < interface.size(); ++i) {
       distanceSquared = std::min(distanceSquared,
                                  PointSegmentDistanceSquared(p,
-                                   interface[i],
-                                   interface[i + 1u]));
+                                     interface[i],
+                                     interface[i + 1u]));
     }
 
     return std::sqrt(distanceSquared);
@@ -746,7 +746,7 @@ ComputeBurstingBubbleGeometry(const BurstingBubbleConfig& cfg) {
   }
 
   const double curvatureBond = FindCurvatureBond(cfg.bondNumber,
-    cfg.outerRadius);
+                               cfg.outerRadius);
 
   const ShapeData shape = SolveShape(curvatureBond,
                                      cfg.pointLess,
@@ -764,8 +764,8 @@ ComputeBurstingBubbleGeometry(const BurstingBubbleConfig& cfg) {
   BurstingBubblePoint B = {Braw.r, Braw.z - shape.L};
 
   BurstingBubbleCircle fillet = FindFilletCircle(B,
-    A,
-    shape.upperSlope[shape.bPosition]);
+                                A,
+                                shape.upperSlope[shape.bPosition]);
 
   const double scale = 1. / shape.effectiveRadius;
 
@@ -819,10 +819,10 @@ ComputeBurstingBubbleGeometry(const BurstingBubbleConfig& cfg) {
                                         : geometry.interface.back();
 
   const std::vector<BurstingBubblePoint> arc = BuildFilletArc(previousB,
-    scaledB,
-    scaledA,
-    geometry.fillet,
-    cfg.filletArcPoints);
+      scaledB,
+      scaledA,
+      geometry.fillet,
+      cfg.filletArcPoints);
 
   for(std::size_t i = 1u; i < arc.size(); ++i) {
     if(Distance(geometry.interface.back(), arc[i]) > 1.e-14) {

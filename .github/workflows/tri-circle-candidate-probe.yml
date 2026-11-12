@@ -1,0 +1,29 @@
+name: TRI circle candidate probe
+
+on:
+  push:
+    branches:
+      - rifat-cutfem-fastgraph-result
+    paths:
+      - 'src/quadrature/cutfem_ls/LineDomainIntegration.hpp'
+      - 'src/quadrature/cutfem_ls/TriangleIntegration.hpp'
+      - 'src/quadrature/cutfem_ls/Tri7DirectionSelection.hpp'
+      - 'unittests/testCutFemWeightLSNative/tri_circle_probe.cpp'
+      - '.github/workflows/tri-circle-candidate-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ libboost-dev libeigen3-dev
+      - name: Build probe
+        run: g++ -std=c++14 -O3 -DNDEBUG -march=x86-64 -mtune=generic -Isrc/quadrature/cutfem_ls -Isrc/quadrature -Isrc/enums -Isrc/fe -I/usr/include/eigen3 unittests/testCutFemWeightLSNative/tri_circle_probe.cpp -o tri_circle_probe
+      - name: Run probe
+        run: ./tri_circle_probe

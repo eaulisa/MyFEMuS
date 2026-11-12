@@ -27,7 +27,6 @@
 #include "MyVector.hpp"
 #include "Classify.hpp"
 
-
 namespace femus {
 
   class MyMarker : public ParallelObject {
@@ -140,14 +139,13 @@ namespace femus {
       }
 
       bool ParallelElementSearchWithInverseMapping(const std::vector < double > &x, Solution *sol, const unsigned & solType,
-                                                   const unsigned &elem = UINT_MAX, const double &s1 = 0.) {
+          const unsigned &elem = UINT_MAX, const double &s1 = 0.) {
         bool elemFound = ParallelElementSearch(x, sol, solType, elem, s1);
         if (_iproc == _mproc && elemFound) {
           FindLocalCoordinates(_solType, _aX, true, sol, s1);
         }
         return elemFound;
       }
-
 
       bool SerialElementSearch(const std::vector < double > &x, Solution *sol, const unsigned & solType,
                                const unsigned &elem, const double &s1 = 0.) {
@@ -168,7 +166,7 @@ namespace femus {
       }
 
       bool SerialElementSearchWithInverseMapping(const std::vector < double > &x, Solution *sol, const unsigned & solType,
-                                                 const unsigned &elem, const double &s1 = 0.) {
+          const unsigned &elem, const double &s1 = 0.) {
         bool elementFound = SerialElementSearch(x, sol, solType, elem, s1);
         if (elementFound == false) return false;
         else {
@@ -182,7 +180,6 @@ namespace femus {
         _elem = UINT_MAX;
       }
 
-
       std::vector<double> GetIprocLocalCoordinates(const std::vector < double > &x, Solution *sol, const unsigned & solType, const unsigned &elem, const double &s1 = 0.) {
         _x = x;
         _solType = solType;
@@ -193,7 +190,6 @@ namespace femus {
         FindLocalCoordinates(_solType, _aX, newElement, sol, s1);
         return _xi;
       }
-
 
       std::vector<double> GetIprocLocalCoordinates() {
         return _xi;
@@ -221,8 +217,6 @@ namespace femus {
       // /** Initial condition function pointer typedef */
       // GetMeshCoordinates _getMeshCoordinates;
 
-
-
       double GetMeshCoordinates(Solution *sol, const unsigned &k, const unsigned &i, const double &s) {
         return (*sol->GetMesh()->_topology->_Sol[k])(i);
       }
@@ -244,13 +238,9 @@ namespace femus {
       unsigned GetNextElement3D(const unsigned & iel, const std::vector< unsigned > &searchHistory, Solution * sol, const double & s);
       int FastForward(const unsigned & currentElem, const unsigned & previousElem, Solution * sol, const double & s);
 
-
       unsigned _solType; // FEM interpolation: linear, serendipity, or quadratic
 
-
-
       unsigned _mproc; //process that owns the marker
-
 
       // support vectors
       std::vector < std::vector < std::vector < std::vector < double > > > >_aX;
@@ -265,7 +255,6 @@ namespace femus {
       std::vector < double > _x; // global coordinates
       std::vector < double > _xi; // local coordinates
 
-
       std::vector < double > _phi;
       std::vector < std::vector < double > > _gradPhi;
 
@@ -273,8 +262,6 @@ namespace femus {
       std::vector < std::vector < double > > _J;
 
   };
-
-
 
   class MyMarkerWithFSI : public MyMarker {
 
@@ -290,16 +277,8 @@ namespace femus {
       void FindLocalCoordinates(const unsigned & solVType, std::vector < std::vector < std::vector < std::vector < double > > > > &aX,
                                 const bool & pcElemUpdate, Solution * sol, const double & s);
 
-
-
   };
-
-
 
 } //end namespace femus
 
-
-
 #endif
-
-

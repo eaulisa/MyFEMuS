@@ -20,7 +20,6 @@
 #include <vector>
 #include <algorithm> // std::swap
 
-
 #include "PolynomialBases.hpp"
 #include "GeomElTypeEnum.hpp"
 
@@ -28,37 +27,37 @@ namespace femus {
 
 //BEGIN Interface
   void ProjectNodalToPolynomialCoefficients(std::vector < std::vector <double > > &aP, const std::vector< std::vector < double > > &aN,
-                                            const short unsigned &ielType, const unsigned &solType) {
+      const short unsigned &ielType, const unsigned &solType) {
 
     switch (ielType) {
-    case HEX:
-      ProjectHexNodalToPolynomialCoefficients(aP, aN, solType);
-      break;
+      case HEX:
+        ProjectHexNodalToPolynomialCoefficients(aP, aN, solType);
+        break;
 
-    case TET:
-      ProjectTetNodalToPolynomialCoefficients(aP, aN, solType);
-      break;
+      case TET:
+        ProjectTetNodalToPolynomialCoefficients(aP, aN, solType);
+        break;
 
-    case WEDGE:
-      ProjectWedgeNodalToPolynomialCoefficients(aP, aN, solType);
-      break;
+      case WEDGE:
+        ProjectWedgeNodalToPolynomialCoefficients(aP, aN, solType);
+        break;
 
-    case QUAD:
-      ProjectQuadNodalToPolynomialCoefficients(aP, aN, solType);
-      break;
+      case QUAD:
+        ProjectQuadNodalToPolynomialCoefficients(aP, aN, solType);
+        break;
 
-    case TRI:
-      ProjectTriNodalToPolynomialCoefficients(aP, aN, solType);
-      break;
+      case TRI:
+        ProjectTriNodalToPolynomialCoefficients(aP, aN, solType);
+        break;
 
-    case LINE:
-      ProjectLineNodalToPolynomialCoefficients(aP, aN, solType);
-      break;
+      case LINE:
+        ProjectLineNodalToPolynomialCoefficients(aP, aN, solType);
+        break;
 
-    default:
-      std::cerr << "Error: unknown element type in ProjectNodalToPolynomialCoefficients: "
-                << ielType << std::endl;
-      std::abort();  // failsafe abort
+      default:
+        std::cerr << "Error: unknown element type in ProjectNodalToPolynomialCoefficients: "
+                  << ielType << std::endl;
+        std::abort();  // failsafe abort
     }
 
   }
@@ -78,39 +77,38 @@ namespace femus {
     }
   }
 
-
   void GetPolynomialShapeFunction(std::vector < double >& phi, const std::vector < double >& xi,
                                   short unsigned &ielType, const unsigned & solType) {
 
     switch (ielType) {
-    case HEX:
-      GetHexPolynomialShapeFunction(phi, xi, solType);
-      break;
+      case HEX:
+        GetHexPolynomialShapeFunction(phi, xi, solType);
+        break;
 
-    case TET:
-      GetTetPolynomialShapeFunction(phi, xi, solType);
-      break;
+      case TET:
+        GetTetPolynomialShapeFunction(phi, xi, solType);
+        break;
 
-    case WEDGE:
-      GetWedgePolynomialShapeFunction(phi, xi, solType);
-      break;
+      case WEDGE:
+        GetWedgePolynomialShapeFunction(phi, xi, solType);
+        break;
 
-    case QUAD:
-      GetQuadPolynomialShapeFunction(phi, xi, solType);
-      break;
+      case QUAD:
+        GetQuadPolynomialShapeFunction(phi, xi, solType);
+        break;
 
-    case TRI:
-      GetTriPolynomialShapeFunction(phi, xi, solType);
-      break;
+      case TRI:
+        GetTriPolynomialShapeFunction(phi, xi, solType);
+        break;
 
-    case LINE:
-      GetLinePolynomialShapeFunction(phi, xi, solType);
-      break;
+      case LINE:
+        GetLinePolynomialShapeFunction(phi, xi, solType);
+        break;
 
-    default:
-      std::cerr << "Error: unknown element type in GetPolynomialShapeFunction: "
-                << ielType << std::endl;
-      std::abort();  // failsafe abort
+      default:
+        std::cerr << "Error: unknown element type in GetPolynomialShapeFunction: "
+                  << ielType << std::endl;
+        std::abort();  // failsafe abort
     }
   }
 
@@ -119,76 +117,75 @@ namespace femus {
 
     switch (ielType) {
 
-    case HEX:
-      GetHexPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
-      break;
+      case HEX:
+        GetHexPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
+        break;
 
-    case TET:
-      GetTetPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
-      break;
+      case TET:
+        GetTetPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
+        break;
 
-    case WEDGE:
-      GetWedgePolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
-      break;
+      case WEDGE:
+        GetWedgePolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
+        break;
 
-    case QUAD:
-      GetQuadPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
-      break;
+      case QUAD:
+        GetQuadPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
+        break;
 
-    case TRI:
-      GetTriPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
-      break;
+      case TRI:
+        GetTriPolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
+        break;
 
-    case LINE:
-      GetLinePolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
-      break;
+      case LINE:
+        GetLinePolynomialShapeFunctionGradient(phi, gradPhi, xi, solType);
+        break;
 
-    default:
-      std::cerr << "Error: unknown element type in GetPolynomialShapeFunctionGradient: "
-                << ielType << std::endl;
-      std::abort();  // failsafe abort
+      default:
+        std::cerr << "Error: unknown element type in GetPolynomialShapeFunctionGradient: "
+                  << ielType << std::endl;
+        std::abort();  // failsafe abort
     }
 
   }
 
   void GetPolynomialShapeFunctionGradientHessian(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                 std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi,
-                                                 short unsigned &ielType, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi,
+      short unsigned &ielType, const unsigned & solType) {
 
     switch (ielType) {
-    case HEX:
-      GetHexPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
-      break;
+      case HEX:
+        GetHexPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
+        break;
 
-    case TET:
-      GetTetPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
-      break;
+      case TET:
+        GetTetPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
+        break;
 
-    case WEDGE:
-      GetWedgePolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
-      break;
+      case WEDGE:
+        GetWedgePolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
+        break;
 
-    case QUAD:
-      GetQuadPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
-      break;
+      case QUAD:
+        GetQuadPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
+        break;
 
-    case TRI:
-      GetTriPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
-      break;
+      case TRI:
+        GetTriPolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
+        break;
 
-    case LINE:
-      GetLinePolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
-      break;
+      case LINE:
+        GetLinePolynomialShapeFunctionGradientHessian(phi, gradPhi, hessPhi, xi, solType);
+        break;
 
-    default:
-      std::cerr << "Error: unknown element type in GetPolynomialShapeFunctionGradientHessian: "
-                << ielType << std::endl;
-      std::abort();  // failsafe abort
+      default:
+        std::cerr << "Error: unknown element type in GetPolynomialShapeFunctionGradientHessian: "
+                  << ielType << std::endl;
+        std::abort();  // failsafe abort
     }
 
   }
 //END Interface
-
 
 //BEGIN LINE specialized functions
   const unsigned LineNumberOfDofs[3] = {2, 3, 3};
@@ -223,7 +220,6 @@ namespace femus {
     }
   }
 
-
   void GetLinePolynomialShapeFunction(std::vector < double >& phi, const std::vector < double >& xi, const unsigned & solType) {
 
     const unsigned nDofs = LineNumberOfDofs[solType];
@@ -238,7 +234,7 @@ namespace femus {
   }
 
   void GetLinePolynomialShapeFunctionGradient(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                              const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetLinePolynomialShapeFunction(phi,  xi, solType);
 
@@ -257,7 +253,7 @@ namespace femus {
   }
 
   void GetLinePolynomialShapeFunctionGradientHessian(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                     std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetLinePolynomialShapeFunctionGradient(phi,   gradPhi,  xi, solType);
 
@@ -279,8 +275,6 @@ namespace femus {
     }
   }
   //END LINE
-
-
 
 //BEGIN QUAD specialized functions
   const unsigned quadNumberOfDofs[3] = {4, 8, 9};
@@ -339,7 +333,6 @@ namespace femus {
     }
   }
 
-
   void GetQuadPolynomialShapeFunction(std::vector < double >& phi, const std::vector < double >& xi, const unsigned & solType) {
 
     const unsigned nDofs = quadNumberOfDofs[solType];
@@ -365,7 +358,7 @@ namespace femus {
   }
 
   void GetQuadPolynomialShapeFunctionGradient(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                              const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetQuadPolynomialShapeFunction(phi,  xi, solType);
 
@@ -405,7 +398,7 @@ namespace femus {
   }
 
   void GetQuadPolynomialShapeFunctionGradientHessian(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                     std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetQuadPolynomialShapeFunctionGradient(phi,   gradPhi,  xi, solType);
 
@@ -498,7 +491,6 @@ namespace femus {
     }
   }
 
-
   void GetTriPolynomialShapeFunction(std::vector < double >& phi, const std::vector < double >& xi, const unsigned & solType) {
 
     const unsigned nDofs = triNumberOfDofs[solType];
@@ -522,7 +514,7 @@ namespace femus {
   }
 
   void GetTriPolynomialShapeFunctionGradient(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                             const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetTriPolynomialShapeFunction(phi,  xi, solType);
 
@@ -549,7 +541,6 @@ namespace femus {
       gradPhi[3][1] = xi[0]; // x
       gradPhi[5][1] = 2.*xi[1]; // 2*y
 
-
       if (solType > 1) {
         //phi_x
         gradPhi[6][0] = gradPhi[4][0] * xi[1] + phi[5]; // 2 x y + y y
@@ -560,7 +551,7 @@ namespace femus {
   }
 
   void GetTriPolynomialShapeFunctionGradientHessian(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                    std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetTriPolynomialShapeFunctionGradient(phi,   gradPhi,  xi, solType);
 
@@ -601,8 +592,8 @@ namespace femus {
   const unsigned hexNumberOfDofs[3] = {8, 20, 27};
 
   void ProjectHexNodalToPolynomialCoefficients(std::vector<std::vector<double>>& aP,
-                                               const std::vector<std::vector<double>>& aN,
-                                               const unsigned &solType) {
+      const std::vector<std::vector<double>>& aN,
+      const unsigned &solType) {
     const unsigned dim   = static_cast<unsigned>(aN.size());
     aP.resize(dim);
 
@@ -620,115 +611,113 @@ namespace femus {
     constexpr double c50  = 0.5;
 
     switch (solType) {
-    case 0: {
-      for (unsigned k = 0; k < dim; ++k) {
-        const auto& NK = aN[k]; // alias row once
-        auto& PK = aP[k];
+      case 0: {
+        for (unsigned k = 0; k < dim; ++k) {
+          const auto& NK = aN[k]; // alias row once
+          auto& PK = aP[k];
 
-        // keep the eight nodes in registers
-        const double n0 = NK[0], n1 = NK[1], n2 = NK[2], n3 = NK[3],
-                     n4 = NK[4], n5 = NK[5], n6 = NK[6], n7 = NK[7];
+          // keep the eight nodes in registers
+          const double n0 = NK[0], n1 = NK[1], n2 = NK[2], n3 = NK[3],
+                       n4 = NK[4], n5 = NK[5], n6 = NK[6], n7 = NK[7];
 
-        PK[0] = c125 * (n0 + n1 + n2 + n3 + n4 + n5 + n6 + n7);
-        PK[1] = c125 * (-n0 + n1 + n2 - n3 - n4 + n5 + n6 - n7);
-        PK[2] = c125 * (-n0 - n1 + n2 + n3 - n4 - n5 + n6 + n7);
-        PK[3] = c125 * (-n0 - n1 - n2 - n3 + n4 + n5 + n6 + n7);
-        PK[4] = c125 * (n0 - n1 + n2 - n3 + n4 - n5 + n6 - n7);
-        PK[5] = c125 * (n0 - n1 - n2 + n3 - n4 + n5 + n6 - n7);
-        PK[6] = c125 * (n0 + n1 - n2 - n3 - n4 - n5 + n6 + n7);
-        PK[7] = c125 * (-n0 + n1 - n2 + n3 + n4 - n5 + n6 - n7);
+          PK[0] = c125 * (n0 + n1 + n2 + n3 + n4 + n5 + n6 + n7);
+          PK[1] = c125 * (-n0 + n1 + n2 - n3 - n4 + n5 + n6 - n7);
+          PK[2] = c125 * (-n0 - n1 + n2 + n3 - n4 - n5 + n6 + n7);
+          PK[3] = c125 * (-n0 - n1 - n2 - n3 + n4 + n5 + n6 + n7);
+          PK[4] = c125 * (n0 - n1 + n2 - n3 + n4 - n5 + n6 - n7);
+          PK[5] = c125 * (n0 - n1 - n2 + n3 - n4 + n5 + n6 - n7);
+          PK[6] = c125 * (n0 + n1 - n2 - n3 - n4 - n5 + n6 + n7);
+          PK[7] = c125 * (-n0 + n1 - n2 + n3 + n4 - n5 + n6 - n7);
+        }
+        break;
       }
-      break;
-    }
 
-    case 1: {
-      for (unsigned k = 0; k < dim; ++k) {
-        const auto& NK = aN[k];
-        auto& PK = aP[k];
+      case 1: {
+        for (unsigned k = 0; k < dim; ++k) {
+          const auto& NK = aN[k];
+          auto& PK = aP[k];
 
-        // Pull frequently-used nodes into locals (registers).
-        const double n0 = NK[0],  n1 = NK[1],  n2 = NK[2],  n3 = NK[3],
-                     n4 = NK[4],  n5 = NK[5],  n6 = NK[6],  n7 = NK[7],
-                     n8 = NK[8],  n9 = NK[9], n10 = NK[10], n11 = NK[11],
-                     n12 = NK[12], n13 = NK[13], n14 = NK[14], n15 = NK[15],
-                     n16 = NK[16], n17 = NK[17], n18 = NK[18], n19 = NK[19];
+          // Pull frequently-used nodes into locals (registers).
+          const double n0 = NK[0],  n1 = NK[1],  n2 = NK[2],  n3 = NK[3],
+                       n4 = NK[4],  n5 = NK[5],  n6 = NK[6],  n7 = NK[7],
+                       n8 = NK[8],  n9 = NK[9], n10 = NK[10], n11 = NK[11],
+                       n12 = NK[12], n13 = NK[13], n14 = NK[14], n15 = NK[15],
+                       n16 = NK[16], n17 = NK[17], n18 = NK[18], n19 = NK[19];
 
-        PK[0]  = c25  * (-n0 + n9 + n10 + n11 + n12 + n13 + n14 + n15 + n16 + n17 + n18 - n1 + n19 - n2 - n3 - n4 - n5 - n6 - n7 + n8);
-        PK[1]  = c125 * (n0 + 2 * n9 - 2 * n11 + 2 * n13 - 2 * n15 - 2 * n16 + 2 * n17 + 2 * n18 - n1 - 2 * n19 - n2 + n3 + n4 - n5 - n6 + n7);
-        PK[2]  = c125 * (n0 + 2 * n10 - 2 * n12 + 2 * n14 - 2 * n16 - 2 * n17 + 2 * n18 + n1 + 2 * n19 - n2 - n3 + n4 + n5 - n6 - n7 - 2 * n8);
-        PK[3]  = c125 * (n0 - 2 * n9 - 2 * n10 - 2 * n11 + 2 * n12 + 2 * n13 + 2 * n14 + 2 * n15 + n1 + n2 + n3 - n4 - n5 - n6 - n7 - 2 * n8);
-        PK[4]  = c25  * (n16 - n17 + n18 - n19);
-        PK[5]  = c25  * (-n9 + n11 + n13 - n15);
-        PK[6]  = c25  * (-n10 - n12 + n14 + n8);
-        PK[7]  = c125 * (n0 - 2 * n10 - 2 * n12 - 2 * n14 + n1 + n2 + n3 + n4 + n5 + n6 + n7 - 2 * n8);
-        PK[8]  = c125 * (n0 - 2 * n9  - 2 * n11 - 2 * n13 - 2 * n15 + n1 + n2 + n3 + n4 + n5 + n6 + n7);
-        PK[9]  = c125 * (n0 - 2 * n16 - 2 * n17 - 2 * n18 + n1 - 2 * n19 + n2 + n3 + n4 + n5 + n6 + n7);
-        PK[10] = c125 * (-n0 + n1 - n2 + n3 + n4 - n5 + n6 - n7);
-        PK[11] = c125 * (-n0 - 2 * n10 + 2 * n12 - 2 * n14 - n1 + n2 + n3 - n4 - n5 + n6 + n7 + 2 * n8);
-        PK[12] = c125 * (-n0 + 2 * n10 - 2 * n12 - 2 * n14 - n1 - n2 - n3 + n4 + n5 + n6 + n7 + 2 * n8);
-        PK[13] = c125 * (-n0 + 2 * n9  + 2 * n11 - 2 * n13 - 2 * n15 - n1 - n2 - n3 + n4 + n5 + n6 + n7);
-        PK[14] = c125 * (-n0 - 2 * n9  + 2 * n11 - 2 * n13 + 2 * n15 + n1 + n2 - n3 - n4 + n5 + n6 - n7);
-        PK[15] = c125 * (-n0 + 2 * n16 - 2 * n17 - 2 * n18 + n1 + 2 * n19 + n2 - n3 - n4 + n5 + n6 - n7);
-        PK[16] = c125 * (-n0 + 2 * n16 + 2 * n17 - 2 * n18 - n1 - 2 * n19 + n2 + n3 - n4 - n5 + n6 + n7);
-        PK[17] = c125 * (n0 + 2 * n10 + 2 * n12 - 2 * n14 + n1 - n2 - n3 - n4 - n5 + n6 + n7 - 2 * n8);
-        PK[18] = c125 * (n0 + 2 * n9  - 2 * n11 - 2 * n13 + 2 * n15 - n1 - n2 + n3 - n4 + n5 + n6 - n7);
-        PK[19] = c125 * (n0 - 2 * n16 + 2 * n17 - 2 * n18 - n1 + 2 * n19 + n2 - n3 + n4 - n5 + n6 - n7);
+          PK[0]  = c25  * (-n0 + n9 + n10 + n11 + n12 + n13 + n14 + n15 + n16 + n17 + n18 - n1 + n19 - n2 - n3 - n4 - n5 - n6 - n7 + n8);
+          PK[1]  = c125 * (n0 + 2 * n9 - 2 * n11 + 2 * n13 - 2 * n15 - 2 * n16 + 2 * n17 + 2 * n18 - n1 - 2 * n19 - n2 + n3 + n4 - n5 - n6 + n7);
+          PK[2]  = c125 * (n0 + 2 * n10 - 2 * n12 + 2 * n14 - 2 * n16 - 2 * n17 + 2 * n18 + n1 + 2 * n19 - n2 - n3 + n4 + n5 - n6 - n7 - 2 * n8);
+          PK[3]  = c125 * (n0 - 2 * n9 - 2 * n10 - 2 * n11 + 2 * n12 + 2 * n13 + 2 * n14 + 2 * n15 + n1 + n2 + n3 - n4 - n5 - n6 - n7 - 2 * n8);
+          PK[4]  = c25  * (n16 - n17 + n18 - n19);
+          PK[5]  = c25  * (-n9 + n11 + n13 - n15);
+          PK[6]  = c25  * (-n10 - n12 + n14 + n8);
+          PK[7]  = c125 * (n0 - 2 * n10 - 2 * n12 - 2 * n14 + n1 + n2 + n3 + n4 + n5 + n6 + n7 - 2 * n8);
+          PK[8]  = c125 * (n0 - 2 * n9  - 2 * n11 - 2 * n13 - 2 * n15 + n1 + n2 + n3 + n4 + n5 + n6 + n7);
+          PK[9]  = c125 * (n0 - 2 * n16 - 2 * n17 - 2 * n18 + n1 - 2 * n19 + n2 + n3 + n4 + n5 + n6 + n7);
+          PK[10] = c125 * (-n0 + n1 - n2 + n3 + n4 - n5 + n6 - n7);
+          PK[11] = c125 * (-n0 - 2 * n10 + 2 * n12 - 2 * n14 - n1 + n2 + n3 - n4 - n5 + n6 + n7 + 2 * n8);
+          PK[12] = c125 * (-n0 + 2 * n10 - 2 * n12 - 2 * n14 - n1 - n2 - n3 + n4 + n5 + n6 + n7 + 2 * n8);
+          PK[13] = c125 * (-n0 + 2 * n9  + 2 * n11 - 2 * n13 - 2 * n15 - n1 - n2 - n3 + n4 + n5 + n6 + n7);
+          PK[14] = c125 * (-n0 - 2 * n9  + 2 * n11 - 2 * n13 + 2 * n15 + n1 + n2 - n3 - n4 + n5 + n6 - n7);
+          PK[15] = c125 * (-n0 + 2 * n16 - 2 * n17 - 2 * n18 + n1 + 2 * n19 + n2 - n3 - n4 + n5 + n6 - n7);
+          PK[16] = c125 * (-n0 + 2 * n16 + 2 * n17 - 2 * n18 - n1 - 2 * n19 + n2 + n3 - n4 - n5 + n6 + n7);
+          PK[17] = c125 * (n0 + 2 * n10 + 2 * n12 - 2 * n14 + n1 - n2 - n3 - n4 - n5 + n6 + n7 - 2 * n8);
+          PK[18] = c125 * (n0 + 2 * n9  - 2 * n11 - 2 * n13 + 2 * n15 - n1 - n2 + n3 - n4 + n5 + n6 - n7);
+          PK[19] = c125 * (n0 - 2 * n16 + 2 * n17 - 2 * n18 - n1 + 2 * n19 + n2 - n3 + n4 - n5 + n6 - n7);
+        }
+        break;
       }
-      break;
-    }
 
-    case 2: {
-      for (unsigned k = 0; k < dim; ++k) {
-        const auto& NK = aN[k];
-        auto& PK = aP[k];
+      case 2: {
+        for (unsigned k = 0; k < dim; ++k) {
+          const auto& NK = aN[k];
+          auto& PK = aP[k];
 
-        const double n0 = NK[0],  n1  = NK[1],  n2  = NK[2],  n3  = NK[3],
-                     n4 = NK[4],  n5  = NK[5],  n6  = NK[6],  n7  = NK[7],
-                     n8 = NK[8],  n9  = NK[9], n10 = NK[10], n11 = NK[11],
-                     n12 = NK[12], n13 = NK[13], n14 = NK[14], n15 = NK[15],
-                     n16 = NK[16], n17 = NK[17], n18 = NK[18], n19 = NK[19],
-                     n20 = NK[20], n21 = NK[21], n22 = NK[22], n23 = NK[23],
-                     n24 = NK[24], n25 = NK[25], n26 = NK[26];
+          const double n0 = NK[0],  n1  = NK[1],  n2  = NK[2],  n3  = NK[3],
+                       n4 = NK[4],  n5  = NK[5],  n6  = NK[6],  n7  = NK[7],
+                       n8 = NK[8],  n9  = NK[9], n10 = NK[10], n11 = NK[11],
+                       n12 = NK[12], n13 = NK[13], n14 = NK[14], n15 = NK[15],
+                       n16 = NK[16], n17 = NK[17], n18 = NK[18], n19 = NK[19],
+                       n20 = NK[20], n21 = NK[21], n22 = NK[22], n23 = NK[23],
+                       n24 = NK[24], n25 = NK[25], n26 = NK[26];
 
-        PK[0]  = n26;
-        PK[1]  = c50 * (n21 - n23);
-        PK[2]  = c50 * (n22 - n20);
-        PK[3]  = c50 * (n25 - n24);
-        PK[4]  = c25 * (n16 - n17 + n18 - n19);
-        PK[5]  = c25 * (-n9  + n11 + n13 - n15);
-        PK[6]  = c25 * (-n10 - n12 + n14 + n8);
-        PK[7]  = c50 * (n21 + n23 - 2 * n26);
-        PK[8]  = c50 * (n20 + n22 - 2 * n26);
-        PK[9]  = c50 * (n24 + n25 - 2 * n26);
-        PK[10] = c125 * (-n0 + n1 - n2 + n3 + n4 - n5 + n6 - n7);
-        PK[11] = c25  * (-n16 - n17 + n18 + n19 + 2 * n20 - 2 * n22);
-        PK[12] = c25  * (-n9  - n11 + n13 + n15 + 2 * n24 - 2 * n25);
-        PK[13] = c25  * (-n10 + n12 + n14 + 2 * n24 - 2 * n25 - n8);
-        PK[14] = c25  * (-n16 + n17 + n18 - n19 - 2 * n21 + 2 * n23);
-        PK[15] = c25  * (n9  - n11 + n13 - n15 - 2 * n21 + 2 * n23);
-        PK[16] = c25  * (n10 - n12 + n14 + 2 * n20 - 2 * n22 - n8);
-        PK[17] = c125 * (n0 + 2 * n10 + 2 * n12 - 2 * n14 + n1 - n2 - n3 - n4 - n5 + n6 + n7 - 2 * n8);
-        PK[18] = c125 * (n0 + 2 * n9  - 2 * n11 - 2 * n13 + 2 * n15 - n1 - n2 + n3 - n4 + n5 + n6 - n7);
-        PK[19] = c125 * (n0 - 2 * n16 + 2 * n17 - 2 * n18 - n1 + 2 * n19 + n2 - n3 + n4 - n5 + n6 - n7);
-        PK[20] = c25  * (n16 + n17 + n18 + n19 - 2 * (n20 + n21 + n22 + n23)) + n26;
-        PK[21] = c25  * (n9  + n11 + n13 + n15 - 2 * (n21 + n23 + n24 + n25)) + n26;
-        PK[22] = c25  * (n10 + n12 + n14 - 2 * (n20 + n22 + n24 + n25 - 2 * n26) + n8);
-        PK[23] = c125 * (-n0 - 2 * n10 + 2 * n12 - 2 * n14 + 2 * n16 + 2 * n17 - 2 * n18 - n1 - 2 * n19 - 4 * n20 + 4 * n22 + n2 + n3 - n4 - n5 + n6 + n7 + 2 * n8);
-        PK[24] = c125 * (-n0 + 2 * n9  + 2 * n10 + 2 * n11 - 2 * n12 - 2 * n13 - 2 * n14 - 2 * n15 - n1 - 4 * n24 + 4 * n25 - n2 - n3 + n4 + n5 + n6 + n7 + 2 * n8);
-        PK[25] = c125 * (-n0 - 2 * n9  + 2 * n11 - 2 * n13 + 2 * n15 + 2 * n16 - 2 * n17 - 2 * n18 + n1 + 2 * n19 + 4 * n21 - 4 * n23 + n2 - n3 - n4 + n5 + n6 - n7);
-        PK[26] = c125 * (n0 - 2 * n9  - 2 * n10 - 2 * n11 - 2 * n12 - 2 * n13 - 2 * n14 - 2 * n15 - 2 * n16 - 2 * n17 - 2 * n18
-                         + n1 - 2 * n19 + 4 * n20 + 4 * n21 + 4 * n22 + 4 * n23 + 4 * n24 + 4 * n25 - 8 * n26 + n2 + n3 + n4 + n5 + n6 + n7 - 2 * n8);
+          PK[0]  = n26;
+          PK[1]  = c50 * (n21 - n23);
+          PK[2]  = c50 * (n22 - n20);
+          PK[3]  = c50 * (n25 - n24);
+          PK[4]  = c25 * (n16 - n17 + n18 - n19);
+          PK[5]  = c25 * (-n9  + n11 + n13 - n15);
+          PK[6]  = c25 * (-n10 - n12 + n14 + n8);
+          PK[7]  = c50 * (n21 + n23 - 2 * n26);
+          PK[8]  = c50 * (n20 + n22 - 2 * n26);
+          PK[9]  = c50 * (n24 + n25 - 2 * n26);
+          PK[10] = c125 * (-n0 + n1 - n2 + n3 + n4 - n5 + n6 - n7);
+          PK[11] = c25  * (-n16 - n17 + n18 + n19 + 2 * n20 - 2 * n22);
+          PK[12] = c25  * (-n9  - n11 + n13 + n15 + 2 * n24 - 2 * n25);
+          PK[13] = c25  * (-n10 + n12 + n14 + 2 * n24 - 2 * n25 - n8);
+          PK[14] = c25  * (-n16 + n17 + n18 - n19 - 2 * n21 + 2 * n23);
+          PK[15] = c25  * (n9  - n11 + n13 - n15 - 2 * n21 + 2 * n23);
+          PK[16] = c25  * (n10 - n12 + n14 + 2 * n20 - 2 * n22 - n8);
+          PK[17] = c125 * (n0 + 2 * n10 + 2 * n12 - 2 * n14 + n1 - n2 - n3 - n4 - n5 + n6 + n7 - 2 * n8);
+          PK[18] = c125 * (n0 + 2 * n9  - 2 * n11 - 2 * n13 + 2 * n15 - n1 - n2 + n3 - n4 + n5 + n6 - n7);
+          PK[19] = c125 * (n0 - 2 * n16 + 2 * n17 - 2 * n18 - n1 + 2 * n19 + n2 - n3 + n4 - n5 + n6 - n7);
+          PK[20] = c25  * (n16 + n17 + n18 + n19 - 2 * (n20 + n21 + n22 + n23)) + n26;
+          PK[21] = c25  * (n9  + n11 + n13 + n15 - 2 * (n21 + n23 + n24 + n25)) + n26;
+          PK[22] = c25  * (n10 + n12 + n14 - 2 * (n20 + n22 + n24 + n25 - 2 * n26) + n8);
+          PK[23] = c125 * (-n0 - 2 * n10 + 2 * n12 - 2 * n14 + 2 * n16 + 2 * n17 - 2 * n18 - n1 - 2 * n19 - 4 * n20 + 4 * n22 + n2 + n3 - n4 - n5 + n6 + n7 + 2 * n8);
+          PK[24] = c125 * (-n0 + 2 * n9  + 2 * n10 + 2 * n11 - 2 * n12 - 2 * n13 - 2 * n14 - 2 * n15 - n1 - 4 * n24 + 4 * n25 - n2 - n3 + n4 + n5 + n6 + n7 + 2 * n8);
+          PK[25] = c125 * (-n0 - 2 * n9  + 2 * n11 - 2 * n13 + 2 * n15 + 2 * n16 - 2 * n17 - 2 * n18 + n1 + 2 * n19 + 4 * n21 - 4 * n23 + n2 - n3 - n4 + n5 + n6 - n7);
+          PK[26] = c125 * (n0 - 2 * n9  - 2 * n10 - 2 * n11 - 2 * n12 - 2 * n13 - 2 * n14 - 2 * n15 - 2 * n16 - 2 * n17 - 2 * n18
+                           + n1 - 2 * n19 + 4 * n20 + 4 * n21 + 4 * n22 + 4 * n23 + 4 * n24 + 4 * n25 - 8 * n26 + n2 + n3 + n4 + n5 + n6 + n7 - 2 * n8);
+        }
+        break;
       }
-      break;
-    }
 
-    default:
-      std::cerr << "Error: unsupported solType in ProjectHexNodalToPolynomialCoefficients\n";
-      std::abort();
+      default:
+        std::cerr << "Error: unsupported solType in ProjectHexNodalToPolynomialCoefficients\n";
+        std::abort();
     }
   }
-
-
 
   // void ProjectHexNodalToPolynomialCoefficients(std::vector < std::vector <double > > &aP, const std::vector < std::vector <double > > &aN, const unsigned &solType) {
   //
@@ -845,13 +834,11 @@ namespace femus {
   //   }
   // }
 
-
   void GetHexPolynomialShapeFunction(std::vector < double >& phi, const std::vector < double >& xi, const unsigned & solType) {
 
     const unsigned nDofs = hexNumberOfDofs[solType];
 
     phi.resize(nDofs);
-
 
     //common for linear, quadratic and biquadratic
     phi[0] = 1.;
@@ -893,7 +880,7 @@ namespace femus {
   }
 
   void GetHexPolynomialShapeFunctionGradient(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                             const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetHexPolynomialShapeFunction(phi,  xi, solType);
 
@@ -984,12 +971,10 @@ namespace femus {
       }
     }
 
-
-
   }
 
   void GetHexPolynomialShapeFunctionGradientHessian(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                    std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetHexPolynomialShapeFunctionGradient(phi,   gradPhi,  xi, solType);
 
@@ -1165,7 +1150,6 @@ namespace femus {
     }
   }
 
-
   void GetTetPolynomialShapeFunction(std::vector < double >& phi, const std::vector < double >& xi, const unsigned & solType) {
 
     const unsigned nDofs = tetNumberOfDofs[solType];
@@ -1185,7 +1169,6 @@ namespace femus {
       phi[8] = phi[2] * phi[2]; // y y
       phi[9] = phi[3] * phi[3]; // z z
 
-
       if (solType > 1) {
         phi[10] = phi[4] * phi[3]; // x y z
         phi[11] = phi[1] * phi[8] + phi[7] * phi[2] ; // x y y + x x y
@@ -1197,9 +1180,8 @@ namespace femus {
 
   }
 
-
   void GetTetPolynomialShapeFunctionGradient(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                             const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetTetPolynomialShapeFunction(phi,  xi, solType);
 
@@ -1255,7 +1237,7 @@ namespace femus {
   }
 
   void GetTetPolynomialShapeFunctionGradientHessian(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                    std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetTetPolynomialShapeFunctionGradient(phi,   gradPhi,  xi, solType);
 
@@ -1395,7 +1377,6 @@ namespace femus {
     }
   }
 
-
   void GetWedgePolynomialShapeFunction(std::vector < double >& phi, const std::vector < double >& xi, const unsigned & solType) {
 
     const unsigned nDofs = wedgeNumberOfDofs[solType];
@@ -1441,7 +1422,7 @@ namespace femus {
   }
 
   void GetWedgePolynomialShapeFunctionGradient(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                               const std::vector < double >& xi, const unsigned & solType) {
+      const std::vector < double >& xi, const unsigned & solType) {
 
     GetWedgePolynomialShapeFunction(phi,  xi, solType);
 
@@ -1500,7 +1481,6 @@ namespace femus {
         gradPhi[12][1] = 2 * phi[6]; // 2 y z
         gradPhi[14][1] = phi[9]; //  z z;
 
-
         //phi_z
         gradPhi[11][2] = phi[7]; // x x
         gradPhi[12][2] = phi[8]; // y y
@@ -1540,7 +1520,7 @@ namespace femus {
   }
 
   void GetWedgePolynomialShapeFunctionGradientHessian(std::vector < double >& phi, std::vector < std::vector < double > >& gradPhi,
-                                                      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
+      std::vector < std::vector < std::vector < double > > >& hessPhi, const std::vector < double >& xi, const unsigned & solType) {
 
     GetWedgePolynomialShapeFunctionGradient(phi,   gradPhi,  xi, solType);
 
@@ -1556,7 +1536,6 @@ namespace femus {
         hessPhi[i][i1].assign(dim, 0.);
       }
     }
-
 
     if (solType < 1) { //only linear
       //phi_xz
@@ -1640,8 +1619,6 @@ namespace femus {
   }
 //END WEDGE
 
-
-
   bool CheckIfPointIsInsideReferenceDomain(std::vector<double> &xi, const short unsigned &ielType, const double &eps) {
     if (ielType == 0) {
       return CheckIfPointIsInsideReferenceDomainHex(xi, eps);
@@ -1686,7 +1663,6 @@ namespace femus {
     return (fabs(xi[0]) < threshold) ? true : false;
   }
 
-
   bool SPDCheck2D(const std::vector< std::vector <double> > &A) {
     bool SPD = true;
 
@@ -1717,9 +1693,6 @@ namespace femus {
 
   }
 
-
-
-
   bool SPDCheck3D(const std::vector< std::vector <double> > &A) {
 
     bool SPD = true;
@@ -1739,8 +1712,6 @@ namespace femus {
     B[0][1] = A[0][1];
     B[1][0] = A[1][0];
     B[1][1] = A[1][1];
-
-
 
     if (SPDCheck2D(B) == false || notSymm == true) {
       SPD = false;
@@ -1785,9 +1756,6 @@ namespace femus {
     return SPD;
 
   }
-
-
-
 
 // Solve J * delta = b for dim = 1..3 (tiny), using partial pivoting Gaussian elimination.
 // J is overwritten; b becomes the solution on return.
@@ -1890,7 +1858,6 @@ namespace femus {
     return (delta2 < 1.0e-9);
   }
 
-
   // bool GetNewLocalCoordinates(std::vector<double>& xi,
   //                             const std::vector<double>& x,
   //                             const std::vector<double>& phi,
@@ -1951,8 +1918,6 @@ namespace femus {
   //
   //   return (delta2 < 1.0e-9);
   // }
-
-
 
   // Optimized: no per-call allocations for F/J, no omp inside (parallelize outside),
 // manual unroll for dim=2/3, stack locals for hot math.
@@ -2060,17 +2025,6 @@ namespace femus {
     return (delta2 < 1.0e-9);
   }
 
-
-
-
-
-
-
-
-
-
-
-
 #include <cmath>
 #include <stdexcept>
 #include <algorithm>
@@ -2126,14 +2080,13 @@ namespace femus {
     }
   }
 
-
 // Fast version: no returning F/J, no allocations.
 // xi is updated in-place. Returns true if ||delta||^2 < tol2.
   static inline bool GetNewLocalCoordinates_fast(std::vector<double>& xi,
-                                                 const std::vector<double>& x,
-                                                 const std::vector<double>& phi,
-                                                 const std::vector<std::vector<double>>& gradPhi,
-                                                 const std::vector<std::vector<double>>& a) {
+      const std::vector<double>& x,
+      const std::vector<double>& phi,
+      const std::vector<std::vector<double>>& gradPhi,
+      const std::vector<std::vector<double>>& a) {
     const int dim   = static_cast<int>(gradPhi[0].size()); // 2 or 3
     const int nDofs = static_cast<int>(phi.size());
 
@@ -2233,23 +2186,6 @@ namespace femus {
     return (delta2 < 1.0e-9);
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   // bool GetNewLocalCoordinates(std::vector <double> &xi, const std::vector< double > &x, const std::vector <double> &phi,
   //                             const std::vector < std::vector <double > > &gradPhi,
   //                             const std::vector < std::vector <double > > &a) {
@@ -2321,7 +2257,6 @@ namespace femus {
   //
   //   return convergence;
   // }
-
 
   bool GetNewLocalCoordinatesHess(std::vector <double> &xi, const std::vector< double > &x, const std::vector <double> &phi,
                                   const std::vector < std::vector <double > > &gradPhi, const std::vector < std::vector < std::vector <double> > > hessPhi,
@@ -2397,8 +2332,6 @@ namespace femus {
 
     return convergence;
   }
-
-
 
   void InverseMatrix(const std::vector< std::vector <double> > &A, std::vector< std::vector <double> > &invA) {
 
@@ -2487,7 +2420,6 @@ namespace femus {
     r = (1. + tolerance) * sqrt(r2);
   }
 
-
   void GetConvexHullSphereRadiousSquare(const std::vector< std::vector < double > > &xv, std::vector <double> &xc, double & r2, const double tolerance) {
     unsigned dim = xv.size();
     unsigned ndofs = xv[0].size();
@@ -2564,12 +2496,9 @@ namespace femus {
     return convergence;
   }
 
-
-
   bool GetInverseMapping_fast(const unsigned &solType, short unsigned &ielType, const std::vector < std::vector < std::vector <double > > > &aP,
                               const std::vector <double > &xl, std::vector <double > &xi, const unsigned &MaxNumberOfIteration,
                               std::vector < double > &phi, std::vector < std::vector < double > > &gradPhi) {
-
 
     bool convergence = false;
 
@@ -2593,15 +2522,6 @@ namespace femus {
 
     return convergence;
   }
-
-
-
-
-
-
-
-
-
 
   const double XI[6][27][3] = {{
       { -1, -1, -1}, {1, -1, -1}, {1, 1, -1}, { -1, 1, -1}, { -1, -1, 1}, {1, -1, 1}, {1, 1, 1}, { -1, 1, 1}, {0, -1, -1},
@@ -2711,7 +2631,6 @@ namespace femus {
     fout << "<VTKFile type = \"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">" << std::endl;
     fout << "  <UnstructuredGrid>" << std::endl;
 
-
     fout  << "    <Piece NumberOfPoints= \"" << nvt
           << "\" NumberOfCells= \"" << nel
           << "\" >" << std::endl;
@@ -2811,8 +2730,6 @@ namespace femus {
 
     fout  << "        </DataArray>" << std::endl;
 
-
-
     //--------------------------------------------------------------------------------------------------
 
     //Element format type : 23:Serendipity(8-nodes)  28:Quad9-Biquadratic
@@ -2840,13 +2757,9 @@ namespace femus {
     fout  << std::endl;
     fout  << "        </DataArray>" << std::endl;
 
-
-
     //----------------------------------------------------------------------------------------------------
 //
     fout  << "      </Cells>" << std::endl;
-
-
 
     //-----------------------------------------------------------------------------------------------
     // Printing of element connectivity - offset - format type  *
@@ -2863,7 +2776,4 @@ namespace femus {
     return;
   }
 
-
-
 }
-

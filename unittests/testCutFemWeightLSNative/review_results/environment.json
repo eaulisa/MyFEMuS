@@ -1,0 +1,16 @@
+{
+  "flags": [
+    "-std=c++14",
+    "-O3",
+    "-DNDEBUG",
+    "-march=x86-64",
+    "-mtune=generic"
+  ],
+  "input_sha": "1a4c2c5fefa6a783fe27c1e2132073307e839314",
+  "baseline_sha": "0ff0669494e603be248d02c44c0a2e9b81f72b4d",
+  "reviewed_sha": "39bdedb4b93e6e5f7a21ab4a154eaf3e3538fdaa",
+  "production_manifest_sha256": "156c6a532453b407fd272f79c282e74d15d389b985a4ee2ab5c4cfb8f825346e",
+  "compiler": "g++ 14.2.0",
+  "benchmark_protocol": "One pinned CPU; paired reverse-order runs; seven timing batches per case.",
+  "local_asan_leak_detection": false
+}

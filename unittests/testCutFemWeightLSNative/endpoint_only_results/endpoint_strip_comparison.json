@@ -1,0 +1,8154 @@
+{
+  "accepted": true,
+  "maximum_requested_degree": 10,
+  "cases": 405,
+  "checks": 37944,
+  "graph_cases": 180,
+  "maximum_error_ratio": 0.009142942018162275,
+  "failures": [],
+  "records": [
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 0,
+      "mode": "raw",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.846303038376966e-15,
+      "femus_maximum_absolute_error": [
+        1.265914456594075e-15,
+        1.73450663554231e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 1,
+      "mode": "raw",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.82732950035847e-15,
+      "femus_maximum_absolute_error": [
+        1.4096796646656529e-15,
+        1.73450663554231e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 2,
+      "mode": "raw",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.819197984064829e-15,
+      "femus_maximum_absolute_error": [
+        1.4657329169831534e-15,
+        1.73450663554231e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 3,
+      "mode": "raw",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.809548584729708e-15,
+      "femus_maximum_absolute_error": [
+        1.4771170397942512e-15,
+        1.7523959713883208e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 4,
+      "mode": "raw",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.800116025829084e-15,
+      "femus_maximum_absolute_error": [
+        1.3183898417423734e-15,
+        1.5123536104000301e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 5,
+      "mode": "raw",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.858662943143301e-15,
+      "femus_maximum_absolute_error": [
+        1.2315452477262845e-15,
+        1.8086660641403185e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 6,
+      "mode": "raw",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.8465198788114634e-15,
+      "femus_maximum_absolute_error": [
+        1.2630955309456127e-15,
+        1.9565512404673413e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 7,
+      "mode": "raw",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.523941984913016e-15,
+      "femus_maximum_absolute_error": [
+        6.949735925632083e-16,
+        1.0419182877585698e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 8,
+      "mode": "raw",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.901258214729976e-15,
+      "femus_maximum_absolute_error": [
+        6.531233887052679e-16,
+        4.1861045879665326e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 9,
+      "mode": "raw",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.770396297570372e-15,
+      "femus_maximum_absolute_error": [
+        1.2376167798922033e-15,
+        3.045307062077285e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 10,
+      "mode": "raw",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16,
+      "femus_maximum_absolute_error": [
+        5.3830637863905295e-17,
+        1.5803330866148713e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 11,
+      "mode": "raw",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.340089044043484e-15,
+      "femus_maximum_absolute_error": [
+        4.796510411075872e-16,
+        4.941251401102686e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 12,
+      "mode": "raw",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.9381072148024785e-15,
+      "femus_maximum_absolute_error": [
+        5.364090248372033e-17,
+        1.5187504032176946e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 13,
+      "mode": "raw",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        1.3877787807814457e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 3.9363044074258724e-15,
+      "femus_maximum_absolute_error": [
+        7.966175462337244e-17,
+        1.3254371558635292e-17
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 14,
+      "mode": "raw",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0,
+      "femus_maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.440892098500626e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 15,
+      "mode": "raw",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.329070518200751e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.921447805892541e-14,
+      "femus_maximum_absolute_error": [
+        2.772304955045435e-16,
+        2.5854318685958333e-14
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 16,
+      "mode": "raw",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.7763568394002505e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14,
+      "femus_maximum_absolute_error": [
+        1.973247953923618e-16,
+        3.6914915568786455e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 17,
+      "mode": "raw",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16,
+      "femus_maximum_absolute_error": [
+        1.8526304622346057e-16,
+        2.5717275531356165e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 18,
+      "mode": "raw",
+      "name": "tensor_lobes",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.4210854715202004e-14
+      ],
+      "failures": [],
+      "reference_discrepancy": 7.983891325835657e-14,
+      "femus_maximum_absolute_error": [
+        6.591949208711867e-17,
+        1.2899403767363538e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 19,
+      "mode": "raw",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        0
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.003450794678784e-14,
+      "femus_maximum_absolute_error": [
+        3.2591117304914263e-16,
+        3.5041414214731503e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 20,
+      "mode": "raw",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.199040866595169e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.6768053959226314e-14,
+      "femus_maximum_absolute_error": [
+        3.465110143263672e-16,
+        9.598556758444454e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 21,
+      "mode": "raw",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.897409297017653e-15,
+      "femus_maximum_absolute_error": [
+        1.3145951341386741e-16,
+        1.2420620087993939e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 22,
+      "mode": "raw",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.0245710529988017e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16,
+      "femus_maximum_absolute_error": [
+        2.12137707573945e-16,
+        1.5803330866148713e-15
+      ]
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 0,
+      "mode": "raw",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 1,
+      "mode": "raw",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.910799193847849e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 2,
+      "mode": "raw",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.652162765601432e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 3,
+      "mode": "raw",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.2400575198396915e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 4,
+      "mode": "raw",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.311614863223735e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 5,
+      "mode": "raw",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.647812083119485e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 6,
+      "mode": "raw",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 7,
+      "mode": "raw",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.782401266511857e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 8,
+      "mode": "raw",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.8116072837980344e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 9,
+      "mode": "raw",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.68074536663843e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 10,
+      "mode": "raw",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 11,
+      "mode": "raw",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.807162054890844e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 12,
+      "mode": "raw",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.3255607349321785e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 13,
+      "mode": "raw",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-18,
+        1.3877787807814457e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.8382521947165635e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 14,
+      "mode": "raw",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 15,
+      "mode": "raw",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.3322676295501878e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.4607022189028207e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 16,
+      "mode": "raw",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.7763568394002505e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 17,
+      "mode": "raw",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        1.6653345369377348e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 19,
+      "mode": "raw",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.208625213799941e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 20,
+      "mode": "raw",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        8.379963389870682e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.567954067923878e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 21,
+      "mode": "raw",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.89762613745215e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 22,
+      "mode": "raw",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.008661028647275e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 0,
+      "mode": "surface",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.846303038376966e-15,
+      "femus_maximum_absolute_error": [
+        1.265914456594075e-15,
+        8.67253317771155e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 1,
+      "mode": "surface",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.82732950035847e-15,
+      "femus_maximum_absolute_error": [
+        1.4096796646656529e-15,
+        8.903468240450962e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 2,
+      "mode": "surface",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.819197984064829e-15,
+      "femus_maximum_absolute_error": [
+        1.4657329169831534e-15,
+        9.168555671623668e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 3,
+      "mode": "surface",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.809548584729708e-15,
+      "femus_maximum_absolute_error": [
+        1.4771170397942512e-15,
+        8.574954982187855e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 4,
+      "mode": "surface",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        1.6653345369377348e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.800116025829084e-15,
+      "femus_maximum_absolute_error": [
+        1.3183898417423734e-15,
+        9.39135921806944e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 5,
+      "mode": "surface",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.858662943143301e-15,
+      "femus_maximum_absolute_error": [
+        1.2315452477262845e-15,
+        8.848173929654202e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 6,
+      "mode": "surface",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.6653345369377348e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.8465198788114634e-15,
+      "femus_maximum_absolute_error": [
+        1.2630955309456127e-15,
+        9.249328733473838e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 7,
+      "mode": "surface",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.523941984913016e-15,
+      "femus_maximum_absolute_error": [
+        6.949735925632083e-16,
+        5.280064580004407e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 8,
+      "mode": "surface",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.901258214729976e-15,
+      "femus_maximum_absolute_error": [
+        6.531233887052679e-16,
+        2.727852665973529e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 9,
+      "mode": "surface",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.770396297570372e-15,
+      "femus_maximum_absolute_error": [
+        1.2376167798922033e-15,
+        8.67253317771155e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 10,
+      "mode": "surface",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16,
+      "femus_maximum_absolute_error": [
+        5.3830637863905295e-17,
+        3.3133218391157016e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 11,
+      "mode": "surface",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.340089044043484e-15,
+      "femus_maximum_absolute_error": [
+        4.796510411075872e-16,
+        4.0484109120608736e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 12,
+      "mode": "surface",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        2.7755575615628914e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.9381072148024785e-15,
+      "femus_maximum_absolute_error": [
+        5.364090248372033e-17,
+        2.632442874794805e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 13,
+      "mode": "surface",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 3.9363044074258724e-15,
+      "femus_maximum_absolute_error": [
+        7.966175462337244e-17,
+        3.5822039778921066e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 14,
+      "mode": "surface",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        0
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0,
+      "femus_maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 15,
+      "mode": "surface",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        3.1086244689504383e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.921447805892541e-14,
+      "femus_maximum_absolute_error": [
+        2.772304955045435e-16,
+        6.007781078176677e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 16,
+      "mode": "surface",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14,
+      "femus_maximum_absolute_error": [
+        1.973247953923618e-16,
+        9.063930161978817e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 17,
+      "mode": "surface",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16,
+      "femus_maximum_absolute_error": [
+        1.8526304622346057e-16,
+        3.69712940817557e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 18,
+      "mode": "surface",
+      "name": "tensor_lobes",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.7763568394002505e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 7.983891325835657e-14,
+      "femus_maximum_absolute_error": [
+        6.591949208711867e-17,
+        5.597193715456417e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 19,
+      "mode": "surface",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        0
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.003450794678784e-14,
+      "femus_maximum_absolute_error": [
+        3.2591117304914263e-16,
+        2.389581588158052e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 20,
+      "mode": "surface",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.639932965095795e-14
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.6768053959226314e-14,
+      "femus_maximum_absolute_error": [
+        3.465110143263672e-16,
+        2.2556609358126423e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 21,
+      "mode": "surface",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.897409297017653e-15,
+      "femus_maximum_absolute_error": [
+        1.3145951341386741e-16,
+        2.6655110410556127e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 22,
+      "mode": "surface",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.0245710529988017e-17,
+        2.123301534595612e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16,
+      "femus_maximum_absolute_error": [
+        2.12137707573945e-16,
+        1.3587817936783209e-14
+      ]
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 0,
+      "mode": "surface",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 1,
+      "mode": "surface",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.910799193847849e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 2,
+      "mode": "surface",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.652162765601432e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 3,
+      "mode": "surface",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.2400575198396915e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 4,
+      "mode": "surface",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.311614863223735e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 5,
+      "mode": "surface",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.647812083119485e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 6,
+      "mode": "surface",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 7,
+      "mode": "surface",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.782401266511857e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 8,
+      "mode": "surface",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.8116072837980344e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 9,
+      "mode": "surface",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.68074536663843e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 10,
+      "mode": "surface",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 11,
+      "mode": "surface",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        0
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.807162054890844e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 12,
+      "mode": "surface",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        1.6653345369377348e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.3255607349321785e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 13,
+      "mode": "surface",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-18,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.8382521947165635e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 14,
+      "mode": "surface",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        0
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 15,
+      "mode": "surface",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.6653345369377348e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.4607022189028207e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 16,
+      "mode": "surface",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 17,
+      "mode": "surface",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        6.661338147750939e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 19,
+      "mode": "surface",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.208625213799941e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 20,
+      "mode": "surface",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        3.936850845320805e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.567954067923878e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 21,
+      "mode": "surface",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.89762613745215e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 22,
+      "mode": "surface",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.008661028647275e-17,
+        4.6629367034256575e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 0,
+      "mode": "physical",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.846303038376966e-15,
+      "femus_maximum_absolute_error": [
+        1.265914456594075e-15,
+        5.28277508543562e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 1,
+      "mode": "physical",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.82732950035847e-15,
+      "femus_maximum_absolute_error": [
+        1.4096796646656529e-15,
+        5.523739018270524e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 2,
+      "mode": "physical",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.819197984064829e-15,
+      "femus_maximum_absolute_error": [
+        1.4657329169831534e-15,
+        5.389840049968564e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 3,
+      "mode": "physical",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.809548584729708e-15,
+      "femus_maximum_absolute_error": [
+        1.4771170397942512e-15,
+        5.243201706139899e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 4,
+      "mode": "physical",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.800116025829084e-15,
+      "femus_maximum_absolute_error": [
+        1.3183898417423734e-15,
+        5.266783103391459e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 5,
+      "mode": "physical",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.858662943143301e-15,
+      "femus_maximum_absolute_error": [
+        1.2315452477262845e-15,
+        5.268680457193309e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 6,
+      "mode": "physical",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.8465198788114634e-15,
+      "femus_maximum_absolute_error": [
+        1.2630955309456127e-15,
+        5.206880933361635e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 7,
+      "mode": "physical",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.523941984913016e-15,
+      "femus_maximum_absolute_error": [
+        6.949735925632083e-16,
+        2.47198095326695e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 8,
+      "mode": "physical",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.901258214729976e-15,
+      "femus_maximum_absolute_error": [
+        6.531233887052679e-16,
+        1.4100049253173985e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 9,
+      "mode": "physical",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.770396297570372e-15,
+      "femus_maximum_absolute_error": [
+        1.2376167798922033e-15,
+        5.283046135978742e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 10,
+      "mode": "physical",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16,
+      "femus_maximum_absolute_error": [
+        5.3830637863905295e-17,
+        1.6696713456276768e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 11,
+      "mode": "physical",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.340089044043484e-15,
+      "femus_maximum_absolute_error": [
+        4.796510411075872e-16,
+        1.5449880957918438e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 12,
+      "mode": "physical",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.9381072148024785e-15,
+      "femus_maximum_absolute_error": [
+        5.364090248372033e-17,
+        1.419762744869768e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 13,
+      "mode": "physical",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 3.9363044074258724e-15,
+      "femus_maximum_absolute_error": [
+        7.966175462337244e-17,
+        1.0972125985553305e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 14,
+      "mode": "physical",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        0
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0,
+      "femus_maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.7755575615628914e-17
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 15,
+      "mode": "physical",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.886579864025407e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.921447805892541e-14,
+      "femus_maximum_absolute_error": [
+        2.772304955045435e-16,
+        2.886579864025407e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 16,
+      "mode": "physical",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14,
+      "femus_maximum_absolute_error": [
+        1.973247953923618e-16,
+        6.162605148407607e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 17,
+      "mode": "physical",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        2.7755575615628914e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16,
+      "femus_maximum_absolute_error": [
+        1.8526304622346057e-16,
+        4.0115480381963664e-17
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 18,
+      "mode": "physical",
+      "name": "tensor_lobes",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 7.983891325835657e-14,
+      "femus_maximum_absolute_error": [
+        6.591949208711867e-17,
+        2.824129818890242e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 19,
+      "mode": "physical",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        0
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.003450794678784e-14,
+      "femus_maximum_absolute_error": [
+        3.2591117304914263e-16,
+        9.096456227153382e-17
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 20,
+      "mode": "physical",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.639932965095795e-14
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.6768053959226314e-14,
+      "femus_maximum_absolute_error": [
+        3.465110143263672e-16,
+        1.1280604542921596e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 21,
+      "mode": "physical",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.897409297017653e-15,
+      "femus_maximum_absolute_error": [
+        1.3145951341386741e-16,
+        3.155028321932818e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 2,
+      "field": 22,
+      "mode": "physical",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.0245710529988017e-17,
+        2.192690473634684e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16,
+      "femus_maximum_absolute_error": [
+        2.12137707573945e-16,
+        7.0011576017939975e-15
+      ]
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 0,
+      "mode": "physical",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 1,
+      "mode": "physical",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        3.3306690738754696e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.910799193847849e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 2,
+      "mode": "physical",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.652162765601432e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 3,
+      "mode": "physical",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.2400575198396915e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 4,
+      "mode": "physical",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.311614863223735e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 5,
+      "mode": "physical",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.647812083119485e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 6,
+      "mode": "physical",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 7,
+      "mode": "physical",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.782401266511857e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 8,
+      "mode": "physical",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.8116072837980344e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 9,
+      "mode": "physical",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.68074536663843e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 10,
+      "mode": "physical",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-17,
+        3.3306690738754696e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 11,
+      "mode": "physical",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.807162054890844e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 12,
+      "mode": "physical",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        2.7755575615628914e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.3255607349321785e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 13,
+      "mode": "physical",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-18,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.8382521947165635e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 14,
+      "mode": "physical",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 15,
+      "mode": "physical",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.6653345369377348e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.4607022189028207e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 16,
+      "mode": "physical",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 17,
+      "mode": "physical",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        8.881784197001252e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 19,
+      "mode": "physical",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.7755575615628914e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.208625213799941e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 20,
+      "mode": "physical",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        3.936850845320805e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.567954067923878e-14
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 21,
+      "mode": "physical",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.89762613745215e-15
+    },
+    {
+      "element": 1,
+      "degree": 2,
+      "field": 22,
+      "mode": "physical",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.008661028647275e-17,
+        4.801714581503802e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 0,
+      "mode": "raw",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.846303038376966e-15,
+      "femus_maximum_absolute_error": [
+        1.369130503414695e-15,
+        1.825904878682838e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 1,
+      "mode": "raw",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.82732950035847e-15,
+      "femus_maximum_absolute_error": [
+        1.5139799136587584e-15,
+        1.9369271811453537e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 2,
+      "mode": "raw",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.819197984064829e-15,
+      "femus_maximum_absolute_error": [
+        1.487308540215615e-15,
+        1.9369271811453537e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 3,
+      "mode": "raw",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        1.942890293094024e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.809548584729708e-15,
+      "femus_maximum_absolute_error": [
+        1.4963074182472447e-15,
+        1.8821749714348357e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 4,
+      "mode": "raw",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.800116025829084e-15,
+      "femus_maximum_absolute_error": [
+        1.4623718902484484e-15,
+        1.758142242902494e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 5,
+      "mode": "raw",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.5265566588595902e-16,
+        2.498001805406602e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.858662943143301e-15,
+      "femus_maximum_absolute_error": [
+        1.356336917779366e-15,
+        1.8836928544763154e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 6,
+      "mode": "raw",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.8465198788114634e-15,
+      "femus_maximum_absolute_error": [
+        1.367341569830094e-15,
+        1.9565512404673413e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 7,
+      "mode": "raw",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        8.326672684688674e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.523941984913016e-15,
+      "femus_maximum_absolute_error": [
+        6.949735925632083e-16,
+        3.388349251491519e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 8,
+      "mode": "raw",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.901258214729976e-15,
+      "femus_maximum_absolute_error": [
+        7.42570067935322e-16,
+        4.1861045879665326e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 9,
+      "mode": "raw",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.5265566588595902e-16,
+        3.3306690738754696e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.770396297570372e-15,
+      "femus_maximum_absolute_error": [
+        1.2503019453102837e-15,
+        3.0594016903195964e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 10,
+      "mode": "raw",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.9949319973733282e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16,
+      "femus_maximum_absolute_error": [
+        5.3830637863905295e-17,
+        1.5803330866148713e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 11,
+      "mode": "raw",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.340089044043484e-15,
+      "femus_maximum_absolute_error": [
+        4.796510411075872e-16,
+        4.941251401102686e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 12,
+      "mode": "raw",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.9381072148024785e-15,
+      "femus_maximum_absolute_error": [
+        8.817274167738365e-17,
+        1.5402176062329076e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 13,
+      "mode": "raw",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        1.3877787807814457e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 3.9363044074258724e-15,
+      "femus_maximum_absolute_error": [
+        7.966175462337244e-17,
+        1.3254371558635292e-17
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 14,
+      "mode": "raw",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0,
+      "femus_maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.440892098500626e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 15,
+      "mode": "raw",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        5.329070518200751e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.921447805892541e-14,
+      "femus_maximum_absolute_error": [
+        3.515525544284248e-16,
+        2.5854318685958333e-14
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 16,
+      "mode": "raw",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.7763568394002505e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14,
+      "femus_maximum_absolute_error": [
+        1.973247953923618e-16,
+        3.6914915568786455e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 17,
+      "mode": "raw",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16,
+      "femus_maximum_absolute_error": [
+        1.8526304622346057e-16,
+        3.012997837337217e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 18,
+      "mode": "raw",
+      "name": "tensor_lobes",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.4210854715202004e-14
+      ],
+      "failures": [],
+      "reference_discrepancy": 7.983891325835657e-14,
+      "femus_maximum_absolute_error": [
+        9.23198149871407e-17,
+        1.2899403767363538e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 19,
+      "mode": "raw",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.003450794678784e-14,
+      "femus_maximum_absolute_error": [
+        4.846383711010205e-16,
+        2.6120598739520773e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 20,
+      "mode": "raw",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.199040866595169e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.6768053959226314e-14,
+      "femus_maximum_absolute_error": [
+        3.465110143263672e-16,
+        9.598556758444454e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 21,
+      "mode": "raw",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.897409297017653e-15,
+      "femus_maximum_absolute_error": [
+        2.5505042956092128e-15,
+        1.2420620087993939e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 22,
+      "mode": "raw",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.0245710529988017e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16,
+      "femus_maximum_absolute_error": [
+        2.12137707573945e-16,
+        1.5803330866148713e-15
+      ]
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 0,
+      "mode": "raw",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 1,
+      "mode": "raw",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.910799193847849e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 2,
+      "mode": "raw",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.652162765601432e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 3,
+      "mode": "raw",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.2400575198396915e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 4,
+      "mode": "raw",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.311614863223735e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 5,
+      "mode": "raw",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.647812083119485e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 6,
+      "mode": "raw",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 7,
+      "mode": "raw",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.782401266511857e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 8,
+      "mode": "raw",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.8116072837980344e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 9,
+      "mode": "raw",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.68074536663843e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 10,
+      "mode": "raw",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 11,
+      "mode": "raw",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.807162054890844e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 12,
+      "mode": "raw",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.185020385794047e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.3255607349321785e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 13,
+      "mode": "raw",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.122502256758253e-17,
+        4.9764879717084654e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.8382521947165635e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 14,
+      "mode": "raw",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 15,
+      "mode": "raw",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.3322676295501878e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.4607022189028207e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 16,
+      "mode": "raw",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.7763568394002505e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 17,
+      "mode": "raw",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        1.6653345369377348e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 19,
+      "mode": "raw",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.208625213799941e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 20,
+      "mode": "raw",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        8.379963389870682e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.567954067923878e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 21,
+      "mode": "raw",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.89762613745215e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 22,
+      "mode": "raw",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.008661028647275e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 0,
+      "mode": "surface",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.846303038376966e-15,
+      "femus_maximum_absolute_error": [
+        1.369130503414695e-15,
+        9.684635905726768e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 1,
+      "mode": "surface",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.82732950035847e-15,
+      "femus_maximum_absolute_error": [
+        1.5139799136587584e-15,
+        9.57052362707267e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 2,
+      "mode": "surface",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.819197984064829e-15,
+      "femus_maximum_absolute_error": [
+        1.487308540215615e-15,
+        9.862987163100634e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 3,
+      "mode": "surface",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.809548584729708e-15,
+      "femus_maximum_absolute_error": [
+        1.4963074182472447e-15,
+        9.764324765404453e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 4,
+      "mode": "surface",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.800116025829084e-15,
+      "femus_maximum_absolute_error": [
+        1.4623718902484484e-15,
+        9.39135921806944e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 5,
+      "mode": "surface",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.5265566588595902e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.858662943143301e-15,
+      "femus_maximum_absolute_error": [
+        1.356336917779366e-15,
+        9.26721806931985e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 6,
+      "mode": "surface",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.8465198788114634e-15,
+      "femus_maximum_absolute_error": [
+        1.367341569830094e-15,
+        9.341756968678228e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 7,
+      "mode": "surface",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.523941984913016e-15,
+      "femus_maximum_absolute_error": [
+        6.949735925632083e-16,
+        1.7084586783483457e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 8,
+      "mode": "surface",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.901258214729976e-15,
+      "femus_maximum_absolute_error": [
+        7.42570067935322e-16,
+        2.727852665973529e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 9,
+      "mode": "surface",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.5265566588595902e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.770396297570372e-15,
+      "femus_maximum_absolute_error": [
+        1.2503019453102837e-15,
+        9.684635905726768e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 10,
+      "mode": "surface",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.9949319973733282e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16,
+      "femus_maximum_absolute_error": [
+        5.3830637863905295e-17,
+        3.3133218391157016e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 11,
+      "mode": "surface",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.340089044043484e-15,
+      "femus_maximum_absolute_error": [
+        4.796510411075872e-16,
+        4.0484109120608736e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 12,
+      "mode": "surface",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.9381072148024785e-15,
+      "femus_maximum_absolute_error": [
+        8.817274167738365e-17,
+        3.2385118892142017e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 13,
+      "mode": "surface",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 3.9363044074258724e-15,
+      "femus_maximum_absolute_error": [
+        7.966175462337244e-17,
+        3.5822039778921066e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 14,
+      "mode": "surface",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0,
+      "femus_maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 15,
+      "mode": "surface",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        3.1086244689504383e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.921447805892541e-14,
+      "femus_maximum_absolute_error": [
+        3.515525544284248e-16,
+        6.007781078176677e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 16,
+      "mode": "surface",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14,
+      "femus_maximum_absolute_error": [
+        1.973247953923618e-16,
+        9.063930161978817e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 17,
+      "mode": "surface",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16,
+      "femus_maximum_absolute_error": [
+        1.8526304622346057e-16,
+        3.69712940817557e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 18,
+      "mode": "surface",
+      "name": "tensor_lobes",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.7763568394002505e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 7.983891325835657e-14,
+      "femus_maximum_absolute_error": [
+        9.23198149871407e-17,
+        5.597193715456417e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 19,
+      "mode": "surface",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.003450794678784e-14,
+      "femus_maximum_absolute_error": [
+        4.846383711010205e-16,
+        4.058168731613243e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 20,
+      "mode": "surface",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.639932965095795e-14
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.6768053959226314e-14,
+      "femus_maximum_absolute_error": [
+        3.465110143263672e-16,
+        2.2556609358126423e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 21,
+      "mode": "surface",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.897409297017653e-15,
+      "femus_maximum_absolute_error": [
+        2.5505042956092128e-15,
+        3.239189515572005e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 22,
+      "mode": "surface",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.0245710529988017e-17,
+        2.123301534595612e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16,
+      "femus_maximum_absolute_error": [
+        2.12137707573945e-16,
+        1.3587817936783209e-14
+      ]
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 0,
+      "mode": "surface",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 1,
+      "mode": "surface",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.3877787807814457e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.910799193847849e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 2,
+      "mode": "surface",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.652162765601432e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 3,
+      "mode": "surface",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.2400575198396915e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 4,
+      "mode": "surface",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.311614863223735e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 5,
+      "mode": "surface",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.647812083119485e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 6,
+      "mode": "surface",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 7,
+      "mode": "surface",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.782401266511857e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 8,
+      "mode": "surface",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.8116072837980344e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 9,
+      "mode": "surface",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.68074536663843e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 10,
+      "mode": "surface",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 11,
+      "mode": "surface",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.3877787807814457e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.807162054890844e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 12,
+      "mode": "surface",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.185020385794047e-17,
+        1.6653345369377348e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.3255607349321785e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 13,
+      "mode": "surface",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.122502256758253e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.8382521947165635e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 14,
+      "mode": "surface",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.3877787807814457e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 15,
+      "mode": "surface",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.6653345369377348e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.4607022189028207e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 16,
+      "mode": "surface",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 17,
+      "mode": "surface",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        6.661338147750939e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 19,
+      "mode": "surface",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.208625213799941e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 20,
+      "mode": "surface",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        3.936850845320805e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.567954067923878e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 21,
+      "mode": "surface",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.89762613745215e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 22,
+      "mode": "surface",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.008661028647275e-17,
+        4.6629367034256575e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 0,
+      "mode": "physical",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.7755575615628914e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.846303038376966e-15,
+      "femus_maximum_absolute_error": [
+        1.369130503414695e-15,
+        5.339153598404867e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 1,
+      "mode": "physical",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        3.0531133177191805e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.82732950035847e-15,
+      "femus_maximum_absolute_error": [
+        1.5139799136587584e-15,
+        5.523739018270524e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 2,
+      "mode": "physical",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        3.0531133177191805e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.819197984064829e-15,
+      "femus_maximum_absolute_error": [
+        1.487308540215615e-15,
+        5.534309989452257e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 3,
+      "mode": "physical",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        3.0531133177191805e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.809548584729708e-15,
+      "femus_maximum_absolute_error": [
+        1.4963074182472447e-15,
+        5.353925853004982e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 4,
+      "mode": "physical",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.800116025829084e-15,
+      "femus_maximum_absolute_error": [
+        1.4623718902484484e-15,
+        5.266783103391459e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 5,
+      "mode": "physical",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.5265566588595902e-16,
+        2.7755575615628914e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.858662943143301e-15,
+      "femus_maximum_absolute_error": [
+        1.356336917779366e-15,
+        5.457196109934226e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 6,
+      "mode": "physical",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        2.7755575615628914e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.8465198788114634e-15,
+      "femus_maximum_absolute_error": [
+        1.367341569830094e-15,
+        5.420197710798158e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 7,
+      "mode": "physical",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.523941984913016e-15,
+      "femus_maximum_absolute_error": [
+        6.949735925632083e-16,
+        8.431027143790404e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 8,
+      "mode": "physical",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.901258214729976e-15,
+      "femus_maximum_absolute_error": [
+        7.42570067935322e-16,
+        1.4100049253173985e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 9,
+      "mode": "physical",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.5265566588595902e-16,
+        2.7755575615628914e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.770396297570372e-15,
+      "femus_maximum_absolute_error": [
+        1.2503019453102837e-15,
+        5.339424648947988e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 10,
+      "mode": "physical",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.9949319973733282e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16,
+      "femus_maximum_absolute_error": [
+        5.3830637863905295e-17,
+        1.6696713456276768e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 11,
+      "mode": "physical",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.340089044043484e-15,
+      "femus_maximum_absolute_error": [
+        4.796510411075872e-16,
+        1.5449880957918438e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 12,
+      "mode": "physical",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.9381072148024785e-15,
+      "femus_maximum_absolute_error": [
+        8.817274167738365e-17,
+        1.7225262015363452e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 13,
+      "mode": "physical",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        5.204170427930421e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 3.9363044074258724e-15,
+      "femus_maximum_absolute_error": [
+        7.966175462337244e-17,
+        1.0972125985553305e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 14,
+      "mode": "physical",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.7755575615628914e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0,
+      "femus_maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.7755575615628914e-17
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 15,
+      "mode": "physical",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        2.886579864025407e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.921447805892541e-14,
+      "femus_maximum_absolute_error": [
+        3.515525544284248e-16,
+        2.886579864025407e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 16,
+      "mode": "physical",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14,
+      "femus_maximum_absolute_error": [
+        1.973247953923618e-16,
+        6.162605148407607e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 17,
+      "mode": "physical",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        2.7755575615628914e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16,
+      "femus_maximum_absolute_error": [
+        1.8526304622346057e-16,
+        4.0115480381963664e-17
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 18,
+      "mode": "physical",
+      "name": "tensor_lobes",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 7.983891325835657e-14,
+      "femus_maximum_absolute_error": [
+        9.23198149871407e-17,
+        2.824129818890242e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 19,
+      "mode": "physical",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.003450794678784e-14,
+      "femus_maximum_absolute_error": [
+        4.846383711010205e-16,
+        1.7124973314408543e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 20,
+      "mode": "physical",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.639932965095795e-14
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.6768053959226314e-14,
+      "femus_maximum_absolute_error": [
+        3.465110143263672e-16,
+        1.1280604542921596e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 21,
+      "mode": "physical",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.897409297017653e-15,
+      "femus_maximum_absolute_error": [
+        2.5505042956092128e-15,
+        3.155028321932818e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 5,
+      "field": 22,
+      "mode": "physical",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.0245710529988017e-17,
+        2.192690473634684e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16,
+      "femus_maximum_absolute_error": [
+        2.12137707573945e-16,
+        7.0011576017939975e-15
+      ]
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 0,
+      "mode": "physical",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 1,
+      "mode": "physical",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        3.3306690738754696e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.910799193847849e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 2,
+      "mode": "physical",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.652162765601432e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 3,
+      "mode": "physical",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.2400575198396915e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 4,
+      "mode": "physical",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.311614863223735e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 5,
+      "mode": "physical",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.647812083119485e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 6,
+      "mode": "physical",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 7,
+      "mode": "physical",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.782401266511857e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 8,
+      "mode": "physical",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.8116072837980344e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 9,
+      "mode": "physical",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.68074536663843e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 10,
+      "mode": "physical",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-17,
+        3.3306690738754696e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 11,
+      "mode": "physical",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.807162054890844e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 12,
+      "mode": "physical",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.185020385794047e-17,
+        2.7755575615628914e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.3255607349321785e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 13,
+      "mode": "physical",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.122502256758253e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.8382521947165635e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 14,
+      "mode": "physical",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 15,
+      "mode": "physical",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.6653345369377348e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.4607022189028207e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 16,
+      "mode": "physical",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 17,
+      "mode": "physical",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        8.881784197001252e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 19,
+      "mode": "physical",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.7755575615628914e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.208625213799941e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 20,
+      "mode": "physical",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        3.936850845320805e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.567954067923878e-14
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 21,
+      "mode": "physical",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.89762613745215e-15
+    },
+    {
+      "element": 1,
+      "degree": 5,
+      "field": 22,
+      "mode": "physical",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.008661028647275e-17,
+        4.801714581503802e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 0,
+      "mode": "raw",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.3592239273284576e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.846303038376966e-15,
+      "femus_maximum_absolute_error": [
+        1.369130503414695e-15,
+        1.8338195545419822e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 1,
+      "mode": "raw",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.0816681711721685e-16,
+        2.3592239273284576e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.82732950035847e-15,
+      "femus_maximum_absolute_error": [
+        1.5241714140801221e-15,
+        1.9369271811453537e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 2,
+      "mode": "raw",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.3592239273284576e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.819197984064829e-15,
+      "femus_maximum_absolute_error": [
+        1.4887722131484704e-15,
+        1.9369271811453537e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 3,
+      "mode": "raw",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.809548584729708e-15,
+      "femus_maximum_absolute_error": [
+        1.4963074182472447e-15,
+        1.8821749714348357e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 4,
+      "mode": "raw",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.800116025829084e-15,
+      "femus_maximum_absolute_error": [
+        1.4623718902484484e-15,
+        1.758142242902494e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 5,
+      "mode": "raw",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        2.498001805406602e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.858662943143301e-15,
+      "femus_maximum_absolute_error": [
+        1.356336917779366e-15,
+        1.8992511556514824e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 6,
+      "mode": "raw",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        2.3592239273284576e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.8465198788114634e-15,
+      "femus_maximum_absolute_error": [
+        1.367341569830094e-15,
+        1.9565512404673413e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 7,
+      "mode": "raw",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.523941984913016e-15,
+      "femus_maximum_absolute_error": [
+        6.949735925632083e-16,
+        4.500275854329735e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 8,
+      "mode": "raw",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.901258214729976e-15,
+      "femus_maximum_absolute_error": [
+        8.534839501805891e-16,
+        4.1861045879665326e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 9,
+      "mode": "raw",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.5265566588595902e-16,
+        3.885780586188048e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.770396297570372e-15,
+      "femus_maximum_absolute_error": [
+        1.2601681850799018e-15,
+        3.0594016903195964e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 10,
+      "mode": "raw",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.9949319973733282e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16,
+      "femus_maximum_absolute_error": [
+        5.3830637863905295e-17,
+        1.5803330866148713e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 11,
+      "mode": "raw",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.6653345369377348e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.340089044043484e-15,
+      "femus_maximum_absolute_error": [
+        4.796510411075872e-16,
+        4.941251401102686e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 12,
+      "mode": "raw",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        8.887747308949923e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.9381072148024785e-15,
+      "femus_maximum_absolute_error": [
+        1.255472234420324e-16,
+        1.8125691919612663e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 13,
+      "mode": "raw",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        4.24465150528075e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 3.9363044074258724e-15,
+      "femus_maximum_absolute_error": [
+        7.966175462337244e-17,
+        6.487229466651634e-17
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 14,
+      "mode": "raw",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0,
+      "femus_maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.440892098500626e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 15,
+      "mode": "raw",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.9698465908722937e-15,
+        5.329070518200751e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.921447805892541e-14,
+      "femus_maximum_absolute_error": [
+        9.40652449595708e-15,
+        2.5854318685958333e-14
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 16,
+      "mode": "raw",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.7763568394002505e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14,
+      "femus_maximum_absolute_error": [
+        1.973247953923618e-16,
+        3.6914915568786455e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 17,
+      "mode": "raw",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        6.201636426617085e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16,
+      "femus_maximum_absolute_error": [
+        1.8526304622346057e-16,
+        3.434345906619396e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 18,
+      "mode": "raw",
+      "name": "tensor_lobes",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        1.4210854715202004e-14
+      ],
+      "failures": [],
+      "reference_discrepancy": 7.983891325835657e-14,
+      "femus_maximum_absolute_error": [
+        1.316356962668963e-16,
+        1.2899403767363538e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 19,
+      "mode": "raw",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.191891195797325e-16,
+        3.3306690738754696e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.003450794678784e-14,
+      "femus_maximum_absolute_error": [
+        1.2317620881607816e-15,
+        3.4872278675823765e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 20,
+      "mode": "raw",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.199040866595169e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.6768053959226314e-14,
+      "femus_maximum_absolute_error": [
+        4.705437428587089e-16,
+        9.598556758444454e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 21,
+      "mode": "raw",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        5.464378949326942e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.897409297017653e-15,
+      "femus_maximum_absolute_error": [
+        2.5505042956092128e-15,
+        1.2420620087993939e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 22,
+      "mode": "raw",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.0245710529988017e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16,
+      "femus_maximum_absolute_error": [
+        2.12137707573945e-16,
+        1.5803330866148713e-15
+      ]
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 0,
+      "mode": "raw",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 1,
+      "mode": "raw",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.910799193847849e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 2,
+      "mode": "raw",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.652162765601432e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 3,
+      "mode": "raw",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.2400575198396915e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 4,
+      "mode": "raw",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.311614863223735e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 5,
+      "mode": "raw",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.647812083119485e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 6,
+      "mode": "raw",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 7,
+      "mode": "raw",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.782401266511857e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 8,
+      "mode": "raw",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.8116072837980344e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 9,
+      "mode": "raw",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.68074536663843e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 10,
+      "mode": "raw",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 11,
+      "mode": "raw",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.807162054890844e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 12,
+      "mode": "raw",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.185020385794047e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.3255607349321785e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 13,
+      "mode": "raw",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.122502256758253e-17,
+        6.662422349923425e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.8382521947165635e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 14,
+      "mode": "raw",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 15,
+      "mode": "raw",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.621304917306509e-15,
+        1.3322676295501878e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.4607022189028207e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 16,
+      "mode": "raw",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.7763568394002505e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 17,
+      "mode": "raw",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        1.6653345369377348e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 19,
+      "mode": "raw",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.208625213799941e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 20,
+      "mode": "raw",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        8.379963389870682e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.567954067923878e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 21,
+      "mode": "raw",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        5.464378949326942e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.89762613745215e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 22,
+      "mode": "raw",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.008661028647275e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 0,
+      "mode": "surface",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.3592239273284576e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.846303038376966e-15,
+      "femus_maximum_absolute_error": [
+        1.369130503414695e-15,
+        9.684635905726768e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 1,
+      "mode": "surface",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.0816681711721685e-16,
+        2.498001805406602e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.82732950035847e-15,
+      "femus_maximum_absolute_error": [
+        1.5241714140801221e-15,
+        9.693309523106652e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 2,
+      "mode": "surface",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        2.498001805406602e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.819197984064829e-15,
+      "femus_maximum_absolute_error": [
+        1.4887722131484704e-15,
+        9.862987163100634e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 3,
+      "mode": "surface",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        2.498001805406602e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.809548584729708e-15,
+      "femus_maximum_absolute_error": [
+        1.4963074182472447e-15,
+        9.764324765404453e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 4,
+      "mode": "surface",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        2.3592239273284576e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.800116025829084e-15,
+      "femus_maximum_absolute_error": [
+        1.4623718902484484e-15,
+        9.566457868925848e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 5,
+      "mode": "surface",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        2.3592239273284576e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.858662943143301e-15,
+      "femus_maximum_absolute_error": [
+        1.356336917779366e-15,
+        9.446111427779957e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 6,
+      "mode": "surface",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        2.3592239273284576e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.8465198788114634e-15,
+      "femus_maximum_absolute_error": [
+        1.367341569830094e-15,
+        9.47023492611776e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 7,
+      "mode": "surface",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.523941984913016e-15,
+      "femus_maximum_absolute_error": [
+        6.949735925632083e-16,
+        2.261035868082739e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 8,
+      "mode": "surface",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.901258214729976e-15,
+      "femus_maximum_absolute_error": [
+        8.534839501805891e-16,
+        2.727852665973529e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 9,
+      "mode": "surface",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.5265566588595902e-16,
+        2.3592239273284576e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.770396297570372e-15,
+      "femus_maximum_absolute_error": [
+        1.2601681850799018e-15,
+        9.684635905726768e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 10,
+      "mode": "surface",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.9949319973733282e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16,
+      "femus_maximum_absolute_error": [
+        5.3830637863905295e-17,
+        3.3133218391157016e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 11,
+      "mode": "surface",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.340089044043484e-15,
+      "femus_maximum_absolute_error": [
+        4.796510411075872e-16,
+        4.0484109120608736e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 12,
+      "mode": "surface",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        8.887747308949923e-17,
+        1.2326955184686558e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.9381072148024785e-15,
+      "femus_maximum_absolute_error": [
+        1.255472234420324e-16,
+        1.4528715687120441e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 13,
+      "mode": "surface",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 3.9363044074258724e-15,
+      "femus_maximum_absolute_error": [
+        7.966175462337244e-17,
+        3.5822039778921066e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 14,
+      "mode": "surface",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0,
+      "femus_maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 15,
+      "mode": "surface",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.9698465908722937e-15,
+        3.1086244689504383e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.921447805892541e-14,
+      "femus_maximum_absolute_error": [
+        9.40652449595708e-15,
+        1.077431160511743e-14
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 16,
+      "mode": "surface",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        3.5210549753639242e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14,
+      "femus_maximum_absolute_error": [
+        1.973247953923618e-16,
+        9.063930161978817e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 17,
+      "mode": "surface",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16,
+      "femus_maximum_absolute_error": [
+        1.8526304622346057e-16,
+        3.69712940817557e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 18,
+      "mode": "surface",
+      "name": "tensor_lobes",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        1.7763568394002505e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 7.983891325835657e-14,
+      "femus_maximum_absolute_error": [
+        1.316356962668963e-16,
+        5.597193715456417e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 19,
+      "mode": "surface",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.191891195797325e-16,
+        3.4976362084382373e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.003450794678784e-14,
+      "femus_maximum_absolute_error": [
+        1.2317620881607816e-15,
+        5.381437483131801e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 20,
+      "mode": "surface",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.639932965095795e-14
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.6768053959226314e-14,
+      "femus_maximum_absolute_error": [
+        4.705437428587089e-16,
+        2.2556609358126423e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 21,
+      "mode": "surface",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        5.290906601729262e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.897409297017653e-15,
+      "femus_maximum_absolute_error": [
+        2.5505042956092128e-15,
+        3.4301446232010147e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 22,
+      "mode": "surface",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.0245710529988017e-17,
+        2.123301534595612e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16,
+      "femus_maximum_absolute_error": [
+        2.12137707573945e-16,
+        1.3587817936783209e-14
+      ]
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 0,
+      "mode": "surface",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 1,
+      "mode": "surface",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.3877787807814457e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.910799193847849e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 2,
+      "mode": "surface",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.652162765601432e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 3,
+      "mode": "surface",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.2400575198396915e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 4,
+      "mode": "surface",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.311614863223735e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 5,
+      "mode": "surface",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.647812083119485e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 6,
+      "mode": "surface",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 7,
+      "mode": "surface",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.782401266511857e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 8,
+      "mode": "surface",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.8116072837980344e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 9,
+      "mode": "surface",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.68074536663843e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 10,
+      "mode": "surface",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-17,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 11,
+      "mode": "surface",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.3877787807814457e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.807162054890844e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 12,
+      "mode": "surface",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.185020385794047e-17,
+        1.6653345369377348e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.3255607349321785e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 13,
+      "mode": "surface",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.122502256758253e-17,
+        6.722053469410127e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.8382521947165635e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 14,
+      "mode": "surface",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.3877787807814457e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 15,
+      "mode": "surface",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.621304917306509e-15,
+        1.6653345369377348e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.4607022189028207e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 16,
+      "mode": "surface",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        3.5210549753639242e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 17,
+      "mode": "surface",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        6.661338147750939e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 19,
+      "mode": "surface",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.208625213799941e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 20,
+      "mode": "surface",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        3.936850845320805e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.567954067923878e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 21,
+      "mode": "surface",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        3.864096542738338e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.89762613745215e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 22,
+      "mode": "surface",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.008661028647275e-17,
+        4.6629367034256575e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 0,
+      "mode": "physical",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        3.0531133177191805e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.846303038376966e-15,
+      "femus_maximum_absolute_error": [
+        1.369130503414695e-15,
+        5.406645183642089e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 1,
+      "mode": "physical",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.0816681711721685e-16,
+        3.0531133177191805e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.82732950035847e-15,
+      "femus_maximum_absolute_error": [
+        1.5241714140801221e-15,
+        5.523739018270524e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 2,
+      "mode": "physical",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        3.0531133177191805e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.819197984064829e-15,
+      "femus_maximum_absolute_error": [
+        1.4887722131484704e-15,
+        5.534309989452257e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 3,
+      "mode": "physical",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        3.0531133177191805e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.809548584729708e-15,
+      "femus_maximum_absolute_error": [
+        1.4963074182472447e-15,
+        5.353925853004982e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 4,
+      "mode": "physical",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.942890293094024e-16,
+        4.440892098500626e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.800116025829084e-15,
+      "femus_maximum_absolute_error": [
+        1.4623718902484484e-15,
+        5.358398186966484e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 5,
+      "mode": "physical",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        3.0531133177191805e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.858662943143301e-15,
+      "femus_maximum_absolute_error": [
+        1.356336917779366e-15,
+        5.457196109934226e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 6,
+      "mode": "physical",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        3.0531133177191805e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.8465198788114634e-15,
+      "femus_maximum_absolute_error": [
+        1.367341569830094e-15,
+        5.420197710798158e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 7,
+      "mode": "physical",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.220446049250313e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.523941984913016e-15,
+      "femus_maximum_absolute_error": [
+        6.949735925632083e-16,
+        1.1230233865240635e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 8,
+      "mode": "physical",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.6653345369377348e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.901258214729976e-15,
+      "femus_maximum_absolute_error": [
+        8.534839501805891e-16,
+        1.4100049253173985e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 9,
+      "mode": "physical",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.5265566588595902e-16,
+        3.0531133177191805e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.770396297570372e-15,
+      "femus_maximum_absolute_error": [
+        1.2601681850799018e-15,
+        5.406916234185211e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 10,
+      "mode": "physical",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.9949319973733282e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16,
+      "femus_maximum_absolute_error": [
+        5.3830637863905295e-17,
+        1.6696713456276768e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 11,
+      "mode": "physical",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.340089044043484e-15,
+      "femus_maximum_absolute_error": [
+        4.796510411075872e-16,
+        1.5449880957918438e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 12,
+      "mode": "physical",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        8.887747308949923e-17,
+        1.2295869075522325e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.9381072148024785e-15,
+      "femus_maximum_absolute_error": [
+        1.255472234420324e-16,
+        7.42183820911374e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 13,
+      "mode": "physical",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        5.204170427930421e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 3.9363044074258724e-15,
+      "femus_maximum_absolute_error": [
+        7.966175462337244e-17,
+        1.0972125985553305e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 14,
+      "mode": "physical",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.7755575615628914e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0,
+      "femus_maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.7755575615628914e-17
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 15,
+      "mode": "physical",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.9698465908722937e-15,
+        2.886579864025407e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.921447805892541e-14,
+      "femus_maximum_absolute_error": [
+        9.40652449595708e-15,
+        2.3678137159751343e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 16,
+      "mode": "physical",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.3532608153797874e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14,
+      "femus_maximum_absolute_error": [
+        1.973247953923618e-16,
+        6.162605148407607e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 17,
+      "mode": "physical",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        4.358492733391728e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16,
+      "femus_maximum_absolute_error": [
+        1.8526304622346057e-16,
+        1.455981873694362e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 18,
+      "mode": "physical",
+      "name": "tensor_lobes",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.163336342344337e-17,
+        2.220446049250313e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 7.983891325835657e-14,
+      "femus_maximum_absolute_error": [
+        1.316356962668963e-16,
+        2.824129818890242e-15
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 19,
+      "mode": "physical",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.191891195797325e-16,
+        6.227657278756737e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.003450794678784e-14,
+      "femus_maximum_absolute_error": [
+        1.2317620881607816e-15,
+        5.649231184570985e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 20,
+      "mode": "physical",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        5.639932965095795e-14
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.6768053959226314e-14,
+      "femus_maximum_absolute_error": [
+        4.705437428587089e-16,
+        1.1280604542921596e-13
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 21,
+      "mode": "physical",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        4.0635897424756706e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.897409297017653e-15,
+      "femus_maximum_absolute_error": [
+        2.5505042956092128e-15,
+        3.155028321932818e-16
+      ]
+    },
+    {
+      "element": 0,
+      "degree": 10,
+      "field": 22,
+      "mode": "physical",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.0245710529988017e-17,
+        2.192690473634684e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16,
+      "femus_maximum_absolute_error": [
+        2.12137707573945e-16,
+        7.0011576017939975e-15
+      ]
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 0,
+      "mode": "physical",
+      "name": "axis_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 1,
+      "mode": "physical",
+      "name": "tilted_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        3.3306690738754696e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.910799193847849e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 2,
+      "mode": "physical",
+      "name": "curved_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.652162765601432e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 3,
+      "mode": "physical",
+      "name": "quadratic_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.2400575198396915e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 4,
+      "mode": "physical",
+      "name": "rational_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.311614863223735e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 5,
+      "mode": "physical",
+      "name": "enriched_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.647812083119485e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 6,
+      "mode": "physical",
+      "name": "near_plane_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.645914729317635e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 7,
+      "mode": "physical",
+      "name": "swapped_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        5.551115123125783e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.782401266511857e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 8,
+      "mode": "physical",
+      "name": "diagonal_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.1102230246251565e-16,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.8116072837980344e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 9,
+      "mode": "physical",
+      "name": "weak_graph",
+      "stats": {
+        "attempts": 0,
+        "completed": 0,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.68074536663843e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 10,
+      "mode": "physical",
+      "name": "circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        6.938893903907228e-17,
+        3.3306690738754696e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.701439433076049e-16
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 11,
+      "mode": "physical",
+      "name": "clipped_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 2.807162054890844e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 12,
+      "mode": "physical",
+      "name": "edge_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        4.185020385794047e-17,
+        2.7755575615628914e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 6.3255607349321785e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 13,
+      "mode": "physical",
+      "name": "rotated_ellipse",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.122502256758253e-17,
+        1.1102230246251565e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 4.8382521947165635e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 14,
+      "mode": "physical",
+      "name": "two_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        2.220446049250313e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 0.0
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 15,
+      "mode": "physical",
+      "name": "hyperbola",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.621304917306509e-15,
+        1.6653345369377348e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.4607022189028207e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 16,
+      "mode": "physical",
+      "name": "bubble",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.3532608153797874e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.837419105754634e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 17,
+      "mode": "physical",
+      "name": "perturbed_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        1.3877787807814457e-16,
+        8.881784197001252e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 8.287031542757173e-16
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 19,
+      "mode": "physical",
+      "name": "hyperbolic_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        2.7755575615628914e-17
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.208625213799941e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 20,
+      "mode": "physical",
+      "name": "near_parallel_sheets",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        2.7755575615628914e-17,
+        3.936850845320805e-13
+      ],
+      "failures": [],
+      "reference_discrepancy": 9.567954067923878e-14
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 21,
+      "mode": "physical",
+      "name": "corner_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        5.551115123125783e-17,
+        4.0635897424756706e-16
+      ],
+      "failures": [],
+      "reference_discrepancy": 5.89762613745215e-15
+    },
+    {
+      "element": 1,
+      "degree": 10,
+      "field": 22,
+      "mode": "physical",
+      "name": "tiny_circle",
+      "stats": {
+        "attempts": 1,
+        "completed": 1,
+        "rejected": 0
+      },
+      "maximum_absolute_error": [
+        3.008661028647275e-17,
+        4.801714581503802e-15
+      ],
+      "failures": [],
+      "reference_discrepancy": 1.929879867024198e-16
+    }
+  ],
+  "source_changed": false,
+  "source_sha256": {
+    "src/quadrature/cutfem_ls/CutFemWeight_LS.hpp": "7771315f9c8b4497b0d996918e5a9225973d6455154dd838c1a9c6204e5ffc7d",
+    "src/quadrature/cutfem_ls/EndpointProjection.hpp": "4b75496d458d5502c445e02df8922b3553a76cc9e734d32bd38b99f3cb121bf3",
+    "src/quadrature/cutfem_ls/EndpointSimplexChart.hpp": "71220b5df5d70e871d3aaddacfc8dfa93b1c87b99aa428986019c453d427ff8a",
+    "src/quadrature/cutfem_ls/EndpointStripQuadrature.hpp": "bb5f086fc04fae66f6f45fccc07e6c555c48f0f9ed8d1f324053d0fc7fb6f48f",
+    "src/quadrature/cutfem_ls/FELevelSetMoments.hpp": "75638c13646857ae8c2cb59eb335824e9fe7ebe96514f287eb38c38c6a3d949a",
+    "src/quadrature/cutfem_ls/Hex27DirectionSelection.hpp": "cf5718773c0a2ae2cc1771b796e51afec059c8812b63cbc6d6fde1d9ce4c8352",
+    "src/quadrature/cutfem_ls/Hex27LevelSetMoments.hpp": "0055846205a670c85832620581738a7492c049583030a35570a5e780c209f314",
+    "src/quadrature/cutfem_ls/LineDomainIntegration.hpp": "11c198aa3b2434994e0945d8e4e21384b3b0ab24c6978fb87a3948178d88e5c9",
+    "src/quadrature/cutfem_ls/LineIntegration.hpp": "877452cf6e15ec3b4f429cd9a6a1e7960a7d70e2a45e1c3053a0f9d8b4b6d741",
+    "src/quadrature/cutfem_ls/LineSliceUtilities.hpp": "4895402b52de49019402b85f65f7bc55bf1dbcc46e046816967b564affbb17b6",
+    "src/quadrature/cutfem_ls/PlanarEndpointIntegration.hpp": "61f2d44d52bb05c9e99084876435e6273340a558cc6c4974d63249644591bb47",
+    "src/quadrature/cutfem_ls/Quad9DirectionSelection.hpp": "e91544ff5cb8c97dd9d427aba8312c9f925e6c4037137dfc33d4a09a1aa8616d",
+    "src/quadrature/cutfem_ls/ReferenceElementLS.hpp": "107c527ba19b34f992d1f2d1b5f9bf8a04096aec5b58ae08ab426f858d59669d",
+    "src/quadrature/cutfem_ls/ReferenceSurfaceMoments.hpp": "7704f3c72c19e75fec5da70a96dae9f1caf71d3f5501e16d63a19b165cb561fe",
+    "src/quadrature/cutfem_ls/SurfaceEndpointIntegration.hpp": "9f0056c29d031a57f2f8fbc8eb4dafc36d648060d5472138f470737bfbd670e3",
+    "src/quadrature/cutfem_ls/Tet15LevelSet.hpp": "8f0c04d490554627efde7be9ad31d4ac21362080815e69e2b9bf565222db8379",
+    "src/quadrature/cutfem_ls/Tet15LevelSetMoments.hpp": "1d5c9002f5df76ddb11707ce4e4ae5f94f43f5550bb707824e1a2548529d70d3",
+    "src/quadrature/cutfem_ls/Tri7DirectionSelection.hpp": "aa7cb65385333637e6eb7d1d40bf60ab9c4c2dac40552a1ea5b6cb92297fa103",
+    "src/quadrature/cutfem_ls/TriangleIntegration.hpp": "6730f6c509a85f933beee603f40878f90172096bbbcfc3f738e518e20f7586e2",
+    "src/quadrature/cutfem_ls/UnitElementMoments.hpp": "da96a33fdbc1f028e6d01bc4f70de5e83b57b73c2caf14df4b41126e952f3ca2",
+    "src/quadrature/cutfem_ls/gram_smithLS.hpp": "3055d2b6b8a1bbd05328fcb75b2da51834455ed7569972689d4a086197a68020"
+  },
+  "reference": "Independent polynomial restrictions, 80-digit topology, successively doubled Gauss rules, analytical cases, and independent FEMuS coordinate conversion; discrepancy is retained in each record. Timings against accepted and rifat are in run_endpoint_only_comparison.py."
+}

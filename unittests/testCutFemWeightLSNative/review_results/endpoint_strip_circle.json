@@ -1,0 +1,1699 @@
+{
+  "circle": {
+    "center": [
+      0.29,
+      0.23
+    ],
+    "radius": 0.15
+  },
+  "requested_reference_absolute_tolerance": 1e-10,
+  "requested_reference_relative_tolerance": 1e-10,
+  "mapped_and_switched_unit_absolute_tolerance": 1e-12,
+  "mapped_and_switched_unit_relative_tolerance": 1e-12,
+  "timing": "Median of nine batches after two warm-up batches; 16 calls per batch; nodal constants alternate by 2.910383045673370361328125e-11 to force geometry rebuilds.",
+  "reference": "80-digit analytic disk and circle moments from beta functions; QUAD moments transformed to [-1,1]^2 with volume factor four and surface factor two.",
+  "cases": [
+    {
+      "method": "baseline",
+      "element": "QUAD",
+      "degree": 2,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.004050453,
+      "cold_seconds": 0.05627826,
+      "strip_samples": 0,
+      "bulk_samples": 0,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 1.0,
+      "rule15_calls": 0,
+      "rule31_calls": 0,
+      "geometry_builds": 0,
+      "rejected": 0,
+      "baseline_samples": 252,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "baseline",
+        "0.04393398282201787134",
+        "2",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/baseline_0_q2_0.04393398282201787134.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        1.03251687480759e-17,
+        6.764836250590058e-17
+      ],
+      "reference_max_error": [
+        1.6434364022079592e-16,
+        4.903220034884034e-16
+      ],
+      "max_tolerance_ratio": [
+        1.5559343127609132e-06,
+        3.4348110701714266e-06
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 2,
+      "delta": 0.015,
+      "median_seconds": 0.0048521600625,
+      "cold_seconds": 0.004971188,
+      "strip_samples": 30,
+      "bulk_samples": 260,
+      "strip_bisections": 0,
+      "bulk_bisections": 3,
+      "strip_depth": 0,
+      "bulk_depth": 2,
+      "minimum_bulk_width": 0.0675,
+      "rule15_calls": 9,
+      "rule31_calls": 5,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.015",
+        "2",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q2_0.015.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.1076094761237887e-18,
+        1.451279301498385e-17
+      ],
+      "reference_max_error": [
+        1.2903487919887965e-17,
+        7.493258613258643e-17
+      ],
+      "max_tolerance_ratio": [
+        1.1533821245933192e-07,
+        4.2842113824773667e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 2,
+      "delta": 0.03,
+      "median_seconds": 0.0031359150625,
+      "cold_seconds": 0.002319439,
+      "strip_samples": 30,
+      "bulk_samples": 138,
+      "strip_bisections": 0,
+      "bulk_bisections": 1,
+      "strip_depth": 0,
+      "bulk_depth": 1,
+      "minimum_bulk_width": 0.12,
+      "rule15_calls": 5,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.03",
+        "2",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q2_0.03.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.1212094761237888e-18,
+        1.440479301498385e-17
+      ],
+      "reference_max_error": [
+        1.2931487919887965e-17,
+        7.482458613258644e-17
+      ],
+      "max_tolerance_ratio": [
+        1.1558849129625661e-07,
+        4.2879931433559453e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 2,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.0019317945,
+      "cold_seconds": 0.001807323,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.21213203435596426,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.04393398282201787134",
+        "2",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q2_0.04393398282201787134.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.1280094761237886e-18,
+        1.435079301498385e-17
+      ],
+      "reference_max_error": [
+        1.2998687919887965e-17,
+        7.482458613258644e-17
+      ],
+      "max_tolerance_ratio": [
+        1.1618916050487586e-07,
+        4.2879931433559453e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 2,
+      "delta": 0.05,
+      "median_seconds": 0.0017637896875,
+      "cold_seconds": 0.001522007,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.19999999999999998,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.05",
+        "2",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q2_0.05.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.1212094761237888e-18,
+        1.445879301498385e-17
+      ],
+      "reference_max_error": [
+        1.2985087919887966e-17,
+        7.504058613258644e-17
+      ],
+      "max_tolerance_ratio": [
+        1.1606759649836959e-07,
+        4.310853041204071e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 2,
+      "delta": 0.075,
+      "median_seconds": 0.0034429705,
+      "cold_seconds": 0.004050764,
+      "strip_samples": 92,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.15,
+      "rule15_calls": 3,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.075",
+        "2",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q2_0.075.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.1280094761237886e-18,
+        1.440479301498385e-17
+      ],
+      "reference_max_error": [
+        1.2985087919887966e-17,
+        7.471658613258643e-17
+      ],
+      "max_tolerance_ratio": [
+        1.1606759649836959e-07,
+        4.2574568353662276e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "switched",
+      "element": "QUAD",
+      "degree": 2,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.003063163625,
+      "cold_seconds": 0.00312012,
+      "strip_samples": 0,
+      "bulk_samples": 0,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 1.0,
+      "rule15_calls": 0,
+      "rule31_calls": 0,
+      "geometry_builds": 0,
+      "rejected": 0,
+      "baseline_samples": 231,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "switched",
+        "0.04393398282201787134",
+        "2",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/switched_0_q2_0.04393398282201787134.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.1076094761237887e-18,
+        2.1227179301498385e-16
+      ],
+      "reference_max_error": [
+        1.2957887919887965e-17,
+        4.245435860299677e-16
+      ],
+      "max_tolerance_ratio": [
+        1.2099663156385304e-07,
+        1.4715775424224404e-06
+      ],
+      "passed": true
+    },
+    {
+      "method": "baseline",
+      "element": "TRI",
+      "degree": 2,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.002714626,
+      "cold_seconds": 0.002321738,
+      "strip_samples": 0,
+      "bulk_samples": 0,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 1.0,
+      "rule15_calls": 0,
+      "rule31_calls": 0,
+      "geometry_builds": 0,
+      "rejected": 0,
+      "baseline_samples": 126,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "baseline",
+        "0.04393398282201787134",
+        "2",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/baseline_1_q2_0.04393398282201787134.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.773550947612379e-17,
+        1.4776179301498386e-16
+      ],
+      "reference_max_error": [
+        2.773550947612379e-17,
+        1.4776179301498386e-16
+      ],
+      "max_tolerance_ratio": [
+        2.590443300648097e-07,
+        7.606871662235015e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 2,
+      "delta": 0.015,
+      "median_seconds": 0.00408124875,
+      "cold_seconds": 0.003534482,
+      "strip_samples": 30,
+      "bulk_samples": 260,
+      "strip_bisections": 0,
+      "bulk_bisections": 3,
+      "strip_depth": 0,
+      "bulk_depth": 2,
+      "minimum_bulk_width": 0.06749999999999999,
+      "rule15_calls": 9,
+      "rule31_calls": 5,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.015",
+        "2",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q2_0.015.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.320210947612379e-17,
+        1.5448379301498386e-16
+      ],
+      "reference_max_error": [
+        2.320210947612379e-17,
+        1.5448379301498386e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1670324500463612e-07,
+        7.952924523872654e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 2,
+      "delta": 0.03,
+      "median_seconds": 0.0027400991875,
+      "cold_seconds": 0.00642544,
+      "strip_samples": 30,
+      "bulk_samples": 138,
+      "strip_bisections": 0,
+      "bulk_bisections": 1,
+      "strip_depth": 0,
+      "bulk_depth": 1,
+      "minimum_bulk_width": 0.11999999999999998,
+      "rule15_calls": 5,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.03",
+        "2",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q2_0.03.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "reference_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1664066829181503e-07,
+        7.958484432985547e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 2,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.001603953625,
+      "cold_seconds": 0.001830185,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.21213203435596423,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.04393398282201787134",
+        "2",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q2_0.04393398282201787134.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "reference_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1664066829181503e-07,
+        7.958484432985547e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 2,
+      "delta": 0.05,
+      "median_seconds": 0.0016160184375,
+      "cold_seconds": 0.001750105,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.19999999999999996,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.05",
+        "2",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q2_0.05.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.3208909476123788e-17,
+        1.5459179301498384e-16
+      ],
+      "reference_max_error": [
+        2.3208909476123788e-17,
+        1.5459179301498384e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1676675569824558e-07,
+        7.958484432985547e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 2,
+      "delta": 0.075,
+      "median_seconds": 0.0023828165,
+      "cold_seconds": 0.002021908,
+      "strip_samples": 92,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.14999999999999997,
+      "rule15_calls": 3,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.075",
+        "2",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q2_0.075.csv",
+      "moment_count": 12,
+      "unit_max_error": [
+        2.3208909476123788e-17,
+        1.5464679301498385e-16
+      ],
+      "reference_max_error": [
+        2.3208909476123788e-17,
+        1.5464679301498385e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1676675569824558e-07,
+        7.961315868181928e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "baseline",
+      "element": "QUAD",
+      "degree": 5,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.00386080625,
+      "cold_seconds": 0.004033921,
+      "strip_samples": 0,
+      "bulk_samples": 0,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 1.0,
+      "rule15_calls": 0,
+      "rule31_calls": 0,
+      "geometry_builds": 0,
+      "rejected": 0,
+      "baseline_samples": 252,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "baseline",
+        "0.04393398282201787134",
+        "5",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/baseline_0_q5_0.04393398282201787134.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        1.03251687480759e-17,
+        6.764836250590058e-17
+      ],
+      "reference_max_error": [
+        4.321700499070176e-16,
+        7.933704639323548e-15
+      ],
+      "max_tolerance_ratio": [
+        4.283111100911201e-06,
+        7.324020879910874e-05
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 5,
+      "delta": 0.015,
+      "median_seconds": 0.0048946115,
+      "cold_seconds": 0.003818263,
+      "strip_samples": 30,
+      "bulk_samples": 260,
+      "strip_bisections": 0,
+      "bulk_bisections": 3,
+      "strip_depth": 0,
+      "bulk_depth": 2,
+      "minimum_bulk_width": 0.0675,
+      "rule15_calls": 9,
+      "rule31_calls": 5,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.015",
+        "5",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q5_0.015.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.7622120580439507e-18,
+        1.451279301498385e-17
+      ],
+      "reference_max_error": [
+        3.518725235570554e-16,
+        7.493258613258643e-17
+      ],
+      "max_tolerance_ratio": [
+        3.437017158483024e-06,
+        4.2842113824773667e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 5,
+      "delta": 0.03,
+      "median_seconds": 0.0031682145625,
+      "cold_seconds": 0.002724687,
+      "strip_samples": 30,
+      "bulk_samples": 138,
+      "strip_bisections": 0,
+      "bulk_bisections": 1,
+      "strip_depth": 0,
+      "bulk_depth": 1,
+      "minimum_bulk_width": 0.12,
+      "rule15_calls": 5,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.03",
+        "5",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q5_0.03.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.1212094761237888e-18,
+        1.440479301498385e-17
+      ],
+      "reference_max_error": [
+        1.2931487919887965e-17,
+        7.482458613258644e-17
+      ],
+      "max_tolerance_ratio": [
+        1.1558849129625661e-07,
+        4.2879931433559453e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 5,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.0019175091875,
+      "cold_seconds": 0.001503561,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.21213203435596426,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.04393398282201787134",
+        "5",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q5_0.04393398282201787134.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.1280094761237886e-18,
+        1.435079301498385e-17
+      ],
+      "reference_max_error": [
+        1.2998687919887965e-17,
+        7.482458613258644e-17
+      ],
+      "max_tolerance_ratio": [
+        1.1618916050487586e-07,
+        4.2879931433559453e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 5,
+      "delta": 0.05,
+      "median_seconds": 0.0018658171875,
+      "cold_seconds": 0.001631349,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.19999999999999998,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.05",
+        "5",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q5_0.05.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.1212094761237888e-18,
+        1.445879301498385e-17
+      ],
+      "reference_max_error": [
+        1.2985087919887966e-17,
+        7.504058613258644e-17
+      ],
+      "max_tolerance_ratio": [
+        1.1606759649836959e-07,
+        4.310853041204071e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 5,
+      "delta": 0.075,
+      "median_seconds": 0.00275206975,
+      "cold_seconds": 0.002133882,
+      "strip_samples": 92,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.15,
+      "rule15_calls": 3,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.075",
+        "5",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q5_0.075.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.1280094761237886e-18,
+        1.440479301498385e-17
+      ],
+      "reference_max_error": [
+        1.2985087919887966e-17,
+        7.471658613258643e-17
+      ],
+      "max_tolerance_ratio": [
+        1.1606759649836959e-07,
+        4.2574568353662276e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "switched",
+      "element": "QUAD",
+      "degree": 5,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.0028477958125,
+      "cold_seconds": 0.003372839,
+      "strip_samples": 0,
+      "bulk_samples": 0,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 1.0,
+      "rule15_calls": 0,
+      "rule31_calls": 0,
+      "geometry_builds": 0,
+      "rejected": 0,
+      "baseline_samples": 231,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "switched",
+        "0.04393398282201787134",
+        "5",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/switched_0_q5_0.04393398282201787134.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.1076094761237887e-18,
+        2.1227179301498385e-16
+      ],
+      "reference_max_error": [
+        2.0727790092982422e-17,
+        4.245435860299677e-16
+      ],
+      "max_tolerance_ratio": [
+        2.0542707173648742e-07,
+        1.4715775424224404e-06
+      ],
+      "passed": true
+    },
+    {
+      "method": "baseline",
+      "element": "TRI",
+      "degree": 5,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.0026872236875,
+      "cold_seconds": 0.002438695,
+      "strip_samples": 0,
+      "bulk_samples": 0,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 1.0,
+      "rule15_calls": 0,
+      "rule31_calls": 0,
+      "geometry_builds": 0,
+      "rejected": 0,
+      "baseline_samples": 126,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "baseline",
+        "0.04393398282201787134",
+        "5",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/baseline_1_q5_0.04393398282201787134.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.773550947612379e-17,
+        1.4776179301498386e-16
+      ],
+      "reference_max_error": [
+        2.773550947612379e-17,
+        1.4776179301498386e-16
+      ],
+      "max_tolerance_ratio": [
+        2.590443300648097e-07,
+        7.606871662235015e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 5,
+      "delta": 0.015,
+      "median_seconds": 0.0042700276875,
+      "cold_seconds": 0.003120878,
+      "strip_samples": 30,
+      "bulk_samples": 260,
+      "strip_bisections": 0,
+      "bulk_bisections": 3,
+      "strip_depth": 0,
+      "bulk_depth": 2,
+      "minimum_bulk_width": 0.06749999999999999,
+      "rule15_calls": 9,
+      "rule31_calls": 5,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.015",
+        "5",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q5_0.015.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.320210947612379e-17,
+        1.5448379301498386e-16
+      ],
+      "reference_max_error": [
+        2.320210947612379e-17,
+        1.5448379301498386e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1670324500463612e-07,
+        7.952924523872654e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 5,
+      "delta": 0.03,
+      "median_seconds": 0.0028041225,
+      "cold_seconds": 0.002785381,
+      "strip_samples": 30,
+      "bulk_samples": 138,
+      "strip_bisections": 0,
+      "bulk_bisections": 1,
+      "strip_depth": 0,
+      "bulk_depth": 1,
+      "minimum_bulk_width": 0.11999999999999998,
+      "rule15_calls": 5,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.03",
+        "5",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q5_0.03.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "reference_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1664066829181503e-07,
+        7.958484432985547e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 5,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.0015714265625,
+      "cold_seconds": 0.001467649,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.21213203435596423,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.04393398282201787134",
+        "5",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q5_0.04393398282201787134.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "reference_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1664066829181503e-07,
+        7.958484432985547e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 5,
+      "delta": 0.05,
+      "median_seconds": 0.00165918025,
+      "cold_seconds": 0.001256098,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.19999999999999996,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.05",
+        "5",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q5_0.05.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.3208909476123788e-17,
+        1.5459179301498384e-16
+      ],
+      "reference_max_error": [
+        2.3208909476123788e-17,
+        1.5459179301498384e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1676675569824558e-07,
+        7.958484432985547e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 5,
+      "delta": 0.075,
+      "median_seconds": 0.0025177245,
+      "cold_seconds": 0.002368805,
+      "strip_samples": 92,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.14999999999999997,
+      "rule15_calls": 3,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.075",
+        "5",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q5_0.075.csv",
+      "moment_count": 42,
+      "unit_max_error": [
+        2.3208909476123788e-17,
+        1.5464679301498385e-16
+      ],
+      "reference_max_error": [
+        2.3208909476123788e-17,
+        1.5464679301498385e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1676675569824558e-07,
+        7.961315868181928e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "baseline",
+      "element": "QUAD",
+      "degree": 10,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.004368292375,
+      "cold_seconds": 0.00409889,
+      "strip_samples": 0,
+      "bulk_samples": 0,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 1.0,
+      "rule15_calls": 0,
+      "rule31_calls": 0,
+      "geometry_builds": 0,
+      "rejected": 0,
+      "baseline_samples": 252,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "baseline",
+        "0.04393398282201787134",
+        "10",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/baseline_0_q10_0.04393398282201787134.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        1.03251687480759e-17,
+        6.764836250590058e-17
+      ],
+      "reference_max_error": [
+        3.232278624826024e-14,
+        1.3898256300226703e-13
+      ],
+      "max_tolerance_ratio": [
+        0.0003230070471024083,
+        0.0013771757520926802
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 10,
+      "delta": 0.015,
+      "median_seconds": 0.0053384919375,
+      "cold_seconds": 0.00427988,
+      "strip_samples": 30,
+      "bulk_samples": 260,
+      "strip_bisections": 0,
+      "bulk_bisections": 3,
+      "strip_depth": 0,
+      "bulk_depth": 2,
+      "minimum_bulk_width": 0.0675,
+      "rule15_calls": 9,
+      "rule31_calls": 5,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.015",
+        "10",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q10_0.015.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        2.990447976813453e-18,
+        1.451279301498385e-17
+      ],
+      "reference_max_error": [
+        8.88413373019829e-14,
+        5.3901772137957073e-14
+      ],
+      "max_tolerance_ratio": [
+        0.0008844708345684409,
+        0.0005199711247004565
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 10,
+      "delta": 0.03,
+      "median_seconds": 0.00333555175,
+      "cold_seconds": 0.003226322,
+      "strip_samples": 30,
+      "bulk_samples": 138,
+      "strip_bisections": 0,
+      "bulk_bisections": 1,
+      "strip_depth": 0,
+      "bulk_depth": 1,
+      "minimum_bulk_width": 0.12,
+      "rule15_calls": 5,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.03",
+        "10",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q10_0.03.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        6.032415013911794e-18,
+        1.440479301498385e-17
+      ],
+      "reference_max_error": [
+        2.471030922656066e-14,
+        8.126743860671501e-17
+      ],
+      "max_tolerance_ratio": [
+        0.0002469552082712387,
+        7.59864636989218e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 10,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.0020880606875,
+      "cold_seconds": 0.004136605,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.21213203435596426,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.04393398282201787134",
+        "10",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q10_0.04393398282201787134.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        2.1280094761237886e-18,
+        1.435079301498385e-17
+      ],
+      "reference_max_error": [
+        2.8178769630283938e-14,
+        7.482458613258644e-17
+      ],
+      "max_tolerance_ratio": [
+        0.00028157121719390776,
+        4.2879931433559453e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 10,
+      "delta": 0.05,
+      "median_seconds": 0.0020465514375,
+      "cold_seconds": 0.00259676,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.19999999999999998,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.05",
+        "10",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q10_0.05.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        2.1212094761237888e-18,
+        1.445879301498385e-17
+      ],
+      "reference_max_error": [
+        8.692163134926653e-15,
+        7.504058613258644e-17
+      ],
+      "max_tolerance_ratio": [
+        8.686447836682284e-05,
+        4.310853041204071e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "QUAD",
+      "degree": 10,
+      "delta": 0.075,
+      "median_seconds": 0.00302958675,
+      "cold_seconds": 0.002936996,
+      "strip_samples": 92,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.15,
+      "rule15_calls": 3,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.075",
+        "10",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_0_q10_0.075.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        2.1280094761237886e-18,
+        1.440479301498385e-17
+      ],
+      "reference_max_error": [
+        2.337901033709161e-17,
+        2.0198147792996786e-16
+      ],
+      "max_tolerance_ratio": [
+        2.3275260607507872e-07,
+        1.992527307359358e-06
+      ],
+      "passed": true
+    },
+    {
+      "method": "switched",
+      "element": "QUAD",
+      "degree": 10,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.0033359335625,
+      "cold_seconds": 0.003298987,
+      "strip_samples": 0,
+      "bulk_samples": 0,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 1.0,
+      "rule15_calls": 0,
+      "rule31_calls": 0,
+      "geometry_builds": 0,
+      "rejected": 0,
+      "baseline_samples": 231,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "switched",
+        "0.04393398282201787134",
+        "10",
+        "0",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/switched_0_q10_0.04393398282201787134.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        2.1261164789361934e-18,
+        2.1227179301498385e-16
+      ],
+      "reference_max_error": [
+        6.685127346836665e-14,
+        2.9739822624922926e-14
+      ],
+      "max_tolerance_ratio": [
+        0.000668073172103033,
+        0.00028688943619691813
+      ],
+      "passed": true
+    },
+    {
+      "method": "baseline",
+      "element": "TRI",
+      "degree": 10,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.0030938779375,
+      "cold_seconds": 0.002748911,
+      "strip_samples": 0,
+      "bulk_samples": 0,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 1.0,
+      "rule15_calls": 0,
+      "rule31_calls": 0,
+      "geometry_builds": 0,
+      "rejected": 0,
+      "baseline_samples": 126,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "baseline",
+        "0.04393398282201787134",
+        "10",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/baseline_1_q10_0.04393398282201787134.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        2.773550947612379e-17,
+        1.4776179301498386e-16
+      ],
+      "reference_max_error": [
+        2.773550947612379e-17,
+        1.4776179301498386e-16
+      ],
+      "max_tolerance_ratio": [
+        2.590443300648097e-07,
+        7.606871662235015e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 10,
+      "delta": 0.015,
+      "median_seconds": 0.0047289585625,
+      "cold_seconds": 0.003981257,
+      "strip_samples": 30,
+      "bulk_samples": 260,
+      "strip_bisections": 0,
+      "bulk_bisections": 3,
+      "strip_depth": 0,
+      "bulk_depth": 2,
+      "minimum_bulk_width": 0.06749999999999999,
+      "rule15_calls": 9,
+      "rule31_calls": 5,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.015",
+        "10",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q10_0.015.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        2.320210947612379e-17,
+        1.5448379301498386e-16
+      ],
+      "reference_max_error": [
+        2.320210947612379e-17,
+        1.5448379301498386e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1670324500463612e-07,
+        7.952924523872654e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 10,
+      "delta": 0.03,
+      "median_seconds": 0.0029041949375,
+      "cold_seconds": 0.0023614,
+      "strip_samples": 30,
+      "bulk_samples": 138,
+      "strip_bisections": 0,
+      "bulk_bisections": 1,
+      "strip_depth": 0,
+      "bulk_depth": 1,
+      "minimum_bulk_width": 0.11999999999999998,
+      "rule15_calls": 5,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.03",
+        "10",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q10_0.03.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "reference_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1664066829181503e-07,
+        7.958484432985547e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 10,
+      "delta": 0.043933982822017874,
+      "median_seconds": 0.001838637125,
+      "cold_seconds": 0.001395292,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.21213203435596423,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.04393398282201787134",
+        "10",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q10_0.04393398282201787134.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "reference_max_error": [
+        2.319540947612379e-17,
+        1.5459179301498384e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1664066829181503e-07,
+        7.958484432985547e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 10,
+      "delta": 0.05,
+      "median_seconds": 0.001764210875,
+      "cold_seconds": 0.001611662,
+      "strip_samples": 30,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.19999999999999996,
+      "rule15_calls": 3,
+      "rule31_calls": 1,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.05",
+        "10",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q10_0.05.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        2.3208909476123788e-17,
+        1.5459179301498384e-16
+      ],
+      "reference_max_error": [
+        2.3208909476123788e-17,
+        1.5459179301498384e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1676675569824558e-07,
+        7.958484432985547e-07
+      ],
+      "passed": true
+    },
+    {
+      "method": "mapped",
+      "element": "TRI",
+      "degree": 10,
+      "delta": 0.075,
+      "median_seconds": 0.0026080731875,
+      "cold_seconds": 0.002059659,
+      "strip_samples": 92,
+      "bulk_samples": 46,
+      "strip_bisections": 0,
+      "bulk_bisections": 0,
+      "strip_depth": 0,
+      "bulk_depth": 0,
+      "minimum_bulk_width": 0.14999999999999997,
+      "rule15_calls": 3,
+      "rule31_calls": 3,
+      "geometry_builds": 1,
+      "rejected": 0,
+      "baseline_samples": 0,
+      "command": [
+        "/workspace/scratch/ae987d63ee6f/MyFEMuS/unittests/testCutFemWeightLSNative/build/endpoint_strip_circle",
+        "mapped",
+        "0.075",
+        "10",
+        "1",
+        "16"
+      ],
+      "output": "results/endpoint_strip_circle/mapped_1_q10_0.075.csv",
+      "moment_count": 132,
+      "unit_max_error": [
+        2.3208909476123788e-17,
+        1.5464679301498385e-16
+      ],
+      "reference_max_error": [
+        2.3208909476123788e-17,
+        1.5464679301498385e-16
+      ],
+      "max_tolerance_ratio": [
+        2.1676675569824558e-07,
+        7.961315868181928e-07
+      ],
+      "passed": true
+    }
+  ],
+  "all_passed": true,
+  "source_sha256": {
+    "unittests/testCutFemWeightLSNative/endpoint_strip_circle.cpp": "ff3f8bdce03aa97e47b63a2ba08d48957006e9487121167145a02a160f3bf332",
+    "src/quadrature/cutfem_ls/EndpointStripQuadrature.hpp": "97c547b5a89c3d84c9b1181759d781f309d0fbfe065feb04cda74579241272cb"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "base_commit": "8a2fa3fef5f4d8a7a9e327ffddad5ef9e1242535",
+  "native_tests": 26,
+  "selection_checks": 18522,
+  "sanitizers": [
+    "AddressSanitizer",
+    "UndefinedBehaviorSanitizer"
+  ],
+  "leak_sanitizer": false,
+  "default_compatibility": {
+    "cases": 180,
+    "moment_values": 63360,
+    "exact_decimal_equality": true,
+    "changed_cases": [],
+    "unchanged_sampling": true,
+    "changed_sampling": [],
+    "timing_note": "Timings are diagnostic; other verification may overlap, so no performance conclusion is drawn."
+  },
+  "completed_application_runs": 11,
+  "application_reference_rows": 280,
+  "known_limits": [
+    {
+      "name": "lowest_3d",
+      "error": "what():  Unsupported endpoint topology: Outer quadrature evaluation budget exhausted.",
+      "command": [
+        "./MultiPhase_ex44_test",
+        "--elements",
+        "hex,tet",
+        "--psi",
+        "ball",
+        "--curved",
+        "0",
+        "--levels",
+        "0",
+        "--degree",
+        "4",
+        "--vtk",
+        "0",
+        "--gk-regular-2d",
+        "1/3",
+        "--gk-tangent-2d",
+        "1/3",
+        "--gk-regular-3d",
+        "1/3",
+        "--gk-tangent-3d",
+        "1/3"
+      ]
+    }
+  ],
+  "source_sha256": {
+    "applications/MultiPhase/ex44/ex44.cpp": "f4637b551f6991912c18c1af37dd36637d9a6be2f013b117da845e294af97161",
+    "applications/MultiPhase/ex44/run_ex44.sh": "4b53bdc93dfc305afac00c7a13ed2adb253884053b5b82a78dbe89500df1b0bf",
+    "applications/MultiPhase/ex44_test/IntegrateCut.hpp": "78e254fb9b705e0ca6776475162f7993fa6d61a426a599b4308818d0ccc276e4",
+    "applications/MultiPhase/ex44_test/ex44_test.cpp": "648daebe99ca62a4dcf745e54f18c455351548042923dfdd2bfd55e9b7fd53d9",
+    "applications/MultiPhase/ex44_test/run_ex44_test.sh": "ad87f4b442564441c1db48cce8f90b05cd99dc26d067a10cf44f062ae0b468b8",
+    "src/quadrature/cutfem_ls/CutFemWeight_LS.hpp": "f3d4cdbe29a0960ae1c8553f80db87e00ce9d8e116ce5153e8928497835c1bd0",
+    "src/quadrature/cutfem_ls/EndpointStripQuadrature.hpp": "f7e8306752a73d651e96d060e8772863b3f327ebab39e92f2a1acccec2a4edcb",
+    "src/quadrature/cutfem_ls/GaussKronrodRules.hpp": "eaa6171a550679977524485afb9d05c125fb70ac2a733d802317e5ad0b72fdab",
+    "src/quadrature/cutfem_ls/Hex27DirectionSelection.hpp": "6641eb384afa41c920bafb654a69d2d660b3afab24260c39ebdb02a2ca8bc296",
+    "src/quadrature/cutfem_ls/LineDomainIntegration.hpp": "74e5d413d230ce57fabe9f5f22dd04f52af076353f5af68a2aeef078ccd0dd87",
+    "src/quadrature/cutfem_ls/OuterIntervalQuadrature.hpp": "d1a60552cd19caf223f146738cea59302af142ad63db03428a3bbd4421b0f342",
+    "src/quadrature/cutfem_ls/PlanarEndpointIntegration.hpp": "01aa84899600e97d1fc102c28406e50eb6ea7416cc5ab2835b581e213efb3125",
+    "src/quadrature/cutfem_ls/Quad9DirectionSelection.hpp": "8134f0ecceed8ab4c76e336f437a1508c338b4d54008c506a07dff6c68ae1dfc",
+    "src/quadrature/cutfem_ls/SurfaceEndpointIntegration.hpp": "bd28d34437b98b5a01766726b2bc0d20baf89c5f3bbf67931ddf2615c48fcff2",
+    "src/quadrature/cutfem_ls/Tet15LevelSetMoments.hpp": "8d035808847d72ed565d5b661e8332a83ec2c58e01b0ccfa9215348769f55969",
+    "src/quadrature/cutfem_ls/Tri7DirectionSelection.hpp": "dce4068813201782a453773938ec9609721156c9f598d4b4620b110b79e71bf3",
+    "src/quadrature/cutfem_ls/TriangleIntegration.hpp": "e5cac398be24e49da986137ab12d3bf32ee4b6079a8cb1d850a310f226dba7e2",
+    "src/quadrature/cutfem_ls/UnitElementMoments.hpp": "82ac5fc2966adb2d9faa135025731256047445e979c3c088c40e1180a6ffbfa1",
+    "unittests/testCutFemWeightLSNative/build.py": "e4c4f7c5c5e0a17e3bab8fed6a375dcabecd9347c7ca91ed722a741b76551b28",
+    "unittests/testCutFemWeightLSNative/quadrature_rule_selection.cpp": "397d4bf6260e62647e643bdfc1619335c6d2b80bbe15582e4ff86afe9a56a4c3",
+    "unittests/testCutFemWeightLSNative/run_outer_interval_benchmark.py": "9ea362461dc557cc959cd1bb89b9872252040abb5cd6cc3dceada601a4b4ecd1"
+  }
+}

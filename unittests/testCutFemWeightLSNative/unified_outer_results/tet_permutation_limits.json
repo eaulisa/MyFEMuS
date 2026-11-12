@@ -1,0 +1,62 @@
+[
+  {
+    "implementation": "baseline",
+    "field": "graph",
+    "degree": 10,
+    "tolerance": 1e-10,
+    "metric": 2,
+    "direction": 1,
+    "error": "LINE domain integration did not reach the requested tolerance.",
+    "root_samples": 1575
+  },
+  {
+    "implementation": "baseline",
+    "field": "ball",
+    "degree": 10,
+    "tolerance": 1e-10,
+    "metric": 2,
+    "direction": 1,
+    "error": "Unsupported endpoint topology: Non-graph GK did not reach tolerance.",
+    "root_samples": 2300
+  },
+  {
+    "implementation": "baseline",
+    "field": "rotated_ellipse",
+    "degree": 10,
+    "tolerance": 1e-10,
+    "metric": 2,
+    "direction": 1,
+    "error": "Unsupported endpoint topology: Non-graph GK did not reach tolerance.",
+    "root_samples": 2300
+  },
+  {
+    "implementation": "candidate",
+    "field": "graph",
+    "degree": 10,
+    "tolerance": 1e-10,
+    "metric": 2,
+    "direction": 1,
+    "error": "Outer adaptive quadrature did not reach tolerance.",
+    "root_samples": 375
+  },
+  {
+    "implementation": "candidate",
+    "field": "ball",
+    "degree": 10,
+    "tolerance": 1e-10,
+    "metric": 2,
+    "direction": 1,
+    "error": "Unsupported endpoint topology: Outer tolerance cannot be satisfied at the available coordinate precision.",
+    "root_samples": 760
+  },
+  {
+    "implementation": "candidate",
+    "field": "rotated_ellipse",
+    "degree": 10,
+    "tolerance": 1e-10,
+    "metric": 2,
+    "direction": 1,
+    "error": "Unsupported endpoint topology: Outer tolerance cannot be satisfied at the available coordinate precision.",
+    "root_samples": 745
+  }
+]

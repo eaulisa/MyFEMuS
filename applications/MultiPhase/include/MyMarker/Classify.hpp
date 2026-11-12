@@ -240,7 +240,6 @@ inline Classify classify_point(ElemKind kind, const double* x, const Options& op
   }
 }
 
-
 inline Classify classify_point(unsigned elementType, const double* x, const Options& opt = {}) {
   switch (elementType) {
     case 0:

@@ -24,8 +24,6 @@
 #include <mpi.h>
 #include <boost/mpi/datatype.hpp>
 
-
-
 namespace newfemus {
 
   template <class Type> class MyVector {
@@ -212,7 +210,6 @@ namespace newfemus {
     _size = 0;
   }
 
-
   // ******************
   template <class Type> void MyVector<Type>::resize(const unsigned &size, const Type value) {
 
@@ -255,7 +252,6 @@ namespace newfemus {
     _serial = true;
   }
 
-
   // ******************
   template <class Type> unsigned MyVector<Type>::size() {
     return _size;
@@ -270,7 +266,6 @@ namespace newfemus {
   template <class Type> unsigned MyVector<Type>::end() {
     return _end;
   }
-
 
   template <class Type> void MyVector<Type>::stack() {
 
@@ -352,7 +347,6 @@ namespace newfemus {
 
     }*/
 
-
   // ******************
   template <class Type> void MyVector<Type>::scatter() {
     buildOffset();
@@ -392,8 +386,6 @@ namespace newfemus {
 
     _offset[_nprocs] = global_size;
   }
-
-
 
   // template <class Type> void MyVector<Type>::buildOffset() {
   //   unsigned locsize = _size / _nprocs;
@@ -463,8 +455,6 @@ namespace newfemus {
     _size  = locsize;
   }
 
-
-
   // ******************
   template <class Type> std::vector<unsigned>  MyVector<Type>::getOffset() {
     return _offset;
@@ -517,7 +507,6 @@ namespace newfemus {
     _size  = len;
     _lproc = lproc;
   }
-
 
   // // ******************
   // template <class Type> void MyVector<Type>::broadcast(const unsigned &lproc) {
@@ -592,8 +581,6 @@ namespace newfemus {
     }
   }
 
-
-
   /*
 
     template <class Type> void MyVector<Type>::localize(std::vector<Type> &v_local) const {
@@ -611,7 +598,6 @@ namespace newfemus {
         }
       }
     }*/
-
 
   // ****************
   template <class Type> const std::string & MyVector<Type>::status() {
@@ -639,7 +625,6 @@ namespace newfemus {
     return _vec[i - _begin];
   }
 
-
   // Explicit template instantiation
   template class MyVector<float>;
   template class MyVector<double>;
@@ -653,9 +638,3 @@ namespace newfemus {
   template class MyVector<char>;
 
 } //end namespace newfemus
-
-
-
-
-
-

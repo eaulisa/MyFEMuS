@@ -201,7 +201,6 @@ namespace fem {
       const bool ok = qt0.evaluate_field_on_parent(fid0, xiEta0[0], xiEta0[1], val, debug);
       dst.nodal[gid] = ok ? val : std::numeric_limits<double>::quiet_NaN();
 
-
       // if (x1[0] == -0.125 && x1[1] == 0.25) {
       //   double theta1 = atan2(xiEta1[1], xiEta1[0]);
       //   double theta0 = atan2(xiEta0[1], xiEta0[0]);
@@ -219,7 +218,5 @@ namespace fem {
 
     }
   }
-
-
 
 } // namespace fem

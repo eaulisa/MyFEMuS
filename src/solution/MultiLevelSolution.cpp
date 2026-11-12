@@ -24,8 +24,6 @@ PURPOSE.  See the above copyright notice for more information.
 #include "FemusDefault.hpp"
 #include "ParsedFunction.hpp"
 
-
-
 //C++ include
 #include <iostream>
 #include <iomanip>
@@ -33,7 +31,6 @@ PURPOSE.  See the above copyright notice for more information.
 #include <sys/stat.h>
 
 namespace femus {
-
 
   using std::cout;
   using std::endl;
@@ -113,7 +110,6 @@ namespace femus {
     _solPairIndex.clear();
     _solPairInverseIndex.clear();
 
-
     if(_writer != NULL) delete _writer;
     _writer = NULL;
 
@@ -127,11 +123,6 @@ namespace femus {
 
     _FSI = false;
   }
-
-
-
-
-
 
   void MultiLevelSolution::AddSolutionLevel() {
     // add level solution
@@ -182,7 +173,6 @@ namespace femus {
     _solPairIndex.resize(n + 1u);
     _solPairInverseIndex.resize(n + 1u);
 
-
     _testIfPressure[n] = 0;
     _addAMRPressureStability[n] = false;
     _fixSolutionAtOnePoint[n] = false;
@@ -197,7 +187,6 @@ namespace femus {
     _pdeType[n] = PdeType;
     _solPairIndex[n] = n;
     _solPairInverseIndex[n] = n;
-
 
     cout << " Add variable " << std::setw(3) << _solName[n] << " discretized with FE type "
          << std::setw(12) << order << " and time discretzation order " << tmorder << endl;
@@ -218,7 +207,6 @@ namespace femus {
     return;
   }
 
-
   void MultiLevelSolution::ResizeSolution_par(const unsigned new_size)  {
 
     for(unsigned ig = 0; ig < _solution.size(); ig++) {
@@ -230,9 +218,7 @@ namespace femus {
       }
     }
 
-
   }
-
 
 //---------------------------------------------------------------------------------------------------
   void MultiLevelSolution::AssociatePropertyToSolution(const char solution_name[], const char solution_property[],
@@ -254,7 +240,6 @@ namespace femus {
   }
 
 // *******************************************************
-
 
   void MultiLevelSolution::PairSolution(const char solution_name[], const char solution_pair[]) {
     unsigned index = GetIndex(solution_name);
@@ -365,7 +350,6 @@ namespace femus {
     return;
   }
 
-
 //---------------------------------------------------------------------------------------------------
   unsigned MultiLevelSolution::GetIndex(const char name[]) const {
     unsigned index = 0;
@@ -398,8 +382,6 @@ namespace femus {
     return _solType[index];
   }
 
-
-
 //---------------------------------------------------------------------------------------------------
   const FEFamily MultiLevelSolution::GetSolutionFamily(const std::string & sol_name) const {
 
@@ -422,7 +404,6 @@ namespace femus {
 
   }
 
-
 //---------------------------------------------------------------------------------------------------
   const int MultiLevelSolution::GetSolutionTimeOrder(const std::string & sol_name) const {
 
@@ -433,7 +414,6 @@ namespace femus {
     return _solTimeOrder[index];
 
   }
-
 
 //---------------------------------------------------------------------------------------------------
   void MultiLevelSolution::AttachSetBoundaryConditionFunction(BoundaryFuncMLProb SetBoundaryConditionFunction_in) {
@@ -478,8 +458,6 @@ namespace femus {
   void MultiLevelSolution::SetBoundaryCondition_new(const std::string name, const std::string facename,
       const BDCType bdctype, const bool istimedependent, FunctionBase* func) {
 
-
-
     unsigned int ivar = GetIndex(name.c_str());
     unsigned int iface = 0;
     bool ishomogeneous = true;
@@ -508,12 +486,6 @@ namespace femus {
     _nonHomogeneousBCFunction[ivar][iface] = func;
 
   }
-
-
-
-
-
-
 
 //---------------------------------------------------------------------------------------------------
   void MultiLevelSolution::GenerateBdc(const char* name, const char* bdc_type, const MultiLevelProblem* ml_prob) {
@@ -594,7 +566,6 @@ namespace femus {
       }
     }
   }
-
 
 //---------------------------------------------------------------------------------------------------
   void MultiLevelSolution::GenerateBdc(const unsigned int k, const unsigned int grid0, const double time) {
@@ -691,11 +662,9 @@ namespace femus {
           }  //end element
         }  //end Lagrangian
 
-
         if(_fixSolutionAtOnePoint[k] == true  && !(_solution[igridn]->GetIfRemoveNullSpace(k)) /*igridn == 0*/ && _iproc == 0) {
           _solution[igridn]->_Bdc[k]->set(0, 0.);
           _solution[igridn]->_Sol[k]->set(0, 0.);
-
 
         }
         _solution[igridn]->_Sol[k]->close();
@@ -703,9 +672,7 @@ namespace femus {
       }
     }
 
-
   }
-
 
   void MultiLevelSolution::GenerateBdcOnVolumeConstraint(const std::vector<unsigned> &volumeConstraintFlags, const unsigned &solIndex, const unsigned &grid0) {
 
@@ -733,7 +700,6 @@ namespace femus {
           for (unsigned i = 0; i < nDofu; i++) {
             unsigned solDof = msh->GetSolutionDof (i, iel, solType);
             _solution[igridn]->_Bdc[solIndex]->set (solDof, 0.);
-
 
             double value;
             std::vector < double > xCord (3);
@@ -919,8 +885,6 @@ namespace femus {
     PRINT = false;
   }
 
-
-
   void MultiLevelSolution::SaveSolution(const char* filename, const double &time) {
 
     char composedFileName[100];
@@ -975,12 +939,7 @@ namespace femus {
       }
     }
 
-
   }
-
-
-
-
 
   void MultiLevelSolution::RefineSolution(const unsigned &gridf) {
 
@@ -995,11 +954,7 @@ namespace femus {
     }
   }
 
-
-
-
   void MultiLevelSolution::CoarsenSolutionByOneLevel_wrong(const unsigned &grid_fine)  {
-
 
     Mesh *msh = _mlMesh->GetLevel(grid_fine);
     const unsigned grid_coarse = grid_fine - 1;
@@ -1037,9 +992,6 @@ namespace femus {
     }
 
   }
-
-
-
 
   void MultiLevelSolution::CopySolutionToOldSolution() {
 
@@ -1102,11 +1054,4 @@ namespace femus {
     return;
   }
 
-
-
 } //end namespace femus
-
-
-
-
-

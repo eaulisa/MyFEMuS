@@ -1,6 +1,4 @@
 
-
-
 /** \file Ex7.cpp
  *  \brief This example shows how to set and solve the weak form
  *   of the Boussinesq appoximation of the Navier-Stokes Equation
@@ -30,11 +28,9 @@
 #include "NonLinearImplicitSystem.hpp"
 #include "adept.h"
 
-
 #include "MeshRefinement.hpp"
 
 #include <gperftools/profiler.h>
-
 
 using namespace femus;
 
@@ -43,7 +39,6 @@ bool SetBoundaryCondition(const std::vector < double >& x, const char SolName[],
   value = 0.;
   return dirichlet;
 }
-
 
 bool SetRefinementFlag(const std::vector < double >& x, const int& elemgroupnumber, const int& level) {
 
@@ -63,15 +58,11 @@ bool SetRefinementFlag(const std::vector < double >& x, const int& elemgroupnumb
 
 }
 
-
-
 void AssemblePoisson_AD(MultiLevelProblem& ml_prob);    //, unsigned level, const unsigned &levelMax, const bool &assembleMatrix );
 
 void GetError(MultiLevelSolution* mlSol);
 
 int main(int argc, char** args) {
-
-
 
   // init Petsc-MPI communicator
   FemusInit mpinit(argc, args, MPI_COMM_WORLD);
@@ -113,7 +104,6 @@ int main(int argc, char** args) {
   mlSol.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
 
   mlSol.GenerateBdc("All");
-
 
   unsigned maxNumberOfMeshes = 6;
   for(unsigned i = 0; i < maxNumberOfMeshes; i++) {
@@ -168,15 +158,11 @@ int main(int argc, char** args) {
     mlSol.RefineSolution(numberOfUniformLevels);
     numberOfUniformLevels += 1;
 
-
-
   }
 
   ProfilerStop();
   return 0;
 }
-
-
 
 double GetExactSolutionValue(const std::vector < double >& x) {
   double pi = acos(-1.);
@@ -193,8 +179,6 @@ double GetExactSolutionLaplace(const std::vector < double >& x) {
   double pi = acos(-1.);
   return - 2 * pi * pi * cos(pi * x[0]) * cos(pi * x[1]);
 };
-
-
 
 void AssemblePoisson_AD(MultiLevelProblem& ml_prob) {
   //  ml_prob is the global object from/to where get/set all the data
@@ -215,7 +199,6 @@ void AssemblePoisson_AD(MultiLevelProblem& ml_prob) {
   MultiLevelSolution*   mlSol = ml_prob._ml_sol;  // pointer to the multilevel solution object
   Solution*   sol             = ml_prob._ml_sol->GetSolutionLevel(level);    // pointer to the solution (level) object
 
-
   LinearEquationSolver* pdeSys  = mlPdeSys->_LinSolver[level];  // pointer to the equation (level) object
   SparseMatrix*   KK          = pdeSys->_KK;  // pointer to the global stifness matrix object in pdeSys (level)
   NumericVector*  RES         = pdeSys->_RES; // pointer to the global residual vector object in pdeSys (level)
@@ -232,13 +215,10 @@ void AssemblePoisson_AD(MultiLevelProblem& ml_prob) {
   solUIndex = mlSol->GetIndex("U");    // get the position of "U" in the ml_sol object = 0
   unsigned solUType = mlSol->GetSolutionType(solUIndex);    // get the finite element type for "T"
 
-
-
   unsigned solUPdeIndex;
   solUPdeIndex = mlPdeSys->GetSolPdeIndex("U");    // get the position of "U" in the pdeSys object = 0
 
   std::cout << solUIndex << " " << solUPdeIndex << std::endl;
-
 
   vector < adept::adouble >  solU; // local solution
   vector< adept::adouble > aResU; // local redidual vector
@@ -248,8 +228,6 @@ void AssemblePoisson_AD(MultiLevelProblem& ml_prob) {
 
   solU.reserve(maxSize);
   aResU.reserve(maxSize);
-
-
 
   for(unsigned  k = 0; k < dim; k++) {
     crdX[k].reserve(maxSize);
@@ -384,7 +362,6 @@ void AssemblePoisson_AD(MultiLevelProblem& ml_prob) {
   // ***************** END ASSEMBLY *******************
 }
 
-
 void GetError(MultiLevelSolution* mlSol) {
   unsigned level = mlSol->_mlMesh->GetNumberOfLevels() - 1u;
   //  extract pointers to the several objects that we are going to use
@@ -400,7 +377,6 @@ void GetError(MultiLevelSolution* mlSol) {
   solUIndex = mlSol->GetIndex("U");    // get the position of "U" in the ml_sol object
   unsigned solUType = mlSol->GetSolutionType(solUIndex);    // get the finite element type for "u"
 
-
   unsigned errorIndex = mlSol->GetIndex("Error");
 
   vector < double >  solU; // local solution
@@ -412,7 +388,6 @@ void GetError(MultiLevelSolution* mlSol) {
   vector <double> phi_x; // local test function first order partial derivatives
   vector <double> phi_xx; // local test function second order partial derivatives
   double weight; // gauss point weight
-
 
   // reserve memory for the local standar vectors
   const unsigned maxSize = static_cast< unsigned >(ceil(pow(3, dim)));          // conservative: based on line3, quad9, hex27
@@ -431,9 +406,6 @@ void GetError(MultiLevelSolution* mlSol) {
 
   // element loop: each process loops only on the elements that owns
   for(int iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; iel++) {
-
-
-
 
     short unsigned ielGeom = msh->GetElementType(iel);
     unsigned nDofsU  = msh->GetElementDofNumber(iel, solUType);    // number of solution element dofs
@@ -468,10 +440,8 @@ void GetError(MultiLevelSolution* mlSol) {
       // *** get gauss point weight, test function and test function partial derivatives ***
       msh->_finiteElement[ielGeom][solUType]->Jacobian(crdX, ig, weight, phi, phi_x, phi_xx);
 
-
       vector < double > x_gss(dim, 0.);
       double laplaceUh =  0.;
-
 
       for(unsigned i = 0; i < nDofsU; i++) {
         for(unsigned j = 0; j < dim; j++) {
@@ -494,7 +464,6 @@ void GetError(MultiLevelSolution* mlSol) {
           hk = dij;
       }
 
-
       double LaplaceUexact = GetExactSolutionLaplace(x_gss);
       Rhok += hk * (LaplaceUexact - laplaceUh) * (LaplaceUexact - laplaceUh) * weight;
 
@@ -503,10 +472,7 @@ void GetError(MultiLevelSolution* mlSol) {
     Rhok = sqrt(Rhok);
     sol->_Sol[errorIndex]->set(iel, Rhok);
 
-
   }// add the norms of all processes
 
   sol->_Sol[errorIndex]->close();
 }
-
-

@@ -9,7 +9,6 @@
 #include "./MyMarker/MyMarker.hpp"
 #include "MyEigenFunctions.hpp"
 
-
 namespace femus {
 
   template <class Type>
@@ -18,7 +17,6 @@ namespace femus {
     if(x < 0) return -1;
     return 0;
   }
-
 
   class Cloud {
     public:
@@ -68,7 +66,6 @@ namespace femus {
         _A[iel] = A;
       }
 
-
       const std::vector<double> GetQuadraticBestFitCoefficients(const unsigned &iel) {
         if(_A.find(iel) != _A.end()) {
           return _A.at(iel);
@@ -87,7 +84,6 @@ namespace femus {
         }
       }
 
-
       double GetValue(const unsigned &iel, const std::vector<double> &xp) {
         return  _A[iel][0] * xp[0] * xp[0] + _A[iel][1] * xp[0] * xp[1] + _A[iel][2] * xp[1] * xp[1] + _A[iel][3] * xp[0] + _A[iel][4] * xp[1] + _A[iel][5];
       }
@@ -95,7 +91,6 @@ namespace femus {
       double GetValue(const std::vector<double> &A, const std::vector<double> &xp) {
         return  A[0] * xp[0] * xp[0] + A[1] * xp[0] * xp[1] + A[2] * xp[1] * xp[1] + A[3] * xp[0] + A[4] * xp[1] + A[5];
       }
-
 
       double GetCurvature(const unsigned &iel, const std::vector<double> &xp) {
         return (8 * _A[iel][0] * _A[iel][2] * _A[iel][2] * xp[1] * xp[1] + 2 * _A[iel][2] * ((_A[iel][3] + 2 * _A[iel][0] * xp[0]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0]) + 4 * _A[iel][0] * (_A[iel][4] + _A[iel][1] * xp[0]) * xp[1] - _A[iel][1] * _A[iel][1] * xp[1] * xp[1]) - 2 * (_A[iel][4] + _A[iel][1] * xp[0]) * (-_A[iel][0] * _A[iel][4] + _A[iel][1] * (_A[iel][3] + _A[iel][0] * xp[0] + _A[iel][1] * xp[1]))) / pow(((_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) * (_A[iel][4] + _A[iel][1] * xp[0] + 2 * _A[iel][2] * xp[1]) + (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1]) * (_A[iel][3] + 2 * _A[iel][0] * xp[0] + _A[iel][1] * xp[1])), 3. / 2.);
@@ -126,7 +121,6 @@ namespace femus {
 
         return N;
       }
-
 
       std::vector<double> GetCloudBaricenterInParentElement(const unsigned &iel) {
         unsigned dim = _sol->GetMesh()->GetDimension();
@@ -189,7 +183,6 @@ namespace femus {
       std::vector<double> _kappaNew;
       std::vector<double> _dsNew;
 
-
       std::vector<unsigned> _elem;
       std::vector<unsigned> _elemNew;
       std::vector<unsigned> _map;
@@ -199,7 +192,6 @@ namespace femus {
       std::map<unsigned, unsigned [2] >::iterator _itElMrkIdx;
 
       const std::vector<std::vector<double>> _yig = {{0., 0., 0.}, {1. / 3., 1. / 3., 1. / 3.}, {1. / 3., 1. / 3., 0.}, {0., 0.}, {1. / 3., 1. / 3.}, {0.}};
-
 
   };
 
@@ -283,7 +275,6 @@ namespace femus {
     CreateMap();
   }
 
-
   void Cloud::AddCloudFromPoints(const std::vector<std::vector<double> > &x, const std::vector<std::vector<double>> &N) {
     unsigned solType = 2;
     unsigned dim = _sol->GetMesh()->GetDimension();
@@ -337,9 +328,7 @@ namespace femus {
     ComputeQuadraticBestFit();
     RebuildMarkers(8, 12, 8);
 
-
   }
-
 
   void Cloud::AddQuadric(const std::vector<double> &A, const unsigned &npt) {
     Mesh *msh = _sol->GetMesh();
@@ -348,7 +337,6 @@ namespace femus {
     unsigned coordXType = 2;
     std::vector< std::vector < double > > xv;
     std::pair<std::vector<std::vector<double>>, std::vector<double>> sol;
-
 
     unsigned solType = 2;
     _mrk.ClearElement();
@@ -360,7 +348,6 @@ namespace femus {
     _NNew.swap(_N);
     _kappaNew.swap(_kappa);
     _dsNew.swap(_ds);
-
 
     const unsigned &nel = A.size();
     _ypNew.resize(cnt + 2 * nel * npt, std::vector<double>(dim));
@@ -448,7 +435,6 @@ namespace femus {
 
     CreateMap();
   }
-
 
   void Cloud::AddInteriorQuadric(const std::vector<double> &A) {
     Mesh *msh = _sol->GetMesh();
@@ -711,18 +697,17 @@ namespace femus {
         if(kp == 0 && t == 0) _fout.open(foo.str(), std::fstream::out);
         else _fout.open(foo.str(), std::fstream::app);
 
-
         // Initialize the maximum value with the smallest possible double
         maxValue = std::numeric_limits<double>::lowest();
 
         // Iterate through the vector to find the maximum _yp[i][0]
         for (int i = 0; i < _yp.size(); ++i) {
-        if (!_yp[i].empty()) {  // Check if the inner vector is not empty
+          if (!_yp[i].empty()) {  // Check if the inner vector is not empty
             if (_yp[i][1] > maxValue) {
-                maxValue = _yp[i][1];
+              maxValue = _yp[i][1];
             }
+          }
         }
-    }
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }
@@ -732,13 +717,11 @@ namespace femus {
 
     // Print the result
     if (iproc == 0) {
-      _fout << t<< "," <<globalMax << std::endl;
+      _fout << t << "," << globalMax << std::endl;
       _fout.close();
     }
 
   }
-
-
 
   const double PJ[6][4][4][4] = {{}, {}, {},
     {
@@ -848,7 +831,6 @@ namespace femus {
       //
       // }
 
-
       if(cnt == 2) {
 
         cnt = 1;
@@ -901,7 +883,6 @@ namespace femus {
           b /= norm;
           c /= norm;
 
-
           double ti;
           bool pointIsFound = false;
           if(fabs(a) > 1.e-8) {
@@ -915,7 +896,6 @@ namespace femus {
 
               xe.insert(xe.begin() + cnt, {xc[0]  + ti * v[0], xc[1]  + ti * v[1]});
               pointIsFound = true;
-
 
             }
           }
@@ -936,7 +916,6 @@ namespace femus {
             kappa = GetCurvature(iel, xm);
             if(fabs(kappa) < 1.e-5) kappa = 1.e-5; //TODO
             xc = {xm[0] - N[0] / kappa, xm[1] - N[1] / kappa};
-
 
             theta0 = atan2(y0 - xc[1], x0 - xc[0]);
             theta1 = atan2(y1 - xc[1], x1 - xc[0]);
@@ -1059,7 +1038,6 @@ namespace femus {
       if(i1 - i0 < 2) keepMrk = true;
 
       keepMrk = false;
-
 
       for(unsigned k = 0; k < dim; k++) {
         xv[k].resize(nDof);
@@ -1228,7 +1206,6 @@ namespace femus {
         }
       }
 
-
       const elem_type *femL = fem.GetFiniteElement(ielType, solTypeL);
 
       std::vector<std::vector<double>> Jacob, JacI;
@@ -1251,7 +1228,6 @@ namespace femus {
       else {
         abort();
       }
-
 
       double area = 0.;
       double areaC = 0.;
@@ -1352,7 +1328,6 @@ namespace femus {
 
   }
 
-
   void Cloud::RKAdvection(const unsigned & stages, const std::vector<std::string> &U, const double & dt) {
 
     Mesh *msh = _sol->GetMesh();
@@ -1365,7 +1340,6 @@ namespace femus {
     _kappaNew.resize(_yp.size());
     _dsNew.resize(_yp.size());
 
-
     map<unsigned, bool> pSearch;
 
     unsigned cnt = 0;
@@ -1374,7 +1348,6 @@ namespace femus {
     for(unsigned k = 0; k < dim; k++) {
       solUIndex[k] = _sol->GetIndex(U[k].c_str());
     }
-
 
     unsigned solType = _sol->GetSolutionType(solUIndex[0]);
     std::vector<std::vector<std::vector<double>>> solU(stages);
@@ -1639,9 +1612,6 @@ namespace femus {
       }
     }
 
-
-
-
     _yp.swap(_ypNew);
     _elem.swap(_elemNew);
     _kappa.swap(_kappaNew);
@@ -1711,10 +1681,7 @@ namespace femus {
     }
   }
 
-
-
   double Cloud::GetCost(const std::vector<std::vector<double>>&x,  const std::vector<double> &y, const std::vector<double>&w, const unsigned & iel, const unsigned & nPoints) {
-
 
     Mesh* msh = _sol->GetMesh();
     unsigned dim = _sol->GetMesh()->GetDimension();
@@ -1733,7 +1700,6 @@ namespace femus {
     }
     h /= nDofs;
     double h2 = h * h;
-
 
     double cost = 0;
 //     double h2 = 0.;
@@ -1818,13 +1784,10 @@ namespace femus {
     }
     cost /= (nPoints * h2);
 
-
     return cost;
   }
 
 #include "./Cloud.cpp"
-
-
 
   void Cloud::AddInteriorMarkerAndUpdateColorFunctions(const unsigned &iel, unsigned &cnt, const unsigned &SolCnIndex, const unsigned &SolCIndex, const unsigned &solType, const double &nodeValue) {
 
@@ -1883,40 +1846,6 @@ namespace femus {
     }
   }
 
-
 } // end namespace femus
 
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -100,7 +100,6 @@ namespace femus {
                                   const std::vector < std::vector <double > > &gradPhi, const std::vector < std::vector < std::vector <double> > > hessPhi,
                                   const std::vector < std::vector <double > > &a);
 
-
   void InverseMatrix(const std::vector< std::vector <double> > &A, std::vector< std::vector <double> > &invA);
 
   void GetConvexHullSphere(const std::vector< std::vector < double > > &xv, std::vector <double> &xc, double & r, const double tolerance = 1.0e-10);
@@ -116,7 +115,6 @@ namespace femus {
                          std::vector < double > &phi, std::vector < std::vector < double > > &gradPhi,
                          std::vector<double> &F, std::vector<std::vector<double>> &J);
 
-
   bool GetInverseMapping_fast(const unsigned &solType, short unsigned &ielType, const std::vector < std::vector < std::vector <double > > > &aP,
                               const std::vector <double > &xl, std::vector <double > &xi, const unsigned &MaxNumberOfIteration,
                               std::vector < double > &phi, std::vector < std::vector < double > > &gradPhi);
@@ -126,7 +124,5 @@ namespace femus {
 
   void PrintLine(const std::string output_path, const std::string filename, const std::vector < std::vector< std::vector<double> > > &xn, const unsigned &step);
 
-
 }
 #endif
-

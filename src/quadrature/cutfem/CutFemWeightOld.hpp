@@ -124,7 +124,7 @@ class CutFemWeight {
     unsigned GetGaussQuadratureOrder() {
       return _gaussOrder;
     }
-    
+
     unsigned GetDimension() {
       return _dim;
     }
@@ -177,14 +177,11 @@ class CutFemWeight {
 
     CutFEMmap <TypeA> *_obj;
 
-
     unsigned _tetBaseType;
-
 
     std::vector < std::map < std::pair<std::vector<float>, float>, std::vector<TypeIO> > > _WeightMap;
     typename std::map < std::pair<std::vector<float>, float>, std::vector<TypeIO> >::iterator _it;
     std::pair<std::vector<float>, float> _key;
-
 
     std::vector<std::vector<TypeIO>> _bOld2d;
     std::vector<std::vector<TypeIO>> _bNew2d;
@@ -195,7 +192,6 @@ class CutFemWeight {
     //clock_t time1, time2, time3;
 
 };
-
 
 template <class TypeIO, class TypeA>
 void CutFemWeight<TypeIO, TypeA>::GetWeightWithMap(const int &s, const std::vector <TypeIO> &a, const TypeIO & d,  std::vector <TypeIO> &weightCF) {
@@ -215,7 +211,6 @@ void CutFemWeight<TypeIO, TypeA>::GetWeightWithMap(const int &s, const std::vect
   _WeightMap[s + 1][_key] = weightCF;
 
 }
-
 
 template <class TypeIO, class TypeA>
 void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <TypeIO> &a, const TypeIO & d,  std::vector <TypeIO> &weightCF) {
@@ -267,16 +262,14 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
     abort();
   }
 
-
   _Co = _ATA * _f;
-
 
   //time2 += clock() - time;
   //time = clock();
 
   std::vector<double> bo(_L);
   std::vector<double> x(_dim);
-  
+
   unsigned TETtype = _tetBaseType;
   if(_geomElemType == TET && _tetBaseType == 0) {
     TETtype = (std::max(fabs(a[1] - a[0]), fabs(a[2] - a[1]))  >= fabs(a[0] - a[2])) ? 1 : 2;
@@ -325,7 +318,6 @@ void CutFemWeight<TypeIO, TypeA>::operator()(const int &s, const std::vector <Ty
 //time3 += clock() - time;
 //std::cout << time1 << " " << time2 << " " << time3 << std::endl;
 };
-
 
 template <class TypeIO, class TypeA>
 void CutFemWeight<TypeIO, TypeA>::PolyBasis(const std::vector<double> &x, std::vector<double> &bo) {
@@ -396,14 +388,3 @@ void CutFemWeight<TypeIO, TypeA>::PolyBasis(const std::vector<double> &x, std::v
 }
 
 #endif
-
-
-
-
-
-
-
-
-
-
-

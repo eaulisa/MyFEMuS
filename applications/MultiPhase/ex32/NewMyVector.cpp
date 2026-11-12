@@ -150,7 +150,8 @@ namespace newfemus {
     unsigned gsize = 0;
     if (_serial) {
       gsize = static_cast<unsigned>(_vec.size());
-    } else if (!_offset.empty()) {
+    }
+    else if (!_offset.empty()) {
       gsize = _offset.back();
     }
 
@@ -231,7 +232,8 @@ namespace newfemus {
       _begin = _offset[_iproc];
       _end   = _offset[_iproc + 1];
       _size  = _end - _begin;
-    } else {
+    }
+    else {
       _offset.clear();
       _offset.push_back(0);
       _offset.push_back(static_cast<unsigned>(_vec.size()));

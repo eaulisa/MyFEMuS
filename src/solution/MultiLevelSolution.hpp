@@ -31,7 +31,6 @@ PURPOSE.  See the above copyright notice for more information.
 
 namespace femus {
 
-
   class MultiLevelProblem;
 
   /**
@@ -39,7 +38,6 @@ namespace femus {
    */
 
   class MultiLevelSolution : public ParallelObject {
-
 
     public:
 
@@ -147,9 +145,6 @@ namespace femus {
         }
       };
 
-
-
-
       /** To be Added */
       void GenerateBdc(const char name[], const char bdc_type[] = "Steady", const MultiLevelProblem * ml_prob = NULL);
 
@@ -239,7 +234,6 @@ namespace femus {
       unsigned GetSolutionPairInverseIndex(const unsigned& i) const {
         return _solPairInverseIndex[i];
       }
-
 
       FEFamily GetSolutionFamily(const unsigned& i) {
         return _family[i];
@@ -340,7 +334,6 @@ namespace femus {
       vector < Solution* >  _solution;
       unsigned short  _gridn;
 
-
       /** This group of vectors has the size of the number of added solutions */
       vector < vector <BDCType> >         _boundaryConditions;
       vector < vector <bool> >            _isHomogeneous;
@@ -366,7 +359,6 @@ namespace femus {
       bool _FSI;
 
   };
-
 
   inline
   BDCType MultiLevelSolution::GetBoundaryCondition(const unsigned int var, const unsigned int facename) const {
@@ -406,10 +398,6 @@ namespace femus {
     Initialize(name, funcMLProb, ml_prob);
   }
 
-
 } //end namespace femus
 
-
-
 #endif
-

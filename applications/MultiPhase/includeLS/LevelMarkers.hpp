@@ -36,7 +36,6 @@ class LevelMarkers {
       return _isInsideDomain;
     }
 
-
     unsigned& GetLevel() {
       return _level;
     }
@@ -61,8 +60,6 @@ class LevelMarkers {
       return _map_r;
     }
 
-
-
     void SetLevel(unsigned level) {
       _level = level;
     }
@@ -78,7 +75,6 @@ class LevelMarkers {
     const unsigned& GetFieldLocalSize() const {
       return _fieldLocalSize;
     }
-
 
     void RebuildLocalFromField(std::vector<std::vector<double>> &field_r, const unsigned nFields, const bool backward = true) {
 
@@ -222,7 +218,6 @@ class LevelMarkers {
       _field.resize(nFields);
       for(unsigned k = 0; k < nFields; k++) _field[k].buildFromLocal(locField[k]);
     }
-
 
   private:
     std::vector<MyVector<double>> _field;

@@ -1,0 +1,2323 @@
+{
+  "cases": 386,
+  "flagged_cases": 0,
+  "assertions": 36860,
+  "results": [
+    {
+      "id": "e0_q0_plane_identity_s1_v0",
+      "runtime_seconds": 0.01248304899854702,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.009618837000743952,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_monotone_identity_s1_v0",
+      "runtime_seconds": 0.005024939997383626,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_graph_identity_s1_v0",
+      "runtime_seconds": 0.005231761999311857,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e0_q1_plane_identity_s1_v0",
+      "runtime_seconds": 0.005218053000135114,
+      "assertions": 19,
+      "failures": 0
+    },
+    {
+      "id": "e0_q1_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.005712556001526536,
+      "assertions": 19,
+      "failures": 0
+    },
+    {
+      "id": "e0_q1_graph_identity_s1_v0",
+      "runtime_seconds": 0.004507432000536937,
+      "assertions": 17,
+      "failures": 0
+    },
+    {
+      "id": "e0_q1_monotone_identity_s1_v0",
+      "runtime_seconds": 0.00981262699860963,
+      "assertions": 17,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_plane_identity_s1_v0",
+      "runtime_seconds": 0.0029333569982554764,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.004256496999005321,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_monotone_identity_s1_v0",
+      "runtime_seconds": 0.006864284998300718,
+      "assertions": 24,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_graph_identity_s1_v0",
+      "runtime_seconds": 0.0044429539993871,
+      "assertions": 24,
+      "failures": 0
+    },
+    {
+      "id": "e0_q3_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.003710522003530059,
+      "assertions": 33,
+      "failures": 0
+    },
+    {
+      "id": "e0_q3_monotone_identity_s1_v0",
+      "runtime_seconds": 0.0038415529998019338,
+      "assertions": 31,
+      "failures": 0
+    },
+    {
+      "id": "e0_q3_graph_identity_s1_v0",
+      "runtime_seconds": 0.003078533998632338,
+      "assertions": 31,
+      "failures": 0
+    },
+    {
+      "id": "e0_q4_plane_identity_s1_v0",
+      "runtime_seconds": 0.0035656539985211566,
+      "assertions": 40,
+      "failures": 0
+    },
+    {
+      "id": "e0_q3_plane_identity_s1_v0",
+      "runtime_seconds": 0.018921460999990813,
+      "assertions": 33,
+      "failures": 0
+    },
+    {
+      "id": "e0_q4_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.013753609000559663,
+      "assertions": 40,
+      "failures": 0
+    },
+    {
+      "id": "e0_q4_graph_identity_s1_v0",
+      "runtime_seconds": 0.003917526999430265,
+      "assertions": 38,
+      "failures": 0
+    },
+    {
+      "id": "e0_q4_monotone_identity_s1_v0",
+      "runtime_seconds": 0.02156145100161666,
+      "assertions": 38,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_plane_identity_s1_v0",
+      "runtime_seconds": 0.0037830250003025867,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_monotone_identity_s1_v0",
+      "runtime_seconds": 0.0036057629986316897,
+      "assertions": 45,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_graph_identity_s1_v0",
+      "runtime_seconds": 0.0031664389971410856,
+      "assertions": 45,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.020327925001765834,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_empty_identity_s1_v0",
+      "runtime_seconds": 0.003215536999050528,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_full_identity_s1_v0",
+      "runtime_seconds": 0.018773316998704104,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.0054649789999530185,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_tiny_identity_s1_v0",
+      "runtime_seconds": 0.004052054999192478,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.0032807480019982904,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.00851079800122534,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_full_identity_s1_v0",
+      "runtime_seconds": 0.002940504000434885,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_empty_identity_s1_v0",
+      "runtime_seconds": 0.004165557002124842,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.0035244780010543764,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.014537991999532096,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.004370398000901332,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.002833621998433955,
+      "assertions": 24,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.0032585500011919066,
+      "assertions": 24,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_tiny_identity_s1_v0",
+      "runtime_seconds": 0.011535395999089815,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_full_identity_s1_v0",
+      "runtime_seconds": 0.004171471002337057,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_empty_identity_s1_v0",
+      "runtime_seconds": 0.003800620001129573,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.003634575998148648,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.005388170000514947,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_tiny_identity_s1_v0",
+      "runtime_seconds": 0.011319683999317931,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.004387318000226514,
+      "assertions": 45,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.015090250999492127,
+      "assertions": 45,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_plane_identity_s1.04858e+06_v0",
+      "runtime_seconds": 0.005775990000984166,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_plane_identity_s-3_v0",
+      "runtime_seconds": 0.004568938002194045,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_plane_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.017600164999748813,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_graph_affine_s1_v0",
+      "runtime_seconds": 0.003223878000426339,
+      "assertions": 24,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_plane_affine_s1_v0",
+      "runtime_seconds": 0.016430739997304045,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_plane_shear_s1_v0",
+      "runtime_seconds": 0.014645572999143042,
+      "assertions": 25,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_plane_stretch_s1_v0",
+      "runtime_seconds": 0.006300316999841016,
+      "assertions": 25,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_graph_shear_s1_v0",
+      "runtime_seconds": 0.01525307800329756,
+      "assertions": 23,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_plane_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.003609900002629729,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_graph_stretch_s1_v0",
+      "runtime_seconds": 0.00937087700003758,
+      "assertions": 23,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_plane_identity_s1.04858e+06_v0",
+      "runtime_seconds": 0.0051765709977189545,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_plane_identity_s-3_v0",
+      "runtime_seconds": 0.003483341002720408,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_plane_affine_s1_v0",
+      "runtime_seconds": 0.007172523000917863,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_graph_affine_s1_v0",
+      "runtime_seconds": 0.007662547999643721,
+      "assertions": 45,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_plane_shear_s1_v0",
+      "runtime_seconds": 0.0034889839989773463,
+      "assertions": 46,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_plane_stretch_s1_v0",
+      "runtime_seconds": 0.003034903998923255,
+      "assertions": 46,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_graph_shear_s1_v0",
+      "runtime_seconds": 0.018008792998443823,
+      "assertions": 44,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_graph_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.004139771001064219,
+      "assertions": 24,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_graph_stretch_s1_v0",
+      "runtime_seconds": 0.02282567599831964,
+      "assertions": 44,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_graph_identity_s-3_v0",
+      "runtime_seconds": 0.007051128999592038,
+      "assertions": 24,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_graph_identity_s1_v1",
+      "runtime_seconds": 0.009783396999409888,
+      "assertions": 24,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_graph_identity_s1_v2",
+      "runtime_seconds": 0.01055862400244223,
+      "assertions": 24,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.004060343999299221,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_monotone_identity_s1_v0",
+      "runtime_seconds": 0.0043968850004603155,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_graph_identity_s1_v0",
+      "runtime_seconds": 0.004147358999034623,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_plane_identity_s1_v0",
+      "runtime_seconds": 0.02123811899946304,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e1_q1_plane_identity_s1_v0",
+      "runtime_seconds": 0.003948341000068467,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e1_q1_monotone_identity_s1_v0",
+      "runtime_seconds": 0.0038154529975145124,
+      "assertions": 22,
+      "failures": 0
+    },
+    {
+      "id": "e1_q1_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.009517720998701407,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_plane_identity_s1_v0",
+      "runtime_seconds": 0.0037478379999811295,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.0038383899991458748,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q1_graph_identity_s1_v0",
+      "runtime_seconds": 0.0173294119995262,
+      "assertions": 20,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_monotone_identity_s1_v0",
+      "runtime_seconds": 0.009607616000721464,
+      "assertions": 41,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_graph_identity_s1_v0",
+      "runtime_seconds": 0.006881610999698751,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e1_q3_plane_identity_s1_v0",
+      "runtime_seconds": 0.0066526820010039955,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e1_q3_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.003938129997550277,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e1_q3_monotone_identity_s1_v0",
+      "runtime_seconds": 0.004660091999539873,
+      "assertions": 67,
+      "failures": 0
+    },
+    {
+      "id": "e1_q3_graph_identity_s1_v0",
+      "runtime_seconds": 0.008613874000729993,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e1_q4_plane_identity_s1_v0",
+      "runtime_seconds": 0.005726373998186318,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e1_q4_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.006300049997662427,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e1_q4_monotone_identity_s1_v0",
+      "runtime_seconds": 0.0106773580009758,
+      "assertions": 100,
+      "failures": 0
+    },
+    {
+      "id": "e1_q4_graph_identity_s1_v0",
+      "runtime_seconds": 0.008504494002409047,
+      "assertions": 80,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_plane_identity_s1_v0",
+      "runtime_seconds": 0.009942194003087934,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.010003434999816818,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_graph_identity_s1_v0",
+      "runtime_seconds": 0.004836880998482229,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_full_identity_s1_v0",
+      "runtime_seconds": 0.003476070996839553,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_monotone_identity_s1_v0",
+      "runtime_seconds": 0.015350669000326889,
+      "assertions": 140,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_empty_identity_s1_v0",
+      "runtime_seconds": 0.004363282001577318,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.006908641000336502,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.006274833998759277,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_tiny_identity_s1_v0",
+      "runtime_seconds": 0.009022488000482554,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.0034792269980243873,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.0029803600009472575,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_full_identity_s1_v0",
+      "runtime_seconds": 0.009826289002376143,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_empty_identity_s1_v0",
+      "runtime_seconds": 0.0138716210021812,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.009494516001723241,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_tiny_identity_s1_v0",
+      "runtime_seconds": 0.007145569001295371,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.0035053079991484992,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.019071261001954554,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.004698700002336409,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_empty_identity_s1_v0",
+      "runtime_seconds": 0.028947062000952428,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_full_identity_s1_v0",
+      "runtime_seconds": 0.03350825799861923,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.011456910997367231,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.012782406996848295,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_tiny_identity_s1_v0",
+      "runtime_seconds": 0.006972376999328844,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.010658391998731531,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_plane_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.006998797998676309,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.023296024999581277,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_plane_identity_s1.04858e+06_v0",
+      "runtime_seconds": 0.012343585000053281,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_plane_affine_s1_v0",
+      "runtime_seconds": 0.0038700129989592824,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_plane_identity_s-3_v0",
+      "runtime_seconds": 0.010454100000060862,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_plane_y_affine_s1_v0",
+      "runtime_seconds": 0.003403198999876622,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_graph_affine_s1_v0",
+      "runtime_seconds": 0.0062700490016140975,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_plane_shear_s1_v0",
+      "runtime_seconds": 0.0033250540000153705,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_graph_shear_s1_v0",
+      "runtime_seconds": 0.008744986000237986,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_plane_y_shear_s1_v0",
+      "runtime_seconds": 0.004844883002078859,
+      "assertions": 41,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_graph_stretch_s1_v0",
+      "runtime_seconds": 0.0055851970028015785,
+      "assertions": 32,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_plane_stretch_s1_v0",
+      "runtime_seconds": 0.0034234349986945745,
+      "assertions": 44,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_plane_y_stretch_s1_v0",
+      "runtime_seconds": 0.005377576999308076,
+      "assertions": 41,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_plane_identity_s1.04858e+06_v0",
+      "runtime_seconds": 0.004181611999229062,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_plane_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.013580570001067827,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_plane_identity_s-3_v0",
+      "runtime_seconds": 0.004334918998210924,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_plane_affine_s1_v0",
+      "runtime_seconds": 0.005459533000248484,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_plane_y_affine_s1_v0",
+      "runtime_seconds": 0.0046620720022474416,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_plane_shear_s1_v0",
+      "runtime_seconds": 0.005819155998324277,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_graph_affine_s1_v0",
+      "runtime_seconds": 0.017961511002795305,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_graph_shear_s1_v0",
+      "runtime_seconds": 0.006951078001293354,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_plane_stretch_s1_v0",
+      "runtime_seconds": 0.004086873999767704,
+      "assertions": 146,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_plane_y_shear_s1_v0",
+      "runtime_seconds": 0.012843471002270235,
+      "assertions": 131,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_plane_y_stretch_s1_v0",
+      "runtime_seconds": 0.004343966000305954,
+      "assertions": 140,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_graph_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.003541695001331391,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_graph_stretch_s1_v0",
+      "runtime_seconds": 0.016356386000552448,
+      "assertions": 104,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_graph_identity_s1_v1",
+      "runtime_seconds": 0.003557088999514235,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_graph_identity_s-3_v0",
+      "runtime_seconds": 0.012944955997227225,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_plane_identity_s1_v0",
+      "runtime_seconds": 0.0030178829983924516,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.0039157270002760924,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_monotone_identity_s1_v0",
+      "runtime_seconds": 0.02005200300118304,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_graph_identity_s1_v2",
+      "runtime_seconds": 0.04114267899785773,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_graph_identity_s1_v0",
+      "runtime_seconds": 0.004876479997619754,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e2_q1_plane_identity_s1_v0",
+      "runtime_seconds": 0.004517173001659103,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e2_q1_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.004794820997631177,
+      "assertions": 26,
+      "failures": 0
+    },
+    {
+      "id": "e2_q1_monotone_identity_s1_v0",
+      "runtime_seconds": 0.0047307209970313124,
+      "assertions": 22,
+      "failures": 0
+    },
+    {
+      "id": "e2_q1_graph_identity_s1_v0",
+      "runtime_seconds": 0.012899893001304008,
+      "assertions": 20,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.004835432999243494,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_plane_identity_s1_v0",
+      "runtime_seconds": 0.019323901997267967,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_monotone_identity_s1_v0",
+      "runtime_seconds": 0.003930910999770276,
+      "assertions": 41,
+      "failures": 0
+    },
+    {
+      "id": "e2_q3_plane_identity_s1_v0",
+      "runtime_seconds": 0.0044680310020339675,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_graph_identity_s1_v0",
+      "runtime_seconds": 0.010032328002125723,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e2_q3_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.004812404000404058,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e2_q3_monotone_identity_s1_v0",
+      "runtime_seconds": 0.004939976002788171,
+      "assertions": 67,
+      "failures": 0
+    },
+    {
+      "id": "e2_q3_graph_identity_s1_v0",
+      "runtime_seconds": 0.006101438000769122,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e2_q4_plane_identity_s1_v0",
+      "runtime_seconds": 0.006713852999382652,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e2_q4_monotone_identity_s1_v0",
+      "runtime_seconds": 0.006232080999325262,
+      "assertions": 100,
+      "failures": 0
+    },
+    {
+      "id": "e2_q4_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.022127542997623095,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e2_q4_graph_identity_s1_v0",
+      "runtime_seconds": 0.012870646998635493,
+      "assertions": 80,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_plane_identity_s1_v0",
+      "runtime_seconds": 0.015307512003346346,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.015240718003042275,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_graph_identity_s1_v0",
+      "runtime_seconds": 0.009427553999557858,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_monotone_identity_s1_v0",
+      "runtime_seconds": 0.01638248100061901,
+      "assertions": 140,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_full_identity_s1_v0",
+      "runtime_seconds": 0.004944307998812292,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_empty_identity_s1_v0",
+      "runtime_seconds": 0.016229368000495015,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.0038971499998297077,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.025632393000705633,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_tiny_identity_s1_v0",
+      "runtime_seconds": 0.005855276001966558,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.0088708930015855,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.006255251999391476,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_empty_identity_s1_v0",
+      "runtime_seconds": 0.008881219000613783,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.0038503010000567883,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_full_identity_s1_v0",
+      "runtime_seconds": 0.016917932000069413,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.006775051002477994,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_tiny_identity_s1_v0",
+      "runtime_seconds": 0.007079413000610657,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.004742422999697737,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_full_identity_s1_v0",
+      "runtime_seconds": 0.009041343997523654,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.02226786500250455,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_empty_identity_s1_v0",
+      "runtime_seconds": 0.009570744998200098,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.010919486998318462,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.01161528900047415,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_tiny_identity_s1_v0",
+      "runtime_seconds": 0.012157673998444807,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.01310976900276728,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_plane_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.004992943002434913,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_plane_identity_s1.04858e+06_v0",
+      "runtime_seconds": 0.005255194999335799,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_plane_identity_s-3_v0",
+      "runtime_seconds": 0.005597816001682077,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.04685433600025135,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_plane_affine_s1_v0",
+      "runtime_seconds": 0.004666519998863805,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_graph_affine_s1_v0",
+      "runtime_seconds": 0.010598922002827749,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_plane_y_affine_s1_v0",
+      "runtime_seconds": 0.00856777700028033,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_plane_shear_s1_v0",
+      "runtime_seconds": 0.0073528259999875445,
+      "assertions": 47,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_plane_y_shear_s1_v0",
+      "runtime_seconds": 0.004622911998012569,
+      "assertions": 41,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_graph_shear_s1_v0",
+      "runtime_seconds": 0.022500887000205694,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_plane_stretch_s1_v0",
+      "runtime_seconds": 0.004409312998177484,
+      "assertions": 44,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_graph_stretch_s1_v0",
+      "runtime_seconds": 0.01088718500250252,
+      "assertions": 32,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_plane_y_stretch_s1_v0",
+      "runtime_seconds": 0.01781255799869541,
+      "assertions": 41,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_plane_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.011327756998070981,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_plane_identity_s1.04858e+06_v0",
+      "runtime_seconds": 0.011053040998376673,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_plane_identity_s-3_v0",
+      "runtime_seconds": 0.011321955997118494,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_plane_affine_s1_v0",
+      "runtime_seconds": 0.010112103998835664,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_graph_affine_s1_v0",
+      "runtime_seconds": 0.010997217999829445,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_plane_y_affine_s1_v0",
+      "runtime_seconds": 0.013029008001467446,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_plane_shear_s1_v0",
+      "runtime_seconds": 0.012876955999672646,
+      "assertions": 152,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_plane_y_shear_s1_v0",
+      "runtime_seconds": 0.01598448900040239,
+      "assertions": 131,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_plane_stretch_s1_v0",
+      "runtime_seconds": 0.009028721000504447,
+      "assertions": 146,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_graph_stretch_s1_v0",
+      "runtime_seconds": 0.012988320999284042,
+      "assertions": 104,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_graph_shear_s1_v0",
+      "runtime_seconds": 0.05677027700221515,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_graph_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.004543463997833896,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_graph_identity_s-3_v0",
+      "runtime_seconds": 0.022937888999877032,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_graph_identity_s1_v1",
+      "runtime_seconds": 0.00497556399932364,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e2_q5_plane_y_stretch_s1_v0",
+      "runtime_seconds": 0.050007354002445936,
+      "assertions": 140,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_graph_identity_s1_v2",
+      "runtime_seconds": 0.012231936001626309,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_plane_identity_s1_v0",
+      "runtime_seconds": 0.004056210000271676,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_monotone_identity_s1_v0",
+      "runtime_seconds": 0.016998729999613715,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_graph_identity_s1_v0",
+      "runtime_seconds": 0.03943158399852109,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e3_q1_plane_identity_s1_v0",
+      "runtime_seconds": 0.043583185000898084,
+      "assertions": 33,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.01374537200172199,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e3_q1_monotone_identity_s1_v0",
+      "runtime_seconds": 0.04782738900030381,
+      "assertions": 27,
+      "failures": 0
+    },
+    {
+      "id": "e3_q1_graph_identity_s1_v0",
+      "runtime_seconds": 0.04566202199930558,
+      "assertions": 25,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_plane_identity_s1_v0",
+      "runtime_seconds": 0.27739949200258707,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.021911132000241196,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_monotone_identity_s1_v0",
+      "runtime_seconds": 0.061180895998404594,
+      "assertions": 63,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_graph_identity_s1_v0",
+      "runtime_seconds": 0.08865880599842058,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e3_q3_plane_identity_s1_v0",
+      "runtime_seconds": 0.0361936949993833,
+      "assertions": 145,
+      "failures": 0
+    },
+    {
+      "id": "e3_q3_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.05229349799992633,
+      "assertions": 145,
+      "failures": 0
+    },
+    {
+      "id": "e3_q3_monotone_identity_s1_v0",
+      "runtime_seconds": 0.020965278999938164,
+      "assertions": 125,
+      "failures": 0
+    },
+    {
+      "id": "e3_q3_graph_identity_s1_v0",
+      "runtime_seconds": 0.06386148400270031,
+      "assertions": 105,
+      "failures": 0
+    },
+    {
+      "id": "e3_q4_plane_identity_s1_v0",
+      "runtime_seconds": 0.07651897300092969,
+      "assertions": 250,
+      "failures": 0
+    },
+    {
+      "id": "e3_q4_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.05394643800173071,
+      "assertions": 250,
+      "failures": 0
+    },
+    {
+      "id": "e3_q4_monotone_identity_s1_v0",
+      "runtime_seconds": 0.03967353000189178,
+      "assertions": 220,
+      "failures": 0
+    },
+    {
+      "id": "e3_q4_graph_identity_s1_v0",
+      "runtime_seconds": 0.27619319099903805,
+      "assertions": 180,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_plane_identity_s1_v0",
+      "runtime_seconds": 1.1165737329974945,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.17844364400298218,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_monotone_identity_s1_v0",
+      "runtime_seconds": 0.11314415299784741,
+      "assertions": 355,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_graph_identity_s1_v0",
+      "runtime_seconds": 0.2523342010026681,
+      "assertions": 285,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_full_identity_s1_v0",
+      "runtime_seconds": 0.08253299100033473,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_empty_identity_s1_v0",
+      "runtime_seconds": 0.013396455000474816,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.16940549799983273,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.17094675699991058,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e3_q1_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.027015982999728294,
+      "assertions": 33,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_tiny_identity_s1_v0",
+      "runtime_seconds": 0.029792648001603084,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.029443130002619,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_full_identity_s1_v0",
+      "runtime_seconds": 0.0048945950002234895,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_empty_identity_s1_v0",
+      "runtime_seconds": 0.007309542001166847,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.005580277000262868,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.024015612001676345,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_tiny_identity_s1_v0",
+      "runtime_seconds": 0.018299359999218723,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.02830151499802014,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.0057061139996221755,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.0170556539997051,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_full_identity_s1_v0",
+      "runtime_seconds": 0.055187242996908026,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.05782448299942189,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.0453330950003874,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_empty_identity_s1_v0",
+      "runtime_seconds": 0.19601874699947075,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_tiny_identity_s1_v0",
+      "runtime_seconds": 0.07024612500026706,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.060993237002548994,
+      "assertions": 285,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_plane_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.03091492599924095,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_plane_identity_s1.04858e+06_v0",
+      "runtime_seconds": 0.005094092000945238,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.05848864899962791,
+      "assertions": 285,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_plane_identity_s-3_v0",
+      "runtime_seconds": 0.016412843000580324,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_graph_affine_s1_v0",
+      "runtime_seconds": 0.026970327002345584,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_plane_affine_s1_v0",
+      "runtime_seconds": 0.008764361999055836,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_plane_y_affine_s1_v0",
+      "runtime_seconds": 0.021409736000350676,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_plane_shear_s1_v0",
+      "runtime_seconds": 0.013759157998720184,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_graph_shear_s1_v0",
+      "runtime_seconds": 0.06840442100292421,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_plane_y_shear_s1_v0",
+      "runtime_seconds": 0.018080120000377065,
+      "assertions": 65,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_plane_stretch_s1_v0",
+      "runtime_seconds": 0.02433835799820372,
+      "assertions": 69,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_plane_y_stretch_s1_v0",
+      "runtime_seconds": 0.018412097000691574,
+      "assertions": 63,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_graph_stretch_s1_v0",
+      "runtime_seconds": 0.04383882600086508,
+      "assertions": 49,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_plane_identity_s1.04858e+06_v0",
+      "runtime_seconds": 0.04764879499998642,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_plane_identity_s-3_v0",
+      "runtime_seconds": 0.055821858997660456,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_plane_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.22237318599945866,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_plane_affine_s1_v0",
+      "runtime_seconds": 0.10387848900063545,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_plane_y_affine_s1_v0",
+      "runtime_seconds": 0.036963100003049476,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_plane_shear_s1_v0",
+      "runtime_seconds": 0.0580252349973307,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_graph_shear_s1_v0",
+      "runtime_seconds": 0.07634271500137402,
+      "assertions": 285,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_plane_y_shear_s1_v0",
+      "runtime_seconds": 0.07884639099938795,
+      "assertions": 341,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_graph_affine_s1_v0",
+      "runtime_seconds": 0.35853627499818685,
+      "assertions": 285,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_plane_stretch_s1_v0",
+      "runtime_seconds": 0.03938517500137095,
+      "assertions": 376,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_plane_y_stretch_s1_v0",
+      "runtime_seconds": 0.054961709000053816,
+      "assertions": 355,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_graph_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.03833026700158371,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_graph_identity_s-3_v0",
+      "runtime_seconds": 0.025709513000037987,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_graph_identity_s1_v1",
+      "runtime_seconds": 0.028278973997657886,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_graph_identity_s1_v2",
+      "runtime_seconds": 0.03807126500032609,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_plane_identity_s1_v0",
+      "runtime_seconds": 0.02340259400079958,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.02471966200027964,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_monotone_identity_s1_v0",
+      "runtime_seconds": 0.04256619199804845,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e3_q5_graph_stretch_s1_v0",
+      "runtime_seconds": 0.4608700009994209,
+      "assertions": 264,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_graph_identity_s1_v0",
+      "runtime_seconds": 0.04263805600203341,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e4_q1_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.03117561600083718,
+      "assertions": 33,
+      "failures": 0
+    },
+    {
+      "id": "e4_q1_plane_identity_s1_v0",
+      "runtime_seconds": 0.05073726899718167,
+      "assertions": 33,
+      "failures": 0
+    },
+    {
+      "id": "e4_q1_monotone_identity_s1_v0",
+      "runtime_seconds": 0.02712571099982597,
+      "assertions": 27,
+      "failures": 0
+    },
+    {
+      "id": "e4_q1_graph_identity_s1_v0",
+      "runtime_seconds": 0.029952887998661026,
+      "assertions": 25,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_plane_identity_s1_v0",
+      "runtime_seconds": 0.027679933999024797,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_monotone_identity_s1_v0",
+      "runtime_seconds": 0.030048819997318788,
+      "assertions": 63,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_graph_identity_s1_v0",
+      "runtime_seconds": 0.028978816997550894,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.11623870200128295,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q3_plane_identity_s1_v0",
+      "runtime_seconds": 0.06436530599967227,
+      "assertions": 145,
+      "failures": 0
+    },
+    {
+      "id": "e4_q3_monotone_identity_s1_v0",
+      "runtime_seconds": 0.055637057001149515,
+      "assertions": 125,
+      "failures": 0
+    },
+    {
+      "id": "e4_q3_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.11906884599738987,
+      "assertions": 145,
+      "failures": 0
+    },
+    {
+      "id": "e4_q3_graph_identity_s1_v0",
+      "runtime_seconds": 0.07412273999943864,
+      "assertions": 105,
+      "failures": 0
+    },
+    {
+      "id": "e4_q4_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.09690283500094665,
+      "assertions": 250,
+      "failures": 0
+    },
+    {
+      "id": "e4_q4_monotone_identity_s1_v0",
+      "runtime_seconds": 0.06292967400077032,
+      "assertions": 220,
+      "failures": 0
+    },
+    {
+      "id": "e4_q4_plane_identity_s1_v0",
+      "runtime_seconds": 0.4071936750005989,
+      "assertions": 250,
+      "failures": 0
+    },
+    {
+      "id": "e4_q4_graph_identity_s1_v0",
+      "runtime_seconds": 0.44812417199864285,
+      "assertions": 180,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_diagonal_identity_s1_v0",
+      "runtime_seconds": 0.3037054439992062,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_monotone_identity_s1_v0",
+      "runtime_seconds": 0.3022257940028794,
+      "assertions": 355,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_plane_identity_s1_v0",
+      "runtime_seconds": 1.018376663003437,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_full_identity_s1_v0",
+      "runtime_seconds": 0.03889540000091074,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_empty_identity_s1_v0",
+      "runtime_seconds": 0.025702848000946688,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_graph_identity_s1_v0",
+      "runtime_seconds": 0.3008566669996071,
+      "assertions": 285,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.018288153001776664,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_tiny_identity_s1_v0",
+      "runtime_seconds": 0.028562965999299195,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.029853754000214394,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.025581960999261355,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.05742358399947989,
+      "assertions": 12,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_full_identity_s1_v0",
+      "runtime_seconds": 0.025092603002121905,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.024353819000680232,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_empty_identity_s1_v0",
+      "runtime_seconds": 0.06038226600139751,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_tiny_identity_s1_v0",
+      "runtime_seconds": 0.04173571900173556,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.07703213100103312,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.03191078500094591,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.15248278500075685,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_full_identity_s1_v0",
+      "runtime_seconds": 0.5206045960003394,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_boundary_low_identity_s1_v0",
+      "runtime_seconds": 0.3587647720014502,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_empty_identity_s1_v0",
+      "runtime_seconds": 1.0223624040008872,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_boundary_high_identity_s1_v0",
+      "runtime_seconds": 0.3304137970008014,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_near_affine_identity_s1_v0",
+      "runtime_seconds": 0.34472568899946054,
+      "assertions": 285,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_zero_face_identity_s1_v0",
+      "runtime_seconds": 0.32303890099865384,
+      "assertions": 285,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_plane_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.03555261200017412,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_plane_identity_s1.04858e+06_v0",
+      "runtime_seconds": 0.05843059399921913,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_plane_identity_s-3_v0",
+      "runtime_seconds": 0.054453237000416266,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_plane_affine_s1_v0",
+      "runtime_seconds": 0.03492230699703214,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_graph_affine_s1_v0",
+      "runtime_seconds": 0.0630450690005091,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_tiny_identity_s1_v0",
+      "runtime_seconds": 1.088916976001201,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_plane_y_affine_s1_v0",
+      "runtime_seconds": 0.041269250999903306,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_graph_shear_s1_v0",
+      "runtime_seconds": 0.042620844000339275,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_plane_y_shear_s1_v0",
+      "runtime_seconds": 0.02993053699901793,
+      "assertions": 65,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_plane_shear_s1_v0",
+      "runtime_seconds": 0.12582075400132453,
+      "assertions": 75,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_plane_stretch_s1_v0",
+      "runtime_seconds": 0.0336247019986331,
+      "assertions": 69,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_plane_y_stretch_s1_v0",
+      "runtime_seconds": 0.022944704000110505,
+      "assertions": 63,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_graph_stretch_s1_v0",
+      "runtime_seconds": 0.13054570399981458,
+      "assertions": 49,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_plane_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.32675265700163436,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_plane_identity_s1.04858e+06_v0",
+      "runtime_seconds": 0.3756273869985307,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_plane_identity_s-3_v0",
+      "runtime_seconds": 0.28138324199971976,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_graph_affine_s1_v0",
+      "runtime_seconds": 0.3333475770014047,
+      "assertions": 285,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_plane_y_affine_s1_v0",
+      "runtime_seconds": 0.2741614570004458,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_plane_affine_s1_v0",
+      "runtime_seconds": 0.9575452909994056,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_plane_shear_s1_v0",
+      "runtime_seconds": 0.2885232590015221,
+      "assertions": 397,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_plane_y_shear_s1_v0",
+      "runtime_seconds": 0.31840216899945517,
+      "assertions": 341,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_plane_stretch_s1_v0",
+      "runtime_seconds": 0.2754707549975137,
+      "assertions": 376,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_graph_stretch_s1_v0",
+      "runtime_seconds": 0.3043143799986865,
+      "assertions": 264,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_graph_shear_s1_v0",
+      "runtime_seconds": 1.1762957319988345,
+      "assertions": 285,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_graph_identity_s9.53674e-07_v0",
+      "runtime_seconds": 0.10781999599930714,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e4_q5_plane_y_stretch_s1_v0",
+      "runtime_seconds": 0.3185250839997025,
+      "assertions": 355,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_graph_identity_s-3_v0",
+      "runtime_seconds": 0.0977764909985126,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_graph_identity_s1_v1",
+      "runtime_seconds": 0.044441579997510416,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_sphere_identity_s1_v0",
+      "runtime_seconds": 0.007090629002050264,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e0_q1_sphere_identity_s1_v0",
+      "runtime_seconds": 0.006146791998617118,
+      "assertions": 15,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_sphere_identity_s1_v0",
+      "runtime_seconds": 0.011885793999681482,
+      "assertions": 20,
+      "failures": 0
+    },
+    {
+      "id": "e0_q3_sphere_identity_s1_v0",
+      "runtime_seconds": 0.010675063000235241,
+      "assertions": 25,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_graph_identity_s1_v2",
+      "runtime_seconds": 0.07519366199994693,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e0_q4_sphere_identity_s1_v0",
+      "runtime_seconds": 0.009966049001377542,
+      "assertions": 30,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_sphere_identity_s1_v0",
+      "runtime_seconds": 0.012185051997221308,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e1_q0_sphere_identity_s1_v0",
+      "runtime_seconds": 0.006430110999644967,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e1_q2_sphere_identity_s1_v0",
+      "runtime_seconds": 0.007873202001064783,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e1_q1_sphere_identity_s1_v0",
+      "runtime_seconds": 0.05441447100020014,
+      "assertions": 20,
+      "failures": 0
+    },
+    {
+      "id": "e1_q3_sphere_identity_s1_v0",
+      "runtime_seconds": 0.06223910500193597,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e1_q5_sphere_identity_s1_v0",
+      "runtime_seconds": 0.010041260997240897,
+      "assertions": 110,
+      "failures": 0
+    },
+    {
+      "id": "e2_q0_sphere_identity_s1_v0",
+      "runtime_seconds": 0.0073335789966222364,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e1_q4_sphere_identity_s1_v0",
+      "runtime_seconds": 0.055229182999028126,
+      "assertions": 80,
+      "failures": 0
+    },
+    {
+      "id": "e2_q2_sphere_identity_s1_v0",
+      "runtime_seconds": 0.015179001999058528,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e2_q3_sphere_identity_s1_v0",
+      "runtime_seconds": 0.06032784900162369,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e3_q2_sphere_identity_s1_v0",
+      "runtime_seconds": 0.8648939829981828,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e3_q0_sphere_identity_s1_v0",
+      "runtime_seconds": 1.799470919999294,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e4_q0_sphere_identity_s1_v0",
+      "runtime_seconds": 0.6083264869994309,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e3_q3_sphere_identity_s1_v0",
+      "runtime_seconds": 1.829093798998656,
+      "assertions": 105,
+      "failures": 0
+    },
+    {
+      "id": "e4_q2_sphere_identity_s1_v0",
+      "runtime_seconds": 0.6041346249985509,
+      "assertions": 55,
+      "failures": 0
+    },
+    {
+      "id": "e0_q0_two_roots_identity_s1_v0",
+      "runtime_seconds": 0.0036618179983634036,
+      "assertions": 10,
+      "failures": 0
+    },
+    {
+      "id": "e0_q1_two_roots_identity_s1_v0",
+      "runtime_seconds": 0.0035561530021368526,
+      "assertions": 15,
+      "failures": 0
+    },
+    {
+      "id": "e0_q2_two_roots_identity_s1_v0",
+      "runtime_seconds": 0.00296219200026826,
+      "assertions": 20,
+      "failures": 0
+    },
+    {
+      "id": "e0_q3_two_roots_identity_s1_v0",
+      "runtime_seconds": 0.00408274499932304,
+      "assertions": 25,
+      "failures": 0
+    },
+    {
+      "id": "e0_q4_two_roots_identity_s1_v0",
+      "runtime_seconds": 0.003687416003231192,
+      "assertions": 30,
+      "failures": 0
+    },
+    {
+      "id": "e0_q5_two_roots_identity_s1_v0",
+      "runtime_seconds": 0.0035439650018815883,
+      "assertions": 35,
+      "failures": 0
+    },
+    {
+      "id": "e4_q3_sphere_identity_s1_v0",
+      "runtime_seconds": 0.757476016999135,
+      "assertions": 105,
+      "failures": 0
+    }
+  ]
+}

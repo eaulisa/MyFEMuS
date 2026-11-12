@@ -376,7 +376,6 @@ namespace fem {
         return node;
       }
 
-
       // Locate leaf containing (xi,eta) in parent space [-1,1]^2
       // and compute leaf-local coordinates (shat,that) in [-1,1]^2.
       // Returns false if (xi,eta) outside domain.
@@ -402,8 +401,6 @@ namespace fem {
 
         return true;
       }
-
-
 
       // Locate leaf containing physical point (x,y)
       u32 locate_leaf_on_physical(double x, double y) const {
@@ -512,28 +509,28 @@ namespace fem {
         const double* c = leaf_coeff_ptr(fid, leaf_pos);
 
         switch (f.basis) {
-        case Basis::Q1_Quad4: {
-          double N4[4];
-          Shapes::Q1(shat, that, N4);
-          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-        }
-        break;
-        case Basis::Serendipity8: {
-          double N8[8];
-          Shapes::Serendipity8(shat, that, N8);
-          double v = 0.0;
-          for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-          value = v;
-        }
-        break;
-        case Basis::Q2_Quad9: {
-          double N9[9];
-          Quad9Shape::N(shat, that, N9);
-          double v = 0.0;
-          for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-          value = v;
-        }
-        break;
+          case Basis::Q1_Quad4: {
+            double N4[4];
+            Shapes::Q1(shat, that, N4);
+            value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+          }
+          break;
+          case Basis::Serendipity8: {
+            double N8[8];
+            Shapes::Serendipity8(shat, that, N8);
+            double v = 0.0;
+            for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+            value = v;
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            double N9[9];
+            Quad9Shape::N(shat, that, N9);
+            double v = 0.0;
+            for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+            value = v;
+          }
+          break;
         }
         return true;
       }
@@ -568,30 +565,30 @@ namespace fem {
 
         out_pts.clear();
         switch (basis) {
-        case Basis::Q1_Quad4: {
-          static const double S[4][2] = {{-1, -1}, {+1, -1}, {+1, +1}, {-1, +1}};
-          out_pts.reserve(4);
-          for (int i = 0; i < 4; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
-        }
-        break;
-        case Basis::Serendipity8: {
-          static const double S[8][2] = {
-            {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1},
-            {0, -1}, {+1, 0}, {0, +1}, {-1, 0}
-          };
-          out_pts.reserve(8);
-          for (int i = 0; i < 8; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
-        }
-        break;
-        case Basis::Q2_Quad9: {
-          static const double S[9][2] = {
-            {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1},
-            {0, -1}, {+1, 0}, {0, +1}, {-1, 0}, {0, 0}
-          };
-          out_pts.reserve(9);
-          for (int i = 0; i < 9; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
-        }
-        break;
+          case Basis::Q1_Quad4: {
+            static const double S[4][2] = {{-1, -1}, {+1, -1}, {+1, +1}, {-1, +1}};
+            out_pts.reserve(4);
+            for (int i = 0; i < 4; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
+          }
+          break;
+          case Basis::Serendipity8: {
+            static const double S[8][2] = {
+              {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1},
+              {0, -1}, {+1, 0}, {0, +1}, {-1, 0}
+            };
+            out_pts.reserve(8);
+            for (int i = 0; i < 8; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            static const double S[9][2] = {
+              {-1, -1}, {+1, -1}, {+1, +1}, {-1, +1},
+              {0, -1}, {+1, 0}, {0, +1}, {-1, 0}, {0, 0}
+            };
+            out_pts.reserve(9);
+            for (int i = 0; i < 9; ++i) out_pts.push_back(toParent(S[i][0], S[i][1]));
+          }
+          break;
         }
       }
 
@@ -717,9 +714,6 @@ namespace fem {
         return total;
       }
 
-
-
-
       // Fill vector with parent-space coordinates of interpolation nodes (by basis) for leaf
       void leaf_reference_nodes(Basis basis, u32 leaf,
                                 std::vector<std::array<double, 2>>& xi) const {
@@ -727,41 +721,41 @@ namespace fem {
         double xi0, eta0, xi1, eta1;
         leaf_bounds(leaf, xi0, eta0, xi1, eta1);
         switch (basis) {
-        case Basis::Q1_Quad4: {
-          xi.resize(4);
-          xi[0] = {xi0, eta0};
-          xi[1] = {xi1, eta0};
-          xi[2] = {xi1, eta1};
-          xi[3] = {xi0, eta1};
-        }
-        break;
-        case Basis::Serendipity8: {
-          xi.resize(8);
-          double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
-          xi[0] = {xi0, eta0};
-          xi[1] = {xi1, eta0};
-          xi[2] = {xi1, eta1};
-          xi[3] = {xi0, eta1};
-          xi[4] = {xm,  eta0};
-          xi[5] = {xi1, ym };
-          xi[6] = {xm,  eta1};
-          xi[7] = {xi0, ym };
-        }
-        break;
-        case Basis::Q2_Quad9: {
-          xi.resize(9);
-          double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
-          xi[0] = {xi0, eta0};
-          xi[1] = {xi1, eta0};
-          xi[2] = {xi1, eta1};
-          xi[3] = {xi0, eta1};
-          xi[4] = {xm,  eta0};
-          xi[5] = {xi1, ym };
-          xi[6] = {xm,  eta1};
-          xi[7] = {xi0, ym };
-          xi[8] = {xm,  ym };
-        }
-        break;
+          case Basis::Q1_Quad4: {
+            xi.resize(4);
+            xi[0] = {xi0, eta0};
+            xi[1] = {xi1, eta0};
+            xi[2] = {xi1, eta1};
+            xi[3] = {xi0, eta1};
+          }
+          break;
+          case Basis::Serendipity8: {
+            xi.resize(8);
+            double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
+            xi[0] = {xi0, eta0};
+            xi[1] = {xi1, eta0};
+            xi[2] = {xi1, eta1};
+            xi[3] = {xi0, eta1};
+            xi[4] = {xm,  eta0};
+            xi[5] = {xi1, ym };
+            xi[6] = {xm,  eta1};
+            xi[7] = {xi0, ym };
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            xi.resize(9);
+            double xm = 0.5 * (xi0 + xi1), ym = 0.5 * (eta0 + eta1);
+            xi[0] = {xi0, eta0};
+            xi[1] = {xi1, eta0};
+            xi[2] = {xi1, eta1};
+            xi[3] = {xi0, eta1};
+            xi[4] = {xm,  eta0};
+            xi[5] = {xi1, ym };
+            xi[6] = {xm,  eta1};
+            xi[7] = {xi0, ym };
+            xi[8] = {xm,  ym };
+          }
+          break;
         }
       }
 
@@ -772,28 +766,28 @@ namespace fem {
         const Field& f = _fields[fid];
         const double* c = _fields[fid].coeffs.data() + size_t(leaf_pos) * f.dofs_per_cell;
         switch (f.basis) {
-        case Basis::Q1_Quad4: {
-          double N4[4];
-          Shapes::Q1(shat, that, N4);
-          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-        }
-        break;
-        case Basis::Serendipity8: {
-          double N8[8];
-          Shapes::Serendipity8(shat, that, N8);
-          double v = 0.0;
-          for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-          value = v;
-        }
-        break;
-        case Basis::Q2_Quad9: {
-          double N9[9];
-          Quad9Shape::N(shat, that, N9);
-          double v = 0.0;
-          for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-          value = v;
-        }
-        break;
+          case Basis::Q1_Quad4: {
+            double N4[4];
+            Shapes::Q1(shat, that, N4);
+            value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+          }
+          break;
+          case Basis::Serendipity8: {
+            double N8[8];
+            Shapes::Serendipity8(shat, that, N8);
+            double v = 0.0;
+            for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+            value = v;
+          }
+          break;
+          case Basis::Q2_Quad9: {
+            double N9[9];
+            Quad9Shape::N(shat, that, N9);
+            double v = 0.0;
+            for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+            value = v;
+          }
+          break;
         }
         return true;
       }
@@ -819,35 +813,33 @@ namespace fem {
 
         // Step 4. Evaluate basis interpolation
         switch (f.basis) {
-        case Basis::Q1_Quad4: {
-          double N4[4];
-          Shapes::Q1(shat, that, N4);
-          value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
-        }
-        break;
+          case Basis::Q1_Quad4: {
+            double N4[4];
+            Shapes::Q1(shat, that, N4);
+            value = N4[0] * c[0] + N4[1] * c[1] + N4[2] * c[2] + N4[3] * c[3];
+          }
+          break;
 
-        case Basis::Serendipity8: {
-          double N8[8];
-          Shapes::Serendipity8(shat, that, N8);
-          double v = 0.0;
-          for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-          value = v;
-        }
-        break;
+          case Basis::Serendipity8: {
+            double N8[8];
+            Shapes::Serendipity8(shat, that, N8);
+            double v = 0.0;
+            for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+            value = v;
+          }
+          break;
 
-        case Basis::Q2_Quad9: {
-          double N9[9];
-          Quad9Shape::N(shat, that, N9);
-          double v = 0.0;
-          for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-          value = v;
-        }
-        break;
+          case Basis::Q2_Quad9: {
+            double N9[9];
+            Quad9Shape::N(shat, that, N9);
+            double v = 0.0;
+            for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+            value = v;
+          }
+          break;
         }
         return true;
       }
-
-
 
       // Rebuild field fid on *this* from source tree 'src' by sampling at parent nodes
       void rebuild_field_from(const QuadTree2D& src, u32 fid) {
@@ -872,17 +864,13 @@ namespace fem {
         }
       }
 
-
       // Conservative coarsen cycle using snapshot + parent coords; rebuild all fields
       std::size_t coarsen_only_cycle_safe(u32 fid,
                                           double tau_coarse,
                                           u32 max_passes = 10,
                                           Basis probe_basis = Basis::Q2_Quad9) {
 
-
         QuadTree2D snapshot = *this;
-
-
 
         // Predicate: coarsening criterion
         auto pred = [&](u32 /*parent*/, u32 level,
@@ -930,7 +918,6 @@ namespace fem {
         return total;
       }
 
-
       u32 find_neighbor(u32 leaf, int edge) const {
         double xi0, eta0, xi1, eta1;
         leaf_bounds(leaf, xi0, eta0, xi1, eta1);
@@ -943,35 +930,31 @@ namespace fem {
 
         // relative perturbation factor (safe wrt machine precision)
 
-
         // test point starts at element center
         double xm = 0.5 * (xi0 + xi1);
         double ym = 0.5 * (eta0 + eta1);
 
         // shift across the requested edge
         switch (edge) {
-        case 0:
-          ym = eta0 - eps * dy;
-          break; // bottom
-        case 1:
-          xm = xi1 + eps * dx;
-          break; // right
-        case 2:
-          ym = eta1 + eps * dy;
-          break; // top
-        case 3:
-          xm = xi0 - eps * dx;
-          break; // left
-        default:
-          break;
+          case 0:
+            ym = eta0 - eps * dy;
+            break; // bottom
+          case 1:
+            xm = xi1 + eps * dx;
+            break; // right
+          case 2:
+            ym = eta1 + eps * dy;
+            break; // top
+          case 3:
+            xm = xi0 - eps * dx;
+            break; // left
+          default:
+            break;
         }
 
         return locate_leaf_on_parent(xm, ym);
 
-
-
       }
-
 
       // Collect edge nodes of a leaf and return both coordinates (xi,eta) and local indices.
       // The coordinates are shifted slightly outside the fine element so evaluation
@@ -997,73 +980,73 @@ namespace fem {
           if (edge == 0) { // bottom edge
             p[1] -= eps * dy;
             switch (i) {
-            case 0: // bottom-left corner
-              p[0] += eps * dx;
-              isOnEdge = true;
-              break;
-            case 1: // bottom-right corner
-              p[0] -= eps * dx;
-              isOnEdge = true;
-              break;
-            case 4: // bottom midpoint
-              isOnEdge = true;
-              break;
-            default:
-              break;
+              case 0: // bottom-left corner
+                p[0] += eps * dx;
+                isOnEdge = true;
+                break;
+              case 1: // bottom-right corner
+                p[0] -= eps * dx;
+                isOnEdge = true;
+                break;
+              case 4: // bottom midpoint
+                isOnEdge = true;
+                break;
+              default:
+                break;
             }
           }
           else if (edge == 1) { // right edge
             p[0] += eps * dx;
             switch (i) {
-            case 1: // bottom-right corner
-              p[1] += eps * dy;
-              isOnEdge = true;
-              break;
-            case 2: // top-right corner
-              p[1] -= eps * dy;
-              isOnEdge = true;
-              break;
-            case 5: // right midpoint
-              isOnEdge = true;
-              break;
-            default:
-              break;
+              case 1: // bottom-right corner
+                p[1] += eps * dy;
+                isOnEdge = true;
+                break;
+              case 2: // top-right corner
+                p[1] -= eps * dy;
+                isOnEdge = true;
+                break;
+              case 5: // right midpoint
+                isOnEdge = true;
+                break;
+              default:
+                break;
             }
           }
           else if (edge == 2) { // top edge
             p[1] += eps * dy;
             switch (i) {
-            case 2: // top-right corner
-              p[0] -= eps * dx;
-              isOnEdge = true;
-              break;
-            case 3: // top-left corner
-              p[0] += eps * dx;
-              isOnEdge = true;
-              break;
-            case 6: // top midpoint
-              isOnEdge = true;
-              break;
-            default:
-              break;
+              case 2: // top-right corner
+                p[0] -= eps * dx;
+                isOnEdge = true;
+                break;
+              case 3: // top-left corner
+                p[0] += eps * dx;
+                isOnEdge = true;
+                break;
+              case 6: // top midpoint
+                isOnEdge = true;
+                break;
+              default:
+                break;
             }
           }
           else if (edge == 3) { // left edge
             p[0] -= eps * dx;
             switch (i) {
-            case 0: // bottom-left corner
-              p[1] += eps * dy;
-              isOnEdge = true;
-              break;
-            case 3: // top-left corner
-              p[1] -= eps * dy;
-              isOnEdge = true;
-              break;
-            case 7: // left midpoint
-              isOnEdge = true;
-              break;
-            default:
-              break;
+              case 0: // bottom-left corner
+                p[1] += eps * dy;
+                isOnEdge = true;
+                break;
+              case 3: // top-left corner
+                p[1] -= eps * dy;
+                isOnEdge = true;
+                break;
+              case 7: // left midpoint
+                isOnEdge = true;
+                break;
+              default:
+                break;
             }
           }
 
@@ -1088,7 +1071,6 @@ namespace fem {
         }
       }
 
-
       void enforce_edge_constraints(u32 coarse, u32 fine, int edge) {
         for (u32 fid = 0; fid < _fields.size(); ++fid) {
           const Field& f = _fields[fid];
@@ -1109,11 +1091,9 @@ namespace fem {
         }
       }
 
-
       u32 level_of(u32 leaf) const {
         return _nodes[leaf].level;
       }
-
 
       // Map a parent coordinate (xi,eta) in [-1,1]^2 to physical (x,y)
       // using the Quad9 isoparametric geometry map.
@@ -1130,8 +1110,6 @@ namespace fem {
         }
         return {X, Y};
       }
-
-
 
       // Collect reference coordinates (xi,eta) of nodes for all leaves
       // in a level range. Much like extract_node_coords_in_level_range,
@@ -1152,8 +1130,6 @@ namespace fem {
 
         return coords;
       }
-
-
 
       // ---------------------------------------------------------
       // Neighbor lookup (axis-aligned): dir = 0:left, 1:right, 2:down, 3:up
@@ -1273,39 +1249,39 @@ namespace fem {
 
           // Cell type
           switch (fld.basis) {
-          case Basis::Q1_Quad4:
-            types.push_back(9);
-            break;  // VTK_QUAD
-          case Basis::Serendipity8:
-            types.push_back(23);
-            break;  // VTK_QUADRATIC_QUAD
-          case Basis::Q2_Quad9:
-            types.push_back(28);
-            break;  // VTK_BIQUADRATIC_QUAD
+            case Basis::Q1_Quad4:
+              types.push_back(9);
+              break;  // VTK_QUAD
+            case Basis::Serendipity8:
+              types.push_back(23);
+              break;  // VTK_QUADRATIC_QUAD
+            case Basis::Q2_Quad9:
+              types.push_back(28);
+              break;  // VTK_BIQUADRATIC_QUAD
           }
 
           if (cell_centered) {
             // Just evaluate at element center (0,0)
             double v = 0.0;
             switch (fld.basis) {
-            case Basis::Q1_Quad4: {
-              double N4[4];
-              Shapes::Q1(0, 0, N4);
-              for (int i = 0; i < 4; ++i) v += N4[i] * c[i];
-            }
-            break;
-            case Basis::Serendipity8: {
-              double N8[8];
-              Shapes::Serendipity8(0, 0, N8);
-              for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
-            }
-            break;
-            case Basis::Q2_Quad9: {
-              double N9[9];
-              Quad9Shape::N(0, 0, N9);
-              for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
-            }
-            break;
+              case Basis::Q1_Quad4: {
+                double N4[4];
+                Shapes::Q1(0, 0, N4);
+                for (int i = 0; i < 4; ++i) v += N4[i] * c[i];
+              }
+              break;
+              case Basis::Serendipity8: {
+                double N8[8];
+                Shapes::Serendipity8(0, 0, N8);
+                for (int i = 0; i < 8; ++i) v += N8[i] * c[i];
+              }
+              break;
+              case Basis::Q2_Quad9: {
+                double N9[9];
+                Quad9Shape::N(0, 0, N9);
+                for (int i = 0; i < 9; ++i) v += N9[i] * c[i];
+              }
+              break;
             }
             cellData.push_back(v);
           }
@@ -1370,11 +1346,9 @@ namespace fem {
         return true;
       }
 
-
       // -----------------------------------------------------------------------------
 // Main VTU writer (binary)
 // -----------------------------------------------------------------------------
-
 
       bool write_binary_vtu(const std::string &filename, u32 fid, const std::string &name,
                             bool cell_centered = false) const {
@@ -1503,11 +1477,6 @@ namespace fem {
         return true;
       }
 
-
-
-
-
-
       bool write_binary_vtu_mesh(const std::string &filename) const {
         require_geometry();
         const auto& L = leaves();
@@ -1583,9 +1552,6 @@ namespace fem {
         return true;
       }
 
-
-
-
       bool write_binary_vtu_points(const std::string &filename) const {
         require_geometry();
         const auto& L = leaves();
@@ -1652,12 +1618,6 @@ namespace fem {
         return true;
       }
 
-
-
-
-
-
-
       // === Data extraction utilities ===
 
       // Test if two points are the same within tolerance (used for global gather)
@@ -1670,12 +1630,12 @@ namespace fem {
       // Return number of nodes for a given basis
       static int basis_nodes(Basis b) {
         switch (b) {
-        case Basis::Q1_Quad4:
-          return 4;
-        case Basis::Serendipity8:
-          return 8;
-        case Basis::Q2_Quad9:
-          return 9;
+          case Basis::Q1_Quad4:
+            return 4;
+          case Basis::Serendipity8:
+            return 8;
+          case Basis::Q2_Quad9:
+            return 9;
         }
         return 0;
       }
@@ -1903,5 +1863,3 @@ namespace fem {
   };
 
 } // namespace fem
-
-

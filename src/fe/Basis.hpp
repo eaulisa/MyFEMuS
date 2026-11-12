@@ -17,7 +17,6 @@
  * This class contains the fe basis function and their derivatives
  */
 
-
 #ifndef __femus_fe_Basis_hpp__
 #define __femus_fe_Basis_hpp__
 
@@ -62,7 +61,6 @@ namespace femus {
         return eval_phi(this->GetIND(j), &x[0]);
       };
 
-
       double eval_dphidx(const unsigned &j, const std::vector < double > &x) const {
         return eval_dphidx(this->GetIND(j), &x[0]);
       };
@@ -81,19 +79,19 @@ namespace femus {
         assert(dim < 3); //0, 1, 2
 
         switch (dim) {
-        case (0): {
-          return eval_dphidx(j, x);
-        }
-        case (1): {
-          return eval_dphidy(j, x);
-        }
-        case (2): {
-          return eval_dphidz(j, x);
-        }
-        default: {
-          std::cout << "Only up to dim 3" << std::endl;
-          abort();
-        }
+          case (0): {
+            return eval_dphidx(j, x);
+          }
+          case (1): {
+            return eval_dphidy(j, x);
+          }
+          case (2): {
+            return eval_dphidz(j, x);
+          }
+          default: {
+            std::cout << "Only up to dim 3" << std::endl;
+            abort();
+          }
         }
 
       };
@@ -121,8 +119,6 @@ namespace femus {
       double eval_d2phidzdx(const unsigned &j, const std::vector < double > &x) const {
         return eval_d2phidzdx(this->GetIND(j), &x[0]);
       };
-
-
 
       virtual double eval_phi(const int *I, const double* x) const {
         std::cout << "Error this phi is not available for this element \n";
@@ -535,9 +531,7 @@ namespace femus {
       static const int IND[4][3];
       static const int KVERT_IND[32][2];
 
-
   };
-
 
   class hex0: public hex_const {
     public:
@@ -832,7 +826,6 @@ namespace femus {
 
   };
 
-
   //************************************************************
 
   class tet_lag : public basis {
@@ -872,10 +865,7 @@ namespace femus {
       static const unsigned fine2CoarseVertexMapping[8][4];
       static const unsigned faceDofs[4][7];
 
-
   };
-
-
 
   class TetLinear: public tet_lag {
     public:
@@ -1094,7 +1084,6 @@ namespace femus {
 
   };
 
-
   class QuadLinear: public quad_lag {
     public:
       QuadLinear(): quad_lag(4, 9) {};
@@ -1167,16 +1156,13 @@ namespace femus {
         return KVERT_IND[i];
       };
 
-
     protected:
 
       static const double X[12][2];
       static const int IND[3][2];
       static const int KVERT_IND[12][2];
 
-
   };
-
 
   class quad0: public quad_const {
     public:
@@ -1271,7 +1257,6 @@ namespace femus {
       static const unsigned fine2CoarseVertexMapping[4][3];
       static const unsigned faceDofs[3][3];
   };
-
 
   class TriLinear: public tri_lag {
     public:
@@ -1407,7 +1392,6 @@ namespace femus {
       };
   };
 
-
   //************************************************************
 
   class line_lag : public basis {
@@ -1496,7 +1480,6 @@ namespace femus {
 
   };
 
-
   class line0: public line_const {
     public:
       line0(): line_const(1, 2) { };
@@ -1516,7 +1499,6 @@ namespace femus {
 
   };
 
-
   class linepwLinear: public line_const {
     public:
       linepwLinear(): line_const(2, 4) { };
@@ -1532,9 +1514,6 @@ namespace femus {
 
   };
 
-
-
 }//end namespace femus
-
 
 #endif

@@ -1,0 +1,9 @@
+{
+  "cases": 180,
+  "moment_values": 63360,
+  "exact_decimal_equality": true,
+  "changed_cases": [],
+  "unchanged_sampling": true,
+  "changed_sampling": [],
+  "timing_note": "Timings are diagnostic; other verification may overlap, so no performance conclusion is drawn."
+}

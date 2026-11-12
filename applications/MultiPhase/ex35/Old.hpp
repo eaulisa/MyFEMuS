@@ -104,7 +104,6 @@ void dedupNodes(
     k = k2;
   }
 
-
   // -------- 4) Assign new indices 0..numUnique-1 to each representative --------
   std::vector<unsigned> old2new(N);
   unsigned numUnique = 0;

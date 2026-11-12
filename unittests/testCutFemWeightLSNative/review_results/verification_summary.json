@@ -1,0 +1,87 @@
+{
+  "source_base_sha": "1a4c2c5fefa6a783fe27c1e2132073307e839314",
+  "maximum_tested_monomial_degree": 10,
+  "builds": {
+    "translation_units": 20,
+    "failures": 0
+  },
+  "focused": {
+    "processes": 16,
+    "failures": 0
+  },
+  "original": {
+    "cases": 386,
+    "flagged_cases": 0,
+    "assertions": 36860
+  },
+  "supplemental": {
+    "cases": 8,
+    "flagged_cases": 0,
+    "assertions": 3176
+  },
+  "planar": {
+    "cases": 147,
+    "flagged_cases": 0,
+    "weight_comparisons": 16258,
+    "moment_comparisons": 4552,
+    "maximum_normalized_weight_difference": 1.2022094431055488e-10,
+    "maximum_normalized_moment_difference": 1.5678340058649732e-13
+  },
+  "review_regressions": {
+    "checks": 12345,
+    "circle_cases": 144,
+    "ellipse_cases": 48,
+    "maximum_fraction_of_requested_error_budget": 0.001990841155521483
+  },
+  "mesh_refinement": {
+    "cases": 30,
+    "failures": 0,
+    "maximum_area_error": 1.713039432527097e-17,
+    "maximum_interface_length_error": 7.35089072945172e-17
+  },
+  "sanitizers": {
+    "address": "PASS",
+    "undefined_behavior": "PASS",
+    "recovery": false,
+    "local_leak_detection": false,
+    "reason": "LeakSanitizer cannot run under ptrace in the local execution environment; GitHub CI uses runtime defaults."
+  },
+  "benchmark": {
+    "timing_cases": 108,
+    "stress_cases": 240,
+    "baseline_comparison": {
+      "accepted": true,
+      "per_moment_comparisons": 43200,
+      "maximum_difference_fraction": 0.0018092991293564814,
+      "summary": {
+        "QUAD": {
+          "geometric_mean_speedup": 1.0942428239914674,
+          "median_speedup": 1.0019312179497077,
+          "cases": 54
+        },
+        "TRI": {
+          "geometric_mean_speedup": 0.9218706200734347,
+          "median_speedup": 0.9554789227605606,
+          "cases": 54
+        }
+      }
+    },
+    "reviewed_comparison": {
+      "accepted": true,
+      "per_moment_comparisons": 43200,
+      "maximum_difference_fraction": 3.400293135036848e-05,
+      "summary": {
+        "QUAD": {
+          "geometric_mean_speedup": 1.2814250662252062,
+          "median_speedup": 1.0128291936327443,
+          "cases": 54
+        },
+        "TRI": {
+          "geometric_mean_speedup": 1.0303620236424869,
+          "median_speedup": 0.9550012290820273,
+          "cases": 54
+        }
+      }
+    }
+  }
+}

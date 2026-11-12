@@ -185,9 +185,9 @@ class Mesh {
     }
 
     void setRefinementFromBallLevelSetCrossing_OneRing(const std::vector<double>& center,
-                                                       double r,
-                                                       unsigned neighMode,   // 0,1,2,3
-                                                       double eps = -1.0) {
+        double r,
+        unsigned neighMode,   // 0,1,2,3
+        double eps = -1.0) {
       // neighMode:
       // 0 = all connectivity nodes
       // 1 = vertices only
@@ -371,7 +371,6 @@ class Mesh {
       checkSanity("Mesh::setRefinementFromBallLevelSetCrossing_OneRing", CheckMode::Basic);
     }
 
-
     void setRefinementFromLocatedPoints_OneRing(
       const std::vector<PointLocatorResult>& results,
       unsigned neighMode   // 0,1,2,3
@@ -502,8 +501,6 @@ class Mesh {
         CheckMode::Basic);
     }
 
-
-
     bool needsRefinement(std::size_t i) const {
       if (_AMR.empty()) return true;
       if (i >= _AMR.size()) throw std::out_of_range("Mesh::needsRefinement: index out of range");
@@ -559,7 +556,6 @@ class Mesh {
       const std::size_t nElems  = numElements();
       const std::size_t nNodes  = numNodes();
 
-
       std::vector<unsigned> counts(nNodes, 0u);
 
       for (std::size_t e = 0; e < nElems; ++e) {
@@ -572,7 +568,6 @@ class Mesh {
         }
       }
 
-
       _nodeElems.resize(nNodes);           // keep existing inner vectors & capacities
       for (auto& v : _nodeElems) v.clear(); // clear sizes but keep capacity
 
@@ -582,7 +577,6 @@ class Mesh {
           _nodeElems[n].reserve(need);
         }
       }
-
 
       for (std::size_t e = 0; e < nElems; ++e) {
         const auto &conn = _elTplgy[e];
@@ -751,8 +745,6 @@ class Mesh {
       while (changedGlobal);
     }
 
-
-
     // Push-back for reference triangle: r>=0, s>=0, r+s<=1
     static inline void pushback_tri(double &r, double &s, const double eps) {
       if (r < 0.0 && r > -8.0 * eps) r = 0.0;
@@ -787,8 +779,6 @@ class Mesh {
       }
     }
 
-
-
 // ------------------------------------------------------------
 // Project PointLocatorResult from this mesh to mesh1
 // ------------------------------------------------------------
@@ -819,11 +809,14 @@ class Mesh {
       };
       auto set2 = [&](std::vector<double>& xi, double a, double b) {
         //xi.resize(2);
-        xi[0] = a; xi[1] = b;
+        xi[0] = a;
+        xi[1] = b;
       };
       auto set3 = [&](std::vector<double>& xi, double a, double b, double c) {
         //xi.resize(3);
-        xi[0] = a; xi[1] = b; xi[2] = c;
+        xi[0] = a;
+        xi[1] = b;
+        xi[2] = c;
       };
 
       auto pick_child_by_contains = [&](unsigned et,
@@ -901,7 +894,6 @@ class Mesh {
           return;
         }
 
-
         if (et == static_cast<unsigned>(Tri7)) {
           // Reference triangle: (r,s) with r>=0, s>=0, r+s<=1
           if (xi0.size() != 2) throw std::runtime_error("project: Tri7 expects xi size 2");
@@ -965,7 +957,6 @@ class Mesh {
           return;
         }
 
-
         if (et == static_cast<unsigned>(Wedge21)) {
           // Wedge: (r,s) triangle, z in [-1,1]
           if (xi0.size() != 3) throw std::runtime_error("project: Wedge21 expects xi size 3");
@@ -986,21 +977,28 @@ class Mesh {
 
           if (r <= 0.5 + eps && s <= 0.5 + eps) {
             if (r + s <= 0.5 + eps) {
-              ctri = 0; r1 = 2.0 * r;       s1 = 2.0 * s;
+              ctri = 0;
+              r1 = 2.0 * r;
+              s1 = 2.0 * s;
             }
             else {
-              ctri = 3; r1 = 1.0 - 2.0 * r; s1 = 1.0 - 2.0 * s;
+              ctri = 3;
+              r1 = 1.0 - 2.0 * r;
+              s1 = 1.0 - 2.0 * s;
             }
           }
           else if (r > 0.5) {
-            ctri = 1; r1 = 2.0 * r - 1.0;   s1 = 2.0 * s;
+            ctri = 1;
+            r1 = 2.0 * r - 1.0;
+            s1 = 2.0 * s;
           }
           else {
-            ctri = 2; r1 = 2.0 * r;         s1 = 2.0 * s - 1.0;
+            ctri = 2;
+            r1 = 2.0 * r;
+            s1 = 2.0 * s - 1.0;
           }
 
           childIndex = ctri + 4u * cz;
-
 
           set3(xi1, r1, s1, z1);
 
@@ -1017,8 +1015,6 @@ class Mesh {
 #endif
 
           return;
-
-
 
           if (!inside_tri(xi1[0], xi1[1]) || !inside_line(xi1[2])) {
             throw std::runtime_error("project: Wedge21 mapped xi not inside child reference wedge");
@@ -1039,35 +1035,55 @@ class Mesh {
 
           auto map_child = [&](unsigned c, double & u, double & v, double & w) {
             switch (c) {
-            case 0: u = 2.0 * x;          v = 2.0 * y;          w = 2.0 * z;          return;
-            case 1: u = 2.0 * x - 1.0;    v = 2.0 * y;          w = 2.0 * z;          return;
-            case 2: u = 2.0 * x;          v = 2.0 * y - 1.0;    w = 2.0 * z;          return;
-            case 3: u = 2.0 * x;          v = 2.0 * y;          w = 2.0 * z - 1.0;    return;
+              case 0:
+                u = 2.0 * x;
+                v = 2.0 * y;
+                w = 2.0 * z;
+                return;
+              case 1:
+                u = 2.0 * x - 1.0;
+                v = 2.0 * y;
+                w = 2.0 * z;
+                return;
+              case 2:
+                u = 2.0 * x;
+                v = 2.0 * y - 1.0;
+                w = 2.0 * z;
+                return;
+              case 3:
+                u = 2.0 * x;
+                v = 2.0 * y;
+                w = 2.0 * z - 1.0;
+                return;
 
-            case 4: u = 1.0 - 2.0 * x - 2.0 * z;
-              v = 1.0 - 2.0 * y - 2.0 * z;
-              w = 2.0 * z;
-              return;
+              case 4:
+                u = 1.0 - 2.0 * x - 2.0 * z;
+                v = 1.0 - 2.0 * y - 2.0 * z;
+                w = 2.0 * z;
+                return;
 
-            case 5: u = 1.0 - 2.0 * x;
-              v = 2.0 * y;
-              w = 1.0 - 2.0 * y - 2.0 * z;
-              return;
+              case 5:
+                u = 1.0 - 2.0 * x;
+                v = 2.0 * y;
+                w = 1.0 - 2.0 * y - 2.0 * z;
+                return;
 
-            case 6: u = 2.0 * y + 2.0 * z - 1.0;
-              v = 2.0 * x + 2.0 * z - 1.0;
-              w = 1.0 - 2.0 * z;
-              return;
+              case 6:
+                u = 2.0 * y + 2.0 * z - 1.0;
+                v = 2.0 * x + 2.0 * z - 1.0;
+                w = 1.0 - 2.0 * z;
+                return;
 
-            case 7: u = 2.0 * x;
-              v = 1.0 - 2.0 * y;
-              w = 1.0 - 2.0 * x - 2.0 * z;
-              return;
+              case 7:
+                u = 2.0 * x;
+                v = 1.0 - 2.0 * y;
+                w = 1.0 - 2.0 * x - 2.0 * z;
+                return;
 
-            default: throw std::runtime_error("project: Tet15 child index out of range");
+              default:
+                throw std::runtime_error("project: Tet15 child index out of range");
             }
           };
-
 
           for (unsigned c = 0; c < 8u; ++c) {
             double u, v, w;
@@ -1123,8 +1139,6 @@ class Mesh {
         r1.xi.resize(dim);        // no alloc (reserve(3) already)
         std::copy_n(r0.xi.data(), dim, r1.xi.data());
 
-
-
         const std::size_t e0 = static_cast<std::size_t>(r0.elem);
         if (e0 >= nEl0) {
           throw std::runtime_error("projectPointLocator: input elem out of range on mesh0");
@@ -1139,14 +1153,26 @@ class Mesh {
 
         std::size_t nChild = 0;
         switch (static_cast<ElType>(et)) {
-        case Line3:   nChild = 2; break;
-        case Quad9:   nChild = 4; break;
-        case Tri7:    nChild = 4; break;
-        case Hex27:   nChild = 8; break;
-        case Wedge21: nChild = 8; break;
-        case Tet15:   nChild = 8; break;
-        default:
-          throw std::runtime_error("projectPointLocator: unsupported element type");
+          case Line3:
+            nChild = 2;
+            break;
+          case Quad9:
+            nChild = 4;
+            break;
+          case Tri7:
+            nChild = 4;
+            break;
+          case Hex27:
+            nChild = 8;
+            break;
+          case Wedge21:
+            nChild = 8;
+            break;
+          case Tet15:
+            nChild = 8;
+            break;
+          default:
+            throw std::runtime_error("projectPointLocator: unsupported element type");
         }
 
         if (ch.size() == 1) {
@@ -1174,7 +1200,6 @@ class Mesh {
         r1.ok   = true;
       }
     }
-
 
   private:
     ElemConnectivity &_elTplgy;
@@ -1315,7 +1340,3 @@ class Mesh {
       }
     }
 };
-
-
-
-

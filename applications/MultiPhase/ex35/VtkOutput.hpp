@@ -5,7 +5,6 @@
 #include <vector>
 #include <string>
 
-
 // elType convention (adjust if you use different codes):
 //   0 -> Hex27
 //   1 -> Tet15
@@ -97,15 +96,25 @@ void writeMeshFieldVTK(const std::string& filename,
   std::size_t totalCellInts = 0;
   for (std::size_t e = 0; e < numCells; ++e) {
     switch (elType[e]) {
-    case 0: totalCellInts += 1 + 27; break; // Hex27
-    case 1: totalCellInts += 1 + 10; break; // Tet15 -> export as 10-node quadratic tetra
-    case 2: totalCellInts += 1 + 18; break; // Wedge21 -> export as 18-node wedge
-    case 3: totalCellInts += 1 + 9;  break; // Quad9
-    case 4: totalCellInts += 1 + 6;  break; // Tri7 -> export as 6-node quadratic tri
-    default:
-      std::cerr << "writeMeshFieldVTK: unknown elType[" << e << "] = " << elType[e] << "\n";
-      out.close();
-      return;
+      case 0:
+        totalCellInts += 1 + 27;
+        break; // Hex27
+      case 1:
+        totalCellInts += 1 + 10;
+        break; // Tet15 -> export as 10-node quadratic tetra
+      case 2:
+        totalCellInts += 1 + 18;
+        break; // Wedge21 -> export as 18-node wedge
+      case 3:
+        totalCellInts += 1 + 9;
+        break; // Quad9
+      case 4:
+        totalCellInts += 1 + 6;
+        break; // Tri7 -> export as 6-node quadratic tri
+      default:
+        std::cerr << "writeMeshFieldVTK: unknown elType[" << e << "] = " << elType[e] << "\n";
+        out.close();
+        return;
     }
   }
 
@@ -115,72 +124,72 @@ void writeMeshFieldVTK(const std::string& filename,
     const auto& conn = elTplgy[e];
 
     switch (elType[e]) {
-    case 0: {
-      // HEX27: last 7 DOFs remapped with tail_map
-      static const std::array<unsigned, 7> tail_map{{3u, 1u, 0u, 2u, 4u, 5u, 6u}};
-      if (conn.size() != 27) {
-        std::cerr << "writeMeshFieldVTK: Hex element with conn.size() != 27 (" << conn.size() << ")\n";
-      }
-
-      out << 27;
-      for (unsigned j = 0; j < 27 && j < conn.size(); ++j) {
-        unsigned src = j;
-        if (j >= 20) {
-          const unsigned i = j - 20; // i in [0,6]
-          src = 20u + tail_map[i];
+      case 0: {
+        // HEX27: last 7 DOFs remapped with tail_map
+        static const std::array<unsigned, 7> tail_map{{3u, 1u, 0u, 2u, 4u, 5u, 6u}};
+        if (conn.size() != 27) {
+          std::cerr << "writeMeshFieldVTK: Hex element with conn.size() != 27 (" << conn.size() << ")\n";
         }
-        out << " " << conn[src];
-      }
-      out << "\n";
-      break;
-    }
 
-    case 1: {
-      // TET15 exported as 10-node VTK_QUADRATIC_TETRA (0..9)
-      if (conn.size() < 10) {
-        std::cerr << "writeMeshFieldVTK: Tet element with conn.size() < 10 (" << conn.size() << ")\n";
+        out << 27;
+        for (unsigned j = 0; j < 27 && j < conn.size(); ++j) {
+          unsigned src = j;
+          if (j >= 20) {
+            const unsigned i = j - 20; // i in [0,6]
+            src = 20u + tail_map[i];
+          }
+          out << " " << conn[src];
+        }
+        out << "\n";
+        break;
       }
-      out << 10;
-      for (unsigned j = 0; j < 10 && j < conn.size(); ++j) out << " " << conn[j];
-      out << "\n";
-      break;
-    }
 
-    case 2: {
-      // WEDGE21 exported as 18-node vtkBiQuadraticQuadraticWedge (0..17)
-      if (conn.size() < 18) {
-        std::cerr << "writeMeshFieldVTK: Wedge element with conn.size() < 18 (" << conn.size() << ")\n";
+      case 1: {
+        // TET15 exported as 10-node VTK_QUADRATIC_TETRA (0..9)
+        if (conn.size() < 10) {
+          std::cerr << "writeMeshFieldVTK: Tet element with conn.size() < 10 (" << conn.size() << ")\n";
+        }
+        out << 10;
+        for (unsigned j = 0; j < 10 && j < conn.size(); ++j) out << " " << conn[j];
+        out << "\n";
+        break;
       }
-      out << 18;
-      for (unsigned j = 0; j < 18 && j < conn.size(); ++j) out << " " << conn[j];
-      out << "\n";
-      break;
-    }
 
-    case 3: {
-      // QUAD9 exported as 9-node VTK_BIQUADRATIC_QUAD (0..8)
-      if (conn.size() != 9) {
-        std::cerr << "writeMeshFieldVTK: Quad element with conn.size() != 9 (" << conn.size() << ")\n";
+      case 2: {
+        // WEDGE21 exported as 18-node vtkBiQuadraticQuadraticWedge (0..17)
+        if (conn.size() < 18) {
+          std::cerr << "writeMeshFieldVTK: Wedge element with conn.size() < 18 (" << conn.size() << ")\n";
+        }
+        out << 18;
+        for (unsigned j = 0; j < 18 && j < conn.size(); ++j) out << " " << conn[j];
+        out << "\n";
+        break;
       }
-      out << 9;
-      for (unsigned j = 0; j < 9 && j < conn.size(); ++j) out << " " << conn[j];
-      out << "\n";
-      break;
-    }
 
-    case 4: {
-      // TRI7 exported as 6-node VTK_QUADRATIC_TRIANGLE (0..5)
-      if (conn.size() < 6) {
-        std::cerr << "writeMeshFieldVTK: Tri element with conn.size() < 6 (" << conn.size() << ")\n";
+      case 3: {
+        // QUAD9 exported as 9-node VTK_BIQUADRATIC_QUAD (0..8)
+        if (conn.size() != 9) {
+          std::cerr << "writeMeshFieldVTK: Quad element with conn.size() != 9 (" << conn.size() << ")\n";
+        }
+        out << 9;
+        for (unsigned j = 0; j < 9 && j < conn.size(); ++j) out << " " << conn[j];
+        out << "\n";
+        break;
       }
-      out << 6;
-      for (unsigned j = 0; j < 6 && j < conn.size(); ++j) out << " " << conn[j];
-      out << "\n";
-      break;
-    }
 
-    default:
-      break;
+      case 4: {
+        // TRI7 exported as 6-node VTK_QUADRATIC_TRIANGLE (0..5)
+        if (conn.size() < 6) {
+          std::cerr << "writeMeshFieldVTK: Tri element with conn.size() < 6 (" << conn.size() << ")\n";
+        }
+        out << 6;
+        for (unsigned j = 0; j < 6 && j < conn.size(); ++j) out << " " << conn[j];
+        out << "\n";
+        break;
+      }
+
+      default:
+        break;
     }
   }
 
@@ -190,16 +199,26 @@ void writeMeshFieldVTK(const std::string& filename,
   out << "CELL_TYPES " << numCells << "\n";
   for (std::size_t e = 0; e < numCells; ++e) {
     switch (elType[e]) {
-    case 0: out << 29 << "\n"; break; // VTK_TRIQUADRATIC_HEXAHEDRON
-    case 1: out << 24 << "\n"; break; // VTK_QUADRATIC_TETRA
-    case 2: out << 32 << "\n"; break; // VTK_BIQUADRATIC_QUADRATIC_WEDGE
-    case 3: out << 28 << "\n"; break; // VTK_BIQUADRATIC_QUAD
-    case 4: out << 22 << "\n"; break; // VTK_QUADRATIC_TRIANGLE
-    default:
-      std::cerr << "writeMeshFieldVTK: unknown elType in CELL_TYPES, e=" << e
-                << ", type=" << elType[e] << "\n";
-      out << 0 << "\n";
-      break;
+      case 0:
+        out << 29 << "\n";
+        break; // VTK_TRIQUADRATIC_HEXAHEDRON
+      case 1:
+        out << 24 << "\n";
+        break; // VTK_QUADRATIC_TETRA
+      case 2:
+        out << 32 << "\n";
+        break; // VTK_BIQUADRATIC_QUADRATIC_WEDGE
+      case 3:
+        out << 28 << "\n";
+        break; // VTK_BIQUADRATIC_QUAD
+      case 4:
+        out << 22 << "\n";
+        break; // VTK_QUADRATIC_TRIANGLE
+      default:
+        std::cerr << "writeMeshFieldVTK: unknown elType in CELL_TYPES, e=" << e
+                  << ", type=" << elType[e] << "\n";
+        out << 0 << "\n";
+        break;
     }
   }
 
@@ -289,9 +308,6 @@ void writeMeshVTK(const std::string& filename, Mesh& mesh) {
   writeMeshFieldVTK(filename, field);
 }
 
-
-
-
 static void writePointsVTK(const std::string& filename,
                            const std::vector<std::vector<double>>& Xp) {
   const std::size_t dim = Xp.size();
@@ -325,4 +341,3 @@ static void writePointsVTK(const std::string& filename,
     out << "1 " << i << "\n";
   }
 }
-
