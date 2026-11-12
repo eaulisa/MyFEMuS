@@ -3158,8 +3158,9 @@ void PrintLevelSetDiagnostics(
   out << '\n';
 }
 struct SimulationArgs {
-  unsigned uniformLevels = 1u;
-  unsigned levelOffset   = 1u;
+  unsigned uniformLevels    = 1u;
+  unsigned levelOffset      = 1u;
+  unsigned levelOffsetPsi   = 1u;
 
   unsigned nPrint = 100u;
   unsigned nReinit = 100u;
@@ -3260,6 +3261,17 @@ SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
       }
 
       args.levelOffset = std::stoul(argv[++i]);
+    }
+
+    else if (option == "--level-offset-psi") {
+
+      if (i + 1 >= argc) {
+        throw std::runtime_error(
+          "Missing value after --level-offset-psi"
+        );
+      }
+
+      args.levelOffsetPsi = std::stoul(argv[++i]);
     }
 
     else if(option == "--simulation") {
