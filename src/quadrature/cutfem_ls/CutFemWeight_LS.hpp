@@ -13,6 +13,7 @@
 #include "Tet15LevelSet.hpp"
 #include "Tet15LevelSetMoments.hpp"
 #include "UnitElementMoments.hpp"
+#include "Wedge21LevelSetMoments.hpp"
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
@@ -123,7 +124,7 @@ class CutFemWeight_LS {
 
   private:
     static GeomElType ValidateGeometry(const GeomElType geomElemType) {
-      if(geomElemType != LINE && geomElemType != QUAD && geomElemType != TRI && geomElemType != HEX && geomElemType != TET) throw std::invalid_argument("Unsupported level-set geometry.");
+      if(geomElemType != LINE && geomElemType != QUAD && geomElemType != TRI && geomElemType != HEX && geomElemType != TET && geomElemType != WEDGE) throw std::invalid_argument("Unsupported level-set geometry.");
       return geomElemType;
     }
 
@@ -167,7 +168,7 @@ class CutFemWeight_LS {
       std::vector<std::vector<boost::multiprecision::cpp_bin_float_oct>> powers(_dim, std::vector<boost::multiprecision::cpp_bin_float_oct>(_qM + 1U, 1));
       _momentToWeight.resize(_gn, _L);
       for(unsigned ig = 0; ig < _gn; ++ig) {
-        for(unsigned d = 0; d < _dim; ++d) x[d] = boost::multiprecision::cpp_bin_float_oct(xgp[d][ig]);
+        for(unsigned d = 0; d < _dim; ++d) x[d] = _geomElemType == WEDGE && d == 2 ? (boost::multiprecision::cpp_bin_float_oct(xgp[d][ig])+1)/2 : boost::multiprecision::cpp_bin_float_oct(xgp[d][ig]);
         for(unsigned d = 0; d < _dim; ++d) {
           for(unsigned i = 1; i <= _qM; ++i) powers[d][i] = powers[d][i - 1U] * x[d];
         }
@@ -200,7 +201,7 @@ class CutFemWeight_LS {
       rules.Validate();
       if(&positiveWeight == &deltaWeight) throw std::invalid_argument("Heaviside and delta weights require distinct output vectors.");
       if(!(absoluteTolerance > 0.) || !(relativeTolerance >= 0.) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance)) throw std::invalid_argument("Invalid nodal integration tolerance.");
-      if(geometryCoordinates != nullptr) FELevelSetMoments::ValidateSurfaceGeometryCoordinates(*geometryCoordinates, _dim, _geomElemType == LINE ? 3U : (_geomElemType == TRI ? 7U : (_geomElemType == QUAD ? 9U : (_geomElemType == TET ? 15U : 27U))));
+      if(geometryCoordinates != nullptr) FELevelSetMoments::ValidateSurfaceGeometryCoordinates(*geometryCoordinates, _dim, _geomElemType == LINE ? 3U : (_geomElemType == TRI ? 7U : (_geomElemType == QUAD ? 9U : (_geomElemType == TET ? 15U : (_geomElemType == WEDGE ? 21U : 27U)))));
       const bool sameGeometry = geometryCoordinates == nullptr ? _nodalGeometryCoordinates.empty() : _nodalGeometryCoordinates == *geometryCoordinates;
       if(_nodalWeightCacheValid && _cachedOuterQuadratureRules.SameAs(rules) && sameGeometry && referenceSurface == _nodalUsesReferenceSurface && nodalValues == _nodalValues && absoluteTolerance == _nodalAbsoluteTolerance && relativeTolerance == _nodalRelativeTolerance) {
         positiveWeight = _nodalPositiveWeight;
@@ -254,6 +255,12 @@ class CutFemWeight_LS {
         std::vector<long double> errors;
         FELevelSetMoments::IntegrateUnitTensorNodalMoments(nodalValues,_dim,_qM,values,errors,absoluteTolerance,relativeTolerance,referenceSurface,geometryCoordinates,_integrationDirection,_directionValidation,rules);
         const long double surfaceFactor = geometryCoordinates != nullptr ? 1.0L/(1U<<_dim) : (referenceSurface ? 0.5L : 1.0L);
+        for(unsigned n = 0; n < _L; ++n) { _fPair(n,0) = static_cast<TypeA>(values[n]); _fPair(n,1) = static_cast<TypeA>(surfaceFactor*values[_L+n]); }
+      }
+      else if(_geomElemType == WEDGE) {
+        std::vector<long double> values, errors;
+        FELevelSetMoments::IntegrateWedge21NodalMoments(nodalValues,_qM,values,errors,absoluteTolerance,relativeTolerance,referenceSurface,geometryCoordinates,_integrationDirection,_directionValidation,rules);
+        const long double surfaceFactor = geometryCoordinates != nullptr ? 0.5L : 1.0L;
         for(unsigned n = 0; n < _L; ++n) { _fPair(n,0) = static_cast<TypeA>(values[n]); _fPair(n,1) = static_cast<TypeA>(surfaceFactor*values[_L+n]); }
       }
       else if(_geomElemType == TET) {
