@@ -46,7 +46,7 @@ struct IntegrationOptions {
   double relativeTolerance = 1.e-10;
   unsigned algoimOrder = 5;
   unsigned algoimSubdivisions = 0;
-  
+  FELevelSetMoments::OuterQuadratureRules outerQuadratureRules;
 };
 
 

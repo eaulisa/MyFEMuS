@@ -4,7 +4,7 @@ set -euo pipefail
 # ------------------ EDIT ONLY THIS SECTION ------------------
 ELEMENTS=(0 3)           # 0=HEX, 3=QUAD; TRI/TET remain available for BALL
 PSI="ball"          # ball or nonconvex (QUAD9/HEX27 only)
-CURVED=0                 # 0=straight; 1=analytical curved BALL only
+CURVED=1                 # 0=straight; 1=analytical curved BALL only
 LEVELS=2                 # levels 0..LEVELS, preserving the uploaded default
 CURVATURE=0.40           # used only for curved BALL
 
@@ -19,7 +19,7 @@ NONCONVEX_HEX_B=4
 NONCONVEX_HEX_C=1600      # chi=c/(a*b)>3 for nonconvex geometry
 
 MODE="moment"            # moment, algoim, compare
-DEGREE=5
+DEGREE=6
 CUTFEM_ABS_TOL=1e-4      # CutFEM moment-fitting absolute tolerance
 CUTFEM_REL_TOL=1e-4      # CutFEM moment-fitting relative tolerance
 ALGOIM_ORDER=8
