@@ -4277,28 +4277,28 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
     case SimulationCase::PAR: {
 
       cfg.x_min[0] = 0.;
-      cfg.x_max[0] = 1.;
+      cfg.x_max[0] = 0.01;
       cfg.x_min[1] = 0.;
-      cfg.x_max[1] = 1.;
+      cfg.x_max[1] = 0.01;
       cfg.x_min[2] = 0.;
-      cfg.x_max[2] = (dim == 3) ? 1. : 0.;
+      cfg.x_max[2] = (dim == 3) ? 0.01 : 0.;
 
-      cfg.n[0] = (dim == 3) ? 1 : 1;
-      cfg.n[1] = (dim == 3) ? 1 : 1;
-      cfg.n[2] = (dim == 3) ? 1 : 0;
+      cfg.n[0] = (dim == 3) ? 2 : 4;
+      cfg.n[1] = (dim == 3) ? 2 : 4;
+      cfg.n[2] = (dim == 3) ? 2 : 0;
 
-      cfg.period = 10.;
+      cfg.period = 0.03;
 
       cfg.psi.type = PsiType::BALL;
-      cfg.psi.center = {0.5, 0.5, 0.5};
+      cfg.psi.center = {0.005, 0.005, 0.005};
       cfg.psi.center.resize(dim);
-      cfg.psi.radius = 0.25;
+      cfg.psi.radius = 0.004;
 
-      cfg.properties.rho1 = 1.;
-      cfg.properties.rho2 = 1.;
-      cfg.properties.mu1 = 1.;
-      cfg.properties.mu2 = 1.;
-      cfg.properties.sigma = 1.;
+      cfg.properties.rho1 = 300.;
+      cfg.properties.rho2 = 300.;
+      cfg.properties.mu1 = 0.05;
+      cfg.properties.mu2 = 0.05;
+      cfg.properties.sigma = 25.;
       cfg.properties.gravity = 0.;
 
       SetAllSlip();
@@ -4566,6 +4566,14 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
 
     if(dim == 3) {
       HalveDomainDirection(1);
+    }
+
+    if (simulation == SimulationCase::PAR) {
+      if (dim == 2) HalveDomainDirection(1);
+      if (dim == 3) {
+        HalveDomainDirection(1);
+        HalveDomainDirection(2);
+      }
     }
   }
 

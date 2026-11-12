@@ -2,11 +2,11 @@
 set -euo pipefail
 
 # ------------------ EDIT ONLY THIS SECTION ------------------
-ELEMENTS=(0 3)           # 0=HEX, 3=QUAD; TRI/TET remain available for BALL
+ELEMENTS=(0 1 3 4)           # 0=HEX, 3=QUAD; TRI/TET remain available for BALL
 PSI="ball"          # ball or nonconvex (QUAD9/HEX27 only)
 CURVED=1                 # 0=straight; 1=analytical curved BALL only
-LEVELS=2                 # levels 0..LEVELS, preserving the uploaded default
-CURVATURE=0.40           # used only for curved BALL
+LEVELS=0                 # levels 0..LEVELS, preserving the uploaded default
+CURVATURE=0.50           # used only for curved BALL
 
 # nonconvex: QUAD9 uses the original Stella Q2 oval.
 NONCONVEX_QUAD_A=4        # a>=4; a>4 for a strictly interior oval
@@ -20,8 +20,8 @@ NONCONVEX_HEX_C=1600      # chi=c/(a*b)>3 for nonconvex geometry
 
 MODE="moment"            # moment, algoim, compare
 DEGREE=6
-CUTFEM_ABS_TOL=1e-4      # CutFEM moment-fitting absolute tolerance
-CUTFEM_REL_TOL=1e-4      # CutFEM moment-fitting relative tolerance
+CUTFEM_ABS_TOL=1e-6      # CutFEM moment-fitting absolute tolerance
+CUTFEM_REL_TOL=1e-6      # CutFEM moment-fitting relative tolerance
 ALGOIM_ORDER=8
 ALGOIM_SUBDIVISIONS=0
 VTK=1

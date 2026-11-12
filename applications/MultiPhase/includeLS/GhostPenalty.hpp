@@ -1689,7 +1689,7 @@ void AssembleGhostPenaltyLinearPressure(MultiLevelProblem& ml_prob, const bool P
   const double rho1 = properties.rho1;
   const double rho2 = properties.rho2;
   const double dt = my_nnlin_impl_sys.GetIntervalTime();
-  const double gammaP = 0.01;
+  const double gammaP = 0.00001;
   const double gammaIso = 0.01;
 
   auto flag = [&](const unsigned ielLevel, const double C) -> bool {

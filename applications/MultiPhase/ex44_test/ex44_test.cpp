@@ -814,7 +814,7 @@ DriverOptions Parse(int argc, char** argv) {
 }
 
 // Straight BALL: exact references for the physical affine ball. All integrands
-// are ordinary physical polynomials; both tests have closed-form integrals.
+// are ordinary physical polynomials; all three tests have closed-form integrals.
 std::vector<IntegrationTest> MakeStraightBallTests(
     unsigned dim, const std::vector<double>& center, double radius) {
   if(dim != 2u && dim != 3u)
@@ -826,6 +826,9 @@ std::vector<IntegrationTest> MakeStraightBallTests(
   const double r2 = radius*radius;
   const double r3 = r2*radius;
   const double r4 = r2*r2;
+  const double r5 = r4*radius;
+  const double r6 = r4*r2;
+  const double r7 = r6*radius;
 
   return {
     {"1", [](const std::vector<double>&) { return 1.; },
@@ -839,8 +842,18 @@ std::vector<IntegrationTest> MakeStraightBallTests(
         }
         return distance2;
       },
-      dim == 2u ? pi*r4/2. : 4.*pi*r4*radius/5.,
-      dim == 2u ? 2.*pi*r3 : 4.*pi*r4}
+      dim == 2u ? pi*r4/2. : 4.*pi*r5/5.,
+      dim == 2u ? 2.*pi*r3 : 4.*pi*r4},
+    {"r^4", [center](const std::vector<double>& x) {
+        double distance2 = 0.;
+        for(unsigned d=0; d<x.size(); ++d) {
+          const double v = x[d]-center[d];
+          distance2 += v*v;
+        }
+        return distance2*distance2;
+      },
+      dim == 2u ? pi*r6/3. : 4.*pi*r7/7.,
+      dim == 2u ? 2.*pi*r5 : 4.*pi*r6}
   };
 }
 
@@ -848,7 +861,7 @@ std::vector<IntegrationTest> MakeStraightBallTests(
 //   2D: (p0,p1) -> (p0+k*(p0*p0-p1*p1), p1+2*k*p0*p1)
 //   3D: (p0,p1,p2) -> ((1+2*k*p2)*p0, (1+2*k*p2)*p1,
 //                       p2+k*(p2*p2-p0*p0-p1*p1)).
-// Both tests use ordinary PHYSICAL polynomial integrands, no reciprocal metrics.
+// All three tests use ordinary PHYSICAL polynomial integrands, no reciprocal metrics.
 // E and K are complete elliptic integrals with modulus k (C++17).
 std::vector<IntegrationTest> MakeAnalyticBallTests(
     unsigned dim, const std::vector<double>& center,
@@ -870,11 +883,16 @@ std::vector<IntegrationTest> MakeAnalyticBallTests(
   const double L2=lambda*lambda;
   const double L4=L2*L2;
   const double L6=L4*L2;
+  const double L8=L4*L4;
   const double r2=r*r;
   const double r3=r2*r;
   const double r4=r2*r2;
+  const double r5=r4*r;
+  const double r6=r4*r2;
+  const double r7=r6*r;
 
   double omega1=0.,gamma1=0.,omegaR2=0.,gammaR2=0.;
+  double omegaR4=0.,gammaR4=0.;
 
   if(dim==2u) {
     const double m=4.*lambda/((1.+lambda)*(1.+lambda));
@@ -888,12 +906,28 @@ std::vector<IntegrationTest> MakeAnalyticBallTests(
     omegaR2=0.5*pi*r4*(1.+1.5*L2+L4/8.);
     gammaR2=2.*r3*(1.+lambda)*(
         (1.-0.5*L2)*ellipticE+(1.+lambda)*(1.+lambda)*Q);
+
+    // Exact mapped-disk moment of |x-c|^4.
+    omegaR4=pi*r6/3.*(1.+3.*L2+15.*L4/16.+L6/32.);
+
+    // Surface moment: complete elliptic integrals of powers 1/2, 3/2, 5/2.
+    const double M2=(4.*(2.-m)*Q-3.*(1.-m)*ellipticE)/5.;
+    const double h=(2.-L2)/4.;
+    const double scale=1.+lambda;
+    gammaR4=4.*r5*scale*(
+        0.25*scale*scale*scale*scale*M2
+        +h*scale*scale*Q+h*h*ellipticE);
   } else {
     omega1=4.*pi*r3/3.*(1.+L2);
     gamma1=4.*pi*r2*(1.+2.*L2/3.-L4/15.);
 
     omegaR2=4.*pi*r3*r2/5.*(1.+25.*L2/12.+5.*L4/12.);
     gammaR2=4.*pi*r4*(1.+19.*L2/12.+L4/10.+L6/420.);
+
+    // Exact mapped-ball moments of |x-c|^4.
+    omegaR4=4.*pi*r7/7.*(1.+7.*L2/2.+427.*L4/240.+7.*L6/48.);
+    gammaR4=4.*pi*r6*(1.+17.*L2/6.+223.*L4/240.
+                           +31.*L6/840.-L8/1008.);
   }
 
   return {
@@ -906,7 +940,15 @@ std::vector<IntegrationTest> MakeAnalyticBallTests(
          value+=z*z;
        }
        return value;
-     }, omegaR2,gammaR2}
+     }, omegaR2,gammaR2},
+    {"r^4", [center](const std::vector<double>& x) {
+       double distance2=0.;
+       for(unsigned d=0;d<x.size();++d) {
+         const double z=x[d]-center[d];
+         distance2+=z*z;
+       }
+       return distance2*distance2;
+     }, omegaR4,gammaR4}
   };
 }
 
@@ -1086,7 +1128,9 @@ int main(int argc, char** argv) {
                     << " V=" << std::setprecision(17) << tests[0].exactOmega1
                     << " S=" << tests[0].exactGamma
                     << " Vr2=" << tests[1].exactOmega1
-                    << " Sr2=" << tests[1].exactGamma << '\n';
+                    << " Sr2=" << tests[1].exactGamma
+                    << " Vr4=" << tests[2].exactOmega1
+                    << " Sr4=" << tests[2].exactGamma << '\n';
         }
       }
 

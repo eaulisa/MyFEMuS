@@ -1010,7 +1010,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     throw std::runtime_error("Pressure type mismatch");
   }
 
-  AssembleGhostPenaltyVelocity(ml_prob2);
+  // AssembleGhostPenaltyVelocity(ml_prob2);
 
   if (solPType == 3) {
     AssembleGhostPenaltyDGP(ml_prob2, true);
@@ -1816,7 +1816,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             }
           }
 
-          double surfaceTensionCoefficient = cnew * cnew * sigma * dt * surfaceWeight * axisWeight;
+          double surfaceTensionCoefficient = cnew * cnew * sigma * dt * surfaceWeight * axisWeight * 0;
 
           for(unsigned i = 0; i < nDofsV; i++) {
             for(unsigned j = 0; j < nDofsV; j++) {
