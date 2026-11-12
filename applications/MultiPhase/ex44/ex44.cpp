@@ -611,9 +611,9 @@ int main(int argc, char **argv) {
 
         *Sol0_C[c0Index] = *Sol2[c2Index];
 
-        std::vector<double> xtarget = (simulation == SimulationCase::PI) ? {0.75, 0.75, 0.} : {
-                                        xmin, ymin, zmin
-                                      };
+        std::vector<double> xtarget = (simulation == SimulationCase::PI) ?
+                                      std::vector<double> {0.075, 0.075, 0.} :
+                                      std::vector<double> {xmin, ymin, zmin};
         xtarget.resize(dim);
         SetUnphysicalPressureDofs(mlSol2, cName, pName, 0, levelC - level0, xtarget, true);
 

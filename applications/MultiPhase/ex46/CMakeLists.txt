@@ -33,7 +33,7 @@ else()
 endif()
 
 file(CREATE_LINK
-     "${PROJECT_SOURCE_DIR}/run_ex45.sh"
-     "${PROJECT_BINARY_DIR}/run_ex45.sh"
+     "${PROJECT_SOURCE_DIR}/run_ex46.sh"
+     "${PROJECT_BINARY_DIR}/run_ex46.sh"
      SYMBOLIC)
 

@@ -47,7 +47,7 @@ MULTIGRID_TYPE="mg"
 # Executable / options
 # ------------------------------------------------------------
 
-EXECUTABLE="./MultiPhase_ex45"
+EXECUTABLE="./MultiPhase_ex46"
 OPTIONS_FILE="./input/FS_solver.options"
 
 # ------------------------------------------------------------
