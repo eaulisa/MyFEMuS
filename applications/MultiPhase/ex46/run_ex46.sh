@@ -28,7 +28,7 @@ AXISYMMETRIC=0
 
 UNIFORM_LEVELS=(2)
 ADAPTIVE_LEVELS=(6)
-LEVEL_OFFSET_PSI=0
+LEVEL_OFFSET_PSI=2
 LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
@@ -41,7 +41,7 @@ NSTEPS=(3000)
 # Cutfem integration
 # ------------------------------------------------------------
 
-CUTFEM_INTEGRATION="linear"     # linear | quadratic
+CUTFEM_INTEGRATION="quadratic"     # linear | quadratic
 
 # ------------------------------------------------------------
 # Velocity multigrid

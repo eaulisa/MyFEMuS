@@ -2428,7 +2428,11 @@ void AssemblePsi(MultiLevelProblem& ml_prob3) {
         const elem_type* femTarget = msh->_finiteElement[ielType][psiType];
         const elem_type* femXi = msh->_finiteElement[ielType][solXiType];
 
-        std::vector<double> phiSource, phiSource_x, phiTarget;
+        // Weighted H1 projection: (u,v) + h1GradientWeight*(grad u,grad v).
+        // Use 1.0 for the standard H1 inner product; 0.0 reproduces L2.
+        constexpr double h1GradientWeight = 1.0;
+
+        std::vector<double> phiSource, phiSource_x, phiTarget, phiTarget_x;
         std::vector<double> Res(nDofsPsi, 0.);
         std::vector<double> Jac(nDofsPsi * nDofsPsi, 0.);
 
@@ -2438,26 +2442,83 @@ void AssemblePsi(MultiLevelProblem& ml_prob3) {
 
           if (l == levelStart) {
             phiTarget = phiSource;
+            phiTarget_x = phiSource_x;
           }
           else {
-            std::vector<double> xi(dim, 0.);
+            // eta is the reference coordinate on the CURRENT (fine) element.
+            // xi  is the reference coordinate on the TARGET (coarse) element.
+            std::vector<double> eta(dim, 0.), xi(dim, 0.);
             const double* phiXi = femXi->GetPhi(ig);
+            for (unsigned d = 0; d < dim; ++d) {
+              eta[d] = femSource->GetGaussRule().GetGaussCoordinatePointer(d)[ig];
+            }
             for (unsigned i = 0; i < nDofsXi; ++i) {
               for (unsigned d = 0; d < dim; ++d) {
                 xi[d] += coordXi[d][i] * phiXi[i];
               }
             }
             femTarget->GetPhi(phiTarget, xi);
+
+            // dN_target/dxi: target basis derivatives in coarse reference coordinates.
+            std::vector<std::vector<double>> dPhiTarget(dim);
+            femTarget->GetDPhiDXi(dPhiTarget[0], xi);
+            femTarget->GetDPhiDEta(dPhiTarget[1], xi);
+            if (dim == 3) femTarget->GetDPhiDZeta(dPhiTarget[2], xi);
+
+            // dN_Xi/deta: mapping derivatives from current reference element
+            // to the coarse reference element (stored in coordXi).
+            std::vector<std::vector<double>> dPhiXi(dim);
+            femXi->GetDPhiDXi(dPhiXi[0], eta);
+            femXi->GetDPhiDEta(dPhiXi[1], eta);
+            if (dim == 3) femXi->GetDPhiDZeta(dPhiXi[2], eta);
+
+            // dxi_m/deta_q.
+            std::vector<std::vector<double>> mapJac(dim, std::vector<double>(dim, 0.));
+            for (unsigned m = 0; m < dim; ++m) {
+              for (unsigned q = 0; q < dim; ++q) {
+                for (unsigned kXi = 0; kXi < nDofsXi; ++kXi) {
+                  mapJac[m][q] += coordXi[m][kXi] * dPhiXi[q][kXi];
+                }
+              }
+            }
+
+            // deta_q/dx_d: inverse Jacobian of the actual (possibly curved)
+            // fine-element geometry. Do NOT use coordXi as physical geometry.
+            double unusedWeight = 0.;
+            std::vector<std::vector<double>> geometricJac, geometricJacInv;
+            femSource->GetJacobianMatrix(coordX, ig, unusedWeight,
+                                         geometricJac, geometricJacInv);
+
+            // Chain rule: dN_target/dx_d =
+            // sum_{m,q} dN_target/dxi_m * dxi_m/deta_q * deta_q/dx_d.
+            phiTarget_x.assign(nDofsPsi * dim, 0.);
+            for (unsigned i = 0; i < nDofsPsi; ++i) {
+              for (unsigned d = 0; d < dim; ++d) {
+                for (unsigned m = 0; m < dim; ++m) {
+                  for (unsigned q = 0; q < dim; ++q) {
+                    phiTarget_x[i * dim + d] +=
+                      dPhiTarget[m][i] * mapJac[m][q] * geometricJacInv[q][d];
+                  }
+                }
+              }
+            }
           }
 
           double psiFine = 0.;
+          double psiCoarse = 0.;
+          std::vector<double> gradPsiFine(dim, 0.), gradPsiCoarse(dim, 0.);
+
           for (unsigned j = 0; j < nDofsSource; ++j) {
             psiFine += sourcePsi[j] * phiSource[j];
+            for (unsigned d = 0; d < dim; ++d) {
+              gradPsiFine[d] += sourcePsi[j] * phiSource_x[j * dim + d];
+            }
           }
-
-          double psiCoarse = 0.;
           for (unsigned j = 0; j < nDofsPsi; ++j) {
             psiCoarse += targetPsi[j] * phiTarget[j];
+            for (unsigned d = 0; d < dim; ++d) {
+              gradPsiCoarse[d] += targetPsi[j] * phiTarget_x[j * dim + d];
+            }
           }
 
           if (axisymmetric) {
@@ -2476,9 +2537,21 @@ void AssemblePsi(MultiLevelProblem& ml_prob3) {
           }
 
           for (unsigned i = 0; i < nDofsPsi; ++i) {
-            Res[i] += weight * phiTarget[i] * (psiFine - psiCoarse);
+            double gradientResidual = 0.;
+            for (unsigned d = 0; d < dim; ++d) {
+              gradientResidual += phiTarget_x[i * dim + d] *
+                                  (gradPsiFine[d] - gradPsiCoarse[d]);
+            }
+            Res[i] += weight * (phiTarget[i] * (psiFine - psiCoarse)
+                                + h1GradientWeight * gradientResidual);
+
             for (unsigned j = 0; j < nDofsPsi; ++j) {
-              Jac[i * nDofsPsi + j] += weight * phiTarget[i] * phiTarget[j];
+              double gradientMatrix = 0.;
+              for (unsigned d = 0; d < dim; ++d) {
+                gradientMatrix += phiTarget_x[i * dim + d] * phiTarget_x[j * dim + d];
+              }
+              Jac[i * nDofsPsi + j] += weight *
+                (phiTarget[i] * phiTarget[j] + h1GradientWeight * gradientMatrix);
             }
           }
         }
