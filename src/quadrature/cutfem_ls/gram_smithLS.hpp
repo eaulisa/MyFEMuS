@@ -199,7 +199,7 @@ std::vector<std::vector<Type>> Transpose(const std::vector<std::vector<Type>> &M
 
 template <class Type>
 void GetMassMatrix(const unsigned &element, const unsigned &degree, std::vector<std::vector<Type>> &MM) {
-  if(element != HEX && element != TET && element != QUAD && element != TRI && element != LINE) throw std::invalid_argument("Unsupported level-set element.");
+  if(element != HEX && element != TET && element != QUAD && element != TRI && element != LINE && element != WEDGE) throw std::invalid_argument("Unsupported level-set element.");
   const unsigned dimension = element == LINE ? 1U : (element == QUAD || element == TRI ? 2U : 3U);
   const bool simplex = element == TRI || element == TET;
   std::vector<std::vector<unsigned>> powers;
@@ -221,14 +221,14 @@ void GetMassMatrix(const unsigned &element, const unsigned &degree, std::vector<
       unsigned sum = 0;
       for(unsigned axis = 0; axis < dimension; ++axis) {
         const unsigned exponent = powers[row][axis]+powers[column][axis];
-        if(simplex) {
+        if(simplex || (element == WEDGE && axis < 2)) {
           for(unsigned factor = 1; factor <= exponent; ++factor) moment *= Type(factor)/Type(sum+factor);
           sum += exponent;
         }
         else moment /= Type(exponent+1U);
       }
-      if(simplex) {
-        for(unsigned factor = 1; factor <= dimension; ++factor) moment /= Type(sum+factor);
+      if(simplex || element == WEDGE) {
+        for(unsigned factor = 1; factor <= (element == WEDGE ? 2U : dimension); ++factor) moment /= Type(sum+factor);
       }
       MM[row][column] = moment;
       MM[column][row] = moment;

@@ -43,13 +43,13 @@ public:
     return result;
   }
 
-  static std::vector<std::vector<long double>> Face(const std::vector<std::vector<std::vector<long double>>>& field, bool top, bool triangle) {
+  static std::vector<std::vector<long double>> Face(const std::vector<std::vector<std::vector<long double>>>& field, bool top, bool triangle, bool middleBoundary = true, bool outerBoundary = true) {
     std::vector<std::vector<long double>> result(5,std::vector<long double>(1,0));
     for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) {
       if(!top && i != 0) continue;
-      for(unsigned a = 0; a <= (top && triangle ? i : 0U); ++a) {
+      for(unsigned a = 0; a <= (top && triangle && middleBoundary ? i : 0U); ++a) {
         std::vector<long double> power(1,1);
-        for(unsigned k = 0; k < (top && triangle ? i-a : 0U); ++k) power = PolynomialProduct(power,{1,-1});
+        for(unsigned k = 0; k < (top && triangle && outerBoundary ? i-a : 0U); ++k) power = PolynomialProduct(power,{1,-1});
         long double factor = ReferenceBinomial(i,a)*(a%2U == 0 ? 1.0L : -1.0L);
         if(!triangle) factor = 1;
         result[j+a] = PolynomialSum(result[j+a],PolynomialProduct(field[i][j],power),factor);
@@ -66,10 +66,10 @@ public:
     return result;
   }
 
-  static std::vector<std::vector<long double>> FaceNormalDerivative(const std::vector<std::vector<std::vector<long double>>>& field, bool top, bool triangle) {
+  static std::vector<std::vector<long double>> FaceNormalDerivative(const std::vector<std::vector<std::vector<long double>>>& field, bool top, bool triangle, bool middleBoundary = true, bool outerBoundary = true) {
     std::vector<std::vector<std::vector<long double>>> derivative(3,std::vector<std::vector<long double>>(3,std::vector<long double>(3,0)));
     for(unsigned i = 0; i < 2; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) derivative[i][j][k] = (i+1U)*field[i+1U][j][k];
-    return Face(derivative,top,triangle);
+    return Face(derivative,top,triangle,middleBoundary,outerBoundary);
   }
 
   // A definite face critical point is isolated when the parent normal derivative is nonzero.
@@ -131,24 +131,24 @@ public:
     return first/a*second;
   }
 
-  static long double FoldVertex(const std::vector<std::vector<std::vector<long double>>>& field, long double middle, long double height, bool triangle) {
+  static long double FoldVertex(const std::vector<std::vector<std::vector<long double>>>& field, long double middle, long double height, bool triangle, bool middleBoundary = true, bool outerBoundary = true) {
     long double a = 0;
     long double b = 0;
     for(unsigned i = 0; i < field[0].size(); ++i) { a += PolynomialValue(field[2][i],height)*ReferencePower(middle,i); b += PolynomialValue(field[1][i],height)*ReferencePower(middle,i); }
     if(a == 0) return std::numeric_limits<long double>::infinity();
     const long double root = -b/(2*a);
     const long double padding = 65536*std::numeric_limits<long double>::epsilon();
-    return root >= -padding && root <= (triangle ? 1-height-middle : 1)+padding ? root : std::numeric_limits<long double>::infinity();
+    return root >= -padding && root <= (triangle ? 1-(outerBoundary ? height : 0)-(middleBoundary ? middle : 0) : 1)+padding ? root : std::numeric_limits<long double>::infinity();
   }
 
-  static unsigned ContactExponent(const std::vector<std::vector<long double>>& constraint, long double height, bool triangle, bool regularGraphBoundary = false, const std::vector<std::vector<long double>>* normalDerivative = nullptr, const std::vector<std::vector<std::vector<long double>>>* foldField = nullptr) {
+  static unsigned ContactExponent(const std::vector<std::vector<long double>>& constraint, long double height, bool triangle, bool regularGraphBoundary = false, const std::vector<std::vector<long double>>* normalDerivative = nullptr, const std::vector<std::vector<std::vector<long double>>>* foldField = nullptr, bool wedge = false, bool middleBoundary = true, bool outerBoundary = true) {
     std::vector<long double> polynomial(constraint.size());
     for(unsigned i = 0; i < constraint.size(); ++i) polynomial[i] = PolynomialValue(constraint[i],height);
     Trim(polynomial);
     if(PolynomialNorm(polynomial) == 0) {
       if(foldField == nullptr) return 1;
       const long double upper = triangle ? 1-height : 1;
-      for(const long double middle : {0.0L,0.5L*upper,upper}) if(std::isfinite(FoldVertex(*foldField,middle,height,triangle))) {
+      for(const long double middle : {0.0L,0.5L*upper,upper}) if(std::isfinite(FoldVertex(*foldField,middle,height,triangle || wedge,middleBoundary,outerBoundary))) {
         long double transverse = 0;
         long double norm = 0;
         for(unsigned i = 0; i < constraint.size(); ++i) { transverse += PolynomialValue(PolynomialDerivative(constraint[i]),height)*ReferencePower(middle,i); norm += PolynomialNorm(constraint[i]); }
@@ -167,7 +167,7 @@ public:
     SortDistinct(roots);
     unsigned exponent = 1;
     for(unsigned n = 0; n < roots.size(); ++n) {
-      if(foldField != nullptr && !std::isfinite(FoldVertex(*foldField,roots[n],height,triangle))) continue;
+      if(foldField != nullptr && !std::isfinite(FoldVertex(*foldField,roots[n],height,triangle || wedge,middleBoundary,outerBoundary))) continue;
       std::vector<long double> derivative = PolynomialDerivative(polynomial);
       unsigned multiplicity = 1;
       while(derivative.size() > 1 && std::abs(PolynomialValue(derivative,roots[n])) <= 65536*std::numeric_limits<long double>::epsilon()*PolynomialNorm(derivative)) { ++multiplicity; derivative = PolynomialDerivative(derivative); }
@@ -189,18 +189,22 @@ public:
     return exponent;
   }
 
-  static std::vector<EndpointProjectionEvent> BuildDirection(const std::vector<long double>& coefficient, bool triangle, unsigned outer, unsigned certifiedInner, bool graphOnly) {
+  static std::vector<EndpointProjectionEvent> BuildDirection(const std::vector<long double>& coefficient, bool triangle, unsigned outer, unsigned certifiedInner, bool graphOnly, bool wedge = false) {
     std::vector<long double> events = {0,1};
+    const unsigned middle = 3U-outer-certifiedInner;
+    const bool projectedTriangle = triangle || (wedge && outer < 2 && middle < 2);
+    const bool middleBoundary = triangle || (wedge && certifiedInner < 2 && middle < 2);
+    const bool outerBoundary = triangle || (wedge && certifiedInner < 2 && outer < 2);
     std::vector<std::vector<std::vector<long double>>> constraints;
     std::vector<std::vector<std::vector<long double>>> normalDerivatives;
     std::vector<std::vector<std::vector<std::vector<long double>>>> foldFields;
     for(unsigned inner = 0; inner < 3; ++inner) if(inner != outer && (certifiedInner == 3 || inner == certifiedInner)) {
       const std::vector<std::vector<std::vector<long double>>> field = Field(coefficient,outer,inner);
       for(unsigned side = 0; side < 2; ++side) {
-        const std::vector<std::vector<long double>> face = Face(field,side != 0,triangle);
-        AddConstraint(face,triangle,events,graphOnly);
+        const std::vector<std::vector<long double>> face = Face(field,side != 0,triangle || wedge,middleBoundary,outerBoundary);
+        AddConstraint(face,projectedTriangle,events,graphOnly);
         constraints.push_back(face);
-        normalDerivatives.push_back(FaceNormalDerivative(field,side != 0,triangle));
+        normalDerivatives.push_back(FaceNormalDerivative(field,side != 0,triangle || wedge,middleBoundary,outerBoundary));
         foldFields.push_back({});
       }
       if(graphOnly) continue;
@@ -210,7 +214,7 @@ public:
       const std::vector<std::vector<long double>> discriminant = quadratic ? Discriminant(field) : (linear ? field[1] : field[0]);
       if(!quadratic && linear) Hex27AddEventRoots(Hex27Resultant(field[0],field[1]),events);
       if(quadratic && discriminant.size() == 1 && PolynomialNorm(discriminant[0]) == 0) throw std::runtime_error("A repeated fiber root has no regular delta moment.");
-      AddConstraint(discriminant,triangle,events);
+      AddConstraint(discriminant,projectedTriangle,events);
       constraints.push_back(discriminant);
       normalDerivatives.push_back({});
       foldFields.push_back(quadratic ? field : std::vector<std::vector<std::vector<long double>>>());
@@ -219,15 +223,15 @@ public:
     std::vector<EndpointProjectionEvent> result;
     for(unsigned n = 0; n < events.size(); ++n) {
       unsigned exponent = 1;
-      for(unsigned i = 0; i < constraints.size(); ++i) exponent = CommonExponent(exponent,ContactExponent(constraints[i],events[n],triangle,graphOnly,normalDerivatives[i].empty() ? nullptr : &normalDerivatives[i],foldFields[i].empty() ? nullptr : &foldFields[i]));
+      for(unsigned i = 0; i < constraints.size(); ++i) exponent = CommonExponent(exponent,ContactExponent(constraints[i],events[n],projectedTriangle,graphOnly,normalDerivatives[i].empty() ? nullptr : &normalDerivatives[i],foldFields[i].empty() ? nullptr : &foldFields[i],wedge,middleBoundary,outerBoundary));
       result.push_back({events[n],exponent});
     }
     return result;
   }
-  static std::vector<EndpointProjectionEvent> Build(const std::vector<long double>& coefficient, bool triangle, unsigned outer, unsigned inner = 3, bool graphOnly = false) {
+  static std::vector<EndpointProjectionEvent> Build(const std::vector<long double>& coefficient, bool triangle, unsigned outer, unsigned inner = 3, bool graphOnly = false, bool wedge = false) {
     std::runtime_error failure("No supported endpoint projection direction.");
     for(unsigned direction = 0; direction < 3; ++direction) if(direction != outer && (inner == 3 || inner == direction)) {
-      try { return BuildDirection(coefficient,triangle,outer,direction,graphOnly); }
+      try { return BuildDirection(coefficient,triangle,outer,direction,graphOnly,wedge); }
       catch(const std::runtime_error& error) { failure = std::runtime_error(error.what()); }
     }
     throw failure;

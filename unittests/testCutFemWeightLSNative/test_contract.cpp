@@ -168,10 +168,10 @@ void InvalidGeometry(CutFemWeight_LS<double,long double>& rule, const std::vecto
 }
 
 void CheckContract() {
-  const GeomElType elements[5] = {LINE,QUAD,TRI,HEX,TET};
-  const unsigned nodes[5] = {3,9,7,27,15};
-  const unsigned maximumDirection[5] = {1,2,3,6,4};
-  for(unsigned e = 0; e < 5; ++e) {
+  const GeomElType elements[6] = {LINE,QUAD,TRI,HEX,TET,WEDGE};
+  const unsigned nodes[6] = {3,9,7,27,15,21};
+  const unsigned maximumDirection[6] = {1,2,3,6,4,6};
+  for(unsigned e = 0; e < 6; ++e) {
     CutFemWeight_LS<double,long double> rule(elements[e],0,"legendre");
     const CutFemWeight_LS<double,long double>& constant = rule;
     Check(constant.GetCutFEMQuadratureOrder() == 0,"Constructor degree mismatch.");
@@ -230,9 +230,9 @@ void CheckContract() {
     InvalidGeometry(rule,nodal,coordinates);
   }
   bool rejected = false;
-  try { CutFemWeight_LS<double,long double> rule(WEDGE,0,"legendre"); }
+  try { CutFemWeight_LS<double,long double> rule(static_cast<GeomElType>(99),0,"legendre"); }
   catch(const std::invalid_argument&) { rejected = true; }
-  Check(rejected,"Unsupported WEDGE was accepted.");
+  Check(rejected,"An invalid geometry was accepted.");
 }
 
 int main() {

@@ -30,6 +30,7 @@ struct SurfaceEndpointStatistics {
 
 struct SurfaceEndpointDomain {
   bool tetrahedron = false;
+  bool wedge = false;
   std::vector<std::array<long double,3>> vertices;
 
 };
@@ -47,6 +48,7 @@ struct SurfaceEndpointData {
   unsigned preferredInner = 3;
   unsigned preferredOuter = 3;
   bool unitCube = false;
+  bool wedge = false;
   std::vector<unsigned> zeroFaces;
   long double domainVolume = 1.0L;
   std::vector<unsigned char> requested;
@@ -81,6 +83,7 @@ public:
 
 
   static long double Volume(const SurfaceEndpointDomain& cell) {
+    if(cell.wedge) return 0.5L;
     if(!cell.tetrahedron) return (cell.vertices[1][0]-cell.vertices[0][0])*(cell.vertices[1][1]-cell.vertices[0][1])*(cell.vertices[1][2]-cell.vertices[0][2]);
 
     std::array<long double,3> edges[3];
@@ -257,7 +260,7 @@ public:
     const unsigned count = data.powers.size();
     for(unsigned n = 0; n < count; ++n) {
       if(!active[n]) continue;
-      long double value = cell.tetrahedron ? TetMoment(cell,data.powers[n][0],data.powers[n][1],data.powers[n][2]) : IntegralPower(cell.vertices[0][0],cell.vertices[1][0],data.powers[n][0])*IntegralPower(cell.vertices[0][1],cell.vertices[1][1],data.powers[n][1])*IntegralPower(cell.vertices[0][2],cell.vertices[1][2],data.powers[n][2]);
+      long double value = cell.wedge ? ReferenceTriangleMoment(data.powers[n][0],data.powers[n][1])/(data.powers[n][2]+1U) : cell.tetrahedron ? TetMoment(cell,data.powers[n][0],data.powers[n][1],data.powers[n][2]) : IntegralPower(cell.vertices[0][0],cell.vertices[1][0],data.powers[n][0])*IntegralPower(cell.vertices[0][1],cell.vertices[1][1],data.powers[n][1])*IntegralPower(cell.vertices[0][2],cell.vertices[1][2],data.powers[n][2]);
       value *= multiplier;
       values[n] += value;
       errors[n] += (64.0L+16.0L*data.degree)*std::numeric_limits<long double>::epsilon()*std::abs(value);
@@ -368,27 +371,30 @@ public:
     const unsigned requestedDirection = preferred < 3 && preferred != outer ? (preferred == first ? 2U : 1U) : 0;
     std::vector<unsigned char> required(2U*sliceCount,0);
     for(unsigned n = 0; n < count; ++n) for(unsigned pair = 0; pair < 2; ++pair) if(active[pair*count+n]) required[pair*sliceCount+ReferenceMomentIndex2D(degree,data.powers[n][first],data.powers[n][second])] = 1;
-    const long double origin = cell.tetrahedron || data.unitCube ? 0 : -1;
-    const long double width = cell.tetrahedron ? 1-coordinate : (data.unitCube ? 1 : 2);
+    const long double origin = cell.tetrahedron || data.unitCube || cell.wedge ? 0 : -1;
+    const bool triangleSlice = cell.tetrahedron || (cell.wedge && outer == 2);
+    const long double width = cell.tetrahedron || (cell.wedge && outer < 2) ? 1-coordinate : (data.unitCube || cell.wedge ? 1 : 2);
+    const long double secondWidth = cell.wedge ? 1 : width;
     if(!(width > 0)) throw std::runtime_error("A tetrahedral endpoint slice reached coordinate resolution.");
     const std::vector<std::vector<long double>> slice = SlicePolynomial(data.coefficient,outer,coordinate);
     std::vector<std::vector<long double>> chart;
-    ReferencePolynomialAffine2D(slice,origin,width,origin,width,chart);
+    ReferencePolynomialAffine2D(slice,origin,width,origin,secondWidth,chart);
     std::vector<std::vector<std::vector<long double>>> gradient(data.gradient.size());
-    for(unsigned component = 0; component < data.gradient.size(); ++component) ReferencePolynomialAffine2D(SlicePolynomial(data.gradient[component],outer,coordinate),origin,width,origin,width,gradient[component]);
+    for(unsigned component = 0; component < data.gradient.size(); ++component) ReferencePolynomialAffine2D(SlicePolynomial(data.gradient[component],outer,coordinate),origin,width,origin,secondWidth,gradient[component]);
     std::vector<unsigned> boundary;
     if(!data.zeroFaces.empty()) {
-      if(cell.tetrahedron) boundary = {data.zeroFaces[first+1U],data.zeroFaces[second+1U],data.zeroFaces[0]};
+      if(cell.wedge) boundary = outer == 2 ? std::vector<unsigned>{data.zeroFaces[0],data.zeroFaces[1],data.zeroFaces[2]} : std::vector<unsigned>{data.zeroFaces[first],data.zeroFaces[2],data.zeroFaces[3],data.zeroFaces[4]};
+      else if(cell.tetrahedron) boundary = {data.zeroFaces[first+1U],data.zeroFaces[second+1U],data.zeroFaces[0]};
       else boundary = {data.zeroFaces[2U*first],data.zeroFaces[2U*first+1U],data.zeroFaces[2U*second],data.zeroFaces[2U*second+1U]};
     }
-    const std::array<long double,5> parent = {origin,width,origin,width,width*width};
+    const std::array<long double,5> parent = {origin,width,origin,secondWidth,width*secondWidth};
     std::vector<long double> moments;
     std::vector<long double> momentErrors;
     unsigned evaluations = 0;
     unsigned accepted = 0;
     unsigned selected = 0;
     try {
-      if(cell.tetrahedron) {
+      if(triangleSlice) {
         ++Statistics().triCalls;
         TriangleIntegration::Integrate(chart,degree,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,data.maximumEvaluations-data.evaluations,moments,momentErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&parent,&required,requestedDirection,false,boundary.empty() ? nullptr : &boundary,data.quadratureRules);
       }
@@ -458,19 +464,19 @@ public:
       try {
         ++data.outerCounts[outer];
         if(inner < 3) ++data.innerCounts[inner];
-        if(!cell.tetrahedron && Independent(data,outer)) {
+        if(!cell.tetrahedron && (!cell.wedge || outer == 2) && Independent(data,outer)) {
           std::vector<unsigned char> dependencies = active;
           for(unsigned n = 0; n < data.powers.size(); ++n) {
             unsigned powers[3] = {data.powers[n][0],data.powers[n][1],data.powers[n][2]};
             powers[outer] = 0;
             for(unsigned pair = 0; pair < 2; ++pair) if(active[pair*data.powers.size()+n]) dependencies[pair*data.powers.size()+HexMomentIndex(powers[0],powers[1],powers[2])] = 1;
           }
-          Sample(data,cell,outer,0,dependencies,values,errors,data.domainVolume/(data.unitCube ? 1 : 2));
+          Sample(data,cell,outer,0,dependencies,values,errors,data.domainVolume/(data.unitCube || cell.wedge ? 1 : 2));
           const std::vector<long double> source = values;
           const std::vector<long double> sourceError = errors;
           for(unsigned n = 0; n < data.powers.size(); ++n) {
             unsigned powers[3] = {data.powers[n][0],data.powers[n][1],data.powers[n][2]};
-            const long double factor = IntegralPower(data.unitCube ? 0 : -1,1,powers[outer]);
+            const long double factor = IntegralPower(data.unitCube || cell.wedge ? 0 : -1,1,powers[outer]);
             powers[outer] = 0;
             const unsigned index = HexMomentIndex(powers[0],powers[1],powers[2]);
             for(unsigned pair = 0; pair < 2; ++pair) {
@@ -482,11 +488,11 @@ public:
         }
         else {
           std::vector<long double> chart = data.coefficient;
-          if(!cell.tetrahedron && !data.unitCube) ReferenceCubePolynomialToChart(data.coefficient,chart);
+          if(!cell.tetrahedron && !data.unitCube && !cell.wedge) ReferenceCubePolynomialToChart(data.coefficient,chart);
           ++Statistics().eventBuilds;
-          const std::vector<EndpointProjectionEvent> events = EndpointProjection::Build(chart,cell.tetrahedron,outer,inner < 3 ? inner : data.preferredInner,inner < 3);
-          const long double origin = cell.tetrahedron || data.unitCube ? 0 : -1;
-          const long double scale = cell.tetrahedron || data.unitCube ? 1 : 2;
+          const std::vector<EndpointProjectionEvent> events = EndpointProjection::Build(chart,cell.tetrahedron,outer,inner < 3 ? inner : data.preferredInner,inner < 3,cell.wedge);
+          const long double origin = cell.tetrahedron || data.unitCube || cell.wedge ? 0 : -1;
+          const long double scale = cell.tetrahedron || data.unitCube || cell.wedge ? 1 : 2;
           const long double budget = data.domainVolume/(events.size()-1U);
           for(unsigned n = 1; n < events.size(); ++n) {
             const long double left = std::fma(scale,events[n-1U].point,origin);
@@ -514,7 +520,8 @@ public:
     for(unsigned i = 0; i <= data.degree; ++i) for(unsigned j = 0; j <= data.degree-i; ++j) for(unsigned k = 0; k <= data.degree-i-j; ++k) data.powers[HexMomentIndex(i,j,k)] = {i,j,k};
     SurfaceEndpointDomain cell;
     cell.tetrahedron = tetrahedron;
-    cell.vertices = tetrahedron ? std::vector<std::array<long double,3>>{{0,0,0},{1,0,0},{0,1,0},{0,0,1}} : (data.unitCube ? std::vector<std::array<long double,3>>{{0,0,0},{1,1,1}} : std::vector<std::array<long double,3>>{{-1,-1,-1},{1,1,1}});
+    cell.wedge = data.wedge;
+    cell.vertices = tetrahedron ? std::vector<std::array<long double,3>>{{0,0,0},{1,0,0},{0,1,0},{0,0,1}} : (data.unitCube || data.wedge ? std::vector<std::array<long double,3>>{{0,0,0},{1,1,1}} : std::vector<std::array<long double,3>>{{-1,-1,-1},{1,1,1}});
     values.assign(2U*count,0.0L);
     errors.assign(2U*count,0.0L);
     long double norm = 0.0L;
@@ -531,7 +538,7 @@ public:
     data.domainVolume = Volume(cell);
     data.requested.assign(2U*count,1);
     if(!data.computeDelta) std::fill(data.requested.begin()+count,data.requested.end(),0);
-    if(!tetrahedron && !data.unitCube) {
+    if(!tetrahedron && !data.unitCube && !data.wedge) {
       std::vector<long double> parityValues(2U*count,0);
       std::vector<long double> parityErrors(2U*count,1);
       Symmetry(data,parityValues,parityErrors);
@@ -546,7 +553,7 @@ public:
       std::vector<long double> passErrors(2U*count,0.0L);
       ++Statistics().integrationPasses;
       IntegrateParent(data,cell,passValues,passErrors);
-      if(!tetrahedron && !data.unitCube) Symmetry(data,passValues,passErrors);
+      if(!tetrahedron && !data.unitCube && !data.wedge) Symmetry(data,passValues,passErrors);
       long double worst = 0.0L;
       bool remaining = false;
       for(unsigned n = 0; n < values.size(); ++n) if(data.requested[n]) {

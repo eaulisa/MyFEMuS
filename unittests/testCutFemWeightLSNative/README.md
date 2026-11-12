@@ -32,3 +32,5 @@ All moment tests are limited to total degree ten. `endpoint_surface_regressions`
 See `UNIFIED_OUTER_QUADRATURE.md` for the f5f81a8 baseline comparison, full-interval mapping rules, coordinate-resolution tests, and final measured results.
 
 See `QUADRATURE_RULE_SELECTION.md` for the current method arguments, application options, stored rules, downward failsafe, and validation against `8a2fa3f` with the default settings.
+
+WEDGE21 uses TRI7 x LINE3 on triangle x [0,1] with t=(z+1)/2, reuses TRI/QUAD/LINE endpoint integration, and reconstructs corrections at FEMuS wedge Gauss points; physical surface corrections include the inverse factor two, all six direction orders follow HEX, and forced projections retain native endpoint topology and evaluation-budget limits.

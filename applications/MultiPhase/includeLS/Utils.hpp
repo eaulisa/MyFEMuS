@@ -34,12 +34,13 @@ enum class CutFemIntegration {
 
 CutFemWeight_LS<TypeIO, TypeA> hexLS(HEX, hex.GetCutFEMQuadratureOrder(), "legendre");
 CutFemWeight_LS<TypeIO, TypeA> tetLS(TET, tet.GetCutFEMQuadratureOrder(), "legendre");
+CutFemWeight_LS<TypeIO, TypeA> wedgeLS(WEDGE, wedge.GetCutFEMQuadratureOrder(), "legendre");
 CutFemWeight_LS<TypeIO, TypeA> quadLS(QUAD, quad.GetCutFEMQuadratureOrder(), "legendre");
 CutFemWeight_LS<TypeIO, TypeA> triLS(TRI, tri.GetCutFEMQuadratureOrder(), "legendre");
 CutFemWeight_LS<TypeIO, TypeA> lineLS(LINE, line.GetCutFEMQuadratureOrder(), "legendre");
 
 const std::vector<CutFemWeight_LS<TypeIO, TypeA>*> cfwLS = {
-  &hexLS, &tetLS, nullptr, &quadLS, &triLS, &lineLS
+  &hexLS, &tetLS, &wedgeLS, &quadLS, &triLS, &lineLS
 };
 
 // unsigned qM = 5;
