@@ -42,6 +42,7 @@ NSTEPS=(100000)
 # ------------------------------------------------------------
 
 CUTFEM_INTEGRATION="quadratic"     # linear | quadratic
+SURFACE_MOMENT_ORDER=10
 
 # ------------------------------------------------------------
 # Velocity multigrid
@@ -319,6 +320,7 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
         --level-offset "${LEVEL_OFFSET}" \
         --level-offset-psi "${LEVEL_OFFSET_PSI}" \
         --cutfem-integration "${CUTFEM_INTEGRATION}" \
+        --surface-moment-order "${SURFACE_MOMENT_ORDER}" \
         --nsteps "${nsteps}" \
         --dim "${DIM}" \
         --simulation "${SIMULATION}" \

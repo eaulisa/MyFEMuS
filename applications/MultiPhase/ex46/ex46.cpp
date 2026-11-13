@@ -11,6 +11,8 @@
 #include "NonLinearImplicitSystem.hpp"
 #include "adept.h"
 #include "PolynomialBases.hpp"
+#include "TangentialSurfaceIntegration.hpp"
+#include <memory>
 
 #include "petsc.h"
 #include "petscmat.h"
@@ -50,6 +52,10 @@ bool printdb = false;
 std::vector<std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > > PMatrix(6); //projection matrix between elements;
 
 CutFemIntegration cutFemIntegration;
+unsigned surfaceMomentOrder = 10;
+std::unique_ptr<Fem> surfaceFem;
+std::vector<std::unique_ptr<CutFemWeight_LS<double,long double>>> surfaceRules(6);
+FELevelSetMoments::OuterQuadratureRules surfaceQuadratureRules;
 
 struct TaylorHood {
   struct Variable {
@@ -106,6 +112,18 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob);
 void AssemblePsi(MultiLevelProblem& ml_prob);
 // double TimeStepMultiphase(const double time);
 
+void SurfaceReferenceGradients(const elem_type* element, const std::vector<double>& point, std::vector<double>& gradient) {
+  const unsigned dimension = point.size();
+  std::vector<double> derivative;
+  element->GetDPhiDXi(derivative,point);
+  gradient.assign(derivative.size()*dimension,0.);
+  for(unsigned d = 0; d < dimension; ++d) {
+    if(d == 1) element->GetDPhiDEta(derivative,point);
+    if(d == 2) element->GetDPhiDZeta(derivative,point);
+    for(unsigned i = 0; i < derivative.size(); ++i) gradient[i*dimension+d] = derivative[i];
+  }
+}
+
 int main(int argc, char **argv) {
 
   // Initialize PETSc/MPI
@@ -122,7 +140,20 @@ int main(int argc, char **argv) {
   SimulationArgs args;
 
   try {
-    args = ParseSimulationArgs(argc, argv);
+    for(int i = 1; i < argc; ++i) {
+      const std::string option = argv[i];
+      if(option == "--surface-moment-order") {
+        if(i+1 >= argc) throw std::invalid_argument("Missing --surface-moment-order value.");
+        const std::string value = argv[++i];
+        if(value.empty() || value.find_first_not_of("0123456789") != std::string::npos) throw std::invalid_argument("Surface moment order must be an integer from 1 to 18.");
+        const unsigned long order = std::stoul(value);
+        if(order < 1 || order > 18) throw std::invalid_argument("Surface moment order must be an integer from 1 to 18.");
+        surfaceMomentOrder = static_cast<unsigned>(order);
+      }
+      if(option == "--help" || option == "-h") std::cout << "  --surface-moment-order Q    Tangential moment degree, 1..18 (default 10)\n" << FELevelSetMoments::GaussKronrodRules::Help();
+    }
+    surfaceQuadratureRules = FELevelSetMoments::OuterQuadratureRules::ParseArguments(argc,argv);
+    args = ParseSimulationArgs(argc,argv,CutFemIntegration::Quadratic);
   }
   catch (const std::exception& e) {
 
@@ -149,6 +180,7 @@ int main(int argc, char **argv) {
   const unsigned axisymmetric = args.axisymmetric;
 
   cutFemIntegration = args.cutFemIntegration;
+  if(cutFemIntegration == CutFemIntegration::Quadratic && !axisymmetric) surfaceFem.reset(new Fem(2U*surfaceMomentOrder,requestedDim));
 
   const ElemType elementType = (requestedDim == 2) ? QUAD9 : HEX27;
 
@@ -1415,13 +1447,20 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         unsigned nDofsK;
 
         unsigned cut = (fabs(C - 0.5) < 0.1 ) ? 1 : 0;
+        const bool tangentialSurfaceWeights = cutFemIntegration == CutFemIntegration::Quadratic && !axisymmetric;
+        CutFemWeight_LS<double,long double>* elementSurfaceRule = cfwLS[ielGeom];
 
         if(cut == 1) { // this can happen only on l == levelF
           if (l != levelF) throw std::runtime_error("CUT CELL SHOULD BE ONLY AT LEVELF\n");
-          femV = fem.GetFiniteElement(ielGeom, solVType);
-          femP = fem.GetFiniteElement(ielGeom, solPType);
-          femXi = fem.GetFiniteElement(ielGeom, solXiType);
-          femPsi = fem.GetFiniteElement(ielGeom, psiType);
+          Fem& integrationFem = tangentialSurfaceWeights ? *surfaceFem : fem;
+          femV = integrationFem.GetFiniteElement(ielGeom,solVType);
+          femP = integrationFem.GetFiniteElement(ielGeom,solPType);
+          femXi = integrationFem.GetFiniteElement(ielGeom,solXiType);
+          femPsi = integrationFem.GetFiniteElement(ielGeom,psiType);
+          if(tangentialSurfaceWeights) {
+            if(!surfaceRules[ielGeom]) surfaceRules[ielGeom].reset(new CutFemWeight_LS<double,long double>(static_cast<GeomElType>(ielGeom),surfaceMomentOrder,"legendre"));
+            elementSurfaceRule = surfaceRules[ielGeom].get();
+          }
 
           nDofsPsi = msh->GetElementDofNumber(iel, psiType);
           psi.resize(nDofsPsi);
@@ -1470,10 +1509,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           }
           else {
 
-            auto* rule = cfwLS[ielGeom];
+            CutFemWeight_LS<double,long double>* rule = elementSurfaceRule;
 
             if(rule == nullptr) {
-              throw std::runtime_error("Quadratic CutFEM does not support WEDGE");
+              throw std::runtime_error("Unsupported quadratic CutFEM element.");
             }
 
             if(rule->GetGaussQuadraturePointNumber() != nGauss) {
@@ -1483,7 +1522,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             rule->SetIntegrationDirection(0);
             rule->SetDirectionValidation(0);
 
-            rule->GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCF, 1.e-8, 1.e-8);
+            if(tangentialSurfaceWeights) rule->GetTangentialSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8,surfaceQuadratureRules);
+            else rule->GetPhysicalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8);
           }
 
           for(unsigned i = 0; i < nGauss; ++i) {
@@ -1504,12 +1544,15 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         std::vector<double> Nls(dim);
         std::vector<double> gradPsi(dim);
         std::vector<double> normalDotGradPhi(nDofsV);
+        std::vector<double> surfaceForce, surfaceTangent, surfaceShapeGradient;
+        const unsigned surfaceTangentSize = dim == 2 ? 1U : 3U;
         for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
           // *** get gauss point weight, test function and test function partial derivatives ***
 
+          std::vector<double> xi_gf(dim);
           if(l > levelC) {
             femXi->Jacobian(coordX, ig, weight, phiXi, phiXi_x);
-            std::vector <double> xi_gf(dim, 0.);
+            std::fill(xi_gf.begin(),xi_gf.end(),0.);
             for(unsigned i = 0; i < nDofsXi; i++) {
               for(unsigned d = 0; d < dim; d++) {
                 xi_gf[d] += coordXi[d][i] * phiXi[i];
@@ -1545,7 +1588,26 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           }
 
           double dsN = 0.;
-          if (cut == 1) {
+          double surfaceMetricSquared = 0.;
+          if(cut == 1 && tangentialSurfaceWeights) {
+            std::vector<double> point(dim), levelSetGradient(dim,0.), levelSetShapeGradient;
+            for(unsigned d = 0; d < dim; ++d) point[d] = femV->GetGaussRule().GetGaussCoordinatePointer(d)[ig];
+            SurfaceReferenceGradients(femPsi,point,levelSetShapeGradient);
+            for(unsigned i = 0; i < nDofsPsi; ++i) for(unsigned d = 0; d < dim; ++d) levelSetGradient[d] += psi[i]*levelSetShapeGradient[i*dim+d];
+            femPsi->GetJacobianMatrix(coordX,point,weightFake,Jacob,JacI);
+            SurfaceReferenceGradients(femV,l > levelC ? xi_gf : point,surfaceShapeGradient);
+            if(l > levelC) {
+              std::vector<double> mapShapeGradient;
+              SurfaceReferenceGradients(femXi,point,mapShapeGradient);
+              std::vector<std::vector<double>> mapGradient(dim,std::vector<double>(dim,0.));
+              for(unsigned a = 0; a < dim; ++a) for(unsigned b = 0; b < dim; ++b) for(unsigned j = 0; j < nDofsXi; ++j) mapGradient[a][b] += coordXi[a][j]*mapShapeGradient[j*dim+b];
+              const std::vector<double> parentGradient = surfaceShapeGradient;
+              std::fill(surfaceShapeGradient.begin(),surfaceShapeGradient.end(),0.);
+              for(unsigned i = 0; i < nDofsV; ++i) for(unsigned b = 0; b < dim; ++b) for(unsigned a = 0; a < dim; ++a) surfaceShapeGradient[i*dim+b] += parentGradient[i*dim+a]*mapGradient[a][b];
+            }
+            surfaceMetricSquared = FELevelSetMoments::TangentialSurfaceFactors(Jacob,levelSetGradient,surfaceShapeGradient,surfaceForce,surfaceTangent);
+          }
+          if(cut == 1 && !tangentialSurfaceWeights) {
             femV->GetJacobianMatrix(coordX, ig, weightFake, Jacob, JacI);
             dsN = 0.0;
             for (unsigned d = 0; d < dim; ++d) {
@@ -1643,7 +1705,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           if(cut == 1) {
 
             if(cutFemIntegration == CutFemIntegration::Quadratic) {
-              surfaceWeight = cfwLS[ielGeom]->GetGaussWeightPointer()[ig] * weightCF[ig];
+              surfaceWeight = elementSurfaceRule->GetGaussWeightPointer()[ig] * weightCF[ig];
             }
             else {
               surfaceWeight = weight * weightCF[ig] * dsN;
@@ -1651,7 +1713,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           }
 
           A += weight * weightCFInt[ig];
-          Per += surfaceWeight;
+          Per += surfaceWeight*(tangentialSurfaceWeights ? surfaceMetricSquared : 1.);
 
           for (unsigned d = 0; d < dim; ++d) {
             solV_gss[d] = 0.0;
@@ -1736,9 +1798,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
               // surface tension stabilization -- rhs contribution
               if(cut == 1) {
-                for (int d = 0; d < dim; d++) {
-                  Res[I * nDofsV + i] += - sigma * axisWeight * P[I][d] * phiV_x[i * dim + d] * surfaceWeight;
-                }
+                if(tangentialSurfaceWeights) Res[I*nDofsV+i] -= sigma*surfaceForce[i*dim+I]*surfaceWeight;
+                else for(unsigned d = 0; d < dim; ++d) Res[I*nDofsV+i] -= sigma*axisWeight*P[I][d]*phiV_x[i*dim+d]*surfaceWeight;
 
                 if(axisymmetric && I == 0) {
                   Res[I * nDofsV + i] += -sigma * phiV[i] * surfaceWeight;
@@ -1746,20 +1807,28 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
                 double stabSF = 0.0;
 
-                for (unsigned a = 0; a < dim; ++a) {
-
-                  double gradDeltaU_tg = 0.0;
-                  double gradPhi_tg    = 0.0;
-
-                  for (unsigned b = 0; b < dim; ++b) {
-
-                    gradDeltaU_tg += P[a][b] * (cnew * gradSolV_gss[I][b] - cold * gradSolVOld_gss[I][b]);
-                    gradPhi_tg += P[a][b] * phiV_x[i * dim + b];
-
+                if(tangentialSurfaceWeights) {
+                  for(unsigned a = 0; a < surfaceTangentSize; ++a) {
+                    double increment = 0.;
+                    for(unsigned j = 0; j < nDofsV; ++j) increment += (cnew*solV[I][j]-cold*solVOld[I][j])*surfaceTangent[j*surfaceTangentSize+a];
+                    stabSF += increment*surfaceTangent[i*surfaceTangentSize+a];
                   }
-                  stabSF += gradDeltaU_tg * gradPhi_tg;
                 }
+                else {
+                  for (unsigned a = 0; a < dim; ++a) {
 
+                    double gradDeltaU_tg = 0.0;
+                    double gradPhi_tg    = 0.0;
+
+                    for (unsigned b = 0; b < dim; ++b) {
+
+                      gradDeltaU_tg += P[a][b] * (cnew * gradSolV_gss[I][b] - cold * gradSolVOld_gss[I][b]);
+                      gradPhi_tg += P[a][b] * phiV_x[i * dim + b];
+
+                    }
+                    stabSF += gradDeltaU_tg * gradPhi_tg;
+                  }
+                }
                 if(axisymmetric && I == 0) {
                   stabSF += (cnew * solV_gss[0] - cold * solVOld_gss[0]) * phiV[i] / (r * r);
                 }
@@ -1816,7 +1885,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             }
           }
 
-          double surfaceTensionCoefficient = cnew * cnew * sigma * dt * surfaceWeight * axisWeight * 0;
+          double surfaceTensionCoefficient = cnew*cnew*sigma*dt*surfaceWeight*axisWeight*(tangentialSurfaceWeights ? 1. : 0.);
 
           for(unsigned i = 0; i < nDofsV; i++) {
             for(unsigned j = 0; j < nDofsV; j++) {
@@ -1835,7 +1904,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                                             convectionCoefficientNew * Phi_dot_solVGradPhi ;
 
               if (cut == 1) {
-                const double tangentialGradDot = gradPhi_dot_gradPhi - normalDotGradPhi[i] * normalDotGradPhi[j];
+                double tangentialGradDot = 0.;
+                if(tangentialSurfaceWeights) for(unsigned a = 0; a < surfaceTangentSize; ++a) tangentialGradDot += surfaceTangent[i*surfaceTangentSize+a]*surfaceTangent[j*surfaceTangentSize+a];
+                else tangentialGradDot = gradPhi_dot_gradPhi-normalDotGradPhi[i]*normalDotGradPhi[j];
                 diagonalContribution += surfaceTensionCoefficient * tangentialGradDot;
               }
 

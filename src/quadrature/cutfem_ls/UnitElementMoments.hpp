@@ -68,7 +68,7 @@ inline void UnitTensorCheck(unsigned count, const std::vector<long double>& valu
   }
 }
 
-inline void UnitQuadMoments(const std::vector<long double>& coefficient, long double scale, unsigned degree, const std::vector<std::vector<long double>>& metric, long double absolute, long double relative, unsigned direction, unsigned validation, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+inline void UnitQuadMoments(const std::vector<long double>& coefficient, long double scale, unsigned degree, const std::vector<std::vector<long double>>& metric, long double absolute, long double relative, unsigned direction, unsigned validation, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
   std::vector<std::vector<long double>> field(3,std::vector<long double>(3));
   for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) field[i][j] = coefficient[Hex27Index(i,j,0)];
   std::vector<std::vector<std::vector<long double>>> gradient;
@@ -83,8 +83,8 @@ inline void UnitQuadMoments(const std::vector<long double>& coefficient, long do
   std::vector<long double> native;
   std::vector<long double> nativeErrors;
   unsigned selected = 0;
-  PlanarEndpointIntegration::Integrate(field,degree,false,true,absolute,absolute*scale,relative,24,200000,native,nativeErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&coordinates,nullptr,direction,false,zeroBoundary,rules);
-  if(validation == 2) PlanarEndpointIntegration::Compare(field,degree,false,true,absolute,absolute*scale,relative,24,200000,native,nativeErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&coordinates,false,zeroBoundary,rules);
+  PlanarEndpointIntegration::Integrate(field,degree,false,true,absolute,absolute*scale,relative,24,200000,native,nativeErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&coordinates,nullptr,direction,false,zeroBoundary,rules,inverseSurface);
+  if(validation == 2) PlanarEndpointIntegration::Compare(field,degree,false,true,absolute,absolute*scale,relative,24,200000,native,nativeErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&coordinates,false,zeroBoundary,rules,inverseSurface);
   const unsigned count = (degree+1U)*(degree+2U)/2U;
   values.assign(2U*count,0);
   errors.assign(2U*count,0);
@@ -98,8 +98,9 @@ inline void UnitQuadMoments(const std::vector<long double>& coefficient, long do
   }
 }
 
-inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, unsigned dimension, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors, long double absolute = 1.0e-12L, long double relative = 1.0e-12L, bool surface = false, const std::vector<std::vector<double>>* geometry = nullptr, unsigned direction = 0, unsigned validation = 1, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, unsigned dimension, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors, long double absolute = 1.0e-12L, long double relative = 1.0e-12L, bool surface = false, const std::vector<std::vector<double>>* geometry = nullptr, unsigned direction = 0, unsigned validation = 1, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
   rules.Validate();
+  if(inverseSurface && (!surface || geometry == nullptr)) throw std::invalid_argument("Inverse surface moments require nodal geometry.");
   if(degree > 64 || !(absolute > 0) || !(relative >= 0) || !std::isfinite(absolute) || !std::isfinite(relative) || validation > 2 || direction > (dimension == 1 ? 1U : (dimension == 2 ? 2U : 6U)) || (geometry != nullptr && !surface)) throw std::invalid_argument("Invalid unit-coordinate moment request.");
   std::vector<long double> original;
   UnitTensorPolynomialFromNodalValues(nodal,dimension,original);
@@ -134,7 +135,7 @@ inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, un
       if(root < 0 || root > 1) continue;
       const long double derivative = std::abs(std::fma(2*a,root,b));
       if(derivative == 0) throw std::domain_error("A repeated line root has no regular unit-coordinate delta moment.");
-      const long double weight = (root == 0 || root == 1 ? 0.5L : 1.0L)*(surface ? 1.0L : 1.0L/(scale*derivative));
+      const long double weight = (root == 0 || root == 1 ? 0.5L : 1.0L)*(inverseSurface ? 1.0L/(scale*derivative*scale*derivative) : (surface ? 1.0L : 1.0L/(scale*derivative)));
       long double power = 1;
       for(unsigned i = 0; i <= degree; ++i) { values[count+i] += weight*power; power *= root; }
     }
@@ -144,13 +145,14 @@ inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, un
     const unsigned nodes[4][3] = {{0,3,7},{1,2,5},{0,1,4},{3,2,6}};
     std::vector<unsigned> boundary(4,1);
     for(unsigned face = 0; face < 4; ++face) for(unsigned n = 0; n < 3; ++n) boundary[face] = boundary[face] && nodal[nodes[face][n]] == 0;
-    UnitQuadMoments(coefficient,scale,degree,metric,absolute,relative,direction,validation,values,errors,&boundary,rules);
+    UnitQuadMoments(coefficient,scale,degree,metric,absolute,relative,direction,validation,values,errors,&boundary,rules,inverseSurface);
   }
   else {
     SurfaceEndpointData data;
     data.quadratureRules = rules;
     data.coefficient = coefficient;
     data.gradient = metric;
+    data.inverseSurface = inverseSurface;
     data.degree = degree;
     data.unitCube = true;
     data.zeroFaces.assign(6,1);

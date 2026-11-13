@@ -3662,9 +3662,10 @@ struct SimulationArgs {
   unsigned elemtype = 3;
 };
 
-SimulationArgs ParseSimulationArgs(const int argc, char** argv) {
+SimulationArgs ParseSimulationArgs(const int argc, char** argv, const CutFemIntegration defaultIntegration = CutFemIntegration::Linear) {
 
   SimulationArgs args;
+  args.cutFemIntegration = defaultIntegration;
 
   for (int i = 1; i < argc; ++i) {
 

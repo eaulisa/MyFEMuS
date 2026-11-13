@@ -20,8 +20,9 @@ inline void Wedge21UnitPolynomialFromNodalValues(const std::vector<double>& noda
   }
 }
 
-inline void IntegrateWedge21NodalMoments(const std::vector<double>& nodal, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors, long double absolute = 1.0e-12L, long double relative = 1.0e-12L, bool referenceSurface = false, const std::vector<std::vector<double>>* geometry = nullptr, unsigned direction = 0, unsigned validation = 1, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+inline void IntegrateWedge21NodalMoments(const std::vector<double>& nodal, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors, long double absolute = 1.0e-12L, long double relative = 1.0e-12L, bool referenceSurface = false, const std::vector<std::vector<double>>* geometry = nullptr, unsigned direction = 0, unsigned validation = 1, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
   rules.Validate();
+  if(inverseSurface && geometry == nullptr) throw std::invalid_argument("Inverse surface moments require nodal geometry.");
   if(degree > 64 || !(absolute > 0) || !(relative >= 0) || !std::isfinite(absolute) || !std::isfinite(relative) || direction > 6 || validation > 2 || (geometry != nullptr && !referenceSurface)) throw std::invalid_argument("Invalid WEDGE21 moment request.");
   if(geometry != nullptr) ValidateSurfaceGeometryCoordinates(*geometry,3,21);
   std::vector<long double> original;
@@ -35,6 +36,7 @@ inline void IntegrateWedge21NodalMoments(const std::vector<double>& nodal, unsig
   SurfaceEndpointData data;
   data.wedge = true;
   data.quadratureRules = rules;
+  data.inverseSurface = inverseSurface;
   data.coefficient = original;
   for(unsigned n = 0; n < original.size(); ++n) data.coefficient[n] /= scale;
   data.degree = degree;
