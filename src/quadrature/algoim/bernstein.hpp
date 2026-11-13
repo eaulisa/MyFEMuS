@@ -18,6 +18,8 @@
 
 // Some methods rely on a LAPACK implementation to solve
 // generalised eigenvalue problems and SVD factorisation
+// Keep LAPACKE's C imaginary-unit macro out of subsequent C++ headers.
+#pragma push_macro("I")
 #if __has_include(<lapacke.h>)
 #include <lapacke.h>
 #elif __has_include(<mkl_lapacke.h>)
@@ -25,6 +27,7 @@
 #else
 #error "Algoim requires a LAPACKE implementation to compute eigenvalues and SVD factorisations, but a suitable lapacke.h include file was not found; did you forget to specify its include path?"
 #endif
+#pragma pop_macro("I")
 
 namespace algoim::bernstein
 {
