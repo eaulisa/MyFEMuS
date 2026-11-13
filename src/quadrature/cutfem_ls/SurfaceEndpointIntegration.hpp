@@ -56,6 +56,7 @@ struct SurfaceEndpointData {
   std::array<unsigned,3> outerCounts = {0,0,0};
   bool computeDelta = true;
   bool inverseSurface = false;
+  bool retainUncertified = false;
   long double absoluteH = 0.0L;
   long double absoluteD = 0.0L;
   long double relative = 0.0L;
@@ -358,7 +359,6 @@ public:
 
 
   static void Sample(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, unsigned outer, long double coordinate, const std::vector<unsigned char>& active, std::vector<long double>& values, std::vector<long double>& errors, long double allocation) {
-    if(data.evaluations >= data.maximumEvaluations) throw std::runtime_error("3D endpoint evaluation budget exhausted.");
     ++data.evaluations;
     ++Statistics().outerSamples;
     unsigned first;
@@ -397,11 +397,11 @@ public:
     try {
       if(triangleSlice) {
         ++Statistics().triCalls;
-        TriangleIntegration::Integrate(chart,degree,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,data.maximumEvaluations-data.evaluations,moments,momentErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&parent,&required,requestedDirection,false,boundary.empty() ? nullptr : &boundary,data.quadratureRules,data.inverseSurface);
+        TriangleIntegration::Integrate(chart,degree,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&parent,&required,requestedDirection,false,boundary.empty() ? nullptr : &boundary,data.quadratureRules,data.inverseSurface);
       }
       else {
         ++Statistics().quadCalls;
-        Quad9SelectedDirect(chart,degree,requestedDirection,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,data.maximumEvaluations-data.evaluations,moments,momentErrors,evaluations,accepted,gradient.empty() ? nullptr : &gradient,parent,&required,boundary.empty() ? nullptr : &boundary,data.quadratureRules,data.inverseSurface);
+        Quad9SelectedDirect(chart,degree,requestedDirection,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,gradient.empty() ? nullptr : &gradient,parent,&required,boundary.empty() ? nullptr : &boundary,data.quadratureRules,data.inverseSurface);
       }
     }
     catch(...) { data.evaluations += evaluations; throw; }
@@ -457,12 +457,19 @@ public:
     for(unsigned axis = 0; axis < 3; ++axis) if(axis != inner) axes.push_back(axis);
     for(unsigned i = 0; i < axes.size(); ++i) for(unsigned j = i+1U; j < axes.size(); ++j) if((axes[j] == data.preferredOuter) || (axes[i] != data.preferredOuter && energy[axes[j]] < energy[axes[i]])) std::swap(axes[i],axes[j]);
     std::runtime_error failure("No supported 3D endpoint projection.");
+    std::vector<long double> best(total.size(),std::numeric_limits<long double>::quiet_NaN());
+    std::vector<long double> bestErrors(total.size(),std::numeric_limits<long double>::infinity());
+    bool available = false;
+    bool accuracyFailure = false;
+    unsigned accuracyOuter = 3;
     for(unsigned attempt = 0; attempt < axes.size(); ++attempt) {
       const unsigned outer = axes[attempt];
       if(data.preferredOuter < 3 && outer != data.preferredOuter) continue;
       std::vector<long double> values(total.size(),0);
       std::vector<long double> errors(total.size(),0);
+      const unsigned long long previousWarnings = QuadratureWarningCount();
       try {
+        QuadratureAccuracyRetryScope accuracyScope(!data.retainUncertified);
         ++data.outerCounts[outer];
         if(inner < 3) ++data.innerCounts[inner];
         if(!cell.tetrahedron && (!cell.wedge || outer == 2) && Independent(data,outer)) {
@@ -506,15 +513,37 @@ public:
             }
           }
         }
-        for(unsigned n = 0; n < total.size(); ++n) { total[n] += values[n]; totalErrors[n] += errors[n]; }
+        KeepBestQuadrature(values,errors,active,best,bestErrors);
+        available = true;
+        if(QuadratureWarningCount() != previousWarnings && data.evaluations < data.maximumEvaluations && data.preferredOuter >= 3 && attempt+1U < axes.size()) continue;
+        const bool certified = QuadratureWarningCount() == previousWarnings;
+        for(unsigned n = 0; n < total.size(); ++n) if(active[n]) { total[n] += certified ? values[n] : best[n]; totalErrors[n] += certified ? errors[n] : bestErrors[n]; }
         return;
       }
-      catch(const std::runtime_error& error) { failure = std::runtime_error(error.what()); if(data.evaluations >= data.maximumEvaluations) throw; }
+      catch(const QuadratureAccuracyRetry& error) { failure = std::runtime_error(error.what()); accuracyFailure = true; if(accuracyOuter >= 3) accuracyOuter = outer; if(data.evaluations >= data.maximumEvaluations) break; }
+      catch(const OuterQuadratureResolutionError& error) { failure = std::runtime_error(error.what()); accuracyFailure = true; if(accuracyOuter >= 3) accuracyOuter = outer; if(data.evaluations >= data.maximumEvaluations) break; }
+      catch(const std::runtime_error& error) { failure = std::runtime_error(error.what()); if(data.evaluations >= data.maximumEvaluations && !available) throw; }
+    }
+    if(accuracyFailure && !data.retainUncertified) {
+      const unsigned previousOuter = data.preferredOuter;
+      data.retainUncertified = true;
+      data.preferredOuter = accuracyOuter;
+      try { IntegrateParent(data,cell,total,totalErrors); }
+      catch(...) { data.retainUncertified = false; data.preferredOuter = previousOuter; throw; }
+      data.retainUncertified = false;
+      data.preferredOuter = previousOuter;
+      return;
+    }
+    if(available) {
+      std::vector<unsigned char> remaining = active;
+      RetainUncertifiedQuadrature("3D projection",std::string("alternative projections failed; ")+failure.what(),best,bestErrors,data.absoluteH*data.domainVolume,data.absoluteD*data.domainVolume,data.relative,remaining,total,totalErrors);
+      return;
     }
     throw failure;
   }
 
   static void Integrate(SurfaceEndpointData& data, bool tetrahedron, std::vector<long double>& values, std::vector<long double>& errors) {
+    QuadratureWarningScope warningScope("3D endpoint integration");
     data.quadratureRules.Validate();
     const unsigned count = (data.degree+1U)*(data.degree+2U)*(data.degree+3U)/6U;
     data.powers.assign(count,{0,0,0});
@@ -545,6 +574,8 @@ public:
       Symmetry(data,parityValues,parityErrors);
       for(unsigned n = 0; n < data.requested.size(); ++n) if(parityErrors[n] == 0) data.requested[n] = 0;
     }
+    std::vector<long double> best(2U*count,std::numeric_limits<long double>::quiet_NaN());
+    std::vector<long double> bestErrors(2U*count,std::numeric_limits<long double>::infinity());
     long double budgetFactor = 1.0L;
     for(unsigned pass = 0; pass < 8; ++pass) {
       data.absoluteH = budgetFactor*absoluteH/data.domainVolume;
@@ -555,10 +586,11 @@ public:
       ++Statistics().integrationPasses;
       IntegrateParent(data,cell,passValues,passErrors);
       if(!tetrahedron && !data.unitCube && !data.wedge) Symmetry(data,passValues,passErrors);
+      KeepBestQuadrature(passValues,passErrors,data.requested,best,bestErrors);
       long double worst = 0.0L;
       bool remaining = false;
       for(unsigned n = 0; n < values.size(); ++n) if(data.requested[n]) {
-        if(!std::isfinite(passValues[n]) || !std::isfinite(passErrors[n]) || passErrors[n] < 0.0L) throw std::runtime_error("A 3D graph moment is not finite.");
+        if(!std::isfinite(passValues[n])) throw std::runtime_error("A 3D graph moment is not finite.");
         const long double tolerance = (n < count ? absoluteH : absoluteD)+relative*std::abs(passValues[n]);
         if(passErrors[n] <= 0.9L*tolerance) {
           values[n] = passValues[n];
@@ -577,12 +609,20 @@ public:
         data.requested.clear();
         return;
       }
+      if(pass == 7 || !std::isfinite(worst) || data.evaluations >= data.maximumEvaluations) {
+        RetainUncertifiedQuadrature("3D moments",data.evaluations >= data.maximumEvaluations ? "evaluation budget exhausted before accumulated tolerance" : "accumulated error exceeds tolerance after selective retries",best,bestErrors,absoluteH,absoluteD,relative,data.requested,values,errors);
+        data.absoluteH = absoluteH;
+        data.absoluteD = absoluteD;
+        data.relative = relative;
+        data.requested.clear();
+        return;
+      }
       budgetFactor /= std::max(2.0L,2.0L*worst);
     }
-    throw std::runtime_error("The accumulated 3D graph moment error exceeds tolerance.");
   }
 
   static void Compare(SurfaceEndpointData& data, bool tetrahedron, const std::vector<long double>& values, std::vector<long double>& errors) {
+    QuadratureWarningScope warningScope("Independent 3D validation");
     SurfaceEndpointData independent = data;
     independent.evaluations = independent.accepted = 0;
     unsigned outer = 0;
@@ -591,15 +631,17 @@ public:
     if(independent.preferredOuter == data.graphAxis) independent.preferredOuter = (outer+2U)%3U;
     std::vector<long double> second;
     std::vector<long double> secondErrors;
-    Integrate(independent,tetrahedron,second,secondErrors);
+    try { Integrate(independent,tetrahedron,second,secondErrors); }
+    catch(const std::runtime_error& error) { WarnQuadrature("Independent 3D validation",std::string("validation unavailable: ")+error.what(),0,std::numeric_limits<long double>::infinity(),data.absoluteD); data.evaluations += independent.evaluations; return; }
     for(unsigned n = 0; n < values.size(); ++n) {
       errors[n] += secondErrors[n]+std::abs(values[n]-second[n]);
-      if(errors[n] > (n < values.size()/2U ? data.absoluteH : data.absoluteD)+data.relative*std::abs(values[n])) throw std::runtime_error("Independent 3D endpoint projections do not agree within tolerance.");
+      if(errors[n] > (n < values.size()/2U ? data.absoluteH : data.absoluteD)+data.relative*std::abs(values[n])) WarnQuadrature("Independent 3D validation","endpoint projections disagree",n,errors[n],(n < values.size()/2U ? data.absoluteH : data.absoluteD)+data.relative*std::abs(values[n]));
     }
     data.evaluations += independent.evaluations;
   }
 
   static void Output(const SurfaceEndpointData& data, long double scale, const std::vector<long double>& values, const std::vector<long double>& errors, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, std::vector<double>* estimate) {
+    QuadratureWarningScope warningScope("3D moment output");
     const unsigned count = data.powers.size();
     std::vector<std::vector<std::vector<double>>> outputH(data.degree+1U);
     std::vector<std::vector<std::vector<double>>> outputD(data.degree+1U);
@@ -620,9 +662,10 @@ public:
           if(!std::isfinite(outputH[i][j][k]) || !std::isfinite(outputD[i][j][k])) throw std::overflow_error("A 3D graph moment exceeds double precision range.");
           const long double hError = errors[n]+std::abs(h-static_cast<long double>(outputH[i][j][k]));
           const long double dError = data.computeDelta ? errors[count+n]/scale+std::abs(d-static_cast<long double>(outputD[i][j][k])) : 0.0L;
-          if(hError > data.absoluteH+data.relative*std::abs(h) || dError > data.absoluteD/scale+data.relative*std::abs(d)) throw std::runtime_error("A rounded 3D graph moment exceeds its error budget.");
-          errorH = std::max(errorH,hError);
-          errorD = std::max(errorD,dError);
+          if(!std::isfinite(hError) || hError < 0 || hError > data.absoluteH+data.relative*std::abs(h)) WarnQuadrature("3D output","rounded volume moment exceeds tolerance",n,hError,data.absoluteH+data.relative*std::abs(h));
+          if(!std::isfinite(dError) || dError < 0 || dError > data.absoluteD/scale+data.relative*std::abs(d)) WarnQuadrature("3D output","rounded interface moment exceeds tolerance",count+n,dError,data.absoluteD/scale+data.relative*std::abs(d));
+          errorH = std::max(errorH,std::isfinite(hError) && hError >= 0 ? hError : std::numeric_limits<long double>::infinity());
+          errorD = std::max(errorD,std::isfinite(dError) && dError >= 0 ? dError : std::numeric_limits<long double>::infinity());
         }
       }
     }

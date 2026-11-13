@@ -62,10 +62,8 @@ inline void UnitTensorGradient(const std::vector<long double>& coefficient, unsi
 }
 
 inline void UnitTensorCheck(unsigned count, const std::vector<long double>& values, const std::vector<long double>& errors, long double absoluteH, long double absoluteD, long double relative) {
-  for(unsigned n = 0; n < 2U*count; ++n) {
-    const long double tolerance = (n < count ? absoluteH : absoluteD)+relative*std::abs(values[n]);
-    if(!std::isfinite(values[n]) || !std::isfinite(errors[n]) || errors[n] < 0.0L || errors[n] > tolerance) throw std::runtime_error("A unit-coordinate moment exceeds its requested tolerance.");
-  }
+  QuadratureWarningScope warningScope("Unit-coordinate moments");
+  CheckQuadratureTolerance("Unit-coordinate moments","moment error exceeds requested tolerance",values,errors,absoluteH,absoluteD,relative);
 }
 
 inline void UnitQuadMoments(const std::vector<long double>& coefficient, long double scale, unsigned degree, const std::vector<std::vector<long double>>& metric, long double absolute, long double relative, unsigned direction, unsigned validation, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
@@ -99,6 +97,7 @@ inline void UnitQuadMoments(const std::vector<long double>& coefficient, long do
 }
 
 inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, unsigned dimension, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors, long double absolute = 1.0e-12L, long double relative = 1.0e-12L, bool surface = false, const std::vector<std::vector<double>>* geometry = nullptr, unsigned direction = 0, unsigned validation = 1, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
+  QuadratureWarningScope warningScope("Unit tensor integration");
   rules.Validate();
   if(inverseSurface && (!surface || geometry == nullptr)) throw std::invalid_argument("Inverse surface moments require nodal geometry.");
   if(degree > 64 || !(absolute > 0) || !(relative >= 0) || !std::isfinite(absolute) || !std::isfinite(relative) || validation > 2 || direction > (dimension == 1 ? 1U : (dimension == 2 ? 2U : 6U)) || (geometry != nullptr && !surface)) throw std::invalid_argument("Invalid unit-coordinate moment request.");

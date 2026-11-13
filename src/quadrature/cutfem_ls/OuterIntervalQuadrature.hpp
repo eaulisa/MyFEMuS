@@ -123,7 +123,8 @@ public:
     return remaining;
   }
 
-  template<class Context> static void Panel(const GaussKronrodRule& rule, Context& context, void (*sample)(Context&, const OuterIntervalPoint&, const std::vector<unsigned char>&, std::vector<long double>&, std::vector<long double>&, long double, long double, long double), const OuterInterval& interval, long double left, long double right, const std::vector<unsigned char>& active, long double absoluteH, long double absoluteD, long double relative, unsigned maximumEvaluations, unsigned& evaluations, unsigned dimension, bool precisionCheck, std::vector<long double>& values, std::vector<long double>& errors) {
+  template<class Context> static bool Panel(const GaussKronrodRule& rule, Context& context, void (*sample)(Context&, const OuterIntervalPoint&, const std::vector<unsigned char>&, std::vector<long double>&, std::vector<long double>&, long double, long double, long double), const OuterInterval& interval, long double left, long double right, const std::vector<unsigned char>& active, long double absoluteH, long double absoluteD, long double relative, unsigned maximumEvaluations, unsigned& evaluations, unsigned dimension, bool precisionCheck, std::vector<long double>& values, std::vector<long double>& errors) {
+    const unsigned long long previousWarnings = QuadratureWarningCount();
     const long double middle = left+0.5L*(right-left);
     const long double half = 0.5L*(right-left);
     const long double physicalWidth = interval.mapping == 0 ? right-left : interval.delta*(ReferencePower(right,interval.exponent)-ReferencePower(left,interval.exponent));
@@ -135,7 +136,6 @@ public:
       const long double parameter = middle+(side == 0 ? -half : half)*rule.nodes[q];
       const OuterIntervalPoint point = Point(interval,parameter);
       if(interval.mapping != 0 && point.coordinate == interval.endpoint) throw OuterQuadratureResolutionError("A transformed outer point collapsed onto its endpoint.");
-      if(evaluations >= maximumEvaluations) throw std::runtime_error("Outer quadrature evaluation budget exhausted.");
       std::vector<long double> value;
       std::vector<long double> error;
       ++Statistics(dimension).samples;
@@ -154,8 +154,7 @@ public:
           if(adjacent.coordinate == interval.endpoint) throw OuterQuadratureResolutionError("An adjacent outer point collapsed onto its endpoint.");
           adjacent.parameter = std::pow(std::abs(adjacent.offset)/interval.delta,1.0L/interval.exponent);
         }
-        if(evaluations >= maximumEvaluations) throw std::runtime_error("Outer quadrature evaluation budget exhausted.");
-        std::vector<long double> adjacentValue;
+          std::vector<long double> adjacentValue;
         std::vector<long double> adjacentError;
         ++Statistics(dimension).samples;
         ++Statistics(dimension).precisionSamples;
@@ -173,18 +172,24 @@ public:
       }
     }
     for(unsigned n = 0; n < active.size(); ++n) if(active[n]) errors[n] += std::max(std::abs(values[n]-low[n]),256*std::numeric_limits<long double>::epsilon()*norm[n]);
+    return QuadratureWarningCount() == previousWarnings;
   }
 
   template<class Context> static void Adaptive(Context& context, void (*sample)(Context&, const OuterIntervalPoint&, const std::vector<unsigned char>&, std::vector<long double>&, std::vector<long double>&, long double, long double, long double), const OuterInterval& interval, long double left, long double right, long double absoluteH, long double absoluteD, long double relative, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, unsigned dimension, const std::vector<unsigned char>& requested, std::vector<long double>& total, std::vector<long double>& totalErrors, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+    QuadratureWarningScope warningScope(dimension == 2 ? "2D outer quadrature" : "3D outer quadrature");
     std::vector<unsigned char> active = requested;
-    std::vector<long double> values;
-    std::vector<long double> errors;
-    const GaussKronrodRule& primary = GaussKronrodRules::Get(rules.Select(dimension,interval.mapping != 0));
+    std::vector<long double> values, errors;
+    std::vector<long double> best(active.size(),std::numeric_limits<long double>::quiet_NaN());
+    std::vector<long double> bestErrors(active.size(),std::numeric_limits<long double>::infinity());
+    const GaussKronrodRule& selected = GaussKronrodRules::Get(rules.Select(dimension,interval.mapping != 0));
+    const bool budgetLimited = evaluations >= maximumEvaluations || maximumEvaluations-evaluations < selected.kronrod;
+    const GaussKronrodRule& primary = budgetLimited ? GaussKronrodRules::Get(3) : selected;
     bool reduce = interval.mapping != 0 && !Resolved(primary,interval,left,right);
     if(!reduce) {
       if(interval.mapping == 0) { ++Statistics(dimension).regularPanels; ++Statistics(dimension).regularRulePanels[primary.index]; }
       else { ++Statistics(dimension).transformedPanels; ++Statistics(dimension).transformedRulePanels[primary.index]; }
-      try { Panel(primary,context,sample,interval,left,right,active,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,false,values,errors); }
+      try { const bool childAccuracy = Panel(primary,context,sample,interval,left,right,active,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,false,values,errors); KeepBestQuadrature(values,errors,active,best,bestErrors); if(!childAccuracy) { ++Statistics(dimension).childResolutionFailures; reduce = true; } }
+      catch(const QuadratureAccuracyRetry&) { ++Statistics(dimension).childResolutionFailures; reduce = true; }
       catch(const OuterQuadratureResolutionError&) { ++Statistics(dimension).childResolutionFailures; reduce = true; }
     }
     if(reduce) {
@@ -196,21 +201,48 @@ public:
         if(coarse.kronrod == 15) ++Statistics(dimension).emergency15;
         else if(coarse.kronrod == 7) ++Statistics(dimension).emergency7;
         else if(coarse.kronrod == 3) ++Statistics(dimension).emergency3;
-        try { Panel(coarse,context,sample,interval,left,right,active,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,true,values,errors); }
+        try { const bool childAccuracy = Panel(coarse,context,sample,interval,left,right,active,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,true,values,errors); KeepBestQuadrature(values,errors,active,best,bestErrors); if(!childAccuracy) { ++Statistics(dimension).childResolutionFailures; continue; } }
+        catch(const QuadratureAccuracyRetry&) { ++Statistics(dimension).childResolutionFailures; continue; }
         catch(const OuterQuadratureResolutionError&) { ++Statistics(dimension).childResolutionFailures; continue; }
         if(!Accept(values,errors,absoluteH,absoluteD,relative,active,total,totalErrors,dimension)) { ++accepted; return; }
       }
       ++Statistics(dimension).resolutionLimits;
-      throw OuterQuadratureResolutionError("Outer tolerance cannot be satisfied at the available coordinate precision.");
+      for(unsigned n = 0; n < active.size(); ++n) if(active[n] && !std::isfinite(best[n])) throw OuterQuadratureResolutionError("No complete finite outer rule is available at coordinate resolution.");
+      RetainUncertifiedQuadrature("Outer quadrature","child quadrature accuracy or coordinate precision prevents the requested tolerance",best,bestErrors,absoluteH,absoluteD,relative,active,total,totalErrors);
+      ++accepted;
+      return;
     }
     if(!Accept(values,errors,absoluteH,absoluteD,relative,active,total,totalErrors,dimension)) { ++accepted; return; }
+    std::vector<unsigned char> precisionLimited(active.size(),0);
+    bool pending = false;
+    for(unsigned n = 0; n < active.size(); ++n) if(active[n]) {
+      if(bestErrors[n] <= 512*std::numeric_limits<long double>::epsilon()*std::abs(best[n])) { precisionLimited[n] = 1; active[n] = 0; }
+      else pending = true;
+    }
+    RetainUncertifiedQuadrature("Outer quadrature","floating-point error floor prevents requested tolerance",best,bestErrors,absoluteH,absoluteD,relative,precisionLimited,total,totalErrors);
+    if(!pending) { ++accepted; return; }
     const long double middle = left+0.5L*(right-left);
-    if(middle == left || middle == right) throw OuterQuadratureResolutionError("Outer adaptive quadrature reached coordinate resolution.");
-    if(depth >= maximumDepth) throw std::runtime_error("Outer adaptive quadrature did not reach tolerance.");
+    if(budgetLimited || evaluations >= maximumEvaluations || depth >= maximumDepth || middle == left || middle == right) {
+      const std::string problem = budgetLimited || evaluations >= maximumEvaluations ? "evaluation budget exhausted before tolerance" : (depth >= maximumDepth ? "maximum depth reached before tolerance" : "coordinate precision exhausted before tolerance");
+      RetainUncertifiedQuadrature("Outer quadrature",problem,best,bestErrors,absoluteH,absoluteD,relative,active,total,totalErrors);
+      ++accepted;
+      return;
+    }
     ++Statistics(dimension).subdivisions;
-    Adaptive(context,sample,interval,left,middle,0.5L*absoluteH,0.5L*absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,dimension,active,total,totalErrors,rules);
-    Adaptive(context,sample,interval,middle,right,0.5L*absoluteH,0.5L*absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,dimension,active,total,totalErrors,rules);
+    const std::vector<long double> savedTotal = total;
+    const std::vector<long double> savedErrors = totalErrors;
+    const unsigned savedAccepted = accepted;
+    try {
+      Adaptive(context,sample,interval,left,middle,0.5L*absoluteH,0.5L*absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,dimension,active,total,totalErrors,rules);
+      Adaptive(context,sample,interval,middle,right,0.5L*absoluteH,0.5L*absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,dimension,active,total,totalErrors,rules);
+    }
+    catch(const OuterQuadratureResolutionError&) {
+      for(unsigned n = 0; n < active.size(); ++n) if(active[n]) { total[n] = savedTotal[n]; totalErrors[n] = savedErrors[n]; }
+      accepted = savedAccepted+1U;
+      RetainUncertifiedQuadrature("Outer quadrature","child coordinate resolution exhausted; retained the complete parent rule",best,bestErrors,absoluteH,absoluteD,relative,active,total,totalErrors);
+    }
   }
+
 };
 
 }

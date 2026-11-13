@@ -54,6 +54,7 @@ public:
   }
 
   static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned direction = 0, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
+    QuadratureWarningScope warningScope(triangle ? "TRI endpoint integration" : "QUAD endpoint integration");
     rules.Validate();
     if(coefficient.size() != 3 || degree > 64 || maximumEvaluations < 3 || direction > 2 || !(absoluteH > 0) || !(absoluteD > 0) || !(relative >= 0)) throw std::invalid_argument("Invalid endpoint integration input.");
     for(unsigned i = 0; i < 3; ++i) if(coefficient[i].size() != 3) throw std::invalid_argument("Endpoint integration requires the exact 3 by 3 parent slice.");
@@ -132,11 +133,14 @@ public:
       strip.certifiedUpperZero = (*zeroBoundary)[triangle ? 2U : 2U*axis+1U] != 0;
     }
     std::vector<unsigned char> failed = active;
+    std::vector<long double> best(2U*count,std::numeric_limits<long double>::quiet_NaN());
+    std::vector<long double> bestErrors(2U*count,std::numeric_limits<long double>::infinity());
     long double budgetFactor = 1;
     for(unsigned pass = 0; pass < 5; ++pass) {
       std::vector<long double> passValues(2U*count,0);
       std::vector<long double> passErrors(2U*count,0);
       LineIntegration::IntegrateStrip(working,degree,strip,true,!strict,computeDelta,budgetFactor*absoluteH,budgetFactor*absoluteD,budgetFactor*relative,maximumDepth,maximumEvaluations,evaluations,accepted,passValues,passErrors,gradient,&parent,&failed,rules,inverseSurface);
+      KeepBestQuadrature(passValues,passErrors,failed,best,bestErrors);
       long double worst = 0;
       for(unsigned n = 0; n < failed.size(); ++n) if(failed[n]) {
         const long double tolerance = (n < count ? absoluteH : absoluteD)+relative*std::abs(passValues[n]);
@@ -144,16 +148,20 @@ public:
         else worst = std::max(worst,passErrors[n]/tolerance);
       }
       if(std::find(failed.begin(),failed.end(),1) == failed.end()) break;
-      if(pass == 4 || !std::isfinite(worst)) throw std::runtime_error("Accumulated graph moment error exceeds tolerance.");
+      if(pass == 4 || !std::isfinite(worst) || evaluations >= maximumEvaluations) {
+        RetainUncertifiedQuadrature("Planar moments",evaluations >= maximumEvaluations ? "evaluation budget exhausted before accumulated tolerance" : "accumulated error exceeds tolerance after selective retries",best,bestErrors,absoluteH,absoluteD,relative,failed,values,errors);
+        break;
+      }
       budgetFactor /= std::max(2.0L,2*worst);
     }
     if(selected == 2) for(unsigned i = 0; i <= degree; ++i) for(unsigned j = i+1U; j <= degree-i; ++j) for(unsigned pair = 0; pair < 2; ++pair) {
       std::swap(values[pair*count+ReferenceMomentIndex2D(degree,i,j)],values[pair*count+ReferenceMomentIndex2D(degree,j,i)]);
       std::swap(errors[pair*count+ReferenceMomentIndex2D(degree,i,j)],errors[pair*count+ReferenceMomentIndex2D(degree,j,i)]);
     }
-    for(unsigned n = 0; n < values.size(); ++n) if((requested == nullptr || (*requested)[n]) && (!std::isfinite(values[n]) || !std::isfinite(errors[n]) || errors[n] > (n < count ? absoluteH : absoluteD)+relative*std::abs(values[n]))) throw std::runtime_error("Accumulated graph moment error exceeds tolerance.");
+    CheckQuadratureTolerance("Planar moments","accumulated error exceeds requested tolerance",values,errors,absoluteH,absoluteD,relative,requested);
   }
   static unsigned Compare(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned selected, const std::vector<std::vector<std::vector<long double>>>* gradient, const std::array<long double,5>* coordinates, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
+    QuadratureWarningScope warningScope("Independent planar validation");
     bool depends[2] = {false,false};
     for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if(coefficient[i][j] != 0) { depends[0] = depends[0] || i != 0; depends[1] = depends[1] || j != 0; }
     if(!triangle && depends[0] != depends[1]) {
@@ -183,7 +191,8 @@ public:
           const long double independentD = factor*delta[power]*metric;
           errors[n] += std::abs(values[n]-independentH)+64*std::numeric_limits<long double>::epsilon()*std::abs(independentH);
           errors[count+n] += std::abs(values[count+n]-independentD)+64*std::numeric_limits<long double>::epsilon()*std::abs(independentD);
-          if(errors[n] > absoluteH+relative*std::abs(values[n]) || errors[count+n] > absoluteD+relative*std::abs(values[count+n])) throw std::runtime_error("Independent LINE and endpoint graph moments disagree.");
+          if(errors[n] > absoluteH+relative*std::abs(values[n])) WarnQuadrature("Independent LINE validation","volume moment disagreement",n,errors[n],absoluteH+relative*std::abs(values[n]));
+          if(errors[count+n] > absoluteD+relative*std::abs(values[count+n])) WarnQuadrature("Independent LINE validation","interface moment disagreement",count+n,errors[count+n],absoluteD+relative*std::abs(values[count+n]));
         }
         return 1;
       }
@@ -191,11 +200,12 @@ public:
     std::vector<long double> second;
     std::vector<long double> secondErrors;
     unsigned independent = 0;
-    Integrate(coefficient,degree,triangle,computeDelta,0.1L*absoluteH,0.1L*absoluteD,0.1L*relative,maximumDepth,maximumEvaluations,second,secondErrors,evaluations,accepted,independent,gradient,coordinates,nullptr,selected == 0 ? 0 : 3U-selected,fullBoundaryDelta,zeroBoundary,rules,inverseSurface);
+    try { Integrate(coefficient,degree,triangle,computeDelta,0.1L*absoluteH,0.1L*absoluteD,0.1L*relative,maximumDepth,maximumEvaluations,second,secondErrors,evaluations,accepted,independent,gradient,coordinates,nullptr,selected == 0 ? 0 : 3U-selected,fullBoundaryDelta,zeroBoundary,rules,inverseSurface); }
+    catch(const std::runtime_error& error) { WarnQuadrature("Independent planar validation",std::string("validation unavailable: ")+error.what(),0,std::numeric_limits<long double>::infinity(),absoluteD); return 0; }
     const unsigned count = values.size()/2U;
     for(unsigned n = 0; n < values.size(); ++n) {
       errors[n] += secondErrors[n]+std::abs(values[n]-second[n]);
-      if(errors[n] > (n < count ? absoluteH : absoluteD)+relative*std::abs(values[n])) throw std::runtime_error("Independent endpoint projections do not agree within tolerance.");
+      if(errors[n] > (n < count ? absoluteH : absoluteD)+relative*std::abs(values[n])) WarnQuadrature("Independent planar validation","endpoint projections disagree",n,errors[n],(n < count ? absoluteH : absoluteD)+relative*std::abs(values[n]));
     }
     return independent != selected ? 1U : 0U;
   }

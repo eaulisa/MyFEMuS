@@ -156,6 +156,7 @@ inline void Quad9SelectedDirect(const std::vector<std::vector<long double>>& coe
 }
 
 inline void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr,  bool referenceSurface = false, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+  QuadratureWarningScope warningScope("QUAD reference moments");
   rules.Validate();
   if(geometryCoordinates != nullptr) {
     if(!referenceSurface || inverseJacobian != nullptr) throw std::invalid_argument("Surface geometry requires surface moments without an inverse Jacobian.");
@@ -220,9 +221,11 @@ inline void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double
       resultD[i][j] = computeDelta ? static_cast<double>(values[count+n]/scale) : 0;
       const long double hError = errors[n]+std::abs(values[n]-resultH[i][j]);
       const long double dError = computeDelta ? errors[count+n]/scale+std::abs(values[count+n]/scale-resultD[i][j]) : 0;
-      if(!std::isfinite(resultH[i][j]) || !std::isfinite(resultD[i][j]) || hError > absoluteTolerance+relativeTolerance*std::abs(values[n]) || dError > absoluteTolerance+relativeTolerance*std::abs(resultD[i][j])) throw std::runtime_error("Rounded QUAD moments exceed tolerance.");
-      errorH = std::max(errorH,hError);
-      errorD = std::max(errorD,dError);
+      if(!std::isfinite(resultH[i][j]) || !std::isfinite(resultD[i][j])) throw std::overflow_error("A rounded QUAD moment exceeds double precision range.");
+      if(!std::isfinite(hError) || hError < 0 || hError > absoluteTolerance+relativeTolerance*std::abs(values[n])) WarnQuadrature("QUAD output","rounded volume moment exceeds tolerance",n,hError,absoluteTolerance+relativeTolerance*std::abs(values[n]));
+      if(!std::isfinite(dError) || dError < 0 || dError > absoluteTolerance+relativeTolerance*std::abs(resultD[i][j])) WarnQuadrature("QUAD output","rounded interface moment exceeds tolerance",count+n,dError,absoluteTolerance+relativeTolerance*std::abs(resultD[i][j]));
+      errorH = std::max(errorH,std::isfinite(hError) && hError >= 0 ? hError : std::numeric_limits<long double>::infinity());
+      errorD = std::max(errorD,std::isfinite(dError) && dError >= 0 ? dError : std::numeric_limits<long double>::infinity());
     }
   }
   positive.swap(resultH);

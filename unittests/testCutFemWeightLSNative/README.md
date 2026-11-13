@@ -1,5 +1,7 @@
 # Native CutFEM endpoint integration
 
+Unmet accuracy, refinement, budget, or recoverable precision checks issue one aggregated warning per FEM rule and return the best complete finite quadrature; invalid inputs, undefined geometry, and unavailable or nonfinite quadrature still raise errors.
+
 This branch starts at `8bad259c5a51060e4c2674db49a7ae34b75a0367`. `rifat` remains the benchmark at `0ff0669494e603be248d02c44c0a2e9b81f72b4d`.
 
 The hierarchy is HEX -> QUAD -> LINE and TET -> full TRI -> LINE. General curves and surfaces use actual-integrand endpoint quadrature. Regular and endpoint-mapped outer intervals have independent 2D and 3D Gauss-Kronrod choices, defaulting to G7/K15, followed by selective subdivision. Every G_n/K_(2n+1) pair for n=1,...,15 is supported. A single tangent uses the entire interval; two tangents use two half maps. Coordinate-collapse emergencies halve the selected Gauss order down to G1/K3. The exact quadratic LINE3 algorithm is unchanged. Taylor, Full GK dispatch, and geometric subdivision have been removed from the native implementation. The planar and independently used old CutFEM components are separate.

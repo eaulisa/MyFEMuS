@@ -81,7 +81,8 @@ void IntervalContractEmergency(unsigned dimension, long double ulps, unsigned mo
   bool rejected = false;
   try { FELevelSetMoments::OuterIntervalQuadrature::Adaptive(context,IntervalContractSample,interval,0,1,1e-12L*delta,1e-12L*delta,1e-12L,0,30,10000,context.evaluations,accepted,dimension,active,values,errors); }
   catch(const std::runtime_error&) { rejected = true; }
-  IntervalContractRequire(rejected == failure,"Incorrect emergency-rule acceptance.");
+  IntervalContractRequire(rejected == (failure && ulps == 1),"A finite emergency rule was rejected or an unavailable rule was fabricated.");
+  if(failure && !rejected) for(unsigned n = 0; n < values.size(); ++n) IntervalContractRequire(std::isfinite(values[n]) && values[n] > 0 && errors[n] >= 0,"An uncertified emergency contribution was lost.");
   const FELevelSetMoments::OuterIntervalStatistics& statistics = FELevelSetMoments::OuterIntervalQuadrature::Statistics(dimension);
   IntervalContractRequire(statistics.coordinateCollapses == 1 && statistics.subdivisions == 0,"A collapsed interval was subdivided.");
   if(expectedRule == 7) IntervalContractRequire(statistics.emergency7 == 1 && statistics.emergency3 == 0,"The first resolvable emergency rule was skipped.");

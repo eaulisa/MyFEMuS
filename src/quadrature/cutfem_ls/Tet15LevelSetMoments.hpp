@@ -43,6 +43,7 @@ inline void Tet15ReferenceSurfaceGradient(const std::vector<double>& nodalValues
 }
 
 inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationAxis = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned directionValidation = 1, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
+  QuadratureWarningScope warningScope("TET15 moments");
   rules.Validate();
   if(inverseSurface && geometryCoordinates == nullptr) throw std::invalid_argument("Inverse surface moments require nodal geometry.");
   if(nodalValues.size() != 15 || &positive == &delta || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 48 || integrationAxis > 4 || maximumEvaluations < 3 || directionValidation > 2 || (directionInfo != nullptr && directionInfo == estimatedError)) throw std::invalid_argument("Invalid adaptive TET15 integration input.");

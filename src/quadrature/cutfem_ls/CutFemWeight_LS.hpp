@@ -207,6 +207,8 @@ class CutFemWeight_LS {
     }
 
     void GetNodalWeightPair(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, bool inverseSurface = false) {
+      const char* geometryNames[6] = {"HEX27","TET15","WEDGE21","QUAD9","TRI7","LINE3"};
+      FELevelSetMoments::QuadratureWarningScope warningScope(std::string(geometryNames[static_cast<unsigned>(_geomElemType)])+" q="+std::to_string(_qM)+(inverseSurface ? " tangential surface" : (referenceSurface ? " surface" : " delta")));
       rules.Validate();
       if(&positiveWeight == &deltaWeight) throw std::invalid_argument("Heaviside and delta weights require distinct output vectors.");
       if(!(absoluteTolerance > 0.) || !(relativeTolerance >= 0.) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance)) throw std::invalid_argument("Invalid nodal integration tolerance.");

@@ -122,7 +122,8 @@ void RuleSelectionFallback(unsigned dimension, unsigned selected, unsigned ulps,
   try { FELevelSetMoments::OuterIntervalQuadrature::Adaptive(context,RuleSelectionSample,interval,0,1,delta*1e-12L,delta*1e-12L,1e-12L,0,24,10000,context.evaluations,accepted,dimension,active,values,errors,rules); }
   catch(const std::runtime_error&) { rejected = true; }
   const FELevelSetMoments::OuterIntervalStatistics& statistics = FELevelSetMoments::OuterIntervalQuadrature::Statistics(dimension);
-  RuleSelectionCheck(rejected == (expected == 0),"A failsafe result did not match its accuracy or coordinate limit.");
+  RuleSelectionCheck(rejected == (expected == 0 && !inaccurate),"A finite failsafe rule was rejected or an unavailable rule was fabricated.");
+  if(inaccurate) for(unsigned n = 0; n < active.size(); ++n) if(active[n]) RuleSelectionCheck(std::isfinite(values[n]) && values[n] > 0 && errors[n] > delta*1e-12L,"An uncertified failsafe contribution or its error estimate was discarded.");
   RuleSelectionCheck(statistics.subdivisions == 0,"A collapsed interval was repeatedly bisected.");
   const unsigned primaryIndex = FELevelSetMoments::GaussKronrodRules::Index(selected);
   for(unsigned rule = primaryIndex; rule < 15; ++rule) RuleSelectionCheck(statistics.emergencyRulePanels[rule] == 0,"The failsafe raised the selected rule.");
