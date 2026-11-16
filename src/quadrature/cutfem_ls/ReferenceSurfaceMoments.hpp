@@ -278,10 +278,14 @@ inline long double SurfaceGradientNorm(const std::vector<std::vector<std::vector
   return norm;
 }
 
-inline long double SurfaceGradientFactor(const std::vector<std::vector<std::vector<long double>>>& gradient, long double first, long double second, bool inverseSurface) {
+inline long double SurfaceGradientFactor(const std::vector<std::vector<std::vector<long double>>>& gradient, long double first, long double second, bool inverseSurface, int normalComponent = -1) {
   const long double norm = SurfaceGradientNorm(gradient,first,second);
-  if(!inverseSurface) return norm;
+  if(!inverseSurface && normalComponent < 0) return norm;
   if(!(norm > 0) || !std::isfinite(norm)) throw std::domain_error("An inverse surface moment requires a regular interface and geometry.");
+  if(normalComponent >= 0) {
+    if(static_cast<unsigned>(normalComponent) >= gradient.size()) throw std::invalid_argument("Invalid normal-weight component.");
+    return SurfacePolynomialValue(gradient[normalComponent],first,second)/norm;
+  }
   return 1.0L/norm;
 }
 

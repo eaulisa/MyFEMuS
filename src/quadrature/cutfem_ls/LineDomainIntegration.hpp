@@ -38,6 +38,7 @@ struct LineGraphContext {
   LineIntegrationStrip strip = {0,1,0,0,1,0};
   bool computeDelta = true;
   bool inverseSurface = false;
+  int normalComponent = -1;
   bool lowerZero = false;
   bool upperZero = false;
   const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr;
@@ -76,7 +77,7 @@ public:
     return LineSliceUtilities::PolynomialNorm(boundary) == 0.0L;
   }
 
-  static void FastGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double x, bool computeDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& active, long double mappedDerivative = -1.0L, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0, bool inverseSurface = false) {
+  static void FastGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double x, bool computeDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& active, long double mappedDerivative = -1.0L, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0, bool inverseSurface = false, int normalComponent = -1) {
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     values.assign(2U*count,0.0L);
     const long double parentX = coordinates == nullptr ? x : (*coordinates)[0]+(*coordinates)[1]*x;
@@ -164,7 +165,7 @@ public:
     }
     if(computeDelta && number == 1) {
       long double weight = measure*((root == lower || root == upper) && !strip.fullBoundaryDelta ? 0.5L : 1.0L)/derivative;
-      if(surfaceGradient != nullptr) weight *= SurfaceGradientFactor(*surfaceGradient,x,root,inverseSurface);
+      if(surfaceGradient != nullptr) weight *= SurfaceGradientFactor(*surfaceGradient,x,root,inverseSurface,normalComponent);
       const long double parentRoot = coordinates == nullptr ? root : (*coordinates)[2]+(*coordinates)[3]*root;
       long double rootPower = 1.0L;
       for(unsigned j = 0; j <= degree; ++j) { values[count+j] = rootPower*weight; rootPower *= parentRoot; }
@@ -211,7 +212,7 @@ public:
     ++*context.evaluations;
     ++Statistics().fastSamples;
     const long double derivative = context.interval.mapping == 0 ? -1 : EndpointDerivative(context.interval,context.discriminant,point);
-    FastGraphSample(*context.coefficient,context.degree,context.strip,point.coordinate,context.computeDelta,context.lowerZero,context.upperZero,values,context.gradient,active,derivative,context.coordinates,context.derivativeSign,context.inverseSurface);
+    FastGraphSample(*context.coefficient,context.degree,context.strip,point.coordinate,context.computeDelta,context.lowerZero,context.upperZero,values,context.gradient,active,derivative,context.coordinates,context.derivativeSign,context.inverseSurface,context.normalComponent);
     errors.assign(values.size(),0);
     for(unsigned n = 0; n < values.size(); ++n) if(active[n]) values[n] *= point.jacobian;
   }
@@ -285,7 +286,7 @@ public:
     }
   }
 
-  static void IntegrateStrip(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, bool graph, bool mapped, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
+  static void IntegrateStrip(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, bool graph, bool mapped, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1) {
     rules.Validate();
     if(!graph) throw std::invalid_argument("The LINE outer graph path requires a certified graph.");
     std::vector<long double> events;
@@ -332,6 +333,7 @@ public:
         context.upperZero = upperZero;
         context.gradient = surfaceGradient;
         context.inverseSurface = inverseSurface;
+        context.normalComponent = normalComponent;
         context.coordinates = coordinates;
         context.derivativeSign = middleDerivative > 0 ? 1 : -1;
         context.interval = plan[part];

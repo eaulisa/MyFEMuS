@@ -53,7 +53,7 @@ public:
     return selected;
   }
 
-  static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned direction = 0, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
+  static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned direction = 0, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1) {
     QuadratureWarningScope warningScope(triangle ? "TRI endpoint integration" : "QUAD endpoint integration");
     rules.Validate();
     if(coefficient.size() != 3 || degree > 64 || maximumEvaluations < 3 || direction > 2 || !(absoluteH > 0) || !(absoluteD > 0) || !(relative >= 0)) throw std::invalid_argument("Invalid endpoint integration input.");
@@ -114,7 +114,7 @@ public:
     bool strict = false;
     selected = GraphOrder(coefficient,triangle,direction,strict);
     if(selected == 0) {
-      if(!EndpointStripQuadrature::Try(coefficient,degree,triangle,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,gradient,1,nullptr,nullptr,coordinates,requested,direction,fullBoundaryDelta,rules,inverseSurface)) throw std::runtime_error("Unsupported endpoint topology: "+EndpointStripQuadrature::Statistics().failure);
+      if(!EndpointStripQuadrature::Try(coefficient,degree,triangle,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,gradient,1,nullptr,nullptr,coordinates,requested,direction,fullBoundaryDelta,rules,inverseSurface,normalComponent)) throw std::runtime_error("Unsupported endpoint topology: "+EndpointStripQuadrature::Statistics().failure);
       return;
     }
     std::vector<std::vector<long double>> working = coefficient;
@@ -139,7 +139,7 @@ public:
     for(unsigned pass = 0; pass < 5; ++pass) {
       std::vector<long double> passValues(2U*count,0);
       std::vector<long double> passErrors(2U*count,0);
-      LineIntegration::IntegrateStrip(working,degree,strip,true,!strict,computeDelta,budgetFactor*absoluteH,budgetFactor*absoluteD,budgetFactor*relative,maximumDepth,maximumEvaluations,evaluations,accepted,passValues,passErrors,gradient,&parent,&failed,rules,inverseSurface);
+      LineIntegration::IntegrateStrip(working,degree,strip,true,!strict,computeDelta,budgetFactor*absoluteH,budgetFactor*absoluteD,budgetFactor*relative,maximumDepth,maximumEvaluations,evaluations,accepted,passValues,passErrors,gradient,&parent,&failed,rules,inverseSurface,normalComponent);
       KeepBestQuadrature(passValues,passErrors,failed,best,bestErrors);
       long double worst = 0;
       for(unsigned n = 0; n < failed.size(); ++n) if(failed[n]) {
@@ -160,7 +160,7 @@ public:
     }
     CheckQuadratureTolerance("Planar moments","accumulated error exceeds requested tolerance",values,errors,absoluteH,absoluteD,relative,requested);
   }
-  static unsigned Compare(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned selected, const std::vector<std::vector<std::vector<long double>>>* gradient, const std::array<long double,5>* coordinates, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
+  static unsigned Compare(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned selected, const std::vector<std::vector<std::vector<long double>>>* gradient, const std::array<long double,5>* coordinates, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1) {
     QuadratureWarningScope warningScope("Independent planar validation");
     bool depends[2] = {false,false};
     for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if(coefficient[i][j] != 0) { depends[0] = depends[0] || i != 0; depends[1] = depends[1] || j != 0; }
@@ -178,7 +178,7 @@ public:
         std::vector<long double> positive;
         std::vector<long double> delta;
         LineIntegration::IntegratePolynomial(a,b,c,degree,std::min(origin,origin+scale),std::max(origin,origin+scale),computeDelta,fullBoundaryDelta,positive,delta);
-        const long double metric = gradient == nullptr ? 1 : SurfaceGradientFactor(*gradient,0,0,inverseSurface);
+        const long double metric = gradient == nullptr ? 1 : SurfaceGradientFactor(*gradient,0,0,inverseSurface,normalComponent);
         const unsigned count = values.size()/2U;
         for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) {
           const unsigned n = ReferenceMomentIndex2D(degree,i,j);
@@ -200,7 +200,7 @@ public:
     std::vector<long double> second;
     std::vector<long double> secondErrors;
     unsigned independent = 0;
-    try { Integrate(coefficient,degree,triangle,computeDelta,0.1L*absoluteH,0.1L*absoluteD,0.1L*relative,maximumDepth,maximumEvaluations,second,secondErrors,evaluations,accepted,independent,gradient,coordinates,nullptr,selected == 0 ? 0 : 3U-selected,fullBoundaryDelta,zeroBoundary,rules,inverseSurface); }
+    try { Integrate(coefficient,degree,triangle,computeDelta,0.1L*absoluteH,0.1L*absoluteD,0.1L*relative,maximumDepth,maximumEvaluations,second,secondErrors,evaluations,accepted,independent,gradient,coordinates,nullptr,selected == 0 ? 0 : 3U-selected,fullBoundaryDelta,zeroBoundary,rules,inverseSurface,normalComponent); }
     catch(const std::runtime_error& error) { WarnQuadrature("Independent planar validation",std::string("validation unavailable: ")+error.what(),0,std::numeric_limits<long double>::infinity(),absoluteD); return 0; }
     const unsigned count = values.size()/2U;
     for(unsigned n = 0; n < values.size(); ++n) {

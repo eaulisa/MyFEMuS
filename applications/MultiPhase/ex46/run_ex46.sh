@@ -42,7 +42,7 @@ NSTEPS=(100000)
 # ------------------------------------------------------------
 
 CUTFEM_INTEGRATION="quadratic"     # linear | quadratic
-SURFACE_MOMENT_ORDER=10
+SURFACE_MOMENT_ORDER=13
 
 # ------------------------------------------------------------
 # Velocity multigrid

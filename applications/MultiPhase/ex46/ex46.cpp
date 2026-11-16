@@ -52,7 +52,7 @@ bool printdb = false;
 std::vector<std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > > PMatrix(6); //projection matrix between elements;
 
 CutFemIntegration cutFemIntegration;
-unsigned surfaceMomentOrder = 10;
+unsigned surfaceMomentOrder = 13;
 std::unique_ptr<Fem> surfaceFem;
 std::vector<std::unique_ptr<CutFemWeight_LS<double,long double>>> surfaceRules(6);
 FELevelSetMoments::OuterQuadratureRules surfaceQuadratureRules;
@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
         if(order < 1 || order > 18) throw std::invalid_argument("Surface moment order must be an integer from 1 to 18.");
         surfaceMomentOrder = static_cast<unsigned>(order);
       }
-      if(option == "--help" || option == "-h") std::cout << "  --surface-moment-order Q    Tangential moment degree, 1..18 (default 10)\n" << FELevelSetMoments::GaussKronrodRules::Help();
+      if(option == "--help" || option == "-h") std::cout << "  --surface-moment-order Q    Surface moment degree, 1..18 (default 13)\n" << FELevelSetMoments::GaussKronrodRules::Help();
     }
     surfaceQuadratureRules = FELevelSetMoments::OuterQuadratureRules::ParseArguments(argc,argv);
     args = ParseSimulationArgs(argc,argv,CutFemIntegration::Quadratic);
@@ -1492,6 +1492,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         const unsigned nGauss = femV->GetGaussPointNumber();
 
         std::vector<TypeIO> weightCF(nGauss, 0.);
+        std::vector<std::vector<TypeIO>> weightCFNormal;
         std::vector<TypeIO> weightCFInt(nGauss, 0.);
         std::vector<TypeIO> weightCFExt(nGauss, 0.);
 
@@ -1522,7 +1523,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             rule->SetIntegrationDirection(0);
             rule->SetDirectionValidation(0);
 
-            if(tangentialSurfaceWeights) rule->GetTangentialSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8,surfaceQuadratureRules);
+            if(tangentialSurfaceWeights) {
+              rule->GetTangentialSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8,surfaceQuadratureRules);
+              if(dim == 3) rule->GetNormalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCFNormal,1.e-8,1.e-8,surfaceQuadratureRules);
+            }
             else rule->GetPhysicalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8);
           }
 
@@ -1798,7 +1802,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
               // surface tension stabilization -- rhs contribution
               if(cut == 1) {
-                if(tangentialSurfaceWeights) Res[I*nDofsV+i] -= sigma*surfaceForce[i*dim+I]*surfaceWeight;
+                if(tangentialSurfaceWeights && dim == 3) Res[I*nDofsV+i] -= sigma*elementSurfaceRule->GetGaussWeightPointer()[ig]*(weightCFNormal[(I+1U)%3U][ig]*surfaceTangent[3U*i+(I+2U)%3U]-weightCFNormal[(I+2U)%3U][ig]*surfaceTangent[3U*i+(I+1U)%3U]);
+                else if(tangentialSurfaceWeights) Res[I*nDofsV+i] -= sigma*surfaceForce[i*dim+I]*surfaceWeight;
                 else for(unsigned d = 0; d < dim; ++d) Res[I*nDofsV+i] -= sigma*axisWeight*P[I][d]*phiV_x[i*dim+d]*surfaceWeight;
 
                 if(axisymmetric && I == 0) {

@@ -42,7 +42,7 @@ inline void Tet15ReferenceSurfaceGradient(const std::vector<double>& nodalValues
   }
 }
 
-inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationAxis = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned directionValidation = 1, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
+inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationAxis = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned directionValidation = 1, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1) {
   QuadratureWarningScope warningScope("TET15 moments");
   rules.Validate();
   if(inverseSurface && geometryCoordinates == nullptr) throw std::invalid_argument("Inverse surface moments require nodal geometry.");
@@ -75,6 +75,7 @@ inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodal
   SurfaceEndpointData data;
   data.quadratureRules = rules;
   data.inverseSurface = inverseSurface;
+  data.normalComponent = normalComponent;
   const unsigned boundaryNodes[4][7] = {{1,2,3,5,9,8,12},{0,2,3,6,9,7,13},{0,1,3,4,8,7,11},{0,1,2,4,5,6,10}};
   data.zeroFaces.assign(4,1);
   for(unsigned face = 0; face < 4; ++face) for(unsigned node = 0; node < 7; ++node) data.zeroFaces[face] = data.zeroFaces[face] && fieldNodal[boundaryNodes[face][node]] == 0;
@@ -96,6 +97,7 @@ inline void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodal
   if(integrationAxis != 0) { data.preferredOuter = integrationAxis == 1 ? 0U : integrationAxis-2U; }
   if(referenceSurface && computeDelta) {
     Tet15ReferenceSurfaceGradient(fieldNodal,data.gradient,integrationAxis == 1 && geometryCoordinates == nullptr ? nullptr : inverseJacobian,geometryCoordinates);
+    if(normalComponent >= 0 && integrationAxis == 1 && geometryCoordinates != nullptr) for(unsigned component = 0; component < data.gradient.size(); ++component) for(unsigned n = 0; n < data.gradient[component].size(); ++n) data.gradient[component][n] = -data.gradient[component][n];
     if(integrationAxis == 1 && geometryCoordinates == nullptr) {
       for(unsigned n = 0; n < data.gradient[0].size(); ++n) { const long double first = data.gradient[0][n]; data.gradient[0][n] = -first; data.gradient[1][n] -= first; data.gradient[2][n] -= first; }
       if(inverseJacobian != nullptr) SurfaceGradientPhysical(data.gradient,*inverseJacobian);

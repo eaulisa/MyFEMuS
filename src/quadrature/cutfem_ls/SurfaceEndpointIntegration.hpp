@@ -56,6 +56,7 @@ struct SurfaceEndpointData {
   std::array<unsigned,3> outerCounts = {0,0,0};
   bool computeDelta = true;
   bool inverseSurface = false;
+  int normalComponent = -1;
   bool retainUncertified = false;
   long double absoluteH = 0.0L;
   long double absoluteD = 0.0L;
@@ -397,11 +398,11 @@ public:
     try {
       if(triangleSlice) {
         ++Statistics().triCalls;
-        TriangleIntegration::Integrate(chart,degree,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&parent,&required,requestedDirection,false,boundary.empty() ? nullptr : &boundary,data.quadratureRules,data.inverseSurface);
+        TriangleIntegration::Integrate(chart,degree,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&parent,&required,requestedDirection,false,boundary.empty() ? nullptr : &boundary,data.quadratureRules,data.inverseSurface,data.normalComponent);
       }
       else {
         ++Statistics().quadCalls;
-        Quad9SelectedDirect(chart,degree,requestedDirection,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,gradient.empty() ? nullptr : &gradient,parent,&required,boundary.empty() ? nullptr : &boundary,data.quadratureRules,data.inverseSurface);
+        Quad9SelectedDirect(chart,degree,requestedDirection,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,gradient.empty() ? nullptr : &gradient,parent,&required,boundary.empty() ? nullptr : &boundary,data.quadratureRules,data.inverseSurface,data.normalComponent);
       }
     }
     catch(...) { data.evaluations += evaluations; throw; }
