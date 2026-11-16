@@ -741,34 +741,13 @@ void FlagFinestMeshLevel(MultiLevelMesh& mlMsh, const PsiType& psi) {
 
     const unsigned nDof = msh.GetElementDofNumber(iel, xType);
 
-    const unsigned xDof0 = msh.GetSolutionDof(0, iel, xType);
-
-    for(unsigned k = 0; k < dim; ++k)
-      x[k] = (*xv[k])(xDof0);
-
-    const double psi0 = psi(x);
-    const int sign0 = (psi0 > 0.) ? 1 : -1;
-
-    bool signChange = false;
-
-    for(unsigned i = 1; i < nDof; ++i) {
-
+    std::vector<double> nodalValues(nDof);
+    for(unsigned i = 0; i < nDof; ++i) {
       const unsigned xDof = msh.GetSolutionDof(i, iel, xType);
-
-      for(unsigned k = 0; k < dim; ++k)
-        x[k] = (*xv[k])(xDof);
-
-      const double psii = psi(x);
-      const int signi = (psii > 0.) ? 1 : -1;
-
-      if(signi != sign0) {
-        signChange = true;
-        break;
-      }
+      for(unsigned k = 0; k < dim; ++k) x[k] = (*xv[k])(xDof);
+      nodalValues[i] = psi(x);
     }
-
-    if(signChange)
-      amrFlag->set(iel, 2);
+    if(FELevelSetMoments::NodalLevelSetPhase(static_cast<GeomElType>(msh.GetElementType(iel)),nodalValues) == 0) amrFlag->set(iel,2);
   }
 
   amrFlag->close();
@@ -1037,19 +1016,10 @@ void UpdateColorFunction(MultiLevelSolution & mlSol, const std::string & psiName
   // Loop over local elements and interpolate psi2D at solution DoFs
   for (unsigned iel = offset; iel < offsetp1; ++iel) {
     const unsigned nDof = msh.GetElementDofNumber(iel, psiType);
-    double value0 = (*psiVec)(msh.GetSolutionDof(0, iel, psiType));
-    bool signChanged = false;
-    for (unsigned i = 1; i < nDof; ++i) {
-      double value = (*psiVec)(msh.GetSolutionDof(i, iel, psiType));
-      if(value0 * value <= 0.) {
-        cVec->set(iel, 0.5);
-        signChanged = true;
-        break;
-      }
-    }
-    if(!signChanged && value0 > 0.) {
-      cVec->set(iel, 1.);
-    }
+    std::vector<double> nodalValues(nDof);
+    for(unsigned i = 0; i < nDof; ++i) nodalValues[i] = (*psiVec)(msh.GetSolutionDof(i,iel,psiType));
+    const int phase = FELevelSetMoments::NodalLevelSetPhase(static_cast<GeomElType>(msh.GetElementType(iel)),nodalValues);
+    cVec->set(iel,phase == 0 ? 0.5 : (phase > 0 ? 1. : 0.));
   }
   cVec->close();
 }

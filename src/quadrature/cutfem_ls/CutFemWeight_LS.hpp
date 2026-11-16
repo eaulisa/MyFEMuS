@@ -14,6 +14,7 @@
 #include "Tet15LevelSetMoments.hpp"
 #include "UnitElementMoments.hpp"
 #include "Wedge21LevelSetMoments.hpp"
+#include "NodalCutDetection.hpp"
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
@@ -105,6 +106,11 @@ class CutFemWeight_LS {
 
     void GetTangentialSurfaceWeightsFromNodalGeometry(const std::vector<double>& nodalValues, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& tangentialWeight, double absoluteTolerance, double relativeTolerance, const FELevelSetMoments::OuterQuadratureRules& rules) {
       GetNodalWeightPair(nodalValues,positiveWeight,tangentialWeight,absoluteTolerance,relativeTolerance,true,rules,&coordinates,true);
+    }
+
+    // Returns -1 or +1 only for a certified phase; zero retains every possible cut.
+    int GetLevelSetPhaseFromNodalValues(const std::vector<double>& nodalValues) const {
+      return FELevelSetMoments::NodalLevelSetPhase(_geomElemType,nodalValues);
     }
 
     unsigned GetCutFEMQuadratureOrder() const {
