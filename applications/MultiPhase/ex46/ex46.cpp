@@ -1063,7 +1063,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
     throw std::runtime_error("Pressure type mismatch");
   }
 
-  // AssembleGhostPenaltyVelocity(ml_prob2);
+  AssembleGhostPenaltyVelocity(ml_prob2);
 
   if (solPType == 3) {
     AssembleGhostPenaltyDGP(ml_prob2, true);
@@ -1533,11 +1533,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
               throw std::runtime_error("Quadratic CutFEM Gauss rule mismatch");
             }
 
+            double tol = 1.e-8;
             if(tangentialSurfaceWeights) {
-              rule->GetTangentialSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8);
-              if(dim == 3 && surfaceWeightCount == 3) rule->GetNormalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCFNormal,1.e-8,1.e-8);
+              rule->GetTangentialSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,tol,tol);
+              if(dim == 3 && surfaceWeightCount == 3) rule->GetNormalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCFNormal,tol,tol);
             }
-            else rule->GetPhysicalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8);
+            else rule->GetPhysicalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,tol,tol);
           }
 
           for(unsigned i = 0; i < nGauss; ++i) {
@@ -1847,7 +1848,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                   stabSF += (cnew * solV_gss[0] - cold * solVOld_gss[0]) * phiV[i] / (r * r);
                 }
 
-                Res[I * nDofsV + i] += -cnew * sigma * dt * stabSF * surfaceWeight * axisWeight;
+                // Res[I * nDofsV + i] += -cnew * sigma * dt * stabSF * surfaceWeight * axisWeight;
               }
             }
           } // end phiV_i loop
@@ -1921,7 +1922,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                 double tangentialGradDot = 0.;
                 if(tangentialSurfaceWeights) for(unsigned a = 0; a < surfaceTangentSize; ++a) tangentialGradDot += surfaceTangent[i*surfaceTangentSize+a]*surfaceTangent[j*surfaceTangentSize+a];
                 else tangentialGradDot = gradPhi_dot_gradPhi-normalDotGradPhi[i]*normalDotGradPhi[j];
-                diagonalContribution += surfaceTensionCoefficient * tangentialGradDot;
+                // diagonalContribution += surfaceTensionCoefficient * tangentialGradDot;
               }
 
               for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension
