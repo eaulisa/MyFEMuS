@@ -10,14 +10,14 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 NPROC=8
-NPRINT=100
+NPRINT=1000
 NREINIT=1
 
 # ------------------------------------------------------------
 # Problem
 # ------------------------------------------------------------
 
-DIM=2
+DIM=3
 SIMULATION="par"
 SYMMETRIC=0
 AXISYMMETRIC=0
@@ -26,7 +26,7 @@ AXISYMMETRIC=0
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(1 2 3)
+UNIFORM_LEVELS=(1)
 ADAPTIVE_LEVELS=(0)
 LEVEL_OFFSET_PSI=0
 LEVEL_OFFSET=0

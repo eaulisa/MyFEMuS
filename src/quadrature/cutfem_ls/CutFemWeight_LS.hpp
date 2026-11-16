@@ -107,6 +107,35 @@ class CutFemWeight_LS {
       GetNodalWeightPair(nodalValues,positiveWeight,tangentialWeight,absoluteTolerance,relativeTolerance,true,rules,&coordinates,true);
     }
 
+
+    void GetWeightsFromExternalMoments(
+        const std::vector<long double>& positiveMoments,
+        const std::vector<long double>& surfaceMoments,
+        std::vector<TypeIO>& positiveWeight,
+        std::vector<TypeIO>& surfaceWeight) {
+
+      if(positiveMoments.size() != _L ||
+         surfaceMoments.size() != _L)
+        throw std::invalid_argument("Invalid external moment size.");
+
+      if(&positiveWeight == &surfaceWeight)
+        throw std::invalid_argument("Weight outputs must be distinct.");
+
+      ClearCache();
+
+      for(unsigned n = 0; n < _L; ++n) {
+        if(!std::isfinite(positiveMoments[n]) ||
+           !std::isfinite(surfaceMoments[n]))
+          throw std::invalid_argument("Nonfinite external moment.");
+
+        _fPair(n,0) = static_cast<TypeA>(positiveMoments[n]);
+        _fPair(n,1) = static_cast<TypeA>(surfaceMoments[n]);
+      }
+
+      EvaluateMomentWeightPair(positiveWeight,surfaceWeight);
+    }
+
+
     unsigned GetCutFEMQuadratureOrder() const {
       return _qM;
     }

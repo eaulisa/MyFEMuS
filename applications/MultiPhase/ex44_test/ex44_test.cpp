@@ -618,8 +618,8 @@ void ValidateNonconvex(const std::vector<GeomElType>& elements,
          && hexA >= 1. && hexB >= 1. && hexC >= 0.))
       throw std::invalid_argument(
           "Nonconvex HEX requires a,b>=1 and c>=0 for full-domain references");
-    if(!(hexC/(hexA*hexB) > 3.))
-      throw std::invalid_argument("Nonconvex HEX requires chi=c/(a*b)>3");
+    // if(!(hexC/(hexA*hexB) > 3.))
+    //   throw std::invalid_argument("Nonconvex HEX requires chi=c/(a*b)>3");
   }
 }
 
@@ -783,6 +783,19 @@ DriverOptions Parse(int argc, char** argv) {
     else if(key == "--nonconvex-hex-b") options.nonconvexHexB = Real(value,key);
     else if(key == "--nonconvex-hex-c") options.nonconvexHexC = Real(value,key);
     else if(key == "--degree") options.integration.momentDegree = Unsigned(value, key);
+
+    else if(key == "--moment-backend") {
+      const std::string backend = Lower(value);
+
+      if(backend == "native")
+        options.integration.algoimMoments = false;
+      else if(backend == "algoim")
+        options.integration.algoimMoments = true;
+      else
+        throw std::invalid_argument(
+            "--moment-backend must be native or algoim");
+    }
+
     else if(key == "--cutfem-abs-tol") options.integration.absoluteTolerance = Real(value, key);
     else if(key == "--cutfem-rel-tol") options.integration.relativeTolerance = Real(value, key);
     else if(key == "--algoim-order") options.integration.algoimOrder = Unsigned(value, key);
@@ -993,12 +1006,24 @@ void SaveResults(std::ofstream& out, unsigned level, const IntegrationTest& test
     } else {
       out << "NA,NA,NA";
     }
-    out << ',' << result.cutElements << ',' << result.algoimVolumePoints
-        << ',' << result.algoimSurfacePoints << '\n';
+    
+    out << ',' << result.cutElements
+        << ',' << result.algoimVolumePoints
+        << ',' << result.algoimSurfacePoints
+        << ',' << result.momentAlgoimVolumeGenerated
+        << ',' << result.momentAlgoimVolumeUsed
+        << ',' << result.momentAlgoimSurfacePoints
+        << ',' << (result.momentAlgoimVolumeGenerated +
+                   result.momentAlgoimSurfacePoints)
+        << '\n';
+
   };
   if(result.momentComputed) {
-    write("moment", "omega", result.omega1, test.exactOmega1);
-    write("moment", "gamma", result.gamma, test.exactGamma);
+    const char* method =
+    result.algoimMomentsUsed ? "algoim-moment" : "moment";
+
+    write(method, "omega", result.omega1, test.exactOmega1);
+    write(method, "gamma", result.gamma, test.exactGamma);
   }
   if(result.algoimComputed) {
     write("algoim", "omega", result.omega1Algoim, test.exactOmega1);
@@ -1007,14 +1032,41 @@ void SaveResults(std::ofstream& out, unsigned level, const IntegrationTest& test
 }
 
 void PrintResults(const IntegrationTest& test, const IntegrationResult& result) {
+  
   if(result.momentComputed) {
-    PrintRow(test.name, "Moment", "Omega+", result.omega1, test.exactOmega1);
-    PrintRow(test.name, "Moment", "Gamma", result.gamma, test.exactGamma);
+
+    const char* method =
+        result.algoimMomentsUsed ? "Algoim-MF" : "Moment";
+
+    PrintRow(test.name, method, "Omega+",
+             result.omega1, test.exactOmega1);
+
+    PrintRow(test.name, method, "Gamma",
+             result.gamma, test.exactGamma);
   }
+
   if(result.algoimComputed) {
     PrintRow(test.name, "Algoim", "Omega+", result.omega1Algoim, test.exactOmega1);
     PrintRow(test.name, "Algoim", "Gamma", result.gammaAlgoim, test.exactGamma);
   }
+
+  if(result.algoimMomentsUsed) {
+
+    const auto total =
+        result.momentAlgoimVolumeGenerated +
+        result.momentAlgoimSurfacePoints;
+
+    std::cout
+        << "Algoim volume generated = "
+        << result.momentAlgoimVolumeGenerated << '\n'
+        << "Algoim volume used      = "
+        << result.momentAlgoimVolumeUsed << '\n'
+        << "Algoim surface points   = "
+        << result.momentAlgoimSurfacePoints << '\n'
+        << "Algoim TOTAL points     = "
+        << total << '\n';
+  }
+
 }
 
 } // namespace

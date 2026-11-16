@@ -11,6 +11,8 @@
 #include "Fem.hpp"
 #include "MultiLevelSolution.hpp"
 #include "../includeLS/ElementTopology.hpp"
+#include "AlgoimMoments.hpp"
+#include <cstdint>
 
 #include <algorithm>
 #include <cmath>
@@ -47,6 +49,7 @@ struct IntegrationOptions {
   unsigned algoimOrder = 5;
   unsigned algoimSubdivisions = 0;
   FELevelSetMoments::OuterQuadratureRules outerQuadratureRules;
+  bool algoimMoments = false;
 };
 
 
@@ -60,6 +63,10 @@ struct IntegrationResult {
   unsigned algoimSurfacePoints = 0;
   bool momentComputed = false;
   bool algoimComputed = false;
+  std::uint64_t momentAlgoimVolumeGenerated = 0;
+    std::uint64_t momentAlgoimVolumeUsed = 0;
+    std::uint64_t momentAlgoimSurfacePoints = 0;
+    bool algoimMomentsUsed = false;
 };
 
 struct IntegrationTest {
@@ -181,10 +188,15 @@ template <typename Function>
 IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string& psiName, const Function& f, const IntegrationOptions& options = IntegrationOptions()) {
   const bool runMoment = ex44_integration_detail::RunMoment(options.mode);
   const bool runAlgoim = ex44_integration_detail::RunAlgoim(options.mode);
+  const bool useAlgoimMoments = runMoment && options.algoimMoments;
+
+    if(options.algoimMoments && !runMoment)
+    throw std::invalid_argument(
+        "Algoim moments require moment or compare mode");
   if(!runMoment && !runAlgoim) throw std::invalid_argument("Integrate: invalid integration mode");
   if(options.momentDegree == 0) throw std::invalid_argument("Integrate: momentDegree must be positive");
   if(runMoment && (!(options.absoluteTolerance > 0.) || !(options.relativeTolerance >= 0.) || !std::isfinite(options.absoluteTolerance) || !std::isfinite(options.relativeTolerance))) throw std::invalid_argument("Integrate: invalid moment-fitting tolerances");
-  if(runAlgoim && (options.algoimOrder == 0 || options.algoimOrder > 100 || options.algoimSubdivisions > 32)) throw std::invalid_argument("Integrate: invalid Algoim parameters");
+  if((runAlgoim || useAlgoimMoments) && (options.algoimOrder == 0 || options.algoimOrder > 100 || options.algoimSubdivisions > 32)) throw std::invalid_argument("Integrate: invalid Algoim parameters");
 
   femus::MultiLevelMesh& mlMsh = *mlSol.GetMultilevelMesh();
   const unsigned level = mlMsh.GetNumberOfLevels() - 1;
@@ -201,6 +213,7 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
   IntegrationResult result;
   result.momentComputed = runMoment;
   result.algoimComputed = runAlgoim;
+  result.algoimMomentsUsed = useAlgoimMoments;
 
   // No eager global quadrature initialization. FEMuS FE tables are local;
   // moment-fitting transforms are lazily cached across integration tests.
@@ -239,13 +252,69 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
     std::vector<double> weightOmega;
     std::vector<double> weightGamma;
 
+    // if(isCut && runMoment) {
+    //   CutFemWeight_LS<TypeIO, TypeA>& rule = ex44_integration_detail::GetMomentRule(geom, options.momentDegree);
+    //   if(nGauss != rule.GetGaussQuadraturePointNumber()) throw std::runtime_error("Integrate: moment-fitting Gauss rules do not match FEMuS");
+    //   // The geometry-corrected surface weights already include
+    //   // |cof(J) * grad_ref(Psi)|. The Gauss reference weight is applied below.
+    //   rule.GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightOmega, weightGamma, options.absoluteTolerance, options.relativeTolerance, options.outerQuadratureRules);
+    // }
+
+
     if(isCut && runMoment) {
-      CutFemWeight_LS<TypeIO, TypeA>& rule = ex44_integration_detail::GetMomentRule(geom, options.momentDegree);
-      if(nGauss != rule.GetGaussQuadraturePointNumber()) throw std::runtime_error("Integrate: moment-fitting Gauss rules do not match FEMuS");
-      // The geometry-corrected surface weights already include
-      // |cof(J) * grad_ref(Psi)|. The Gauss reference weight is applied below.
-      rule.GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightOmega, weightGamma, options.absoluteTolerance, options.relativeTolerance, options.outerQuadratureRules);
+
+      CutFemWeight_LS<TypeIO, TypeA>& rule =
+          ex44_integration_detail::GetMomentRule(
+              geom, options.momentDegree);
+
+      if(nGauss != rule.GetGaussQuadraturePointNumber())
+        throw std::runtime_error("Incompatible FEMUS Gauss rule.");
+
+      if(useAlgoimMoments) {
+
+        if(geom != QUAD && geom != HEX)
+          throw std::invalid_argument(
+              "Algoim moments support only QUAD9 and HEX27.");
+
+        const auto moments =
+            FELevelSetMoments::IntegrateAlgoimMoments(
+                psi,
+                options.momentDegree,
+                options.algoimOrder,
+                FELevelSetMoments::AlgoimSurfaceMode::PhysicalSurface,
+                &coordX
+            );
+
+        rule.GetWeightsFromExternalMoments(
+            moments.positive,
+            moments.surface,
+            weightOmega,
+            weightGamma
+        );
+
+        result.momentAlgoimVolumeGenerated +=
+            moments.volumePointsGenerated;
+
+        result.momentAlgoimVolumeUsed +=
+            moments.volumePointsUsed;
+
+        result.momentAlgoimSurfacePoints +=
+            moments.surfacePoints;
+      }
+      else {
+
+        rule.GetPhysicalSurfaceWeightsFromNodalGeometry(
+            psi,
+            coordX,
+            weightOmega,
+            weightGamma,
+            options.absoluteTolerance,
+            options.relativeTolerance,
+            options.outerQuadratureRules
+        );
+      }
     }
+
 
     // Direct Algoim nodes are evaluated independently; no FEMuS moment fitting.
     if(isCut && runAlgoim) {
@@ -321,8 +390,30 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
   MPI_Allreduce(MPI_IN_PLACE, counts, 3, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   result.cutElements = counts[0];
   result.algoimVolumePoints = counts[1];
+  
   result.algoimSurfacePoints = counts[2];
+
+  unsigned long long momentCounts[3] = {
+      static_cast<unsigned long long>(result.momentAlgoimVolumeGenerated),
+      static_cast<unsigned long long>(result.momentAlgoimVolumeUsed),
+      static_cast<unsigned long long>(result.momentAlgoimSurfacePoints)
+  };
+
+  MPI_Allreduce(
+      MPI_IN_PLACE,
+      momentCounts,
+      3,
+      MPI_UNSIGNED_LONG_LONG,
+      MPI_SUM,
+      MPI_COMM_WORLD
+  );
+
+  result.momentAlgoimVolumeGenerated = momentCounts[0];
+  result.momentAlgoimVolumeUsed = momentCounts[1];
+  result.momentAlgoimSurfacePoints = momentCounts[2];
+
   return result;
+
 }
 
 // Convenience overload: true means moment fitting + direct Algoim.

@@ -4285,9 +4285,9 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.x_min[2] = 0.;
       cfg.x_max[2] = (dim == 3) ? 0.01 : 0.;
 
-      cfg.n[0] = (dim == 3) ? 4 : 8;
-      cfg.n[1] = (dim == 3) ? 4 : 8;
-      cfg.n[2] = (dim == 3) ? 4 : 0;
+      cfg.n[0] = (dim == 3) ? 8 : 8;
+      cfg.n[1] = (dim == 3) ? 8 : 8;
+      cfg.n[2] = (dim == 3) ? 8 : 0;
 
       cfg.period = 1.e-2;
 
