@@ -20,7 +20,7 @@ inline void Wedge21UnitPolynomialFromNodalValues(const std::vector<double>& noda
   }
 }
 
-inline void IntegrateWedge21NodalMoments(const std::vector<double>& nodal, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors, long double absolute = 1.0e-12L, long double relative = 1.0e-12L, bool referenceSurface = false, const std::vector<std::vector<double>>* geometry = nullptr, unsigned direction = 0, unsigned validation = 1, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1) {
+inline void IntegrateWedge21NodalMoments(const std::vector<double>& nodal, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors, long double absolute = 1.0e-12L, long double relative = 1.0e-12L, bool referenceSurface = false, const std::vector<std::vector<double>>* geometry = nullptr, unsigned direction = 0, unsigned validation = 1, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1, bool computePositive = true, std::vector<std::vector<long double>>* gradientCache = nullptr) {
   QuadratureWarningScope warningScope("WEDGE21 moments");
   rules.Validate();
   if(inverseSurface && geometry == nullptr) throw std::invalid_argument("Inverse surface moments require nodal geometry.");
@@ -39,6 +39,7 @@ inline void IntegrateWedge21NodalMoments(const std::vector<double>& nodal, unsig
   data.quadratureRules = rules;
   data.inverseSurface = inverseSurface;
   data.normalComponent = normalComponent;
+  data.computePositive = computePositive;
   data.coefficient = original;
   for(unsigned n = 0; n < original.size(); ++n) data.coefficient[n] /= scale;
   data.degree = degree;
@@ -49,7 +50,8 @@ inline void IntegrateWedge21NodalMoments(const std::vector<double>& nodal, unsig
   data.zeroFaces.assign(5,1);
   for(unsigned face = 0; face < 5; ++face) for(unsigned node = 0; node < 9; ++node) data.zeroFaces[face] = data.zeroFaces[face] && nodal[faceNodes[face][node]] == 0;
   if(direction != 0) { unsigned middle; Hex27SelectedAxes(direction,data.preferredInner,middle,data.preferredOuter); }
-  if(referenceSurface) {
+  if(referenceSurface && gradientCache != nullptr && !gradientCache->empty()) data.gradient = *gradientCache;
+  else if(referenceSurface) {
     data.gradient.resize(3);
     for(unsigned axis = 0; axis < 3; ++axis) data.gradient[axis] = SurfaceEndpointIntegration::Derivative(original,axis);
     if(geometry == nullptr) for(unsigned n = 0; n < data.gradient[2].size(); ++n) data.gradient[2][n] *= 0.5L;
@@ -62,6 +64,7 @@ inline void IntegrateWedge21NodalMoments(const std::vector<double>& nodal, unsig
       }
       SurfaceGradientCofactor3D(data.gradient,coordinates,1.0L);
     }
+    if(gradientCache != nullptr) *gradientCache = data.gradient;
   }
   SurfaceEndpointIntegration::Integrate(data,false,values,errors);
   if(validation == 2) SurfaceEndpointIntegration::Compare(data,false,values,errors);

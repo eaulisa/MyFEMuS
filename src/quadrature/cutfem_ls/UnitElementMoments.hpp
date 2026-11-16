@@ -96,7 +96,7 @@ inline void UnitQuadMoments(const std::vector<long double>& coefficient, long do
   }
 }
 
-inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, unsigned dimension, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors, long double absolute = 1.0e-12L, long double relative = 1.0e-12L, bool surface = false, const std::vector<std::vector<double>>* geometry = nullptr, unsigned direction = 0, unsigned validation = 1, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1) {
+inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, unsigned dimension, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors, long double absolute = 1.0e-12L, long double relative = 1.0e-12L, bool surface = false, const std::vector<std::vector<double>>* geometry = nullptr, unsigned direction = 0, unsigned validation = 1, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1, bool computePositive = true, std::vector<std::vector<long double>>* gradientCache = nullptr) {
   QuadratureWarningScope warningScope("Unit tensor integration");
   rules.Validate();
   if(inverseSurface && (!surface || geometry == nullptr)) throw std::invalid_argument("Inverse surface moments require nodal geometry.");
@@ -112,7 +112,13 @@ inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, un
   std::vector<long double> coefficient = original;
   for(unsigned n = 0; n < coefficient.size(); ++n) coefficient[n] /= scale;
   std::vector<std::vector<long double>> metric;
-  if(surface) UnitTensorGradient(original,dimension,geometry,metric);
+  if(surface) {
+    if(gradientCache != nullptr && !gradientCache->empty()) metric = *gradientCache;
+    else {
+      UnitTensorGradient(original,dimension,geometry,metric);
+      if(gradientCache != nullptr) *gradientCache = metric;
+    }
+  }
   unsigned count = degree+1U;
   if(dimension == 2) count = (degree+1U)*(degree+2U)/2U;
   if(dimension == 3) count = (degree+1U)*(degree+2U)*(degree+3U)/6U;
@@ -153,6 +159,7 @@ inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, un
     data.gradient = metric;
     data.inverseSurface = inverseSurface;
     data.normalComponent = normalComponent;
+    data.computePositive = computePositive;
     data.degree = degree;
     data.unitCube = true;
     data.zeroFaces.assign(6,1);

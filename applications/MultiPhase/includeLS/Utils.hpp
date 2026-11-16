@@ -26,6 +26,7 @@ CutFemWeight <TypeIO, TypeA> line = CutFemWeight<TypeIO, TypeA >(LINE, 5, "legen
 const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&hex, &tet, &wedge, &quad, &tri, &line};
 
 #include "CutFemWeight_LS.hpp"
+#include "CutFemWeightRules_LS.hpp"
 
 enum class CutFemIntegration {
   Linear,
@@ -53,6 +54,27 @@ const std::vector<CutFemWeight_LS<TypeIO, TypeA>*> cfwLS = {
 // const std::vector< CDWeight <TypeA> *> cfCDw0 = {&hexCD0, &quadCD0, &quadCD0, &quadCD0, &triCD0};
 
 Fem fem = Fem(hex.GetGaussQuadratureOrder(), hex.GetDimension());
+
+unsigned surfaceMomentOrder = 13;
+FELevelSetMoments::OuterQuadratureRules surfaceQuadratureRules;
+std::unique_ptr<Fem> surfaceFem;
+std::unique_ptr<CutFemWeightRules_LS<TypeIO,TypeA>> surfaceRules;
+
+// Initializes only mesh element types, before any assembly, and keeps the selected profile fixed.
+void InitializeSurfaceQuadrature(Mesh& mesh) {
+  if(surfaceRules) {
+    if(surfaceRules->GetOrder() != surfaceMomentOrder || !surfaceRules->GetOuterRules().SameAs(surfaceQuadratureRules)) throw std::logic_error("The initialized surface quadrature profile cannot change during assembly.");
+    return;
+  }
+  int localGeometry[6] = {}, globalGeometry[6] = {};
+  const unsigned processor = mesh.processor_id();
+  for(unsigned element = mesh._elementOffset[processor]; element < mesh._elementOffset[processor+1U]; ++element) localGeometry[mesh.GetElementType(element)] = 1;
+  MPI_Allreduce(localGeometry,globalGeometry,6,MPI_INT,MPI_MAX,MPI_COMM_WORLD);
+  std::vector<GeomElType> geometries;
+  for(unsigned geometry = 0; geometry < 6; ++geometry) if(globalGeometry[geometry]) geometries.push_back(static_cast<GeomElType>(geometry));
+  surfaceRules.reset(new CutFemWeightRules_LS<TypeIO,TypeA>(surfaceMomentOrder,geometries,surfaceQuadratureRules));
+  surfaceFem.reset(new Fem(2U*surfaceMomentOrder,mesh.GetDimension()));
+}
 
 void RungeKutta4(std::vector<MyVector<double>> &X,
                  MultiLevelSolution & mlSol,

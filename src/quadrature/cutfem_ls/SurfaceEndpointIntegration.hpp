@@ -55,6 +55,7 @@ struct SurfaceEndpointData {
   std::array<unsigned,3> innerCounts = {0,0,0};
   std::array<unsigned,3> outerCounts = {0,0,0};
   bool computeDelta = true;
+  bool computePositive = true;
   bool inverseSurface = false;
   int normalComponent = -1;
   bool retainUncertified = false;
@@ -568,6 +569,7 @@ public:
     const long double relative = data.relative;
     data.domainVolume = Volume(cell);
     data.requested.assign(2U*count,1);
+    if(!data.computePositive) std::fill(data.requested.begin(),data.requested.begin()+count,0);
     if(!data.computeDelta) std::fill(data.requested.begin()+count,data.requested.end(),0);
     if(!tetrahedron && !data.unitCube && !data.wedge) {
       std::vector<long double> parityValues(2U*count,0);

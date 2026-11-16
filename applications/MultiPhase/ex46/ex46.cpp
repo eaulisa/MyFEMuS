@@ -52,10 +52,6 @@ bool printdb = false;
 std::vector<std::vector<std::vector < std::vector < std::pair < unsigned, double> > > > > PMatrix(6); //projection matrix between elements;
 
 CutFemIntegration cutFemIntegration;
-unsigned surfaceMomentOrder = 13;
-std::unique_ptr<Fem> surfaceFem;
-std::vector<std::unique_ptr<CutFemWeight_LS<double,long double>>> surfaceRules(6);
-FELevelSetMoments::OuterQuadratureRules surfaceQuadratureRules;
 
 struct TaylorHood {
   struct Variable {
@@ -124,6 +120,14 @@ void SurfaceReferenceGradients(const elem_type* element, const std::vector<doubl
   }
 }
 
+void SurfaceReferenceGradients(const elem_type* element, unsigned gauss, std::vector<double>& gradient) {
+  const unsigned dimension = element->GetDim();
+  const unsigned count = element->GetNDofs();
+  gradient.resize(count*dimension);
+  const double* derivative[3] = {element->GetDPhiDXi(gauss),dimension > 1 ? element->GetDPhiDEta(gauss) : nullptr,dimension > 2 ? element->GetDPhiDZeta(gauss) : nullptr};
+  for(unsigned i = 0; i < count; ++i) for(unsigned d = 0; d < dimension; ++d) gradient[i*dimension+d] = derivative[d][i];
+}
+
 int main(int argc, char **argv) {
 
   // Initialize PETSc/MPI
@@ -180,7 +184,11 @@ int main(int argc, char **argv) {
   const unsigned axisymmetric = args.axisymmetric;
 
   cutFemIntegration = args.cutFemIntegration;
-  if(cutFemIntegration == CutFemIntegration::Quadratic && !axisymmetric) surfaceFem.reset(new Fem(2U*surfaceMomentOrder,requestedDim));
+  for(unsigned geometry = 0; geometry < cfwLS.size(); ++geometry) {
+    cfwLS[geometry]->SetIntegrationDirection(0);
+    cfwLS[geometry]->SetDirectionValidation(0);
+    cfwLS[geometry]->SetOuterQuadratureRules(surfaceQuadratureRules);
+  }
 
   const ElemType elementType = (requestedDim == 2) ? QUAD9 : HEX27;
 
@@ -320,6 +328,7 @@ int main(int argc, char **argv) {
       std::string meshName = "./input/cube_01_unstruct.neu";
       //mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      if(cutFemIntegration == CutFemIntegration::Quadratic && !axisymmetric) InitializeSurfaceQuadrature(*mlMsh0.GetLevel(0));
 
       dt = period / nSteps;
 
@@ -1458,8 +1467,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           femXi = integrationFem.GetFiniteElement(ielGeom,solXiType);
           femPsi = integrationFem.GetFiniteElement(ielGeom,psiType);
           if(tangentialSurfaceWeights) {
-            if(!surfaceRules[ielGeom]) surfaceRules[ielGeom].reset(new CutFemWeight_LS<double,long double>(static_cast<GeomElType>(ielGeom),surfaceMomentOrder,"legendre"));
-            elementSurfaceRule = surfaceRules[ielGeom].get();
+            elementSurfaceRule = surfaceRules->GetRule(static_cast<GeomElType>(ielGeom));
           }
 
           nDofsPsi = msh->GetElementDofNumber(iel, psiType);
@@ -1469,19 +1477,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             psi[i] = (*solPsi)(psiDof);
           }
 
-          unsigned ng = femPsi->GetGaussPointNumber();
-          std::vector<double> psig(ng, 0.);
-          for(unsigned ig = 0; ig < ng; ig++) {
-            double *phi = femPsi->GetPhi(ig);
-            for(unsigned i = 0; i < nDofsPsi; i++) {
-              psig[ig] += psi[i] * phi[i];
-            }
-          }
-
-          std::vector<const double *> xg(dim);
-          for(unsigned d = 0; d < dim; d++) xg[d] = (femPsi->GetGaussRule()).GetGaussCoordinatePointer(d);
-
           if(cutFemIntegration == CutFemIntegration::Linear) {
+            const unsigned ng = femPsi->GetGaussPointNumber();
+            std::vector<double> psig(ng,0.);
+            for(unsigned ig = 0; ig < ng; ++ig) for(unsigned i = 0; i < nDofsPsi; ++i) psig[ig] += psi[i]*femPsi->GetPhi(ig)[i];
+            std::vector<const double*> xg(dim);
+            for(unsigned axis = 0; axis < dim; ++axis) xg[axis] = femPsi->GetGaussRule().GetGaussCoordinatePointer(axis);
             BestFitLinearInterpolation(xg, psig, a);
             d = a[dim];
             a.resize(dim);
@@ -1520,12 +1521,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
               throw std::runtime_error("Quadratic CutFEM Gauss rule mismatch");
             }
 
-            rule->SetIntegrationDirection(0);
-            rule->SetDirectionValidation(0);
-
             if(tangentialSurfaceWeights) {
-              rule->GetTangentialSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8,surfaceQuadratureRules);
-              if(dim == 3) rule->GetNormalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCFNormal,1.e-8,1.e-8,surfaceQuadratureRules);
+              rule->GetTangentialSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8);
+              if(dim == 3) rule->GetNormalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCFNormal,1.e-8,1.e-8);
             }
             else rule->GetPhysicalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8);
           }
@@ -1548,12 +1546,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         std::vector<double> Nls(dim);
         std::vector<double> gradPsi(dim);
         std::vector<double> normalDotGradPhi(nDofsV);
-        std::vector<double> surfaceForce, surfaceTangent, surfaceShapeGradient;
+        std::vector<double> surfaceForce, surfaceTangent, surfaceShapeGradient, levelSetGradient(dim), levelSetShapeGradient, mapShapeGradient, parentGradient, xi_gf(dim);
+        std::vector<std::vector<double>> mapGradient(dim,std::vector<double>(dim));
         const unsigned surfaceTangentSize = dim == 2 ? 1U : 3U;
         for(unsigned ig = 0; ig < femV->GetGaussPointNumber(); ig++) {
           // *** get gauss point weight, test function and test function partial derivatives ***
 
-          std::vector<double> xi_gf(dim);
           if(l > levelC) {
             femXi->Jacobian(coordX, ig, weight, phiXi, phiXi_x);
             std::fill(xi_gf.begin(),xi_gf.end(),0.);
@@ -1594,18 +1592,17 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           double dsN = 0.;
           double surfaceMetricSquared = 0.;
           if(cut == 1 && tangentialSurfaceWeights) {
-            std::vector<double> point(dim), levelSetGradient(dim,0.), levelSetShapeGradient;
-            for(unsigned d = 0; d < dim; ++d) point[d] = femV->GetGaussRule().GetGaussCoordinatePointer(d)[ig];
-            SurfaceReferenceGradients(femPsi,point,levelSetShapeGradient);
+            std::fill(levelSetGradient.begin(),levelSetGradient.end(),0.);
+            SurfaceReferenceGradients(femPsi,ig,levelSetShapeGradient);
             for(unsigned i = 0; i < nDofsPsi; ++i) for(unsigned d = 0; d < dim; ++d) levelSetGradient[d] += psi[i]*levelSetShapeGradient[i*dim+d];
-            femPsi->GetJacobianMatrix(coordX,point,weightFake,Jacob,JacI);
-            SurfaceReferenceGradients(femV,l > levelC ? xi_gf : point,surfaceShapeGradient);
+            femPsi->GetJacobianMatrix(coordX,ig,weightFake,Jacob,JacI);
+            if(l > levelC) SurfaceReferenceGradients(femV,xi_gf,surfaceShapeGradient);
+            else SurfaceReferenceGradients(femV,ig,surfaceShapeGradient);
             if(l > levelC) {
-              std::vector<double> mapShapeGradient;
-              SurfaceReferenceGradients(femXi,point,mapShapeGradient);
-              std::vector<std::vector<double>> mapGradient(dim,std::vector<double>(dim,0.));
+              SurfaceReferenceGradients(femXi,ig,mapShapeGradient);
+              for(unsigned a = 0; a < dim; ++a) std::fill(mapGradient[a].begin(),mapGradient[a].end(),0.);
               for(unsigned a = 0; a < dim; ++a) for(unsigned b = 0; b < dim; ++b) for(unsigned j = 0; j < nDofsXi; ++j) mapGradient[a][b] += coordXi[a][j]*mapShapeGradient[j*dim+b];
-              const std::vector<double> parentGradient = surfaceShapeGradient;
+              parentGradient = surfaceShapeGradient;
               std::fill(surfaceShapeGradient.begin(),surfaceShapeGradient.end(),0.);
               for(unsigned i = 0; i < nDofsV; ++i) for(unsigned b = 0; b < dim; ++b) for(unsigned a = 0; a < dim; ++a) surfaceShapeGradient[i*dim+b] += parentGradient[i*dim+a]*mapGradient[a][b];
             }
