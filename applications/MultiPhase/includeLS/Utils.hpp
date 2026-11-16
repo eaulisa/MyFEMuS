@@ -39,7 +39,7 @@ CutFemWeight_LS<TypeIO, TypeA> wedgeLS(WEDGE, wedge.GetCutFEMQuadratureOrder(), 
 CutFemWeight_LS<TypeIO, TypeA> quadLS(QUAD, quad.GetCutFEMQuadratureOrder(), "legendre");
 CutFemWeight_LS<TypeIO, TypeA> triLS(TRI, tri.GetCutFEMQuadratureOrder(), "legendre");
 CutFemWeight_LS<TypeIO, TypeA> lineLS(LINE, line.GetCutFEMQuadratureOrder(), "legendre");
-
+//
 const std::vector<CutFemWeight_LS<TypeIO, TypeA>*> cfwLS = {
   &hexLS, &tetLS, &wedgeLS, &quadLS, &triLS, &lineLS
 };
@@ -4565,7 +4565,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
     if (simulation == SimulationCase::PAR) {
       if (dim == 2) HalveDomainDirection(1);
       if (dim == 3) {
-        HalveDomainDirection(1);
+        // HalveDomainDirection(1);
         HalveDomainDirection(2);
       }
     }
