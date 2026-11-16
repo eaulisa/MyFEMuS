@@ -56,6 +56,7 @@ const std::vector<CutFemWeight_LS<TypeIO, TypeA>*> cfwLS = {
 Fem fem = Fem(hex.GetGaussQuadratureOrder(), hex.GetDimension());
 
 unsigned surfaceMomentOrder = 13;
+unsigned surfaceWeightCount = 3;
 FELevelSetMoments::OuterQuadratureRules surfaceQuadratureRules;
 std::unique_ptr<Fem> surfaceFem;
 std::unique_ptr<CutFemWeightRules_LS<TypeIO,TypeA>> surfaceRules;

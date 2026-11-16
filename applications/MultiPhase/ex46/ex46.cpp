@@ -154,7 +154,13 @@ int main(int argc, char **argv) {
         if(order < 1 || order > 18) throw std::invalid_argument("Surface moment order must be an integer from 1 to 18.");
         surfaceMomentOrder = static_cast<unsigned>(order);
       }
-      if(option == "--help" || option == "-h") std::cout << "  --surface-moment-order Q    Surface moment degree, 1..18 (default 13)\n" << FELevelSetMoments::GaussKronrodRules::Help();
+      if(option == "--surface-weights") {
+        if(i+1 >= argc) throw std::invalid_argument("Missing --surface-weights value.");
+        const std::string value = argv[++i];
+        if(value != "1" && value != "3") throw std::invalid_argument("Surface RHS weights must be 1 (legacy) or 3.");
+        surfaceWeightCount = value == "1" ? 1U : 3U;
+      }
+      if(option == "--help" || option == "-h") std::cout << "  --surface-moment-order Q    Surface moment degree, 1..18 (default 13)\n  --surface-weights 1|3       3D surface RHS weights: 1 legacy, 3 component weights (default 3)\n" << FELevelSetMoments::GaussKronrodRules::Help();
     }
     surfaceQuadratureRules = FELevelSetMoments::OuterQuadratureRules::ParseArguments(argc,argv);
     args = ParseSimulationArgs(argc,argv,CutFemIntegration::Quadratic);
@@ -1529,7 +1535,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
             if(tangentialSurfaceWeights) {
               rule->GetTangentialSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8);
-              if(dim == 3) rule->GetNormalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCFNormal,1.e-8,1.e-8);
+              if(dim == 3 && surfaceWeightCount == 3) rule->GetNormalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCFNormal,1.e-8,1.e-8);
             }
             else rule->GetPhysicalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,1.e-8,1.e-8);
           }
@@ -1805,7 +1811,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
               // surface tension stabilization -- rhs contribution
               if(cut == 1) {
-                if(tangentialSurfaceWeights && dim == 3) Res[I*nDofsV+i] -= sigma*elementSurfaceRule->GetGaussWeightPointer()[ig]*(weightCFNormal[(I+1U)%3U][ig]*surfaceTangent[3U*i+(I+2U)%3U]-weightCFNormal[(I+2U)%3U][ig]*surfaceTangent[3U*i+(I+1U)%3U]);
+                if(tangentialSurfaceWeights && dim == 3 && surfaceWeightCount == 3) Res[I*nDofsV+i] -= sigma*elementSurfaceRule->GetGaussWeightPointer()[ig]*(weightCFNormal[(I+1U)%3U][ig]*surfaceTangent[3U*i+(I+2U)%3U]-weightCFNormal[(I+2U)%3U][ig]*surfaceTangent[3U*i+(I+1U)%3U]);
                 else if(tangentialSurfaceWeights) Res[I*nDofsV+i] -= sigma*surfaceForce[i*dim+I]*surfaceWeight;
                 else for(unsigned d = 0; d < dim; ++d) Res[I*nDofsV+i] -= sigma*axisWeight*P[I][d]*phiV_x[i*dim+d]*surfaceWeight;
 
