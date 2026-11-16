@@ -314,7 +314,7 @@ int main(int argc, char **argv) {
 
   for (const unsigned numberOfSelectiveLevels : adaptiveLevelsList) {
 
-    const double scalingFactor = 1.0;
+    const double scalingFactor = 1.e2;
 
     unsigned levelN = numberOfUniformLevels + numberOfSelectiveLevels;
     const unsigned levelF = levelN - 1u; //fine level associated for mlmsh0 and mlmsh1
@@ -325,9 +325,9 @@ int main(int argc, char **argv) {
     for (const unsigned nSteps : nStepsList) {
 
       MultiLevelMesh mlMsh0;
-      std::string meshName = "./input/cube_01_unstruct.neu";
-      //mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      std::string meshName = (requestedDim == 2) ? "./input/unstructured_PC_coarse.neu" : "./input/unstructured_cube_hex27.neu";
+      mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      // mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
       if(cutFemIntegration == CutFemIntegration::Quadratic && !axisymmetric) InitializeSurfaceQuadrature(*mlMsh0.GetLevel(0));
 
       dt = period / nSteps;
@@ -442,8 +442,8 @@ int main(int argc, char **argv) {
       LevelSetMarkers markers(psiName, dim);
 
       // Load coarse mesh and build uniform refinement levels
-      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
-      // mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      // mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
       mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
       UpdateColorFunction(*mlsol0, psiName, cName);
@@ -618,26 +618,32 @@ int main(int argc, char **argv) {
         auto &Sol0_Psi = (mlsol0->GetSolutionLevel(levelPsi))->_Sol;
         auto &Sol3 = (mlSol3.GetSolutionLevel(levelPsi - level0))->_Sol;
 
-        const unsigned c0Index = mlsol0->GetIndex(cName.c_str());
-        const unsigned c2Index = mlSol2.GetIndex(cName.c_str());
+        // const unsigned c0Index = mlsol0->GetIndex(cName.c_str());
+        // const unsigned c2Index = mlSol2.GetIndex(cName.c_str());
+        //
+        // auto originalC = NumericVector::build();
+        //
+        // originalC->init(*Sol0_C[c0Index]);
+        //
+        // *originalC = *Sol0_C[c0Index];
+        //
+        // ReclassifyUnsupportedPressureCells(mlSol2, cName, levelC - level0, levelC);
+        //
+        // if(level0 < levelC) {
+        //   RestrictPWDCField(mlSol2, cName, 0, levelC - level0);
+        // }
+        //
+        // *Sol0_C[c0Index] = *Sol2[c2Index];
+        //
+        // std::vector<double> xtarget = (simulation == SimulationCase::PI) ?
+        //                               std::vector<double> {0.075, 0.075, 0.} :
+        //                               std::vector<double> {xmin, ymin, zmin};
+        // xtarget.resize(dim);
+        // SetUnphysicalPressureDofs(mlSol2, cName, pName, 0, levelC - level0, xtarget, true);
 
-        auto originalC = NumericVector::build();
+        if(level0 < levelC) RestrictPWDCField(mlSol2, cName, 0, levelC - level0);
 
-        originalC->init(*Sol0_C[c0Index]);
-
-        *originalC = *Sol0_C[c0Index];
-
-        ReclassifyUnsupportedPressureCells(mlSol2, cName, levelC - level0, levelC);
-
-        if(level0 < levelC) {
-          RestrictPWDCField(mlSol2, cName, 0, levelC - level0);
-        }
-
-        *Sol0_C[c0Index] = *Sol2[c2Index];
-
-        std::vector<double> xtarget = (simulation == SimulationCase::PI) ?
-                                      std::vector<double> {0.075, 0.075, 0.} :
-                                      std::vector<double> {xmin, ymin, zmin};
+        std::vector<double> xtarget = {xmin, ymin, zmin};
         xtarget.resize(dim);
         SetUnphysicalPressureDofs(mlSol2, cName, pName, 0, levelC - level0, xtarget, true);
 
@@ -795,7 +801,7 @@ int main(int argc, char **argv) {
         //system2.MGsolve();
         system2.Solve();
 
-        *Sol0_C[c0Index] = *originalC;
+        // *Sol0_C[c0Index] = *originalC;
 
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l + level0);

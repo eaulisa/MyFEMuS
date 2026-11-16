@@ -9,7 +9,7 @@ set -euo pipefail
 # MPI
 # ------------------------------------------------------------
 
-NPROC=1
+NPROC=8
 NPRINT=1000
 NREINIT=1
 
@@ -19,7 +19,7 @@ NREINIT=1
 
 DIM=3
 SIMULATION="par"
-SYMMETRIC=1
+SYMMETRIC=0
 AXISYMMETRIC=0
 
 # ------------------------------------------------------------
@@ -27,7 +27,7 @@ AXISYMMETRIC=0
 # ------------------------------------------------------------
 
 UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(2)
+ADAPTIVE_LEVELS=(0)
 LEVEL_OFFSET_PSI=0
 LEVEL_OFFSET=0
 
