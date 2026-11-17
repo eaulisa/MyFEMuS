@@ -29,6 +29,8 @@ using namespace femus;
 template <class PsiFunction>
 void FlagFinestMeshLevel(MultiLevelMesh& mlMsh, const PsiFunction& psi);
 
+void FlagAllFinestMeshLevel(MultiLevelMesh& mlMsh);
+
 template <class PsiFunction>
 void InitLevelSet(MultiLevelSolution& mlSol, const std::string& name, const PsiFunction& psi);
 
@@ -457,6 +459,36 @@ struct NonconvexPsi {
   }
 };
 
+// Torus benchmark of Loibl et al. (2026), Sect. 4.2.2, Fig. 43.
+// Original: [-1.4,1.4]^3, major radius 1, tube radius 0.2.
+// FEMuS uses [-0.5,0.5]^3; scale source coordinates by 2.8.
+// The *implicit torus* is not Q2: the nodal SECOND-order field is an
+// interpolant, so exact torus measures are comparison references, not
+// exact measures of the interpolated zero isosurface.
+struct TorusPsi {
+  double operator()(const std::vector<double>& x) const {
+    if(x.size() != 3u)
+      throw std::invalid_argument("Torus requires HEX27 in 3D");
+    constexpr double scale = 2.8;
+    constexpr double majorRadius = 1.0;
+    constexpr double tubeRadius = 0.2;
+    const double X = scale*x[0], Y = scale*x[1], Z = scale*x[2];
+    const double distance = std::hypot(X,Y) - majorRadius;
+    return tubeRadius*tubeRadius - distance*distance - Z*Z;
+  }
+};
+
+std::vector<IntegrationTest> MakeTorusTests() {
+  constexpr double scale = 2.8;
+  constexpr double majorRadius = 1.0, tubeRadius = 0.2;
+  const double pi = std::acos(-1.);
+  const double volume = 2.*pi*pi*majorRadius*tubeRadius*tubeRadius
+                      / (scale*scale*scale);
+  const double surface = 4.*pi*pi*majorRadius*tubeRadius
+                       / (scale*scale);
+  return {{"1", [](const std::vector<double>&) {return 1.;}, volume, surface}};
+}
+
 // Gauss-Legendre integration of a smooth, independent parametrization of Gamma.
 // This is only a reference calculation: the CutFEM integrator is not used.
 struct NonconvexQuadGaussLegendre {
@@ -721,8 +753,8 @@ const char* ElementName(GeomElType value) {
 }
 
 std::string PsiKind(const std::string& value) {
-  if(value == "ball" || value == "nonconvex") return value;
-  throw std::invalid_argument("Unknown psi type: " + value + " (expected ball,nonconvex)");
+  if(value == "ball" || value == "nonconvex" || value == "torus") return value;
+  throw std::invalid_argument("Unknown psi type: " + value + " (expected ball,nonconvex,torus)");
 }
 
 const std::string& PsiName(const std::string& value) { return value; }
@@ -731,7 +763,7 @@ void Usage() {
   std::cout << FELevelSetMoments::GaussKronrodRules::Help();
   std::cout << "Usage: MultiPhase_ex44_test [options]\n"
             << "  --elements tri,quad,tet,hex  Element types (nonconvex: quad,hex only)\n"
-            << "  --psi ball,nonconvex          Level-set types (nonconvex: QUAD/HEX only)\n"
+            << "  --psi ball,nonconvex,torus    Level-set types (torus: straight HEX27 only)\n"
             << "  --curved 0|1                 0=straight, 1=analytic curved BALL (default 0)\n"
             << "  --levels N                   Number of AMR refinements, plus level 0 (default 3)\n"
             << "  --curvature X                Analytical BALL deformation (default 0.40)\n"
@@ -820,6 +852,10 @@ DriverOptions Parse(int argc, char** argv) {
   if(options.curved && std::any_of(options.psis.begin(), options.psis.end(),
                                   [](const std::string& kind) { return kind != "ball"; }))
     throw std::invalid_argument("--curved 1 requires --psi ball (analytic geometry)");
+  if(std::find(options.psis.begin(), options.psis.end(), "torus") != options.psis.end()) {
+    if(options.curved || options.elements.size() != 1u || options.elements[0] != HEX)
+      throw std::invalid_argument("--psi torus requires --elements hex --curved 0");
+  }
   if(std::find(options.psis.begin(), options.psis.end(), "nonconvex") != options.psis.end()) {
     ValidateNonconvex(options.elements,
                       options.nonconvexQuadA, options.nonconvexQuadB, options.nonconvexQuadC,
@@ -1116,11 +1152,13 @@ int main(int argc, char** argv) {
       const std::array<double, 3> ballCenter = {{center[0], center[1], dim == 3 ? center[2] : 0.}};
       const AnalyticBallPsi analyticPsi = {element, options.curvature, ballCenter, radius};
       const bool nonconvex = kind == "nonconvex";
+      const bool torus = kind == "torus";
+      const TorusPsi torusPsi;
       const NonconvexPsi nonconvexPsi = {
           element, options.nonconvexQuadA, options.nonconvexQuadB, options.nonconvexQuadC,
           options.nonconvexHexA, options.nonconvexHexB, options.nonconvexHexC};
 
-      const auto tests = nonconvex
+      const auto tests = torus ? MakeTorusTests() : nonconvex
           ? MakeNonconvexTests(element,
               options.nonconvexQuadA, options.nonconvexQuadB, options.nonconvexQuadC,
               options.nonconvexHexA, options.nonconvexHexB, options.nonconvexHexC)
@@ -1144,6 +1182,7 @@ int main(int argc, char** argv) {
       }
 
       std::string meshTag = "straight";
+      if(torus) meshTag = "straight_R1_r0p2_scaled2p8";
       if(nonconvex) {
         const auto tagCoeff = [](double v) {
           std::ostringstream os;
@@ -1173,7 +1212,14 @@ int main(int argc, char** argv) {
                                + "_" + meshTag + ".csv";
         csv.open(file.c_str(), std::ios::trunc);
         if(!csv) throw std::runtime_error("Cannot create CSV: " + file);
-        csv << "level,test,method,domain,numerical,exact,absolute_error,relative_error,cut_elements,algoim_volume_points,algoim_surface_points\n";
+        csv << "level,test,method,domain,numerical,exact,absolute_error,relative_error,cut_elements,algoim_volume_points,algoim_surface_points,moment_algoim_volume_generated,moment_algoim_volume_used,moment_algoim_surface_points,moment_algoim_total_points\n";
+        if(torus) {
+          std::cout << "Torus benchmark (R=1, r=0.2, source box [-1.4,1.4]^3): "
+                    << "physical volume=" << std::setprecision(17) << tests[0].exactOmega1
+                    << " surface=" << tests[0].exactGamma << '\n'
+                    << "NOTE: Q2 interpolation does not reproduce the exact torus "
+                       "level set. Uniform refinement is used at every level.\n";
+        }
         if(nonconvex) {
           std::cout << "Nonconvex exact references (interior interface only): "
                     << "volume=" << std::setprecision(17) << tests[0].exactOmega1
@@ -1203,7 +1249,8 @@ int main(int argc, char** argv) {
         }
         if(level != 0) {
           // AMR marking must use the same level set used for initialization.
-          if(analytic) FlagFinestMeshLevel(mlMsh, analyticPsi);
+          if(torus) FlagAllFinestMeshLevel(mlMsh);
+          else if(analytic) FlagFinestMeshLevel(mlMsh, analyticPsi);
           else if(nonconvex) FlagFinestMeshLevel(mlMsh, nonconvexPsi);
           else FlagFinestMeshLevel(mlMsh, psi);
           mlMsh.AddAMRMeshLevel(false);
@@ -1214,7 +1261,8 @@ int main(int argc, char** argv) {
           mlSol.Initialize("All");
           // On curved elements, evaluate the quadratic reference BALL using
           // the inverse analytic map at each physical DoF, including AMR levels.
-          if(analytic) InitLevelSet(mlSol, psiName, analyticPsi);
+          if(torus) InitLevelSet(mlSol, psiName, torusPsi);
+          else if(analytic) InitLevelSet(mlSol, psiName, analyticPsi);
           else if(nonconvex) InitLevelSet(mlSol, psiName, nonconvexPsi);
           else InitLevelSet(mlSol, psiName, psi);
 
@@ -1241,6 +1289,25 @@ int main(int argc, char** argv) {
     }
   }
   return 0;
+}
+
+// Uniform h-refinement matches the published torus convergence study.
+// In particular, the level-0/level-1 Q2 nodal fields cannot see its tube;
+// sign-change AMR alone would never discover the embedded interface.
+void FlagAllFinestMeshLevel(MultiLevelMesh& mlMsh) {
+  const unsigned level = mlMsh.GetNumberOfLevels() - 1u;
+  Mesh& msh = *mlMsh.GetLevel(level);
+  const unsigned rank = msh.processor_id();
+  auto* flag = msh._topology->_Sol[msh.GetAmrIndex()];
+  flag->zero();
+  const unsigned begin = msh._elementOffset[rank];
+  const unsigned end = msh._elementOffset[rank+1u];
+  for(unsigned iel=begin; iel<end; ++iel) flag->set(iel, 1.);
+  flag->close();
+  const unsigned local = end-begin;
+  unsigned global = 0;
+  MPI_Allreduce(&local, &global, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+  msh.el->SetRefinedElementNumber(global);
 }
 
 template <class PsiType>

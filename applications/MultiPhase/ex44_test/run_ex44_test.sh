@@ -3,17 +3,17 @@
 set -euo pipefail
 
 # ------------------ EDIT ONLY THIS SECTION ------------------
-ELEMENTS=(0 3)            # 0=HEX27, 3=QUAD9
+ELEMENTS=(0)            # 0=HEX27, 3=QUAD9
 
 MODE="moment"
 MOMENT_BACKEND="native"
 
 DEGREE=1
-ALGOIM_ORDER=80
+ALGOIM_ORDER=20
 
-PSI="nonconvex"
+PSI="torus"
 CURVED=0
-LEVELS=0
+LEVELS=7
 CURVATURE=0.50
 
 # Nonconvex parameters
@@ -24,7 +24,7 @@ NONCONVEX_HEX_A=4
 NONCONVEX_HEX_B=4
 
 # Sweep over C (same C for QUAD and HEX)
-C_VALUES=(16 160 1600 16000 160000)
+C_VALUES=(16)
 
 CUTFEM_ABS_TOL=1e-8
 CUTFEM_REL_TOL=1e-8

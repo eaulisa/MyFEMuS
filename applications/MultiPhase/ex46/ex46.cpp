@@ -2486,7 +2486,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   MPI_Allreduce(MPI_IN_PLACE, &Per, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 
-  double radius  = 0.25;
+  double radius  = 0.002;
   double radius2 = radius * radius;
   double radius3 = radius2 * radius;
   double per_th = (dim == 2) ? 2 * M_PI * radius : 4. * M_PI * radius2;
