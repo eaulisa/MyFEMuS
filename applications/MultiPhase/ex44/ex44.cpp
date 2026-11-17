@@ -23,7 +23,7 @@
 #include "MyMatrix.hpp"
 #include "VTKWriter.hpp"
 
-#include <gperftools/profiler.h>
+//#include <gperftools/profiler.h>
 
 using namespace femus;
 #include "../includeLS/Shape.hpp"
@@ -1134,8 +1134,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
-  if (nprocs == 1)
-    ProfilerStart("profiling.prof");
+  //if (nprocs == 1)
+  //  ProfilerStart("profiling.prof");
 
   if (printdb) std::cout << "After Solution Projection\n" << std::flush;
 
@@ -2164,8 +2164,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   std::cout << " Area error " << std::abs(A - A_th)/A_th << std::endl;
   std::cout << " Perimetro error " << std::abs(Per - per_th)/per_th << std::endl;
 
-   if (nprocs == 1)
-    ProfilerStop();
+  // if (nprocs == 1)
+  //  ProfilerStop();
 
 }
 

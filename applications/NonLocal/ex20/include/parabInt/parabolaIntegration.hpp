@@ -99,8 +99,8 @@ void GetIntervalall(const std::vector <TypeIO> &a1, const std::vector <TypeIO> &
 //   }
   for(unsigned i = 0 ; i < cnt - 1 ; i++) {
     TypeA xm = (x[i] + x[i + 1]) / 2;
-    TypeA f1 = a1[0] * xm * xm + a1[1] * xm + a1[2] ;
-    TypeA f2 = a2[0] * xm * xm + a2[1] * xm + a2[2] ;
+    TypeA f1 = static_cast<double>(a1[0] * xm * xm + a1[1] * xm + a1[2]) ;
+    TypeA f2 = static_cast<double>(a2[0] * xm * xm + a2[1] * xm + a2[2]) ;
     if(f1 > 0) {
       if(f2 > 0) {
         I3.resize(I3.size() + 1, std::pair<TypeIO, TypeIO>(static_cast<TypeIO>(x[i]), static_cast<TypeIO>(x[i + 1])));
