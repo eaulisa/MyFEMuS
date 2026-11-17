@@ -176,3 +176,82 @@ These measurements compare explicit all-measure evaluation with its selected rep
 | WEDGE21 | `restrict_selected` | 1456.9 | 941.5 | 1.55x |
 
 The allocation-counting build passes both `--benchmark-surface` and `--benchmark-quadrature`, asserting zero C++ heap allocations in every warmed selected density and restriction kernel. The existing all-measure helper remains available only as an explicit batch operation; no precision or roundoff protection was reduced.
+
+## Prepared topology, charts, and projection revision
+
+Baseline: `2b2dc6cc95ba8787d7c1ffa43c3d5fc460a55ce6`, with the exact preceding class and the same common ex47 benchmark functions. Both use GCC 14.2.0, Boost 1.86.0, and `-O3 -DNDEBUG`. Numbers are medians of five interleaved process runs with no concurrent builds. Comparable checksums agree at the recorded precision; graph-direction checksums are excluded from equality checks because tighter bounds can legitimately select another direction. These are prepared-data kernels, not full production assembly timings.
+
+### Fresh slicing and roots
+
+Each call creates a new LINE state in retained storage, solves its roots, and returns the root count and first root. The parent and any first 3D-to-2D slice are prepared outside the loop. Original-gradient context is omitted in both versions.
+
+| Element | Before (ns) | After (ns) | Speedup |
+| --- | ---: | ---: | ---: |
+| QUAD9 | 1318.9 | 702.1 | 1.88x |
+| TRI7 | 1190.6 | 651.3 | 1.83x |
+| HEX27 | 1375.7 | 798.5 | 1.72x |
+| TET15 | 1421.7 | 646.8 | 2.20x |
+| WEDGE21 | 1229.9 | 559.9 | 2.20x |
+
+The same workload with the selected physical density, using supplied cofactor-gradient values:
+
+| Element | Before (ns) | After (ns) | Speedup |
+| --- | ---: | ---: | ---: |
+| QUAD9 | 1461.2 | 856.7 | 1.71x |
+| TRI7 | 1298.9 | 625.3 | 2.08x |
+| HEX27 | 1518.2 | 957.1 | 1.59x |
+| TET15 | 1439.7 | 824.1 | 1.75x |
+| WEDGE21 | 1288.4 | 721.5 | 1.79x |
+
+### Reusing roots in the same slice
+
+The old fixed-output interface solves the same quadratic on every call. The new interface returns the retained topology. This reuse is useful when volume and selected surface families consume the same slice; it does not represent the cost of solving a new slice.
+
+| Element | Before (ns) | After (ns) | Speedup |
+| --- | ---: | ---: | ---: |
+| LINE3 | 649.9 | 23.3 | 27.87x |
+| QUAD9 | 846.2 | 22.9 | 36.88x |
+| TRI7 | 798.1 | 21.7 | 36.82x |
+| HEX27 | 827.8 | 26.4 | 31.35x |
+| TET15 | 850.3 | 21.4 | 39.71x |
+| WEDGE21 | 808.3 | 20.9 | 38.62x |
+
+### Existing restriction and certification costs
+
+These calls retain every original gradient component, as in the preceding benchmark. Additional state ownership and cache invalidation have a measurable cost. Default direction selection uses strict bounds only; weak-graph/zero-fiber preparation is performed when explicitly requested. QUAD corner signs reject impossible strict directions before tighter extrema are considered.
+
+| Element | Kernel | Before (ns) | After (ns) | Before/after |
+| --- | --- | ---: | ---: | ---: |
+| QUAD9 | `restrict` | 600.1 | 641.0 | 0.94x |
+| QUAD9 | `restrict_graph` | 639.6 | 686.8 | 0.93x |
+| TRI7 | `restrict` | 637.3 | 652.8 | 0.98x |
+| TRI7 | `restrict_graph` | 727.2 | 718.8 | 1.01x |
+| HEX27 | `restrict` | 1279.6 | 1399.5 | 0.91x |
+| HEX27 | `nested_restrict` | 1934.3 | 2412.3 | 0.80x |
+| HEX27 | `restrict_graph` | 1626.0 | 1692.9 | 0.96x |
+| TET15 | `restrict` | 1681.8 | 1716.2 | 0.98x |
+| TET15 | `nested_restrict` | 2562.3 | 2571.6 | 1.00x |
+| TET15 | `restrict_graph` | 2084.3 | 2212.2 | 0.94x |
+| WEDGE21 | `restrict` | 1215.0 | 1183.4 | 1.03x |
+| WEDGE21 | `nested_restrict` | 1930.0 | 1964.9 | 0.98x |
+| WEDGE21 | `restrict_graph` | 1476.4 | 1710.6 | 0.86x |
+
+The restriction/certification benchmark therefore should not be described as a universal speedup. The measured slice-plus-root workload benefits from retained analysis and a cheap well-conditioned discriminant path. Sensitive contractions keep compensation and ancestor recovery rather than reducing arithmetic precision.
+
+### New preparation methods
+
+Chart construction and external component composition are setup operations. Prepare a selected chart outside the quadrature-point loop. These timings use reused output storage; root-record delta evaluation consumes an already prepared regular root.
+
+| Element | Axis chart (ns) | Barycentric chart (ns) | External degree 3 (ns) | Root-record delta (ns) |
+| --- | ---: | ---: | ---: | ---: |
+| QUAD9 | 1021.0 | — | 1378.8 | 19.5 |
+| TRI7 | 451.6 | 2243.2 | 3800.3 | 18.3 |
+| HEX27 | 3155.8 | — | 7083.5 | 18.8 |
+| TET15 | 1630.6 | 11121.5 | 23399.0 | 18.5 |
+| WEDGE21 | 4906.5 | 18771.8 | 18615.2 | 18.5 |
+
+The record itself is 1200 bytes versus 864 bytes before this revision on this ABI; these figures exclude owned coefficient buffers and optional cache allocations. LINE/graph/projection buffers are created lazily. An immutable ancestor snapshot is retained once when restriction needs it; descendants share it. Copy-on-write cache preparation preserves copied records. The class owns no geometry, GK objects, moment matrices, or final fitted weights.
+
+Allocation tracking passes 27 data-reuse, 45 prepared-algebra, 61 quadrature, and 130 selected-surface benchmark rows. Warmed fixed-output paths allocate zero C++ heap objects; vector-returning compatibility wrappers allocate their outputs as before. First preparation and detachment after copying are not included in this steady-state claim. Sloping-boundary convenience restriction constructs a temporary chart; repeated traversal should retain that chart explicitly.
+
+Accuracy includes 4,939,947 stress checks, 100-digit retained-parent references, last-ULP folds in every 3D family, hidden tiny cuts, all supported charts/boundaries, and every selected surface mode. Delta error in the translated near-double-root test decreases from 1.318e-11 to 1.085e-19; maximum last-ULP fold density error is 1.882e-17. See [VALIDATION](VALIDATION.md) for exact scope and sanitizer results.

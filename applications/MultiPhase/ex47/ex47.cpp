@@ -1250,12 +1250,566 @@ void BenchmarkSelectiveSurfaceKernels() {
   }
 }
 
+long double maximumRootDensityError = 0;
+long double maximumFoldDensityError = 0;
+long double maximumRoundedRootError = 0;
+
+void TestPreparedLineAnalysis() {
+  currentCheck = "prepared line topology and stable root densities";
+  CutFemLevelSetData positive(LINE,{1,1,1}), negative(LINE,{-1,-1,-1}), zero(LINE,{0,0,0});
+  Check(positive.GetLineAnalysis().positiveIntervalCount == 1 && positive.GetLineAnalysis().positiveIntervals[0] == std::array<long double,2>{{-1,1}},"positive constant interval");
+  Check(negative.GetLineAnalysis().positiveIntervalCount == 0 && negative.GetLineAnalysis().rootCount == 0,"negative constant interval");
+  Check(zero.GetLineAnalysis().identicallyZero && zero.IsIdenticallyZero(),"zero fiber is explicit metadata");
+  CutFemLevelSetData quadratic(LINE,{0.75,0.75,-0.25});
+  const CutFemLevelSetData::LineAnalysis& analysis = quadratic.GetLineAnalysis();
+  Check(analysis.degree == 2 && analysis.rootCount == 2 && analysis.positiveIntervalCount == 2,"quadratic topology");
+  Check(analysis.positiveIntervals[0] == std::array<long double,2>{{-1,-0.5L}} && analysis.positiveIntervals[1] == std::array<long double,2>{{0.5L,1}},"positive quadratic branches");
+  Check(analysis.roots[0].derivative == -1 && analysis.roots[1].derivative == 1,"stable signed root slopes");
+  Check(&analysis == &quadratic.GetLineAnalysis(),"line analysis is retained");
+  CutFemLevelSetData repeated(LINE,{1,1,0}), endpoints(LINE,{0,0,1}), linear(LINE,{-1.25,0.75,-0.25});
+  Check(repeated.GetLineAnalysis().rootCount == 1 && repeated.GetLineAnalysis().roots[0].multiplicity == 2,"double-root multiplicity");
+  Check(endpoints.GetLineAnalysis().roots[0].boundary == -1 && endpoints.GetLineAnalysis().roots[1].boundary == 1,"endpoint root tags");
+  Check(linear.GetLineAnalysis().degree == 1 && linear.GetLineAnalysis().positiveIntervals[0] == std::array<long double,2>{{0.25L,1}},"linear topology");
+  for(unsigned centerIndex = 1; centerIndex <= 64; ++centerIndex) for(unsigned exponent = 6; exponent <= 10; ++exponent) {
+    const long double center = 0.123456789L+0.01L*centerIndex, radius = std::pow(10.0L,-static_cast<int>(exponent));
+    CutFemLevelSetData line(LINE,{static_cast<double>((-1-center)*(-1-center)-radius*radius),static_cast<double>((1-center)*(1-center)-radius*radius),static_cast<double>(center*center-radius*radius)});
+    const std::vector<long double>& power = line.GetPowerCoefficients();
+    const boost::multiprecision::cpp_bin_float_100 a(power[2]), b(power[1]), c(power[0]);
+    const boost::multiprecision::cpp_bin_float_100 discriminant = b*b-4*a*c;
+    const CutFemLevelSetData::LineAnalysis& roots = line.GetLineAnalysis();
+    if(discriminant <= 0) { Check(roots.rootCount == (discriminant == 0 ? 1U : 0U),"near-double root count versus multiprecision"); continue; }
+    Check(roots.rootCount == 2,"translated near-double roots survive");
+    const long double expected = static_cast<long double>(1/sqrt(discriminant));
+    for(unsigned n = 0; n < roots.rootCount; ++n) {
+      const long double actual = line.GetLineDeltaFactor(roots.roots[n]);
+      const long double error = std::abs(actual/expected-1);
+      maximumRootDensityError = std::max(maximumRootDensityError,error);
+      maximumRoundedRootError = std::max(maximumRoundedRootError,std::abs(1/(std::abs(2*power[2]*roots.roots[n].coordinate+power[1])*expected)-1));
+      Check(error < 3e-18L,"root density versus 100-digit retained-polynomial reference");
+      CheckNear(line.GetLineDeltaFactor(roots.roots[n].coordinate),actual,0,"coordinate compatibility reuses the stable root slope");
+      CheckNear(line.GetLineReferenceSurfaceFactor(roots.roots[n]),1,3e-18L,"translated LINE reference density preserves cancellation between gradient and slope");
+      const std::array<std::array<long double,3>,3> identity = {{{1,0,0},{0,1,0},{0,0,1}}};
+      CheckNear(line.GetLinePhysicalSurfaceFactorFromCofactor(roots.roots[n],identity),1,3e-18L,"translated LINE physical density uses consistent stable root gradients");
+    }
+  }
+  quadratic.Reset(LINE,{-1,-1,-1});
+  Check(quadratic.GetLineAnalysis().rootCount == 0 && quadratic.GetLineAnalysis().positiveIntervalCount == 0,"reset invalidates line topology");
+}
+
+std::array<boost::multiprecision::cpp_bin_float_100,3> ReferenceFoldPolynomial(const std::vector<long double>& power, GeomElType geometry, long double height, const boost::multiprecision::cpp_bin_float_100& coordinate) {
+  std::array<boost::multiprecision::cpp_bin_float_100,3> values;
+  const std::vector<boost::multiprecision::cpp_bin_float_100> coefficient(power.begin(),power.end());
+  for(unsigned sample = 0; sample < 3; ++sample) {
+    const boost::multiprecision::cpp_bin_float_100 t = sample == 0 ? 0 : (sample == 1 ? -1 : 1);
+    std::vector<boost::multiprecision::cpp_bin_float_100> point(Dimension(geometry));
+    point[0] = coordinate;
+    point[1] = t;
+    if(geometry == TET) { point[0] *= 1-boost::multiprecision::cpp_bin_float_100(height); point[1] = (1-boost::multiprecision::cpp_bin_float_100(height))*(1-coordinate)*(1+t)/2; }
+    else if(geometry == WEDGE) point[1] = (1-coordinate)*(1+t)/2;
+    if(point.size() == 3) point[2] = height;
+    values[sample] = BenchmarkValue(coefficient,point.size(),point);
+  }
+  return {values[0],(values[2]-values[1])/2,(values[2]+values[1])/2-values[0]};
+}
+
+void TestCompensatedFoldRestrictions() {
+  currentCheck = "last-ULP fold restrictions from retained parent polynomials";
+  for(GeomElType geometry : {QUAD,HEX,TET,WEDGE}) {
+    const std::unique_ptr<femus::basis> basis = MakeBasis(geometry);
+    std::vector<double> nodal(basis->_nc);
+    for(unsigned n = 0; n < nodal.size(); ++n) {
+      const double* point = basis->GetXcoarse(n);
+      const long double x = point[0]-(geometry == QUAD ? 0.17L : 0.35L), y = point[1]-(geometry == QUAD ? 0.23L : 0.22L), z = geometry == QUAD ? 0 : point[2]-0.16L;
+      nodal[n] = static_cast<double>(x*x+y*y+z*z-(geometry == QUAD ? 0.29L*0.29L : 0.12L*0.12L));
+    }
+    CutFemLevelSetData parent(geometry,nodal), planar, line;
+    const std::vector<long double> power = parent.GetPowerCoefficients();
+    const long double height = geometry == QUAD ? 0 : 0.16L;
+    if(geometry != QUAD) parent.Restrict(2,height,planar,false);
+    boost::multiprecision::cpp_bin_float_100 lower = geometry == QUAD ? -0.3L : 0.1L, upper = geometry == QUAD ? 0.0L : 0.4L;
+    for(unsigned iteration = 0; iteration < 220; ++iteration) {
+      const boost::multiprecision::cpp_bin_float_100 middle = (lower+upper)/2;
+      const std::array<boost::multiprecision::cpp_bin_float_100,3> coefficient = ReferenceFoldPolynomial(power,geometry,height,middle);
+      if(coefficient[1]*coefficient[1]-4*coefficient[2]*coefficient[0] > 0) upper = middle;
+      else lower = middle;
+    }
+    long double coordinate = static_cast<long double>((lower+upper)/2);
+    for(unsigned n = 0; n < 5; ++n) coordinate = std::nextafter(coordinate,-std::numeric_limits<long double>::infinity());
+    unsigned positive = 0;
+    for(unsigned sample = 0; sample < 24; ++sample) {
+      if(geometry == QUAD) parent.Restrict(0,coordinate,line,false);
+      else planar.Restrict(0,coordinate,line,false);
+      const std::array<boost::multiprecision::cpp_bin_float_100,3> coefficient = ReferenceFoldPolynomial(power,geometry,height,boost::multiprecision::cpp_bin_float_100(coordinate));
+      const boost::multiprecision::cpp_bin_float_100 discriminant = coefficient[1]*coefficient[1]-4*coefficient[2]*coefficient[0];
+      const CutFemLevelSetData::LineAnalysis& analysis = line.GetLineAnalysis();
+      Check(analysis.compensated,"near-fold slice takes the compensated path");
+      Check(analysis.rootCount == (discriminant > 0 ? 2U : 0U),"near-fold topology versus the original parent polynomial");
+      if(geometry != QUAD) {
+        const boost::multiprecision::cpp_bin_float_100 scale = planar.GetGeometry() == TRI ? (1-boost::multiprecision::cpp_bin_float_100(coordinate))/2 : boost::multiprecision::cpp_bin_float_100(1), normalization(planar.GetNormalizationScale());
+        const long double expected = static_cast<long double>(discriminant/(scale*scale*normalization*normalization));
+        Check(std::abs(planar.EvaluateFiberDiscriminant(1,coordinate)/expected-1) < 3e-16L,"3D slice discriminant refinement retains the original parent information");
+      }
+      if(discriminant > 0) {
+        ++positive;
+        const long double expected = static_cast<long double>(1/sqrt(discriminant));
+        for(unsigned n = 0; n < analysis.rootCount; ++n) {
+          const long double error = std::abs(line.GetLineDeltaFactor(analysis.roots[n])/expected-1);
+          maximumFoldDensityError = std::max(maximumFoldDensityError,error);
+          Check(error < 2e-16L,"fold slope retains compensated parent contraction accuracy");
+        }
+      }
+      coordinate = std::nextafter(coordinate,std::numeric_limits<long double>::infinity());
+    }
+    Check(positive > 0 && positive < 24,"fold sweep crosses both phases");
+    const CutFemLevelSetData saved = line;
+    const CutFemLevelSetData::LineAnalysis savedAnalysis = saved.GetLineAnalysis();
+    parent.Reset(geometry,std::vector<double>(nodal.size(),1));
+    Check(saved.GetLineAnalysis().rootCount == savedAnalysis.rootCount,"compensated slice owns its source after parent reset");
+  }
+  const std::unique_ptr<femus::basis> basis = MakeBasis(QUAD);
+  std::vector<double> nodal(9);
+  for(unsigned n = 0; n < nodal.size(); ++n) { const double* point = basis->GetXcoarse(n); nodal[n] = (point[0]-0.125)*(point[0]-0.125)+point[1]*point[1]-0.375*0.375; }
+  CutFemLevelSetData centered(QUAD,nodal), line;
+  for(long double coordinate : {0.5L-1e-4L,0.5L-1e-8L,0.5L-1e-12L,0.5L-1e-16L,std::nextafter(0.5L,0.0L)}) {
+    centered.Restrict(0,coordinate,line,false);
+    const std::vector<long double>& power = centered.GetPowerCoefficients();
+    const boost::multiprecision::cpp_bin_float_100 x(coordinate), c = (boost::multiprecision::cpp_bin_float_100(power[6])*x+boost::multiprecision::cpp_bin_float_100(power[3]))*x+boost::multiprecision::cpp_bin_float_100(power[0]);
+    const long double expected = static_cast<long double>(1/sqrt(-4*boost::multiprecision::cpp_bin_float_100(power[2])*c));
+    const CutFemLevelSetData::LineAnalysis& analysis = line.GetLineAnalysis();
+    Check(analysis.compensated && analysis.rootCount == 2,"centered fold recovers cancellation in the contracted constant coefficient");
+    for(unsigned n = 0; n < 2; ++n) Check(std::abs(line.GetLineDeltaFactor(analysis.roots[n])/expected-1) < 3e-18L,"centered-fold density versus retained-parent reference");
+  }
+  for(unsigned n = 0; n < nodal.size(); ++n) { const double* point = basis->GetXcoarse(n); nodal[n] = (point[0]-0.125)*(point[0]-0.375)*point[1]*point[1]-1e-200; }
+  CutFemLevelSetData small(QUAD,nodal);
+  const std::vector<long double>& power = small.GetPowerCoefficients();
+  long double coordinate = 0.125L;
+  for(unsigned sample = 0; sample < 8; ++sample) {
+    coordinate = std::nextafter(coordinate,0.0L);
+    small.Restrict(0,coordinate,line,false);
+    const boost::multiprecision::cpp_bin_float_100 x(coordinate), a = (boost::multiprecision::cpp_bin_float_100(power[8])*x+boost::multiprecision::cpp_bin_float_100(power[5]))*x+boost::multiprecision::cpp_bin_float_100(power[2]), c = (boost::multiprecision::cpp_bin_float_100(power[6])*x+boost::multiprecision::cpp_bin_float_100(power[3]))*x+boost::multiprecision::cpp_bin_float_100(power[0]);
+    const CutFemLevelSetData::LineAnalysis& analysis = line.GetLineAnalysis();
+    Check(analysis.compensated && analysis.rootCount == 2,"a rounded-away quadratic coefficient cannot hide a tiny cut");
+    const long double expected = static_cast<long double>(1/sqrt(-4*a*c));
+    for(unsigned n = 0; n < 2; ++n) Check(std::abs(line.GetLineDeltaFactor(analysis.roots[n])/expected-1) < 3e-18L,"tiny-cut slope versus retained-parent reference");
+  }
+}
+
+long double BoundaryDistance(GeomElType geometry, unsigned boundary, const std::vector<long double>& point) {
+  if(geometry == TRI || geometry == TET || (geometry == WEDGE && boundary < 3)) return boundary == 0 ? 1-point[0]-point[1]-(geometry == TET ? point[2] : 0) : point[boundary-1];
+  const unsigned axis = geometry == WEDGE ? 2U : boundary/2, side = geometry == WEDGE ? boundary-3 : boundary%2;
+  return point[axis]-(side == 0 ? -1 : 1);
+}
+
+long double EmbeddingMeasure(const std::vector<std::vector<long double>>& map) {
+  if(map[0].size() == 1) { long double square = 0; for(const std::vector<long double>& row : map) square += row[0]*row[0]; return std::sqrt(square); }
+  std::array<long double,3> normal;
+  for(unsigned axis = 0; axis < 3; ++axis) normal[axis] = map[(axis+1)%3][0]*map[(axis+2)%3][1]-map[(axis+2)%3][0]*map[(axis+1)%3][1];
+  return std::sqrt(normal[0]*normal[0]+normal[1]*normal[1]+normal[2]*normal[2]);
+}
+
+void TestBoundaryCertificates(std::mt19937& random) {
+  currentCheck = "exact zero traces on every boundary";
+  for(GeomElType geometry : {LINE,QUAD,TRI,HEX,TET,WEDGE}) {
+    const std::unique_ptr<femus::basis> basis = MakeBasis(geometry);
+    CutFemLevelSetData count(geometry,std::vector<double>(basis->_nc,1));
+    for(unsigned boundary = 0; boundary < count.GetBoundaryCount(); ++boundary) for(double scale : {1e-200,1.0,1e200}) {
+      std::vector<double> nodal(basis->_nc);
+      for(unsigned n = 0; n < nodal.size(); ++n) {
+        const double* coordinate = basis->GetXcoarse(n);
+        std::vector<long double> point(Dimension(geometry));
+        for(unsigned axis = 0; axis < point.size(); ++axis) point[axis] = coordinate[axis];
+        nodal[n] = std::abs(BoundaryDistance(geometry,boundary,point)) < 1e-14L ? 0 : scale*(0.5+0.125*n);
+      }
+      CutFemLevelSetData data(geometry,nodal), face;
+      Check(!data.IsIdenticallyZero() && data.IsZeroOnBoundary(boundary),"nodal trace zeros are retained exactly");
+      Check(data.GetZeroBoundaryMask() == (1U<<boundary),"only the prescribed boundary is zero");
+      if(geometry == LINE) { const CutFemLevelSetData::LineAnalysis& analysis = data.GetLineAnalysis(); bool found = false; for(unsigned n = 0; n < analysis.rootCount; ++n) found = found || analysis.roots[n].boundary == (boundary == 0 ? -1 : 1); Check(found,"zero endpoint is tagged in line analysis"); continue; }
+      data.RestrictBoundary(boundary,face);
+      Check(face.IsIdenticallyZero() && face.GetZeroBoundaryMask() == (1U<<face.GetBoundaryCount())-1,"boundary restriction preserves the exact zero trace");
+      if(face.GetDimension() == 2) CheckNear(face.EvaluateFiberDiscriminant(0,0.0L),0,0,"zero boundary traces keep zero discriminants");
+      for(unsigned sample = 0; sample < 8; ++sample) {
+        const std::vector<long double> point = RandomPoint(face.GetGeometry(),random), parentPoint = face.MapToParent(point);
+        CheckNear(BoundaryDistance(geometry,boundary,parentPoint),0,3e-18L,"boundary chart lies on the requested face");
+        CheckNear(face.Evaluate(point),0,0,"certified zero trace has zero scalar coefficients");
+        const std::vector<long double> gradient = face.GetRootGradient(point), expected = data.GetGradient(face.MapToRoot(point));
+        for(unsigned component = 0; component < gradient.size(); ++component) CheckNear(gradient[component]/scale,expected[component]/scale,3e-14L,"boundary retains every original gradient component");
+      }
+      CheckNear(face.GetParentMeasureScale(),EmbeddingMeasure(face.GetParentMap()),2e-18L,"boundary embedding measure includes sloping faces");
+    }
+    CutFemLevelSetData tiny(geometry,std::vector<double>(basis->_nc,1e-300));
+    Check(!tiny.IsIdenticallyZero() && tiny.GetZeroBoundaryMask() == 0,"small nonzero values are never treated as exact trace zeros");
+  }
+}
+
+void CheckPreparedChart(const CutFemLevelSetData& parent, const CutFemLevelSetData& chart, unsigned points, std::mt19937& random) {
+  Check(chart.GetRootDimension() == parent.GetRootDimension() && chart.GetParentMeasureScale() == 1,"chart metadata");
+  for(unsigned sample = 0; sample < points; ++sample) {
+    const std::vector<long double> point = RandomPoint(chart.GetGeometry(),random), parentPoint = chart.MapToParent(point);
+    CheckNear(chart.Evaluate(point),parent.Evaluate(parentPoint),2e-15L,"chart preserves the polynomial");
+    CheckNear(chart.EvaluateBernstein(point),chart.Evaluate(point),3e-15L,"chart preserves the Bernstein controls");
+    const std::vector<long double> rootPoint = chart.MapToRoot(point), expectedRootPoint = parent.MapToRoot(parentPoint);
+    for(unsigned axis = 0; axis < rootPoint.size(); ++axis) CheckNear(rootPoint[axis],expectedRootPoint[axis],2e-18L,"chart composes the original coordinate map");
+    const std::vector<long double> gradient = chart.GetGradient(point), parentGradient = parent.GetGradient(parentPoint), rootGradient = chart.GetRootGradient(point), expectedRootGradient = parent.GetRootGradient(parentPoint);
+    for(unsigned axis = 0; axis < gradient.size(); ++axis) { long double expected = 0; for(unsigned row = 0; row < parentGradient.size(); ++row) expected += parentGradient[row]*chart.GetParentMap()[row][axis]; CheckNear(gradient[axis],expected,3e-15L,"chart gradient follows the chain rule"); }
+    for(unsigned axis = 0; axis < rootGradient.size(); ++axis) CheckNear(rootGradient[axis],expectedRootGradient[axis],3e-15L,"chart preserves original component order and signs");
+  }
+}
+
+void TestPreparedCharts(unsigned cases, unsigned points, std::mt19937& random) {
+  currentCheck = "supported axis and barycentric charts";
+  std::uniform_real_distribution<double> value(-1,1);
+  for(GeomElType geometry : {LINE,QUAD,TRI,HEX,TET,WEDGE}) {
+    const std::unique_ptr<femus::basis> basis = MakeBasis(geometry);
+    for(unsigned test = 0; test < std::min(cases,32U); ++test) {
+      std::vector<double> nodal(basis->_nc);
+      for(double& coefficient : nodal) coefficient = value(random);
+      CutFemLevelSetData parent(geometry,nodal), chart, child;
+      parent.SetContext(2,47,13);
+      parent.GetZeroBoundaryMask();
+      std::array<unsigned,3> axes = {0,1,2};
+      do {
+        if(geometry == WEDGE && axes[2] != 2) continue;
+        parent.PermuteAxes(axes,chart);
+        CheckPreparedChart(parent,chart,std::min(points,8U),random);
+        Check(chart.GetMeshLevel() == 2 && chart.GetElementId() == 47 && chart.GetNodalVersion() == 13,"chart context is retained");
+        if(chart.GetDimension() > 1) {
+          const unsigned axis = chart.GetDimension()-1;
+          const bool simplex = geometry == TRI || geometry == TET || (geometry == WEDGE && axis < 2);
+          chart.Restrict(axis,simplex ? 0.2L : -0.2L,child);
+          const std::vector<long double> point = RandomPoint(child.GetGeometry(),random);
+          CheckNear(child.Evaluate(point),parent.Evaluate(child.MapToRoot(point)),3e-15L,"axis chart supports recursive restriction");
+        }
+      } while(std::next_permutation(axes.begin(),axes.begin()+parent.GetDimension()));
+      if(geometry == TRI || geometry == TET || geometry == WEDGE) {
+        std::array<unsigned,4> vertices = {0,1,2,3};
+        const unsigned count = geometry == TET ? 4U : 3U;
+        do { parent.PermuteSimplexVertices(vertices,chart); CheckPreparedChart(parent,chart,std::min(points,8U),random); } while(std::next_permutation(vertices.begin(),vertices.begin()+count));
+        if(geometry != TRI) {
+          parent.Restrict(geometry == TET ? 0U : 2U,0.2L,child);
+          child.PermuteSimplexVertices({1,0,2,3},chart);
+          CheckPreparedChart(child,chart,std::min(points,8U),random);
+        }
+      }
+    }
+  }
+  CutFemLevelSetData wedge(WEDGE,MakeField(WEDGE,2)), quad, swapped, line;
+  wedge.Restrict(0,0.2L,quad);
+  quad.PermuteAxes({1,0,2},swapped);
+  Check(swapped.GetBernsteinOrders() == std::array<unsigned,3>{{2,3,0}},"swapped wedge slice retains the elevated Bernstein degree");
+  for(unsigned axis = 0; axis < 2; ++axis) { swapped.Restrict(axis,0.3L,line); for(unsigned sample = 0; sample < 8; ++sample) { const std::vector<long double> point = RandomPoint(LINE,random); CheckNear(line.EvaluateBernstein(point),wedge.Evaluate(line.MapToRoot(point)),3e-15L,"both directions of an elevated swapped quad restrict correctly"); } }
+  wedge.Restrict(2,0.1L,quad,false);
+  quad.PermuteSimplexVertices({1,0,2,3},swapped);
+  Check(!swapped.HasRootGradientContext(),"charts inherit omitted original-gradient context");
+  const std::vector<long double> point = RandomPoint(TRI,random);
+  const long double expected = swapped.Evaluate(point);
+  wedge.Reset(WEDGE,std::vector<double>(21,1));
+  CheckNear(swapped.Evaluate(point),expected,0,"charted slices own their state after parent reset");
+}
+
+void TestProjectionAndGraphData(unsigned cases, std::mt19937& random) {
+  currentCheck = "projection algebra, graph certificates, and unit export";
+  std::uniform_real_distribution<double> value(-1,1);
+  for(GeomElType geometry : {LINE,QUAD,TRI,HEX,TET,WEDGE}) {
+    const std::unique_ptr<femus::basis> basis = MakeBasis(geometry);
+    for(unsigned test = 0; test < cases; ++test) {
+      std::vector<double> nodal(basis->_nc);
+      for(double& coefficient : nodal) coefficient = value(random);
+      CutFemLevelSetData data(geometry,nodal);
+      const std::vector<long double> point = RandomPoint(geometry,random);
+      std::vector<long double> unit = point;
+      for(unsigned axis = 0; axis < point.size(); ++axis) if(geometry == LINE || geometry == QUAD || geometry == HEX || (geometry == WEDGE && axis == 2)) unit[axis] = (point[axis]+1)/2;
+      CheckNear(CutFemLevelSetData::EvaluatePolynomial(data.GetUnitPowerCoefficients(),data.GetDimension(),2,unit),data.Evaluate(point),3e-15L,"native-to-unit coefficient export");
+      CheckNear(data.GetUnitToReferenceMeasureScale(),geometry == LINE || geometry == QUAD || geometry == HEX ? static_cast<long double>(1U<<data.GetDimension()) : (geometry == WEDGE ? 2 : 1),0,"unit-to-native measure scale");
+      for(unsigned axis = 0; axis < data.GetDimension(); ++axis) {
+        const CutFemLevelSetData::GraphCertificate& graph = data.GetGraphCertificate(axis);
+        const long double derivative = data.EvaluateDerivative(axis,point);
+        Check(derivative >= graph.bounds[0] && derivative <= graph.bounds[1],"graph bounds enclose sampled derivatives");
+        if(graph.strict) Check(graph.sign*derivative > 0 && graph.zeroFiber == -1,"strict graph certificate");
+        bool depends = false;
+        unsigned stride = 1;
+        for(unsigned next = axis+1; next < data.GetDimension(); ++next) stride *= 3;
+        for(unsigned n = 0; n < data.GetPowerCoefficients().size(); ++n) depends = depends || ((n/stride)%3 != 0 && data.GetPowerCoefficients()[n] != 0);
+        Check(depends == data.DependsOn(axis),"dependence follows retained nonzero monomials");
+        if(data.GetDimension() == 1) continue;
+        const CutFemLevelSetData::FiberProjection& projection = data.GetFiberProjection(axis);
+        Check(&projection == &data.GetFiberProjection(axis) && projection.degree == 4,"projection is retained with its full degree");
+        std::vector<long double> outer;
+        for(unsigned direction = 0; direction < data.GetDimension(); ++direction) if(direction != axis) outer.push_back(point[direction]);
+        std::array<boost::multiprecision::cpp_bin_float_100,3> coefficient;
+        for(unsigned power = 0; power < 3; ++power) coefficient[power] = BenchmarkValue(std::vector<boost::multiprecision::cpp_bin_float_100>(projection.coefficients[power].begin(),projection.coefficients[power].end()),projection.dimension,std::vector<boost::multiprecision::cpp_bin_float_100>(outer.begin(),outer.end()));
+        const long double expected = static_cast<long double>(coefficient[1]*coefficient[1]-4*coefficient[2]*coefficient[0]);
+        CheckNear(data.EvaluateFiberDiscriminant(axis,outer),expected,2e-18L,"compensated discriminant versus 100-digit reference");
+        CheckNear(CutFemLevelSetData::EvaluatePolynomial(projection.discriminant,projection.dimension,4,outer),expected,2e-16L,"full projection polynomial");
+        long double reconstructed = 0;
+        for(unsigned power = 3; power > 0; --power) reconstructed = reconstructed*point[axis]+static_cast<long double>(coefficient[power-1]);
+        CheckNear(reconstructed*data.GetNormalizationScale(),data.Evaluate(point),2e-15L,"fiber coefficients reconstruct the parent polynomial");
+        if(data.GetDimension() == 2) {
+          std::vector<long double> boundary;
+          data.GetFiberBoundaryPolynomial(axis,0.3L,-0.2L,boundary);
+          std::vector<long double> boundaryPoint = point;
+          boundaryPoint[axis] = 0.3L-0.2L*outer[0];
+          CheckNear(CutFemLevelSetData::EvaluatePolynomial(boundary,1,4,outer)*data.GetNormalizationScale(),CutFemLevelSetData::EvaluatePolynomial(data.GetPowerCoefficients(),2,2,boundaryPoint),2e-15L,"affine boundary polynomial");
+          std::array<long double,5> shifted;
+          data.GetShiftedFiberDiscriminant(axis,outer[0],shifted);
+          CheckNear(shifted[0],expected,2e-18L,"shifted discriminant retains compensated endpoint value");
+          const long double offset = 0.01L;
+          CheckNear(CutFemLevelSetData::EvaluatePolynomial(std::vector<long double>(shifted.begin(),shifted.end()),1,4,{offset}),data.EvaluateFiberDiscriminant(axis,{outer[0]+offset}),2e-16L,"shifted discriminant polynomial");
+        }
+      }
+    }
+  }
+  const std::unique_ptr<femus::basis> basis = MakeBasis(QUAD);
+  std::vector<double> nodal(9);
+  for(unsigned n = 0; n < 9; ++n) { const double* point = basis->GetXcoarse(n); nodal[n] = point[0]*((point[1]-0.2)*(point[1]-0.2)+0.03); }
+  CutFemLevelSetData tight(QUAD,nodal);
+  Check(tight.GetDerivativeBounds(0)[0] < 0 && tight.GetGraphCertificate(0).bounds[0] > 0.029L && tight.GetGraphDirection() == 0,"tight quadratic extrema certify a graph missed by Bernstein");
+  for(unsigned n = 0; n < 9; ++n) { const double* point = basis->GetXcoarse(n); nodal[n] = point[0]*(point[1]+1); }
+  CutFemLevelSetData zeroFiber(QUAD,nodal);
+  Check(zeroFiber.GetGraphCertificate(0).sign == 1 && !zeroFiber.GetGraphCertificate(0).strict && zeroFiber.GetGraphCertificate(0).zeroFiber == 1,"weak graph detects an entire zero fiber");
+  Check(zeroFiber.GetGraphDirection(true) == -1,"zero fibers cannot become regular graphs");
+  for(unsigned n = 0; n < 9; ++n) { const double* point = basis->GetXcoarse(n); nodal[n] = (point[0]+1)*(point[0]+1)+0.25*point[1]*point[1]; }
+  CutFemLevelSetData weak(QUAD,nodal);
+  Check(weak.GetGraphCertificate(0).sign == 1 && !weak.GetGraphCertificate(0).strict && weak.GetGraphCertificate(0).zeroFiber == -1,"weak graph excludes zero fibers");
+  Check(weak.GetGraphDirection() == -1 && weak.GetGraphDirection(true) == 0,"weak directions require an explicit request");
+  Check(weak.GetReflectionParity(1) == 1 && weak.GetReflectionParity(0) == 0,"native reflection parity");
+  for(unsigned n = 0; n < 9; ++n) { const double* point = basis->GetXcoarse(n); nodal[n] = point[0]*point[0]*point[1]*point[1]; }
+  CutFemLevelSetData quartic(QUAD,nodal);
+  std::vector<long double> boundary;
+  quartic.GetFiberBoundaryPolynomial(1,0.5L,1,boundary);
+  CheckNear(boundary[4]*quartic.GetNormalizationScale(),1,0,"projected boundary quartic coefficient is retained");
+  CutFemLevelSetData child;
+  quartic.Restrict(0,0.2L,child);
+  child.GetLineAnalysis();
+  const CutFemLevelSetData savedLine = child;
+  child.GetUnitPowerCoefficients();
+  quartic.Reset(QUAD,std::vector<double>(9,1));
+  quartic.Restrict(0,0.2L,child);
+  Check(child.GetLineAnalysis().rootCount == 0 && !child.DependsOn(0),"reused child invalidates line and dependence caches");
+  Check(savedLine.GetLineAnalysis().rootCount == 1,"copied line analysis survives reuse of the original workspace");
+  CheckNear(child.GetUnitPowerCoefficients()[0],1,0,"reused child invalidates unit coefficients");
+  CutFemLevelSetData spatial(HEX,MakeField(HEX,2,1,0.29L)), slice;
+  spatial.Restrict(2,0.1L,slice);
+  const std::vector<long double> savedProjection = slice.GetFiberProjection(0).discriminant;
+  const CutFemLevelSetData::GraphCertificate savedGraph = slice.GetGraphCertificate(0);
+  const CutFemLevelSetData copied = slice;
+  spatial.Restrict(2,0.2L,slice);
+  slice.GetFiberProjection(0);
+  slice.GetGraphCertificate(0);
+  Check(copied.GetFiberProjection(0).discriminant == savedProjection,"copied projection caches survive reuse of the original workspace");
+  Check(slice.GetFiberProjection(0).discriminant != savedProjection,"reused projection follows the new slice");
+  Check(copied.GetGraphCertificate(0).bounds == savedGraph.bounds,"copied graph certificates survive reuse of the original workspace");
+  CutFemLevelSetData partial = tight;
+  const CutFemLevelSetData::GraphCertificate firstGraph = partial.GetGraphCertificate(0);
+  const CutFemLevelSetData partialCopy = partial;
+  partial.GetGraphCertificate(1);
+  Check(partial.GetGraphCertificate(0).bounds == firstGraph.bounds && partial.GetGraphCertificate(0).strict == firstGraph.strict,"preparing another graph axis preserves existing detached cache entries");
+  Check(partialCopy.GetGraphCertificate(0).bounds == firstGraph.bounds,"partial cache copies remain independent");
+}
+
+void TestExternalChartComponents(std::mt19937& random) {
+  currentCheck = "full-degree external component chart transforms";
+  std::uniform_real_distribution<double> value(-0.1,0.1);
+  for(GeomElType geometry : {QUAD,TRI,HEX,TET,WEDGE}) {
+    CutFemLevelSetData parent(geometry,MakeField(geometry,1)), chart;
+    if(geometry == TRI || geometry == TET || geometry == WEDGE) parent.PermuteSimplexVertices({1,0,2,3},chart);
+    else parent.PermuteAxes(geometry == QUAD ? std::array<unsigned,3>{{1,0,2}} : std::array<unsigned,3>{{2,0,1}},chart);
+    for(unsigned degree : {2U,3U}) {
+      unsigned count = 1, outputDegree = 0;
+      for(unsigned axis = 0; axis < parent.GetDimension(); ++axis) count *= degree+1;
+      std::vector<std::vector<long double>> components(5,std::vector<long double>(count)), output;
+      for(std::vector<long double>& component : components) for(long double& coefficient : component) coefficient = value(random);
+      chart.TransformParentComponents(degree,components,outputDegree,output);
+      Check(output.size() == components.size() && outputDegree >= degree,"chart preserves every supplied component and its degree");
+      if(geometry == TRI || geometry == TET || geometry == WEDGE) Check(outputDegree == 2*degree,"barycentric mixing retains the increased coordinate degree");
+      for(unsigned sample = 0; sample < 16; ++sample) {
+        const std::vector<long double> point = RandomPoint(geometry,random), parentPoint = chart.MapToParent(point);
+        for(unsigned component = 0; component < components.size(); ++component) CheckNear(CutFemLevelSetData::EvaluatePolynomial(output[component],chart.GetDimension(),outputDegree,point),CutFemLevelSetData::EvaluatePolynomial(components[component],parent.GetDimension(),degree,parentPoint),3e-15L,"external polynomial chart composition");
+      }
+    }
+  }
+}
+
+void TestRootSurfaceInterfaces() {
+  currentCheck = "selected densities from prepared root records";
+  for(GeomElType geometry : {LINE,QUAD,TRI,HEX,TET,WEDGE}) {
+    CutFemLevelSetData parent(geometry,MakeField(geometry,1)), planar, line;
+    if(parent.GetDimension() == 3) { parent.Restrict(2,0.1L,planar); planar.Restrict(1,0.2L,line); }
+    else if(parent.GetDimension() == 2) parent.Restrict(1,0.2L,line);
+    else line = parent;
+    const CutFemLevelSetData::LineAnalysis& analysis = line.GetLineAnalysis();
+    Check(analysis.rootCount == 1,"regular prepared root for every element");
+    const CutFemLevelSetData::LineRoot& root = analysis.roots[0];
+    std::array<std::array<long double,3>,3> matrix = {{{1.2L,0.1L,0.2L},{0.2L,1.1L,0.1L},{0.1L,0.2L,1.3L}}};
+    const std::array<long double,3> h = {1,0.2L,0.3L};
+    std::array<long double,4> scalar, coordinateScalar, matrixScalar;
+    std::array<long double,3> normal, coordinateNormal, matrixNormal, gradient;
+    line.GetLineAllSurfaceFactors(root,h,scalar,normal);
+    line.GetLineAllSurfaceFactors(root.coordinate,h,coordinateScalar,coordinateNormal);
+    Check(scalar == coordinateScalar && normal == coordinateNormal,"prepared-root batch compatibility");
+    line.GetLineAllSurfaceFactorsFromCofactor(root,matrix,matrixScalar,matrixNormal);
+    line.GetLineAllSurfaceFactorsFromCofactor(root.coordinate,matrix,coordinateScalar,coordinateNormal);
+    Check(matrixScalar == coordinateScalar && matrixNormal == coordinateNormal,"prepared-root matrix compatibility");
+    CheckNear(line.GetLineDeltaFactor(root),scalar[0],0,"prepared-root delta");
+    CheckNear(line.GetLineSurfaceData(root,gradient),scalar[0],0,"prepared-root gradient data");
+    CheckNear(line.GetLineReferenceSurfaceFactor(root),scalar[1],0,"prepared-root reference measure");
+    CheckNear(line.GetLinePhysicalSurfaceFactor(root,h),scalar[2],0,"prepared-root physical measure");
+    CheckNear(line.GetLineTangentialSurfaceFactor(root,h),scalar[3],0,"prepared-root tangential measure");
+    CheckNear(line.GetLinePhysicalSurfaceFactorFromCofactor(root,matrix),matrixScalar[2],0,"prepared-root matrix physical measure");
+    CheckNear(line.GetLineTangentialSurfaceFactorFromCofactor(root,matrix),matrixScalar[3],0,"prepared-root matrix tangential measure");
+    for(unsigned component = 0; component < line.GetRootDimension(); ++component) { CheckNear(line.GetLineNormalSurfaceFactor(root,h,component),normal[component],0,"prepared-root normal component"); CheckNear(line.GetLineNormalSurfaceFactorFromCofactor(root,matrix,component),matrixNormal[component],0,"prepared-root matrix normal component"); }
+    line.GetLineNormalSurfaceFactors(root,h,coordinateNormal);
+    Check(coordinateNormal == normal,"prepared-root normal family");
+    line.GetLineNormalSurfaceFactorsFromCofactor(root,matrix,coordinateNormal);
+    Check(coordinateNormal == matrixNormal,"prepared-root matrix normal family");
+    if(geometry == TRI || geometry == TET || geometry == WEDGE) {
+      CutFemLevelSetData chart;
+      parent.PermuteSimplexVertices({1,0,2,3},chart);
+      if(chart.GetDimension() == 3) { chart.Restrict(2,0.1L,planar); planar.Restrict(0,0.1L,line); }
+      else chart.Restrict(0,0.1L,line);
+      const CutFemLevelSetData::LineAnalysis& chartAnalysis = line.GetLineAnalysis();
+      Check(chartAnalysis.rootCount == 1,"regular root in an oblique barycentric chart");
+      const CutFemLevelSetData::LineRoot& chartRoot = chartAnalysis.roots[0];
+      line.GetLineSurfaceData(chartRoot,gradient);
+      const std::vector<long double> native = line.MapToRoot({chartRoot.coordinate}), expected = parent.GetGradient(native);
+      long double directional = 0;
+      for(unsigned component = 0; component < parent.GetDimension(); ++component) { CheckNear(gradient[component],expected[component],3e-15L,"oblique-root gradient retains original components"); }
+      const std::vector<long double> first = line.MapToRoot({0}), second = line.MapToRoot({1});
+      for(unsigned component = 0; component < parent.GetDimension(); ++component) directional += (second[component]-first[component])*gradient[component];
+      CheckNear(directional,chartRoot.derivative,3e-18L,"oblique-root gradient agrees with the retained directional slope");
+    }
+  }
+}
+
+void TestPreparedDataInvalidInputs() {
+  currentCheck = "prepared-data interface validation";
+  CutFemLevelSetData quad(QUAD,MakeField(QUAD,1)), tri(TRI,MakeField(TRI,1)), wedge(WEDGE,MakeField(WEDGE,1)), child;
+  unsigned rejected = 0;
+  try { quad.PermuteAxes({0,0,2},child); } catch(const std::invalid_argument&) { ++rejected; }
+  try { wedge.PermuteAxes({0,2,1},child); } catch(const std::invalid_argument&) { ++rejected; }
+  try { quad.PermuteAxes({1,0,2},quad); } catch(const std::invalid_argument&) { ++rejected; }
+  try { tri.PermuteSimplexVertices({1,1,2,3},child); } catch(const std::invalid_argument&) { ++rejected; }
+  try { quad.PermuteSimplexVertices({1,0,2,3},child); } catch(const std::logic_error&) { ++rejected; }
+  try { quad.RestrictBoundary(4,child); } catch(const std::out_of_range&) { ++rejected; }
+  try { quad.GetLineAnalysis(); } catch(const std::logic_error&) { ++rejected; }
+  try { quad.GetFiberProjection(2); } catch(const std::out_of_range&) { ++rejected; }
+  try { quad.GetZeroFiberStatus(2); } catch(const std::out_of_range&) { ++rejected; }
+  try { quad.GetReflectionParity(2); } catch(const std::out_of_range&) { ++rejected; }
+  Check(rejected == 10,"invalid charts, boundaries, and analysis requests are rejected");
+  tri.PermuteSimplexVertices({1,0,2,3},child);
+  std::vector<std::vector<long double>> components(1,std::vector<long double>(9,1)), output;
+  unsigned degree = 0;
+  bool aliasRejected = false;
+  try { child.TransformParentComponents(2,components,degree,components); } catch(const std::invalid_argument&) { aliasRejected = true; }
+  Check(aliasRejected,"external chart transform rejects aliased input");
+  components[0].assign(18*18,0);
+  components[0].back() = 1;
+  bool degreeRejected = false;
+  try { child.TransformParentComponents(17,components,degree,output); } catch(const std::invalid_argument&) { degreeRejected = true; }
+  Check(degreeRejected,"unsupported expanded degrees are rejected without truncation");
+}
+
+long double DataReuseSample(const CutFemLevelSetData& planar, unsigned operation, long double coordinate, CutFemLevelSetData& line) {
+  if(operation < 3) planar.Restrict(1,coordinate,line,false);
+  if(operation == 0) return line.GetPowerCoefficients()[0];
+  std::array<long double,2> roots;
+  const unsigned count = line.GetLineRoots(roots);
+  if(operation == 1 || operation == 3) return count == 0 ? 0 : count+roots[0];
+  long double value = 0;
+  for(unsigned n = 0; n < count; ++n) value += line.GetLinePhysicalSurfaceFactor(roots[n],{1,0.2L,0.3L});
+  return value;
+}
+
+void BenchmarkDataReuse() {
+  std::cout << "data_record bytes=" << sizeof(CutFemLevelSetData) << '\n';
+  const std::string names[5] = {"slice","slice_roots","slice_physical","cached_roots","cached_physical"};
+  const unsigned iterations = 20000;
+  for(GeomElType geometry : {LINE,QUAD,TRI,HEX,TET,WEDGE}) {
+    CutFemLevelSetData parent(geometry,MakeField(geometry,2,1,0.29L)), planar, line;
+    if(parent.GetDimension() == 3) parent.Restrict(2,0.19L,planar,false);
+    else if(parent.GetDimension() == 2) planar = parent;
+    else line = parent;
+    for(unsigned operation = parent.GetDimension() == 1 ? 3U : 0U; operation < 5; ++operation) {
+      volatile long double checksum = 0;
+      for(unsigned sample = 0; sample < 128; ++sample) checksum += DataReuseSample(planar,operation,0.15L+0.001L*(sample%64),line);
+#ifdef EX47_TRACK_ALLOCATIONS
+      const unsigned long long before = heapAllocations;
+#endif
+      const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+      for(unsigned sample = 0; sample < iterations; ++sample) checksum += DataReuseSample(planar,operation,0.15L+0.001L*(sample%64),line);
+      const double nanoseconds = 1e9*std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()/iterations;
+#ifdef EX47_TRACK_ALLOCATIONS
+      const unsigned long long allocated = heapAllocations-before;
+      Check(allocated == 0,"prepared slice/root reuse performs no warmed heap allocation");
+#endif
+      Check(std::isfinite(checksum),"prepared-data benchmark checksum");
+      std::cout << std::setprecision(10) << "data_reuse " << GeometryName(geometry) << ' ' << names[operation] << " ns=" << nanoseconds << " checksum=" << checksum;
+#ifdef EX47_TRACK_ALLOCATIONS
+      std::cout << " allocations=" << allocated;
+#endif
+      std::cout << '\n';
+    }
+  }
+}
+
+long double PreparedAlgebraSample(const CutFemLevelSetData& parent, const CutFemLevelSetData& line, unsigned operation, long double coordinate, CutFemLevelSetData& chart, const std::vector<std::vector<long double>>& components, std::vector<std::vector<long double>>& output) {
+  if(operation == 0) return parent.GetZeroBoundaryMask();
+  if(operation == 1) return parent.DependsOn(0)+parent.GetReflectionParity(0);
+  if(operation == 2) return parent.GetGraphCertificate(0).bounds[0];
+  if(operation == 3) return parent.GetUnitPowerCoefficients()[0];
+  if(operation == 4) return parent.GetFiberProjection(0).discriminant[0];
+  if(operation == 5) return parent.EvaluateFiberDiscriminant(0,coordinate);
+  if(operation == 6) { parent.PermuteAxes({1,0,2},chart); return chart.GetPowerCoefficients()[0]; }
+  if(operation == 7) { parent.PermuteSimplexVertices({1,0,2,3},chart); return chart.GetPowerCoefficients()[0]; }
+  if(operation == 8) { unsigned degree = 0; chart.TransformParentComponents(3,components,degree,output); return output[0][0]; }
+  const CutFemLevelSetData::LineAnalysis& analysis = line.GetLineAnalysis();
+  return analysis.rootCount == 0 ? 0 : line.GetLineDeltaFactor(analysis.roots[0]);
+}
+
+void BenchmarkPreparedAlgebra() {
+  const std::string names[10] = {"boundary_cached","dependence_parity_cached","graph_cached","unit_cached","projection_cached","discriminant_compensated","axis_chart","barycentric_chart","external_chart_degree3","root_record_delta"};
+  for(GeomElType geometry : {QUAD,TRI,HEX,TET,WEDGE}) {
+    CutFemLevelSetData parent(geometry,MakeField(geometry,2,1,0.29L)), chart, planar, line;
+    if(parent.GetDimension() == 3) { parent.Restrict(2,0.19L,planar,false); planar.Restrict(1,0.17L,line,false); }
+    else parent.Restrict(1,0.17L,line,false);
+    unsigned size = 1;
+    for(unsigned axis = 0; axis < parent.GetDimension(); ++axis) size *= 4;
+    std::vector<std::vector<long double>> components(3,std::vector<long double>(size,0)), output;
+    for(unsigned component = 0; component < 3; ++component) for(unsigned n = 0; n < size; ++n) components[component][n] = 0.001L*(1+component+n);
+    for(unsigned operation = 0; operation < 10; ++operation) {
+      if(operation == 5 && parent.GetDimension() != 2) continue;
+      if(operation == 7 && geometry != TRI && geometry != TET && geometry != WEDGE) continue;
+      if(operation == 8) { if(geometry == TRI || geometry == TET || geometry == WEDGE) parent.PermuteSimplexVertices({1,0,2,3},chart); else parent.PermuteAxes({1,0,2},chart); }
+      const unsigned iterations = operation == 8 ? 128U : 20000U;
+      volatile long double checksum = 0;
+      for(unsigned sample = 0; sample < 64; ++sample) checksum += PreparedAlgebraSample(parent,line,operation,0.15L+0.001L*(sample%64),chart,components,output);
+#ifdef EX47_TRACK_ALLOCATIONS
+      const unsigned long long before = heapAllocations;
+#endif
+      const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+      for(unsigned sample = 0; sample < iterations; ++sample) checksum += PreparedAlgebraSample(parent,line,operation,0.15L+0.001L*(sample%64),chart,components,output);
+      const double nanoseconds = 1e9*std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()/iterations;
+#ifdef EX47_TRACK_ALLOCATIONS
+      const unsigned long long allocated = heapAllocations-before;
+      Check(allocated == 0,"prepared algebra performs no warmed heap allocation");
+#endif
+      Check(std::isfinite(checksum),"prepared algebra benchmark checksum");
+      std::cout << std::setprecision(10) << "prepared_algebra " << GeometryName(geometry) << ' ' << names[operation] << " ns=" << nanoseconds << " checksum=" << checksum;
+#ifdef EX47_TRACK_ALLOCATIONS
+      std::cout << " allocations=" << allocated;
+#endif
+      std::cout << '\n';
+    }
+  }
+}
+
 int main(int argc, char** argv) {
   try {
     unsigned cases = 64, points = 32;
     bool benchmark = false;
     bool quadratureBenchmark = false;
     bool surfaceBenchmark = false;
+    bool dataBenchmark = false;
+    bool algebraBenchmark = false;
     for(int i = 1; i < argc; ++i) {
       const std::string option = argv[i];
       if((option == "--cases" || option == "--points") && i + 1 < argc) {
@@ -1269,14 +1823,18 @@ int main(int argc, char** argv) {
       else if(option == "--benchmark") benchmark = true;
       else if(option == "--benchmark-quadrature") quadratureBenchmark = true;
       else if(option == "--benchmark-surface") surfaceBenchmark = true;
+      else if(option == "--benchmark-data") dataBenchmark = true;
+      else if(option == "--benchmark-algebra") algebraBenchmark = true;
       else if(option == "--help") {
-        std::cout << "MultiPhase_ex47 [--cases N] [--points N] [--benchmark] [--benchmark-quadrature] [--benchmark-surface]\n";
+        std::cout << "MultiPhase_ex47 [--cases N] [--points N] [--benchmark] [--benchmark-quadrature] [--benchmark-surface] [--benchmark-data] [--benchmark-algebra]\n";
         return 0;
       }
       else throw std::invalid_argument("Unknown or incomplete argument: " + option);
     }
     if(quadratureBenchmark) { BenchmarkQuadratureKernels(); return 0; }
     if(surfaceBenchmark) { BenchmarkSelectiveSurfaceKernels(); return 0; }
+    if(dataBenchmark) { BenchmarkDataReuse(); return 0; }
+    if(algebraBenchmark) { BenchmarkPreparedAlgebra(); return 0; }
     std::mt19937 random(470013);
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     TestReconstruction(cases, points, random);
@@ -1296,6 +1854,15 @@ int main(int argc, char** argv) {
     TestFastQuadratureInterfaces(cases,random);
     TestSelectiveSurfacePreparation(cases,random);
     TestSelectiveSurfaceScaling();
+    TestPreparedLineAnalysis();
+    TestCompensatedFoldRestrictions();
+    TestBoundaryCertificates(random);
+    TestPreparedCharts(cases,points,random);
+    TestProjectionAndGraphData(cases,random);
+    TestExternalChartComponents(random);
+    TestRootSurfaceInterfaces();
+    TestPreparedDataInvalidInputs();
+    std::cout << std::setprecision(8) << "root accuracy: rounded-root density=" << maximumRoundedRootError << "; retained-slope density=" << maximumRootDensityError << "; last-ULP fold density=" << maximumFoldDensityError << '\n';
     std::cout << std::setprecision(8) << "ex47: " << checks << " checks passed; maximum scaled error=" << maximumScaledError << "; seconds=" << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count() << '\n';
     return 0;
   }

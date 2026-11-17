@@ -11,6 +11,8 @@ cmake --build build-ex47 --parallel 2
 ./build-ex47/MultiPhase_ex47 --cases 256 --points 64 --benchmark
 ./build-ex47/MultiPhase_ex47 --benchmark-quadrature
 ./build-ex47/MultiPhase_ex47 --benchmark-surface
+./build-ex47/MultiPhase_ex47 --benchmark-data
+./build-ex47/MultiPhase_ex47 --benchmark-algebra
 ```
 
 If Boost is outside the compiler's search path, add `-DEX47_BOOST_INCLUDE_DIR=/path/to/boost`. The normal FEMuS build also exposes `MultiPhase_ex47`. `run_ex47.sh` offers the standalone build and accepts the main's arguments; `EX47_BUILD_DIR`, `EX47_JOBS`, `EX47_BOOST_INCLUDE_DIR`, and `CMAKE` override its defaults.
@@ -121,3 +123,41 @@ Multiply these densities by the outer chart measure scales and the selected quad
 `PrepareSurfaceTestPolynomials()`, `TestFastQuadratureInterfaces()`, `TestSelectiveSurfacePreparation()`, and `TestSelectiveSurfaceScaling()` in the main cover every element family, affine/non-affine geometry, bi/triquadratic QUAD/HEX geometry, omitted dependencies, and small cuts over widely scaled inputs. The production integration interfaces have not yet been migrated.
 
 The agreed tasks are tracked in [the shared TODO](../../../src/quadrature/cutfem_ls/TODO.md), with [local status](TODO.md), [validation results](VALIDATION.md), and [kernel timings](PERFORMANCE.md).
+
+## Prepared topology, boundaries, and charts
+
+| Operation | Interface and contract |
+| --- | --- |
+| Complete LINE analysis | `GetLineAnalysis()` returns a retained record with degree, zero-fiber status, isolated roots, signed derivatives, multiplicities, endpoint tags, and up to two positive intervals |
+| Root densities | Every selected/batch surface evaluator also accepts `const LineRoot&`; use records from the current LINE analysis |
+| Coordinate compatibility | `GetLineRoots()` uses the retained analysis; coordinate-based density methods reuse its stable slope when their coordinate matches a retained root |
+| Exact zero polynomial | `IsIdenticallyZero()` distinguishes an entire zero fiber from isolated roots |
+| Boundary information | `GetBoundaryCount()`, `IsZeroOnBoundary(boundary)`, `GetZeroBoundaryMask()` |
+| Boundary restriction | `RestrictBoundary(boundary, child)` returns the same data type with original-gradient context and coordinate maps |
+| Axis chart | `PermuteAxes(axes, chart)` uses `axes[newAxis] = oldAxis`; WEDGE preserves its height axis |
+| Barycentric chart | `PermuteSimplexVertices(vertices, chart)` uses `vertices[newVertex] = oldVertex` for TRI/TET and the WEDGE triangle |
+| External chart fields | `chart.TransformParentComponents(degree, components, outputDegree, output)` composes every scalar component with the chart's parent map |
+| Graph information | `GetGraphCertificate(axis)` reports derivative bounds, sign, strictness, and zero-fiber status |
+| Weak directions | `GetGraphDirection(true)` allows a weak monotone direction only when zero fibers have been excluded; the default accepts strict directions |
+| Zero-fiber information | `GetZeroFiberStatus(axis)` is +1 for a detected zero fiber, -1 when excluded, and 0 when unresolved |
+| Structural information | `DependsOn(axis)` and `GetReflectionParity(axis)` inspect actual retained coefficients without tolerance-zeroing monomials |
+| Projection algebra | `GetFiberProjection(axis)` retains the three normalized fiber-coefficient polynomials and their full degree-four discriminant |
+| Stable discriminant | `EvaluateFiberDiscriminant(axis, outerPoint)` evaluates the fiber coefficients with compensation; planar data also accept a scalar coordinate |
+| Boundary/event algebra | `GetFiberBoundaryPolynomial(axis, constant, slope, output)` and `GetShiftedFiberDiscriminant(axis, endpoint, output)` expose planar projection polynomials |
+| Unit-coordinate adapter | `GetUnitPowerCoefficients()` substitutes tensor coordinates `xi = 2*u-1`; `GetUnitToReferenceMeasureScale()` returns the corresponding reference-volume factor |
+
+Boundary numbering is local to this algebraic interface: tensor boundaries are `2*axis` at -1 and `2*axis+1` at +1; simplex boundary 0 is `lambda0 = 0` and boundary `axis+1` is `xi[axis] = 0`. WEDGE uses its three triangle boundaries followed by height -1 and +1. Map these indices explicitly when connecting FEMuS face-connectivity numbering. LINE boundaries are points and support zero queries, while positive-dimensional boundary restriction starts at dimension two.
+
+Boundary restriction includes sloping simplex faces. Its parent measure is the Euclidean reference embedding Jacobian obtained from the returned map; this agrees with the existing coordinate-slice factor on coordinate faces. The root map and all original gradient components retain their original reference ordering. Supply cofactors in that original reference basis, or compose prepared original-component fields with the chart. Vertex charts use closure of the supported enriched FEM spaces; external fields use full polynomial composition and retain any increase in coordinate degree. Degrees exceeding the existing limit of 32 are rejected explicitly.
+
+For a simple quadratic root the retained derivative magnitude is `sqrt(b*b-4*a*c)`, including the normalization scale. The root record avoids subtraction in `2*a*rounded_root+b`. Root-surface gradients also enforce the directional chain rule with that slope, preserving the gradient/denominator cancellation in the reference and matrix-based measures. Near cancellation, LINE analysis recovers its coefficients from an immutable retained parent snapshot using compensated restriction, including simplex rescaling. This handles both nearly repeated roots and a quadratic coefficient rounded away during ordinary contraction. Positive intervals follow root topology instead of sign sampling between very close roots. Repeated roots and identically-zero fibers remain explicit requests for special integration handling; no half/full boundary contribution convention is imposed here.
+
+The parent snapshot is allocated once when first needed by restriction and shared immutably by its descendants. LINE, graph, and projection caches are optional; copied records share prepared results and detach before a reused workspace modifies them. No unrequested surface density or geometry field is prepared. Prepare a chosen chart or boundary outside point loops, then retain it and reuse one child per lower dimension. The sloping-boundary convenience method constructs a temporary chart; a repeated traversal can prepare that chart once explicitly and restrict it directly.
+
+Default graph selection requests strict bounds only. It uses Bernstein bounds and a QUAD corner-sign rejection before requesting tighter quadratic extrema; weak metadata and zero-fiber searches remain lazy. Weak directions retain their zero-fiber qualification. Unresolved three-dimensional zero-fiber searches remain unresolved and cannot enable a weak graph path. Reflection parity is +1 for even, -1 for odd, and 0 otherwise; coordinate reflections that do not preserve a simplex domain return 0. The integration layer must also check geometry/density parity before using symmetry or independence.
+
+Projection coefficients are normalized by the parent's positive scale, and the discriminant therefore by its square. Auxiliary discriminants and boundary polynomials have separate degree-four storage; they are not quadratic level-set records. Compensated discriminant evaluation is the sensitive-event path; on a 3D-derived planar slice it also recovers the retained ancestor information. Expanded-polynomial evaluation can lose relative accuracy near a zero. Endpoint placement, endpoint transformations, resultant-root searches, integration budgets, moment restoration, and final fitted weights remain integration responsibilities.
+
+An endpoint-mapped sample can retain a nonzero offset even when its absolute coordinate rounds to the endpoint. Preserve that integration context and pass its known root and signed native-chart derivative in a `LineRoot` to the root-aware evaluators; ordinary analysis of the rounded coordinate cannot reconstruct the lost offset. This is an explicit requirement for the future adapter to the existing endpoint kernels.
+
+`--benchmark-data` measures fresh slicing, fresh slicing plus roots/physical density, and retained roots/densities. `--benchmark-algebra` measures cached metadata, supported chart construction, compensated discriminants, and external component transforms. Both modes assert zero warmed C++ allocations in allocation-tracking builds; correctness checks run in the normal main. See the performance and validation reports for measured results and limits.

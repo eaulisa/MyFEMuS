@@ -27,11 +27,20 @@ Implemented and exercised only in ex47:
 - [x] Share only the derivative and metric required by a requested normal family, with a separate single-component interface.
 - [x] Omit original-gradient preparation/contraction for delta and prepared-cofactor-gradient modes; propagate this choice through recursive restriction.
 - [x] Check selected results against batch/analytic/multiprecision references, including small cuts and input scales, and benchmark selection outside point loops.
+- [x] Retain complete fixed-size LINE topology, stable signed root slopes, multiplicities, endpoint tags, positive intervals, and identically-zero status.
+- [x] Add prepared-root overloads for every selected and batch surface measure, retaining compensated parent restriction near tangencies and cancellation.
+- [x] Detect exact zero nodal traces and restrict every boundary, including sloping simplex faces, with original gradients and reference embedding maps.
+- [x] Add supported axis/barycentric charts, elevated swapped WEDGE slice layouts, native-to-unit coefficient exports, and full-degree external component transforms.
+- [x] Add strict/weak graph information, tighter QUAD derivative extrema, conservative zero-fiber status, and exact coefficient dependence/reflection queries.
+- [x] Retain normalized projection polynomials lazily and expose compensated discriminants, planar boundary polynomials, and shifted endpoint expansions.
+- [x] Keep LINE/graph/projection caches optional and preserve copied records when reusable workspaces detach from shared prepared state.
+- [x] Exercise every chart/boundary and near-tangent/tiny-cut case in main; benchmark fresh and retained paths against the preceding class.
 
 Pending production integration after acceptance of this prototype:
 
 - [ ] Move the accepted class into the shared library and retain its records across actual mesh-level classification and assembly loops.
 - [ ] Add prepared-data overloads to `CutFemWeight_LS` while preserving its nodal wrappers; reuse records in every volume/surface weight mode.
+- [ ] Reuse known endpoint-graph roots and signed chart derivatives in prepared root evaluators, preserving offset/parameter information when an absolute sample coordinate rounds to an endpoint.
 - [ ] Integrate all requested surface moment families in one traversal using the shared densities, roots, and prepared geometry.
 - [ ] Connect record lifecycle and geometry-dependent cache invalidation to actual level-set updates, refinement, geometry changes, and MPI redistribution.
 - [ ] Remove unnecessary intermediate double conversions from the existing TRI7/WEDGE21 reconstruction and TRI/TET moment-output paths, with integration regressions.

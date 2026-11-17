@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -14,6 +15,37 @@
 
 class CutFemLevelSetData {
   public:
+    struct LineRoot {
+      long double coordinate = 0;
+      long double derivative = 0;
+      unsigned multiplicity = 0;
+      int boundary = 0;
+    };
+
+    struct LineAnalysis {
+      unsigned degree = 0;
+      unsigned rootCount = 0;
+      unsigned positiveIntervalCount = 0;
+      bool identicallyZero = false;
+      bool compensated = false;
+      std::array<LineRoot,2> roots;
+      std::array<std::array<long double,2>,2> positiveIntervals = {};
+    };
+
+    struct GraphCertificate {
+      std::array<long double,2> bounds = {0,0};
+      int sign = 0;
+      bool strict = false;
+      int zeroFiber = 0;
+    };
+
+    struct FiberProjection {
+      unsigned dimension = 0;
+      unsigned degree = 4;
+      std::array<std::vector<long double>,3> coefficients;
+      std::vector<long double> discriminant;
+    };
+
     // Nodal inputs use FEMuS ordering and reference coordinates; the default allows one sign-certification bisection.
     CutFemLevelSetData(GeomElType geometry, const std::vector<double>& nodalValues, unsigned maximumDepth = 1) {
       Reset(geometry, nodalValues, maximumDepth);
@@ -277,18 +309,21 @@ class CutFemLevelSetData {
         const unsigned degree = _bernsteinOrders[axis];
         const long double factor = simplexAxis ? degree : degree/2.0L;
         long double minimum = std::numeric_limits<long double>::infinity(), maximum = -minimum, norm = 0;
+        long double cornerMinimum = minimum, cornerMaximum = maximum;
         for(unsigned n = 0; n < _bernsteinIndices.size(); ++n) {
           std::array<unsigned,3> index = _bernsteinIndices[n];
           const unsigned total = _geometry == TET ? index[0]+index[1]+index[2] : index[0]+index[1];
           if(simplexAxis ? total >= degree : index[axis] >= degree) continue;
           ++index[axis];
           const long double value = factor*(_bernstein[BernsteinIndex(_geometry,_bernsteinOrders,index)]-_bernstein[n]);
+          if(_geometry == QUAD && (index[1-axis] == 0 || index[1-axis] == _bernsteinOrders[1-axis]) && (index[axis] == 1 || index[axis] == degree)) { cornerMinimum = std::min(cornerMinimum,value); cornerMaximum = std::max(cornerMaximum,value); }
           minimum = std::min(minimum,value);
           maximum = std::max(maximum,value);
           norm += std::abs(value);
         }
         const long double padding = 8192*std::numeric_limits<long double>::epsilon()*norm+2*degree*_bernsteinPadding;
         _derivativeBounds[axis] = {minimum-padding,maximum+padding};
+        _derivativeCornerSigns[axis] = static_cast<unsigned char>((cornerMinimum < -padding ? 1U : 0U)|(cornerMaximum > padding ? 2U : 0U));
         _derivativeBoundsReady[axis] = true;
       }
       return _derivativeBounds[axis];
@@ -300,7 +335,8 @@ class CutFemLevelSetData {
       int result = -1;
       long double best = -1;
       for(unsigned axis = 0; axis < _dimension; ++axis) {
-        const std::array<long double, 2> bounds = GetDerivativeBounds(axis);
+        std::array<long double,2> bounds = GetDerivativeBounds(axis);
+        if(_geometry == QUAD && bounds[0] <= 0 && bounds[1] >= 0 && _derivativeCornerSigns[axis] != 3) bounds = PrepareGraphCertificate(axis,false).bounds;
         const long double lower = bounds[0] > 0 ? bounds[0] : (bounds[1] < 0 ? -bounds[1] : 0);
         const long double upper = std::max(std::abs(bounds[0]), std::abs(bounds[1]));
         const long double score = upper > 0 ? lower / upper : 0;
@@ -313,6 +349,27 @@ class CutFemLevelSetData {
       _graphDirectionReady = true;
       return _graphDirection;
     }
+
+    const GraphCertificate& GetGraphCertificate(unsigned axis) const;
+    int GetZeroFiberStatus(unsigned axis) const;
+    int GetGraphDirection(bool allowWeak) const;
+    bool IsIdenticallyZero() const;
+    bool DependsOn(unsigned axis) const;
+    int GetReflectionParity(unsigned axis) const;
+    unsigned GetBoundaryCount() const;
+    bool IsZeroOnBoundary(unsigned boundary) const;
+    unsigned GetZeroBoundaryMask() const;
+    void RestrictBoundary(unsigned boundary, CutFemLevelSetData& child) const;
+    void PermuteAxes(const std::array<unsigned,3>& axes, CutFemLevelSetData& chart) const;
+    void PermuteSimplexVertices(const std::array<unsigned,4>& vertices, CutFemLevelSetData& chart) const;
+    void TransformParentComponents(unsigned degree, const std::vector<std::vector<long double>>& components, unsigned& outputDegree, std::vector<std::vector<long double>>& output) const;
+    const FiberProjection& GetFiberProjection(unsigned axis) const;
+    const std::vector<long double>& GetUnitPowerCoefficients() const;
+    long double GetUnitToReferenceMeasureScale() const;
+    long double EvaluateFiberDiscriminant(unsigned axis, const std::vector<long double>& point) const;
+    long double EvaluateFiberDiscriminant(unsigned axis, long double point) const;
+    void GetFiberBoundaryPolynomial(unsigned axis, long double constant, long double slope, std::vector<long double>& coefficient) const;
+    void GetShiftedFiberDiscriminant(unsigned axis, long double endpoint, std::array<long double,5>& coefficient) const;
 
     const std::vector<long double>& GetParentOrigin() const {
       RequireInitialized();
@@ -355,18 +412,29 @@ class CutFemLevelSetData {
 
     std::vector<long double> GetLineRoots() const;
     unsigned GetLineRoots(std::array<long double,2>& roots) const;
+    const LineAnalysis& GetLineAnalysis() const;
+
+    long double GetLineDeltaFactor(const LineRoot& root) const {
+      RequireInitialized();
+      if(_dimension != 1) throw std::logic_error("A root density requires line data.");
+      if(!std::isfinite(root.coordinate) || !std::isfinite(root.derivative)) throw std::invalid_argument("Root data must be finite.");
+      if(root.multiplicity != 1 || root.derivative == 0) throw std::domain_error("A singular line root requires endpoint handling.");
+      return 1/std::abs(root.derivative);
+    }
 
     long double EvaluateLine(long double coordinate) const { EnsurePower(); ValidateLineCoordinate(coordinate); return EvaluateQuadratic(_power.data(),1,coordinate); }
 
     long double GetLineDeltaFactor(long double coordinate) const {
       EnsurePower();
       ValidateLineCoordinate(coordinate);
+      if(_lineAnalysisReady) for(unsigned n = 0; n < _lineAnalysis->rootCount; ++n) if(coordinate == _lineAnalysis->roots[n].coordinate) return GetLineDeltaFactor(_lineAnalysis->roots[n]);
       const long double derivative = 2*_power[2]*coordinate+_power[1];
       if(derivative == 0) throw std::domain_error("A singular line root requires endpoint handling.");
       return 1/std::abs(derivative);
     }
 
     long double GetLineSurfaceData(long double coordinate, std::array<long double,3>& rootGradient) const {
+      if(_lineAnalysisReady) for(unsigned n = 0; n < _lineAnalysis->rootCount; ++n) if(coordinate == _lineAnalysis->roots[n].coordinate) return GetLineSurfaceData(_lineAnalysis->roots[n],rootGradient);
       const long double inverseDerivative = GetLineDeltaFactor(coordinate);
       rootGradient.fill(0);
       for(unsigned axis = 0; axis < _rootDimension; ++axis) rootGradient[axis] = EvaluateQuadratic(GetRootDerivative(axis).data(),1,coordinate);
@@ -436,6 +504,82 @@ class CutFemLevelSetData {
       CompleteSurfaceFactors(inverseDerivative,rootGradient,transformed,scalarFactors,normalFactors);
     }
 
+    long double GetLineSurfaceData(const LineRoot& root, std::array<long double,3>& rootGradient) const {
+      const long double inverseDerivative = GetLineDeltaFactor(root);
+      rootGradient.fill(0);
+      for(unsigned axis = 0; axis < _rootDimension; ++axis) rootGradient[axis] = EvaluateQuadratic(GetRootDerivative(axis).data(),1,root.coordinate);
+      unsigned selected = 0;
+      for(unsigned axis = 1; axis < _rootDimension; ++axis) if(std::abs(_rootMap[axis][0]) > std::abs(_rootMap[selected][0])) selected = axis;
+      if(_rootMap[selected][0] == 0) throw std::domain_error("A collapsed line chart has no surface density.");
+      long double remainder = root.derivative;
+      for(unsigned axis = 0; axis < _rootDimension; ++axis) if(axis != selected) remainder -= _rootMap[axis][0]*rootGradient[axis];
+      rootGradient[selected] = remainder/_rootMap[selected][0];
+      return inverseDerivative;
+    }
+
+    long double GetLineReferenceSurfaceFactor(const LineRoot& root) const {
+      std::array<long double,3> gradient;
+      const long double inverseDerivative = GetLineSurfaceData(root,gradient);
+      return inverseDerivative*SurfaceMetric(gradient);
+    }
+
+    long double GetLinePhysicalSurfaceFactor(const LineRoot& root, const std::array<long double,3>& cofactorGradient) const { const long double inverseDerivative = GetLineDeltaFactor(root); return inverseDerivative*SurfaceMetric(cofactorGradient); }
+    long double GetLineTangentialSurfaceFactor(const LineRoot& root, const std::array<long double,3>& cofactorGradient) const { const long double inverseDerivative = GetLineDeltaFactor(root); return inverseDerivative/SurfaceMetric(cofactorGradient); }
+
+    long double GetLineNormalSurfaceFactor(const LineRoot& root, const std::array<long double,3>& cofactorGradient, unsigned component) const {
+      ValidateSurfaceComponent(component);
+      const long double inverseDerivative = GetLineDeltaFactor(root);
+      const long double norm = SurfaceMetric(cofactorGradient);
+      return inverseDerivative*(cofactorGradient[component]/norm);
+    }
+
+    void GetLineNormalSurfaceFactors(const LineRoot& root, const std::array<long double,3>& cofactorGradient, std::array<long double,3>& normalFactors) const {
+      const long double inverseDerivative = GetLineDeltaFactor(root);
+      const long double norm = SurfaceMetric(cofactorGradient);
+      for(unsigned axis = 0; axis < normalFactors.size(); ++axis) normalFactors[axis] = axis < _rootDimension ? inverseDerivative*(cofactorGradient[axis]/norm) : 0;
+    }
+
+    long double GetLinePhysicalSurfaceFactorFromCofactor(const LineRoot& root, const std::array<std::array<long double,3>,3>& cofactor) const {
+      std::array<long double,3> transformed;
+      const long double inverseDerivative = GetLinePhysicalSurfaceData(root,cofactor,transformed);
+      return inverseDerivative*SurfaceMetric(transformed);
+    }
+
+    long double GetLineTangentialSurfaceFactorFromCofactor(const LineRoot& root, const std::array<std::array<long double,3>,3>& cofactor) const {
+      std::array<long double,3> transformed;
+      const long double inverseDerivative = GetLinePhysicalSurfaceData(root,cofactor,transformed);
+      return inverseDerivative/SurfaceMetric(transformed);
+    }
+
+    long double GetLineNormalSurfaceFactorFromCofactor(const LineRoot& root, const std::array<std::array<long double,3>,3>& cofactor, unsigned component) const {
+      ValidateSurfaceComponent(component);
+      std::array<long double,3> transformed;
+      const long double inverseDerivative = GetLinePhysicalSurfaceData(root,cofactor,transformed);
+      const long double norm = SurfaceMetric(transformed);
+      return inverseDerivative*(transformed[component]/norm);
+    }
+
+    void GetLineNormalSurfaceFactorsFromCofactor(const LineRoot& root, const std::array<std::array<long double,3>,3>& cofactor, std::array<long double,3>& normalFactors) const {
+      std::array<long double,3> transformed;
+      const long double inverseDerivative = GetLinePhysicalSurfaceData(root,cofactor,transformed);
+      const long double norm = SurfaceMetric(transformed);
+      for(unsigned axis = 0; axis < normalFactors.size(); ++axis) normalFactors[axis] = axis < _rootDimension ? inverseDerivative*(transformed[axis]/norm) : 0;
+    }
+
+    // Scalars are delta, reference surface, physical surface, and inverse metric; normals are the signed delta measures.
+    void GetLineAllSurfaceFactors(const LineRoot& root, const std::array<long double,3>& cofactorGradient, std::array<long double,4>& scalarFactors, std::array<long double,3>& normalFactors) const {
+      std::array<long double,3> rootGradient;
+      const long double inverseDerivative = GetLineSurfaceData(root,rootGradient);
+      CompleteSurfaceFactors(inverseDerivative,rootGradient,cofactorGradient,scalarFactors,normalFactors);
+    }
+
+    void GetLineAllSurfaceFactorsFromCofactor(const LineRoot& root, const std::array<std::array<long double,3>,3>& cofactor, std::array<long double,4>& scalarFactors, std::array<long double,3>& normalFactors) const {
+      std::array<long double,3> rootGradient, transformed = {0,0,0};
+      const long double inverseDerivative = GetLineSurfaceData(root,rootGradient);
+      TransformSurfaceGradient(rootGradient,cofactor,transformed);
+      CompleteSurfaceFactors(inverseDerivative,rootGradient,transformed,scalarFactors,normalFactors);
+    }
+
     static long double EvaluatePolynomial(const std::vector<long double>& coefficient, unsigned dimension, unsigned degree, const std::vector<long double>& point) {
       if(dimension < 1 || dimension > 3 || point.size() != dimension || coefficient.size() != PolynomialSize(dimension, degree)) throw std::invalid_argument("Invalid polynomial evaluation layout.");
       for(long double coordinate : point) if(!std::isfinite(coordinate)) throw std::invalid_argument("Polynomial evaluation coordinates must be finite.");
@@ -464,6 +608,13 @@ class CutFemLevelSetData {
       return inverseDerivative;
     }
 
+    long double GetLinePhysicalSurfaceData(const LineRoot& root, const std::array<std::array<long double,3>,3>& cofactor, std::array<long double,3>& transformed) const {
+      std::array<long double,3> gradient;
+      const long double inverseDerivative = GetLineSurfaceData(root,gradient);
+      TransformSurfaceGradient(gradient,cofactor,transformed);
+      return inverseDerivative;
+    }
+
     void CompleteSurfaceFactors(long double inverseDerivative, const std::array<long double,3>& rootGradient, const std::array<long double,3>& cofactorGradient, std::array<long double,4>& scalarFactors, std::array<long double,3>& normalFactors) const {
       long double referenceNorm = 0, physicalNorm = 0;
       for(unsigned axis = 0; axis < _rootDimension; ++axis) { if(!std::isfinite(cofactorGradient[axis])) throw std::invalid_argument("Surface cofactor components must be finite."); referenceNorm = std::hypot(referenceNorm,rootGradient[axis]); physicalNorm = std::hypot(physicalNorm,cofactorGradient[axis]); }
@@ -481,10 +632,10 @@ class CutFemLevelSetData {
       std::vector<unsigned> offsets;
     };
 
-    static std::array<BernsteinRestrictionPlan,17> BuildRestrictionPlans();
+    static std::array<BernsteinRestrictionPlan,19> BuildRestrictionPlans();
     const BernsteinRestrictionPlan& GetRestrictionPlan(unsigned axis) const {
-      static const std::array<BernsteinRestrictionPlan,17> plans = BuildRestrictionPlans();
-      const unsigned base = _geometry == HEX ? 0U : (_geometry == TET ? 3U : (_geometry == WEDGE ? 6U : (_geometry == QUAD ? (_bernsteinOrders[0] == 3 ? 15U : 9U) : (_bernsteinOrders[0] == 4 ? 13U : 11U))));
+      static const std::array<BernsteinRestrictionPlan,19> plans = BuildRestrictionPlans();
+      const unsigned base = _geometry == HEX ? 0U : (_geometry == TET ? 3U : (_geometry == WEDGE ? 6U : (_geometry == QUAD ? (_bernsteinOrders[0] == 3 ? 15U : (_bernsteinOrders[1] == 3 ? 17U : 9U)) : (_bernsteinOrders[0] == 4 ? 13U : 11U))));
       return plans[base+axis];
     }
 
@@ -671,22 +822,22 @@ class CutFemLevelSetData {
       if(_root) return GetDerivativeCoefficients(axis);
       return _rootDerivatives[axis];
     }
-    static void ExpandTensor(GeomElType geometry, const std::vector<double>& nodal, std::vector<long double>& coefficient);
+    template<class Real> static void ExpandTensor(GeomElType geometry, const std::vector<Real>& nodal, std::vector<long double>& coefficient);
     static void ExpandTriangle(const std::vector<long double>& nodal, std::vector<long double>& coefficient);
-    static void ExpandTetrahedron(const std::vector<double>& nodal, std::vector<long double>& coefficient);
+    template<class Real> static void ExpandTetrahedron(const std::vector<Real>& nodal, std::vector<long double>& coefficient);
     static void AddBarycentricProduct(const std::array<std::array<long double, 4>, 4>& barycentric, const std::vector<unsigned>& factors, long double multiplier, std::vector<long double>& coefficient);
     static void ConvertToBernstein(const std::vector<long double>& power, GeomElType geometry, const std::array<unsigned, 3>& orders, std::vector<long double>& controls);
     static void BuildBernsteinIndices(GeomElType geometry, const std::array<unsigned, 3>& orders, std::vector<std::array<unsigned, 3>>& indices);
-    static std::array<std::vector<std::array<unsigned,3>>,10> BuildCachedBernsteinIndices() {
-      const GeomElType geometries[10] = {HEX,TET,WEDGE,QUAD,TRI,TRI,QUAD,LINE,LINE,LINE};
-      const std::array<std::array<unsigned,3>,10> orders = {{{2,2,2},{4,4,4},{3,3,2},{2,2,0},{3,3,0},{4,4,0},{3,2,0},{2,0,0},{3,0,0},{4,0,0}}};
-      std::array<std::vector<std::array<unsigned,3>>,10> result;
+    static std::array<std::vector<std::array<unsigned,3>>,11> BuildCachedBernsteinIndices() {
+      const GeomElType geometries[11] = {HEX,TET,WEDGE,QUAD,TRI,TRI,QUAD,LINE,LINE,LINE,QUAD};
+      const std::array<std::array<unsigned,3>,11> orders = {{{2,2,2},{4,4,4},{3,3,2},{2,2,0},{3,3,0},{4,4,0},{3,2,0},{2,0,0},{3,0,0},{4,0,0},{2,3,0}}};
+      std::array<std::vector<std::array<unsigned,3>>,11> result;
       for(unsigned layout = 0; layout < result.size(); ++layout) BuildBernsteinIndices(geometries[layout],orders[layout],result[layout]);
       return result;
     }
     static const std::vector<std::array<unsigned,3>>& CachedBernsteinIndices(GeomElType geometry, const std::array<unsigned,3>& orders) {
-      static const std::array<std::vector<std::array<unsigned,3>>,10> indices = BuildCachedBernsteinIndices();
-      const unsigned layout = geometry == HEX ? 0U : (geometry == TET ? 1U : (geometry == WEDGE ? 2U : (geometry == QUAD ? (orders[0] == 3 ? 6U : 3U) : (geometry == TRI ? (orders[0] == 4 ? 5U : 4U) : orders[0]+5U))));
+      static const std::array<std::vector<std::array<unsigned,3>>,11> indices = BuildCachedBernsteinIndices();
+      const unsigned layout = geometry == HEX ? 0U : (geometry == TET ? 1U : (geometry == WEDGE ? 2U : (geometry == QUAD ? (orders[0] == 3 ? 6U : (orders[1] == 3 ? 10U : 3U)) : (geometry == TRI ? (orders[0] == 4 ? 5U : 4U) : orders[0]+5U))));
       return indices[layout];
     }
     static unsigned BernsteinIndex(GeomElType geometry, const std::array<unsigned, 3>& orders, const std::array<unsigned, 3>& index);
@@ -696,6 +847,59 @@ class CutFemLevelSetData {
     void RestrictionMap(unsigned axis, long double coordinate, GeomElType& childGeometry, std::array<long double,3>& origins, std::array<long double,3>& scales) const;
     static void RestrictPower(const std::vector<long double>& input, unsigned dimension, unsigned degree, unsigned axis, long double coordinate, const std::array<long double,3>& origins, const std::array<long double,3>& scales, std::vector<long double>& output);
     void RestrictBernstein(unsigned axis, long double coordinate, CutFemLevelSetData& child) const;
+
+    struct PolynomialSource {
+      GeomElType geometry = LINE;
+      unsigned dimension = 0;
+      long double norm = 0;
+      std::array<long double,27> power = {};
+    };
+
+    void InvalidateAnalysis();
+    void EnsureSource() const;
+    void GetCompensatedLineCoefficients(std::array<std::array<long double,2>,3>& coefficient) const;
+    std::array<long double,2> CompensatedSourceValue(const std::array<long double,3>& point) const;
+    static std::array<long double,2> CompensatedAdd(const std::array<long double,2>& first, const std::array<long double,2>& second);
+    static std::array<long double,2> CompensatedMultiply(const std::array<long double,2>& first, const std::array<long double,2>& second);
+    static std::array<long double,2> CompensatedEvaluate(const long double* coefficient, unsigned dimension, unsigned degree, const std::array<std::array<long double,2>,3>& point);
+    static long double QuadraticDiscriminant(const std::array<std::array<long double,2>,3>& coefficient);
+    static unsigned SolveQuadratic(long double a, long double b, long double c, long double discriminant, std::array<long double,2>& roots);
+    static const std::vector<std::array<long double,3>>& ReferenceNodes(GeomElType geometry);
+    static void ExpandNative(GeomElType geometry, const std::vector<long double>& nodal, std::vector<long double>& coefficient);
+    static std::array<std::array<std::array<long double,27>,27>,6> BuildInterpolationTables();
+    static void ExpandChartNodal(GeomElType geometry, const std::vector<long double>& nodal, std::vector<long double>& coefficient);
+    void InitializeChart(CutFemLevelSetData& chart) const;
+    void ComposeChartMaps(CutFemLevelSetData& chart) const;
+    void EnsureBoundaryData() const;
+    void PropagateBoundaryData(unsigned axis, long double coordinate, CutFemLevelSetData& child) const;
+    int ZeroFiberStatus(unsigned axis) const;
+    const GraphCertificate& PrepareGraphCertificate(unsigned axis, bool includeWeak) const;
+
+    mutable std::shared_ptr<const PolynomialSource> _source;
+    unsigned _restrictionSteps = 0;
+    std::array<unsigned,2> _restrictionAxes = {0,0};
+    std::array<long double,2> _restrictionCoordinates = {0,0};
+    mutable bool _lineAnalysisReady = false;
+    mutable std::shared_ptr<LineAnalysis> _lineAnalysis;
+    mutable bool _zeroReady = false;
+    mutable bool _identicallyZero = false;
+    mutable bool _boundaryReady = false;
+    mutable unsigned _zeroBoundaryMask = 0;
+    mutable bool _dependenceReady = false;
+    mutable std::array<bool,3> _depends = {false,false,false};
+    mutable std::array<int,3> _parity = {0,0,0};
+    mutable std::array<bool,3> _graphCertificateReady = {false,false,false};
+    mutable std::array<bool,3> _graphWeakReady = {false,false,false};
+    mutable std::shared_ptr<std::array<GraphCertificate,3>> _graphCertificates;
+    mutable std::array<bool,3> _zeroFiberReady = {false,false,false};
+    mutable std::array<int,3> _zeroFiberStatus = {0,0,0};
+    mutable std::array<bool,3> _projectionReady = {false,false,false};
+    mutable std::array<std::shared_ptr<FiberProjection>,3> _projections;
+    mutable bool _unitPowerReady = false;
+    mutable std::vector<long double> _unitPower;
+    std::vector<long double> _chartNodal;
+    mutable std::vector<long double> _componentTerm;
+    mutable std::vector<long double> _componentNext;
 
     bool _initialized = false;
     bool _root = false;
@@ -727,6 +931,7 @@ class CutFemLevelSetData {
     std::array<unsigned, 3> _bernsteinOrders = {0, 0, 0};
     mutable std::array<bool, 3> _derivativeReady = {false, false, false};
     mutable std::array<bool, 3> _derivativeBoundsReady = {false, false, false};
+    mutable std::array<unsigned char,3> _derivativeCornerSigns = {0,0,0};
     mutable bool _graphDirectionReady = false;
     mutable int _graphDirection = -1;
     mutable std::array<std::vector<long double>, 3> _derivatives;
@@ -742,7 +947,7 @@ class CutFemLevelSetData {
     mutable std::array<unsigned long long, 4> _workCounts = {0, 0, 0, 0};
 };
 
-inline void CutFemLevelSetData::ExpandTensor(GeomElType geometry, const std::vector<double>& nodal, std::vector<long double>& coefficient) {
+template<class Real> inline void CutFemLevelSetData::ExpandTensor(GeomElType geometry, const std::vector<Real>& nodal, std::vector<long double>& coefficient) {
   const unsigned dimension = Dimension(geometry);
   const unsigned line[3][3] = {{0, 0, 0}, {2, 0, 0}, {1, 0, 0}};
   const unsigned quad[9][3] = {{0, 0, 0}, {2, 0, 0}, {2, 2, 0}, {0, 2, 0}, {1, 0, 0}, {2, 1, 0}, {1, 2, 0}, {0, 1, 0}, {1, 1, 0}};
@@ -805,7 +1010,7 @@ inline void CutFemLevelSetData::AddBarycentricProduct(const std::array<std::arra
   for(unsigned n = 0; n < product.size(); ++n) coefficient[n] += product[n];
 }
 
-inline void CutFemLevelSetData::ExpandTetrahedron(const std::vector<double>& nodal, std::vector<long double>& coefficient) {
+template<class Real> inline void CutFemLevelSetData::ExpandTetrahedron(const std::vector<Real>& nodal, std::vector<long double>& coefficient) {
   const std::array<std::array<long double, 4>, 4> barycentric = {{{1, -1, -1, -1}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
   const unsigned edges[6][2] = {{0, 1}, {1, 2}, {0, 2}, {0, 3}, {1, 3}, {2, 3}};
   const unsigned faces[4][3] = {{0, 1, 2}, {0, 1, 3}, {1, 2, 3}, {0, 2, 3}};
@@ -1198,12 +1403,12 @@ inline void CutFemLevelSetData::RestrictPower(const std::vector<long double>& in
   for(unsigned childAxis = 0; childAxis < dimension - 1; ++childAxis) AffinePower(output, dimension - 1, degree, childAxis, origins[childAxis], scales[childAxis], output);
 }
 
-inline std::array<CutFemLevelSetData::BernsteinRestrictionPlan,17> CutFemLevelSetData::BuildRestrictionPlans() {
-  const GeomElType geometries[7] = {HEX,TET,WEDGE,QUAD,TRI,TRI,QUAD};
-  const std::array<std::array<unsigned,3>,7> orders = {{{2,2,2},{4,4,4},{3,3,2},{2,2,0},{3,3,0},{4,4,0},{3,2,0}}};
-  std::array<BernsteinRestrictionPlan,17> result;
+inline std::array<CutFemLevelSetData::BernsteinRestrictionPlan,19> CutFemLevelSetData::BuildRestrictionPlans() {
+  const GeomElType geometries[8] = {HEX,TET,WEDGE,QUAD,TRI,TRI,QUAD,QUAD};
+  const std::array<std::array<unsigned,3>,8> orders = {{{2,2,2},{4,4,4},{3,3,2},{2,2,0},{3,3,0},{4,4,0},{3,2,0},{2,3,0}}};
+  std::array<BernsteinRestrictionPlan,19> result;
   unsigned nextPlan = 0;
-  for(unsigned layout = 0; layout < 7; ++layout) {
+  for(unsigned layout = 0; layout < 8; ++layout) {
     const GeomElType geometry = geometries[layout];
     const unsigned dimension = Dimension(geometry);
     for(unsigned axis = 0; axis < dimension; ++axis) {
@@ -1299,6 +1504,14 @@ inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, 
   child._secondDerivativeReady.fill(false);
   child._derivativeBoundsReady.fill(false);
   child._graphDirectionReady = false;
+  child.InvalidateAnalysis();
+  EnsureSource();
+  child._source = _source;
+  child._restrictionSteps = _restrictionSteps+1;
+  child._restrictionAxes = _restrictionAxes;
+  child._restrictionCoordinates = _restrictionCoordinates;
+  child._restrictionAxes[_restrictionSteps] = axis;
+  child._restrictionCoordinates[_restrictionSteps] = coordinate;
   RestrictPower(_power, _dimension, 2, axis, coordinate, origins, scales, child._power);
   child._powerReady = true;
   if(retainRootGradient) for(unsigned rootAxis = 0; rootAxis < _rootDimension; ++rootAxis) RestrictPower(GetRootDerivative(rootAxis), _dimension, 2, axis, coordinate, origins, scales, child._rootDerivatives[rootAxis]);
@@ -1325,6 +1538,7 @@ inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, 
     for(unsigned parentAxis = 0; parentAxis < _dimension; ++parentAxis) if(parentAxis != axis) { child._rootMap[rootAxis][local] = _rootMap[rootAxis][parentAxis]*scales[local]; ++local; }
   }
   RestrictBernstein(axis, coordinate, child);
+  PropagateBoundaryData(axis,coordinate,child);
   child.Classify();
   ++_workCounts[3];
 }
@@ -1336,41 +1550,14 @@ inline std::vector<long double> CutFemLevelSetData::GetLineRoots() const {
 }
 
 inline unsigned CutFemLevelSetData::GetLineRoots(std::array<long double,2>& roots) const {
-  EnsurePower();
-  if(_dimension != 1) throw std::logic_error("Line roots require one-dimensional data.");
-  const long double a = _power[2] / _normalization;
-  const long double b = _power[1] / _normalization;
-  const long double c = _power[0] / _normalization;
+  const LineAnalysis& analysis = GetLineAnalysis();
+  if(analysis.identicallyZero) throw std::domain_error("An identically zero line has no isolated root set.");
   roots.fill(0);
-  std::array<long double,2> candidates;
-  unsigned count = 0, result = 0;
-  if(a == 0) {
-    if(b == 0) {
-      if(c == 0) throw std::domain_error("An identically zero line has no isolated root set.");
-      return 0;
-    }
-    candidates[count++] = -c/b;
-  }
-  else {
-    const long double square = b * b;
-    const long double product = 4 * a * c;
-    const long double discriminant = (square - product) + (std::fma(b, b, -square) - std::fma(4 * a, c, -product));
-    if(discriminant < 0) return 0;
-    if(discriminant == 0) candidates[count++] = -b/(2*a);
-    else {
-      const long double q = -0.5L * (b + std::copysign(std::sqrt(discriminant), b));
-      candidates[count++] = q/a;
-      candidates[count++] = c/q;
-    }
-  }
-  if(count == 2 && candidates[1] < candidates[0]) std::swap(candidates[0],candidates[1]);
-  const long double padding = 64 * std::numeric_limits<long double>::epsilon();
-  for(unsigned n = 0; n < count; ++n) if(std::isfinite(candidates[n]) && candidates[n] >= -1-padding && candidates[n] <= 1+padding) {
-      long double root = candidates[n];
-      root = std::max(-1.0L, std::min(1.0L, root));
-      if(result == 0 || root != roots[result-1]) roots[result++] = root;
-    }
-  return result;
+  for(unsigned n = 0; n < analysis.rootCount; ++n) roots[n] = analysis.roots[n].coordinate;
+  return analysis.rootCount;
 }
+
+#include "CutFemLevelSetDataAnalysis.hpp"
+#include "CutFemLevelSetDataCharts.hpp"
 
 #endif

@@ -29,3 +29,14 @@ Incremental updates between neighboring slice coordinates are deferred; the curr
 The ex47 speed revision starts from formatting commit `26cbb141`, shares immutable reference tables, uses allocation-free prepared restriction/certification, and supplies every regular-root surface density from prepared cofactor-gradient data or a constant affine cofactor matrix. See [kernel timings](../../../applications/MultiPhase/ex47/PERFORMANCE.md); migration into the production integration traversal remains pending.
 
 Surface measure selection is now explicit in ex47: dedicated evaluators compute only the requested density, normal families share their metric, and all-measure evaluation is an explicitly named batch option. Restriction can omit original-gradient context for delta/prepared-cofactor-gradient modes; geometry preparation is needed only by physical modes. Production migration should select these dependencies before the quadrature loops.
+
+Additional preparation is implemented and tested locally in ex47:
+
+- [x] Retain LINE roots, stable signed derivatives, multiplicities, endpoint tags, positive intervals, and zero-fiber status; reuse root records for selected surface measures.
+- [x] Preserve compensated parent-to-LINE contraction and discriminant evaluation near folds, including tiny cuts hidden by a rounded-away coefficient.
+- [x] Retain exact nodal zero-face certificates and provide all boundary restrictions, supported axis/barycentric charts, original-component maps, and explicit unit-coordinate exports.
+- [x] Transform external polynomial components through charts without truncating increased coordinate degree.
+- [x] Prepare strict/weak graph information, tighter QUAD bounds, dependence/parity, and normalized projection polynomials lazily.
+- [x] Preserve copied caches during workspace reuse and validate accuracy, sanitizers, fresh-slice timings, and warmed allocations in ex47 main.
+
+Production integration must preserve the old endpoint-aware derivative transformations and boundary-contribution conventions, select and retain charts outside quadrature-point loops, reconcile native/unit Jacobian factors, and keep geometry, moment order, GK rules, adaptive panels, and final weight caches outside the level-set record. Unresolved zero-fiber cases must remain uncertified.
