@@ -1,5 +1,6 @@
 #ifndef FEMUS_UNIT_ELEMENT_MOMENTS_HPP
 #define FEMUS_UNIT_ELEMENT_MOMENTS_HPP
+#include <cstdlib>
 
 #include "Hex27DirectionSelection.hpp"
 #include "EndpointStripQuadrature.hpp"
@@ -154,6 +155,7 @@ inline void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, un
   }
   else {
     SurfaceEndpointData data;
+    if (std::getenv("FEMUS_CUTFEM_UNLIMITED")) { data.maximumDepth = 48; data.maximumEvaluations = 1000000000U; }
     data.quadratureRules = rules;
     data.coefficient = coefficient;
     data.gradient = metric;

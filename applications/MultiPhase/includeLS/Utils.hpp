@@ -10,8 +10,8 @@
 #include "CDWeights.hpp"
 #include "MultiLevelProblem.hpp"
 typedef double TypeIO;
-typedef cpp_bin_float_oct TypeA;
-// typedef long double TypeA;
+// typedef cpp_bin_float_oct TypeA;
+typedef long double TypeA;
 typedef cpp_bin_float_oct oct;
 
 const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Zero;
@@ -59,7 +59,10 @@ unsigned surfaceMomentOrder = 13;
 unsigned surfaceWeightCount = 3;
 FELevelSetMoments::OuterQuadratureRules surfaceQuadratureRules;
 std::unique_ptr<Fem> surfaceFem;
-std::unique_ptr<CutFemWeightRules_LS<TypeIO,TypeA>> surfaceRules;
+// std::unique_ptr<CutFemWeightRules_LS<TypeIO,TypeA>> surfaceRules;
+using SurfaceFitPrecision = cpp_bin_float_quad;
+
+std::unique_ptr<CutFemWeightRules_LS<TypeIO, SurfaceFitPrecision>> surfaceRules;
 
 // Initializes only mesh element types, before any assembly, and keeps the selected profile fixed.
 void InitializeSurfaceQuadrature(Mesh& mesh) {
@@ -73,7 +76,8 @@ void InitializeSurfaceQuadrature(Mesh& mesh) {
   MPI_Allreduce(localGeometry,globalGeometry,6,MPI_INT,MPI_MAX,MPI_COMM_WORLD);
   std::vector<GeomElType> geometries;
   for(unsigned geometry = 0; geometry < 6; ++geometry) if(globalGeometry[geometry]) geometries.push_back(static_cast<GeomElType>(geometry));
-  surfaceRules.reset(new CutFemWeightRules_LS<TypeIO,TypeA>(surfaceMomentOrder,geometries,surfaceQuadratureRules));
+  // surfaceRules.reset(new CutFemWeightRules_LS<TypeIO,TypeA>(surfaceMomentOrder,geometries,surfaceQuadratureRules));
+  surfaceRules.reset(new CutFemWeightRules_LS<TypeIO, SurfaceFitPrecision>(surfaceMomentOrder,geometries,surfaceQuadratureRules));
   surfaceFem.reset(new Fem(2U*surfaceMomentOrder,mesh.GetDimension()));
 }
 
@@ -4278,11 +4282,11 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.x_min[2] = 0.;
       cfg.x_max[2] = (dim == 3) ? 0.01 : 0.;
 
-      cfg.n[0] = (dim == 3) ? 8 : 8;
-      cfg.n[1] = (dim == 3) ? 8 : 8;
-      cfg.n[2] = (dim == 3) ? 8 : 0;
+      cfg.n[0] = (dim == 3) ? 2 : 4;
+      cfg.n[1] = (dim == 3) ? 2 : 4;
+      cfg.n[2] = (dim == 3) ? 2 : 0;
 
-      cfg.period = 1.e-2;
+      cfg.period = 0.03;
 
       cfg.psi.type = PsiType::BALL;
       cfg.psi.center = {0.005, 0.005, 0.005};
@@ -4566,6 +4570,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
     if (simulation == SimulationCase::PAR) {
       if (dim == 2) HalveDomainDirection(1);
       if (dim == 3) {
+        // HalveDomainDirection(1);
         HalveDomainDirection(2);
       }
     }
@@ -5688,6 +5693,7 @@ void PrintBurstingBubbleMetrics(
   }
 }
 
+
 void InitializeParasiticCurrents(const unsigned levelC) {
 
   int iproc;
@@ -5714,13 +5720,14 @@ void InitializeParasiticCurrents(const unsigned levelC) {
 }
 
 
-void PrintParasiticCurrents(MultiLevelSolution* mlSol,
-                            const unsigned level,
-                            const unsigned levelC,
-                            const double time,
-                            const std::vector<std::string>& velocityNames,
-                            const SimulationConfig& cfg,
-                            const CutFemIntegration integration) {
+void PrintParasiticCurrents(
+    MultiLevelSolution* mlSol,
+    const unsigned level,
+    const unsigned levelC,
+    const double time,
+    const std::vector<std::string>& velocityNames,
+    const SimulationConfig& cfg,
+    const CutFemIntegration integration) {
 
   Solution* sol = mlSol->GetSolutionLevel(level);
   Mesh* msh = sol->GetMesh();
@@ -5740,8 +5747,11 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
   for(unsigned d = 0; d < dim; ++d)
     velIndex[d] = mlSol->GetIndex(velocityNames[d].c_str());
 
-  const unsigned first = sol->_Sol[velIndex[0]]->first_local_index();
-  const unsigned last  = sol->_Sol[velIndex[0]]->last_local_index();
+  const unsigned first =
+    sol->_Sol[velIndex[0]]->first_local_index();
+
+  const unsigned last =
+    sol->_Sol[velIndex[0]]->last_local_index();
 
   double localUmax = 0.;
 
@@ -5759,8 +5769,10 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
 
   double Umax = 0.;
 
-  MPI_Allreduce(&localUmax, &Umax, 1,
-                MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(
+    &localUmax, &Umax, 1,
+    MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD
+  );
 
   // ============================================================
   // 2. Exact Young-Laplace pressure jump
@@ -5777,6 +5789,7 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
 
   const unsigned p1Index = mlSol->GetIndex("P1");
   const unsigned p2Index = mlSol->GetIndex("P2");
+
   const unsigned pType = mlSol->GetSolutionType(p1Index);
   const unsigned xType = 2;
 
@@ -5786,10 +5799,10 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
   Psi exactPsi(cfg.psi);
 
   // ============================================================
-  // 3. Integrate pressure on both physical phases
+  // 3. Integrate pressure over the physical phases
   //
   // First pass:
-  //   volume1, volume2, integral(P1), integral(P2)
+  //   V1, V2, integral(P1), integral(P2)
   //
   // Second pass:
   //   integral((P1 - p0 - exactJump)^2)
@@ -5805,18 +5818,28 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
         iel < msh->_elementOffset[iproc + 1]; ++iel) {
 
       const unsigned ielType = msh->GetElementType(iel);
-      const unsigned nX = msh->GetElementDofNumber(iel, xType);
-      const unsigned nP = msh->GetElementDofNumber(iel, pType);
 
-      const elem_type* femX = fem.GetFiniteElement(ielType, xType);
-      const elem_type* femP = fem.GetFiniteElement(ielType, pType);
+      const unsigned nX =
+        msh->GetElementDofNumber(iel, xType);
+
+      const unsigned nP =
+        msh->GetElementDofNumber(iel, pType);
+
+      const elem_type* femX =
+        fem.GetFiniteElement(ielType, xType);
+
+      const elem_type* femP =
+        fem.GetFiniteElement(ielType, pType);
 
       const unsigned nGauss = femX->GetGaussPointNumber();
 
       if(femP->GetGaussPointNumber() != nGauss)
         throw std::runtime_error("Pressure Gauss rule mismatch");
 
-      std::vector<std::vector<double>> coordX(dim, std::vector<double>(nX));
+      std::vector<std::vector<double>> coordX(
+        dim, std::vector<double>(nX)
+      );
+
       std::vector<double> psi(nX);
       std::vector<double> p1(nP);
       std::vector<double> p2(nP);
@@ -5826,7 +5849,9 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
 
       for(unsigned i = 0; i < nX; ++i) {
 
-        const unsigned dof = msh->GetSolutionDof(i, iel, xType);
+        const unsigned dof =
+          msh->GetSolutionDof(i, iel, xType);
+
         std::vector<double> x(dim);
 
         for(unsigned d = 0; d < dim; ++d) {
@@ -5842,7 +5867,8 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
 
       for(unsigned i = 0; i < nP; ++i) {
 
-        const unsigned dof = msh->GetSolutionDof(i, iel, pType);
+        const unsigned dof =
+          msh->GetSolutionDof(i, iel, pType);
 
         p1[i] = (*sol->_Sol[p1Index])(dof);
         p2[i] = (*sol->_Sol[p2Index])(dof);
@@ -5862,7 +5888,8 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
       }
 
       const bool cut =
-        psiMin <= 0. && psiMax >= 0. &&
+        psiMin <= 0. &&
+        psiMax >= 0. &&
         psiMax - psiMin > 1.e-14;
 
       std::vector<TypeIO> weightInner(nGauss, 0.);
@@ -5877,7 +5904,8 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
           std::vector<const double*> xg(dim);
 
           for(unsigned d = 0; d < dim; ++d)
-            xg[d] = femX->GetGaussRule().GetGaussCoordinatePointer(d);
+            xg[d] =
+              femX->GetGaussRule().GetGaussCoordinatePointer(d);
 
           std::vector<double> a;
 
@@ -5886,7 +5914,9 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
           const double b = a[dim];
           a.resize(dim);
 
-          cfw[ielType]->GetWeightWithMap(0, a, b, weightInner);
+          cfw[ielType]->GetWeightWithMap(
+            0, a, b, weightInner
+          );
         }
         else {
 
@@ -5904,13 +5934,22 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
           rule->SetDirectionValidation(0);
 
           rule->GetPhysicalSurfaceWeightsFromNodalGeometry(
-            psi, coordX, weightInner, weightInterface,
-            1.e-8, 1.e-8);
+            psi,
+            coordX,
+            weightInner,
+            weightInterface,
+            1.e-8,
+            1.e-8
+          );
         }
       }
       else {
-        std::fill(weightInner.begin(), weightInner.end(),
-                  (psiMax > 0.) ? 1. : 0.);
+
+        std::fill(
+          weightInner.begin(),
+          weightInner.end(),
+          (psiMax > 0.) ? 1. : 0.
+        );
       }
 
       std::vector<double> phiX;
@@ -5920,7 +5959,9 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
 
         double weight = 0.;
 
-        femX->Jacobian(coordX, ig, weight, phiX, phiX_x);
+        femX->Jacobian(
+          coordX, ig, weight, phiX, phiX_x
+        );
 
         const double* phiP = femP->GetPhi(ig);
 
@@ -5941,7 +5982,8 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
 
           r -= cfg.x_min[0];
 
-          weight *= 2. * std::acos(-1.) * std::max(0., r);
+          weight *=
+            2. * std::acos(-1.) * std::max(0., r);
         }
 
         const double wi = weight * weightInner[ig];
@@ -5967,8 +6009,14 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
 
     std::vector<double> global(4, 0.);
 
-    MPI_Allreduce(local.data(), global.data(), 4,
-                  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(
+      local.data(),
+      global.data(),
+      4,
+      MPI_DOUBLE,
+      MPI_SUM,
+      MPI_COMM_WORLD
+    );
 
     return global;
   };
@@ -5983,7 +6031,9 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
   const double volume2 = moments[1];
 
   if(volume1 <= 0. || volume2 <= 0.)
-    throw std::runtime_error("Empty phase in PAR pressure diagnostic");
+    throw std::runtime_error(
+      "Empty phase in PAR pressure diagnostic"
+    );
 
   const double meanP1 = moments[2] / volume1;
   const double meanP2 = moments[3] / volume2;
@@ -5991,6 +6041,7 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
   const double numericalJump = meanP1 - meanP2;
   const double jumpError = std::abs(numericalJump - exactJump);
 
+  // Remove the arbitrary common pressure gauge.
   const auto errors = IntegratePressure(true, meanP2);
 
   const double pressureL2 =
@@ -6033,3 +6084,4 @@ void PrintParasiticCurrents(MultiLevelSolution* mlSol,
               << std::endl;
   }
 }
+

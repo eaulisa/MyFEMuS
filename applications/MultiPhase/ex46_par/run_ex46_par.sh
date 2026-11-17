@@ -5,7 +5,7 @@ set -euo pipefail
 # PARASITIC CURRENTS: EDIT ONLY THIS CONFIGURATION SECTION
 # ============================================================
 NPROC=8
-DIM=3                               # 2 | 3
+DIM=2                               # 2 | 3
 MESHES=(imported)                  # generated | imported; may run both
 
 # Imported mesh: Q1-projected QUAD9/HEX27 .neu files.
@@ -19,7 +19,7 @@ NY=8
 NZ=8
 
 UNIFORM_LEVELS=(1)
-NSTEPS=(100)                       # dt = 0.03 / NSTEPS; not actual solves
+NSTEPS=(1000)                       # dt = 0.03 / NSTEPS; not actual solves
 SOLVE_STEPS=1                       # actual NS steps, with fixed interface
 INITIAL_PRESSURE="young-laplace"   # young-laplace | zero
 
@@ -28,10 +28,10 @@ PRESSURE_GP=1
 VELOCITY_GP=0
 STABILIZATION=0
 
-SURFACE_MOMENT_ORDER=17
+SURFACE_MOMENT_ORDER=10
 SURFACE_MOMENT_TOL=1.e-12
 SURFACE_WEIGHTS=1                   # 3D: three signed-normal moments
-SURFACE_GK="7/15"
+SURFACE_GK="15/31"
 SURFACE_EXTENDED_BUDGET=1
 SURFACE_PRESSURE_DIAGNOSTIC=1
 

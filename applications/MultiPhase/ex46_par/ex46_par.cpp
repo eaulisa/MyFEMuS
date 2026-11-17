@@ -541,6 +541,8 @@ int main(int argc,char** argv) {
   }
   MPI_Barrier(MPI_COMM_WORLD);
 
+  InitializeParasiticCurrents(levelC);
+
   for(unsigned step=1;step<=opt.solveSteps;++step) {
     mlSol0.CopySolutionToOldSolution();
     const TimeDiscretization td=step==1 ?
@@ -623,7 +625,7 @@ int main(int argc,char** argv) {
     FS_P.MgSetParameters(4,4,0);
     std::vector<FieldSplitTree*> splits={&FS_V,&FS_P};
     FieldSplitTree FS_NS(GMRES,FIELDSPLIT_SCHUR_PRECOND,splits,"Navier-Stokes");
-    FS_NS.SetTolerances(1.e-20,1.e-20,1.e+50,100);
+    FS_NS.SetTolerances(1.e-20,1.e-20,1.e+50,50);
     system.SetLinearEquationSolverType(FEMuS_FIELDSPLIT,INCLUDE_COARSE_LEVEL_TRUE);
     system.SetMaxNumberOfNonLinearIterations(1);
     system.SetMaxNumberOfLinearIterations(10);
@@ -631,7 +633,7 @@ int main(int argc,char** argv) {
     system.init();
     system.SetOuterSolver(FGMRES);
     system.SetFieldSplitTree(&FS_NS);
-    system.SetTolerances(1.e-20,1.e-20,1.e+50,50);
+    system.SetTolerances(1.e-20,1.e-20,1.e+50,200);
     system.SetAbsoluteLinearConvergenceTolerance(1.e-16);
     for(unsigned l=0;l<=levelC;++l)
       system._LinSolver[l]->SetSolution(&mlSol2.GetSolutionLevel(l)->_Sol);
@@ -652,7 +654,10 @@ int main(int argc,char** argv) {
     else system.Solve();
 
     const ParVelocityNorms norms=MeasureParVelocity(mlSol2,levelC);
-    const double time=step*dt;
+    const double time = (static_cast<double>(step) - 0.5) * dt;
+
+    PrintParasiticCurrents(&mlSol2, levelC, levelC, time, vName, cfg,cutFemIntegration);
+    
     if(rank==0) {
       std::cout << "PAR step " << step << '/' << opt.solveSteps
                 << ", t=" << std::setprecision(15) << time
