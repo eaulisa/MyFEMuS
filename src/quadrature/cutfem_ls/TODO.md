@@ -10,5 +10,12 @@
 - [ ] Keep geometry data separate and invalidate geometry-dependent derived quantities when either the geometry or level-set state changes; obtain slice, subregion, and chart coefficients from retained parent data.
 - [ ] Keep fixed Gauss rules and moment-to-weight matrices in the reusable quadrature objects; keep final weight arrays in integration workspace by default rather than permanently storing every weight family in every element record.
 - [ ] Add integration interfaces that consume prepared element data and migrate detection and assembly to use them; preserve the existing nodal interfaces as compatibility wrappers.
+- [ ] Add recursive `Restrict(axis, coordinate, child)` to `CutFemLevelSetData`, producing a lower-dimensional object of the same class: HEX to QUAD, TET to TRI, WEDGE to TRI for height slices or QUAD for triangle-coordinate slices, and QUAD/TRI to LINE.
+- [ ] Initialize slice data directly from parent coefficients using Horner contraction for power coefficients and Bernstein contraction/de Casteljau evaluation when Bernstein coefficients are needed; avoid rebuilding nodal values or invoking the nodal constructor for slices.
+- [ ] Carry the slice domain, active coordinates, reference-domain rescaling, normalization, classification, and derivative context through each restriction; keep integration dimension separate from physical dimension and retain all three physical surface-factor components for slices of a 3D element.
+- [ ] Allocate one reusable child workspace per integration level; overwrite slice-dependent data and invalidate derived caches when the slicing coordinate changes while retaining allocated storage and the shared fixed quadrature objects.
+- [ ] Specialize identity and zero-origin scaling chart transformations to avoid unnecessary generic polynomial transformations during slicing.
 
 Preserve the roundoff margins and classify opposite nodal signs, zero nodal values, and unresolved Bernstein cases as possible cuts.
+
+Incremental updates between neighboring slice coordinates are deferred; the current plan evaluates restrictions directly at the nonuniform Gauss-Kronrod points.
