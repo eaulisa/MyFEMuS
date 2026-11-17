@@ -1,5 +1,7 @@
 # Prepared quadrature kernel timings
 
+The first comparison below records commit `67f00f5ed`. The latest selective-measure revision is documented in the final section.
+
 Baseline: the exact class from the user formatting commit `26cbb141a881550597e0106ba9d0691eddbfad04`. Both executables use the same added benchmark driver and deterministic inputs; the baseline has no functional class changes. GCC 14.2.0, `-O3 -DNDEBUG`, Boost 1.86.0; double has 53 significand bits and long double has 64 on this runtime. No fast-math flags or precision downgrades are used.
 
 Each number is the median of five interleaved baseline/optimized process runs, with 20,000 calls per kernel after 64 warm-up calls. Final runs had no concurrent builds. Results describe these local kernels, not complete production integration or assembly. Checksums agree at the printed precision.
@@ -96,3 +98,81 @@ A separate Release build with `EX47_TRACK_ALLOCATIONS=ON` instruments global C++
 - All surface density families share the line derivative and metric evaluation. Affine elements can supply one constant cofactor matrix; non-affine elements can supply restricted cofactor-gradient polynomials.
 
 See [README](README.md) for interfaces and commands, and [VALIDATION](VALIDATION.md) for accuracy and sanitizer results.
+
+## Selective surface evaluation
+
+The selective revision starts from `67f00f5edd5e2de1ca61cba0a54d83eb7b3e75ea`. Dedicated functions compute one requested measure, and only explicitly named `GetLineAllSurfaceFactors` methods compute every measure. Normal-family methods share the line derivative and physical metric; single-component methods produce only the requested component while retaining the full metric norm.
+
+These measurements compare explicit all-measure evaluation with its selected replacement in the same executable. A switch selects the benchmark's loop once, outside all point evaluations. Every pair uses identical curved-level-set data and its checksums agree exactly. Each number is the median of five isolated process runs, with 20,000 calls after 128 warm-up calls. No concurrent builds were running. The 64 evaluation points are regular line-chart points near an actual sphere/circle intersection; correctness tests separately cover exact roots, analytic geometry, and multiprecision references over scales 1e-200 through 1e200 and small-cut radii down to 1e-12.
+
+`physical`, `tangential`, `normal0`, and `normals` consume prepared cofactor-gradient values and use slices without original-gradient context. `matrix_*` methods compute the cofactor-gradient from a supplied matrix and retain original-gradient context. `restrict_selected` compares the same recursive restriction with original-gradient contraction omitted; it does not change roots, bounds, maps, or classification. Root solving, geometry-polynomial preparation, outer quadrature, moment accumulation, and final weight fitting are outside the density timings.
+
+| Element | Selected kernel | All measures/full context (ns) | Selected (ns) | Speedup |
+| --- | --- | ---: | ---: | ---: |
+| LINE3 | `delta` | 75.9 | 15.9 | 4.78x |
+| LINE3 | `reference` | 81.1 | 42.2 | 1.92x |
+| LINE3 | `physical` | 74.8 | 21.6 | 3.46x |
+| LINE3 | `tangential` | 74.3 | 21.3 | 3.48x |
+| LINE3 | `normal0` | 74.5 | 23.8 | 3.12x |
+| LINE3 | `normals` | 75.9 | 41.1 | 1.85x |
+| LINE3 | `matrix_physical` | 151.7 | 53.5 | 2.84x |
+| LINE3 | `matrix_tangential` | 154.2 | 54.4 | 2.83x |
+| LINE3 | `matrix_normal0` | 149.5 | 62.0 | 2.41x |
+| LINE3 | `matrix_normals` | 153.9 | 89.0 | 1.73x |
+| QUAD9 | `delta` | 176.2 | 17.5 | 10.04x |
+| QUAD9 | `reference` | 165.9 | 88.3 | 1.88x |
+| QUAD9 | `physical` | 170.6 | 62.5 | 2.73x |
+| QUAD9 | `tangential` | 169.3 | 61.7 | 2.74x |
+| QUAD9 | `normal0` | 169.3 | 64.4 | 2.63x |
+| QUAD9 | `normals` | 165.3 | 91.9 | 1.80x |
+| QUAD9 | `matrix_physical` | 242.7 | 109.6 | 2.21x |
+| QUAD9 | `matrix_tangential` | 239.4 | 109.4 | 2.19x |
+| QUAD9 | `matrix_normal0` | 253.6 | 130.9 | 1.94x |
+| QUAD9 | `matrix_normals` | 237.6 | 143.6 | 1.65x |
+| QUAD9 | `restrict_selected` | 571.2 | 464.6 | 1.23x |
+| TRI7 | `delta` | 158.1 | 14.9 | 10.62x |
+| TRI7 | `reference` | 157.6 | 83.8 | 1.88x |
+| TRI7 | `physical` | 158.6 | 60.7 | 2.61x |
+| TRI7 | `tangential` | 163.4 | 61.8 | 2.65x |
+| TRI7 | `normal0` | 164.3 | 62.9 | 2.61x |
+| TRI7 | `normals` | 158.9 | 90.6 | 1.75x |
+| TRI7 | `matrix_physical` | 241.6 | 112.1 | 2.15x |
+| TRI7 | `matrix_tangential` | 247.3 | 112.7 | 2.20x |
+| TRI7 | `matrix_normal0` | 265.8 | 114.7 | 2.32x |
+| TRI7 | `matrix_normals` | 243.2 | 156.4 | 1.55x |
+| TRI7 | `restrict_selected` | 509.3 | 399.6 | 1.27x |
+| HEX27 | `delta` | 252.7 | 15.5 | 16.29x |
+| HEX27 | `reference` | 230.8 | 141.5 | 1.63x |
+| HEX27 | `physical` | 247.3 | 107.8 | 2.29x |
+| HEX27 | `tangential` | 243.4 | 107.5 | 2.26x |
+| HEX27 | `normal0` | 249.6 | 110.2 | 2.27x |
+| HEX27 | `normals` | 233.1 | 136.4 | 1.71x |
+| HEX27 | `matrix_physical` | 340.4 | 174.9 | 1.95x |
+| HEX27 | `matrix_tangential` | 336.4 | 177.8 | 1.89x |
+| HEX27 | `matrix_normal0` | 339.2 | 194.6 | 1.74x |
+| HEX27 | `matrix_normals` | 360.0 | 202.7 | 1.78x |
+| HEX27 | `restrict_selected` | 1935.8 | 1598.9 | 1.21x |
+| TET15 | `delta` | 244.6 | 15.5 | 15.82x |
+| TET15 | `reference` | 257.8 | 144.0 | 1.79x |
+| TET15 | `physical` | 242.4 | 110.5 | 2.19x |
+| TET15 | `tangential` | 231.0 | 107.1 | 2.16x |
+| TET15 | `normal0` | 234.8 | 112.2 | 2.09x |
+| TET15 | `normals` | 250.9 | 138.6 | 1.81x |
+| TET15 | `matrix_physical` | 343.1 | 186.8 | 1.84x |
+| TET15 | `matrix_tangential` | 352.8 | 179.4 | 1.97x |
+| TET15 | `matrix_normal0` | 339.1 | 195.9 | 1.73x |
+| TET15 | `matrix_normals` | 346.2 | 213.4 | 1.62x |
+| TET15 | `restrict_selected` | 2683.8 | 1888.2 | 1.42x |
+| WEDGE21 | `delta` | 243.9 | 15.4 | 15.85x |
+| WEDGE21 | `reference` | 241.8 | 147.3 | 1.64x |
+| WEDGE21 | `physical` | 249.4 | 107.5 | 2.32x |
+| WEDGE21 | `tangential` | 239.4 | 107.6 | 2.23x |
+| WEDGE21 | `normal0` | 239.5 | 111.0 | 2.16x |
+| WEDGE21 | `normals` | 230.7 | 134.3 | 1.72x |
+| WEDGE21 | `matrix_physical` | 349.4 | 184.2 | 1.90x |
+| WEDGE21 | `matrix_tangential` | 348.1 | 182.1 | 1.91x |
+| WEDGE21 | `matrix_normal0` | 348.2 | 200.1 | 1.74x |
+| WEDGE21 | `matrix_normals` | 337.5 | 201.8 | 1.67x |
+| WEDGE21 | `restrict_selected` | 1456.9 | 941.5 | 1.55x |
+
+The allocation-counting build passes both `--benchmark-surface` and `--benchmark-quadrature`, asserting zero C++ heap allocations in every warmed selected density and restriction kernel. The existing all-measure helper remains available only as an explicit batch operation; no precision or roundoff protection was reduced.

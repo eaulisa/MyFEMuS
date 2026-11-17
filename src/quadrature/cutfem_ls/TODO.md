@@ -27,3 +27,5 @@ Preserve the roundoff margins and classify opposite nodal signs, zero nodal valu
 Incremental updates between neighboring slice coordinates are deferred; the current plan evaluates restrictions directly at the nonuniform Gauss-Kronrod points.
 
 The ex47 speed revision starts from formatting commit `26cbb141`, shares immutable reference tables, uses allocation-free prepared restriction/certification, and supplies every regular-root surface density from prepared cofactor-gradient data or a constant affine cofactor matrix. See [kernel timings](../../../applications/MultiPhase/ex47/PERFORMANCE.md); migration into the production integration traversal remains pending.
+
+Surface measure selection is now explicit in ex47: dedicated evaluators compute only the requested density, normal families share their metric, and all-measure evaluation is an explicitly named batch option. Restriction can omit original-gradient context for delta/prepared-cofactor-gradient modes; geometry preparation is needed only by physical modes. Production migration should select these dependencies before the quadrature loops.

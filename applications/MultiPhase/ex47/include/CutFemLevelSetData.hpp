@@ -336,7 +336,9 @@ class CutFemLevelSetData {
     }
 
     // Restriction fixes an active reference coordinate and fills an existing lower-dimensional data object.
-    void Restrict(unsigned axis, long double coordinate, CutFemLevelSetData& child) const;
+    void Restrict(unsigned axis, long double coordinate, CutFemLevelSetData& child) const { Restrict(axis,coordinate,child,_rootGradientAvailable); }
+    void Restrict(unsigned axis, long double coordinate, CutFemLevelSetData& child, bool retainRootGradient) const;
+    bool HasRootGradientContext() const { RequireInitialized(); return _rootGradientAvailable; }
 
     // External polynomial components keep their component count and their full supplied degree under restriction.
     void RestrictComponents(unsigned axis, long double coordinate, unsigned degree, const std::vector<std::vector<long double>>& components, std::vector<std::vector<long double>>& output) const {
@@ -356,27 +358,81 @@ class CutFemLevelSetData {
 
     long double EvaluateLine(long double coordinate) const { EnsurePower(); ValidateLineCoordinate(coordinate); return EvaluateQuadratic(_power.data(),1,coordinate); }
 
-    long double GetLineSurfaceData(long double coordinate, std::array<long double,3>& rootGradient) const {
+    long double GetLineDeltaFactor(long double coordinate) const {
       EnsurePower();
       ValidateLineCoordinate(coordinate);
       const long double derivative = 2*_power[2]*coordinate+_power[1];
       if(derivative == 0) throw std::domain_error("A singular line root requires endpoint handling.");
-      rootGradient.fill(0);
-      for(unsigned axis = 0; axis < _rootDimension; ++axis) rootGradient[axis] = EvaluateQuadratic(GetRootDerivative(axis).data(),1,coordinate);
       return 1/std::abs(derivative);
     }
 
+    long double GetLineSurfaceData(long double coordinate, std::array<long double,3>& rootGradient) const {
+      const long double inverseDerivative = GetLineDeltaFactor(coordinate);
+      rootGradient.fill(0);
+      for(unsigned axis = 0; axis < _rootDimension; ++axis) rootGradient[axis] = EvaluateQuadratic(GetRootDerivative(axis).data(),1,coordinate);
+      return inverseDerivative;
+    }
+
+    long double GetLineReferenceSurfaceFactor(long double coordinate) const {
+      std::array<long double,3> gradient;
+      const long double inverseDerivative = GetLineSurfaceData(coordinate,gradient);
+      return inverseDerivative*SurfaceMetric(gradient);
+    }
+
+    long double GetLinePhysicalSurfaceFactor(long double coordinate, const std::array<long double,3>& cofactorGradient) const { const long double inverseDerivative = GetLineDeltaFactor(coordinate); return inverseDerivative*SurfaceMetric(cofactorGradient); }
+    long double GetLineTangentialSurfaceFactor(long double coordinate, const std::array<long double,3>& cofactorGradient) const { const long double inverseDerivative = GetLineDeltaFactor(coordinate); return inverseDerivative/SurfaceMetric(cofactorGradient); }
+
+    long double GetLineNormalSurfaceFactor(long double coordinate, const std::array<long double,3>& cofactorGradient, unsigned component) const {
+      ValidateSurfaceComponent(component);
+      const long double inverseDerivative = GetLineDeltaFactor(coordinate);
+      const long double norm = SurfaceMetric(cofactorGradient);
+      return inverseDerivative*(cofactorGradient[component]/norm);
+    }
+
+    void GetLineNormalSurfaceFactors(long double coordinate, const std::array<long double,3>& cofactorGradient, std::array<long double,3>& normalFactors) const {
+      const long double inverseDerivative = GetLineDeltaFactor(coordinate);
+      const long double norm = SurfaceMetric(cofactorGradient);
+      for(unsigned axis = 0; axis < normalFactors.size(); ++axis) normalFactors[axis] = axis < _rootDimension ? inverseDerivative*(cofactorGradient[axis]/norm) : 0;
+    }
+
+    long double GetLinePhysicalSurfaceFactorFromCofactor(long double coordinate, const std::array<std::array<long double,3>,3>& cofactor) const {
+      std::array<long double,3> transformed;
+      const long double inverseDerivative = GetLinePhysicalSurfaceData(coordinate,cofactor,transformed);
+      return inverseDerivative*SurfaceMetric(transformed);
+    }
+
+    long double GetLineTangentialSurfaceFactorFromCofactor(long double coordinate, const std::array<std::array<long double,3>,3>& cofactor) const {
+      std::array<long double,3> transformed;
+      const long double inverseDerivative = GetLinePhysicalSurfaceData(coordinate,cofactor,transformed);
+      return inverseDerivative/SurfaceMetric(transformed);
+    }
+
+    long double GetLineNormalSurfaceFactorFromCofactor(long double coordinate, const std::array<std::array<long double,3>,3>& cofactor, unsigned component) const {
+      ValidateSurfaceComponent(component);
+      std::array<long double,3> transformed;
+      const long double inverseDerivative = GetLinePhysicalSurfaceData(coordinate,cofactor,transformed);
+      const long double norm = SurfaceMetric(transformed);
+      return inverseDerivative*(transformed[component]/norm);
+    }
+
+    void GetLineNormalSurfaceFactorsFromCofactor(long double coordinate, const std::array<std::array<long double,3>,3>& cofactor, std::array<long double,3>& normalFactors) const {
+      std::array<long double,3> transformed;
+      const long double inverseDerivative = GetLinePhysicalSurfaceData(coordinate,cofactor,transformed);
+      const long double norm = SurfaceMetric(transformed);
+      for(unsigned axis = 0; axis < normalFactors.size(); ++axis) normalFactors[axis] = axis < _rootDimension ? inverseDerivative*(transformed[axis]/norm) : 0;
+    }
+
     // Scalars are delta, reference surface, physical surface, and inverse metric; normals are the signed delta measures.
-    void GetLineSurfaceFactors(long double coordinate, const std::array<long double,3>& cofactorGradient, std::array<long double,4>& scalarFactors, std::array<long double,3>& normalFactors) const {
+    void GetLineAllSurfaceFactors(long double coordinate, const std::array<long double,3>& cofactorGradient, std::array<long double,4>& scalarFactors, std::array<long double,3>& normalFactors) const {
       std::array<long double,3> rootGradient;
       const long double inverseDerivative = GetLineSurfaceData(coordinate,rootGradient);
       CompleteSurfaceFactors(inverseDerivative,rootGradient,cofactorGradient,scalarFactors,normalFactors);
     }
 
-    void GetLineSurfaceFactorsFromCofactor(long double coordinate, const std::array<std::array<long double,3>,3>& cofactor, std::array<long double,4>& scalarFactors, std::array<long double,3>& normalFactors) const {
+    void GetLineAllSurfaceFactorsFromCofactor(long double coordinate, const std::array<std::array<long double,3>,3>& cofactor, std::array<long double,4>& scalarFactors, std::array<long double,3>& normalFactors) const {
       std::array<long double,3> rootGradient, transformed = {0,0,0};
       const long double inverseDerivative = GetLineSurfaceData(coordinate,rootGradient);
-      for(unsigned physical = 0; physical < _rootDimension; ++physical) for(unsigned reference = 0; reference < _rootDimension; ++reference) { if(!std::isfinite(cofactor[physical][reference])) throw std::invalid_argument("Surface cofactor entries must be finite."); transformed[physical] += cofactor[physical][reference]*rootGradient[reference]; }
+      TransformSurfaceGradient(rootGradient,cofactor,transformed);
       CompleteSurfaceFactors(inverseDerivative,rootGradient,transformed,scalarFactors,normalFactors);
     }
 
@@ -387,6 +443,27 @@ class CutFemLevelSetData {
     }
 
   private:
+    void ValidateSurfaceComponent(unsigned component) const { RequireInitialized(); if(component >= _rootDimension) throw std::out_of_range("Surface component exceeds the original dimension."); }
+
+    long double SurfaceMetric(const std::array<long double,3>& gradient) const {
+      long double norm = 0;
+      for(unsigned axis = 0; axis < _rootDimension; ++axis) { if(!std::isfinite(gradient[axis])) throw std::invalid_argument("Surface gradient components must be finite."); norm = std::hypot(norm,gradient[axis]); }
+      if(norm == 0) throw std::domain_error("The surface metric is zero.");
+      return norm;
+    }
+
+    void TransformSurfaceGradient(const std::array<long double,3>& gradient, const std::array<std::array<long double,3>,3>& cofactor, std::array<long double,3>& transformed) const {
+      transformed.fill(0);
+      for(unsigned physical = 0; physical < _rootDimension; ++physical) for(unsigned reference = 0; reference < _rootDimension; ++reference) { if(!std::isfinite(cofactor[physical][reference])) throw std::invalid_argument("Surface cofactor entries must be finite."); transformed[physical] += cofactor[physical][reference]*gradient[reference]; }
+    }
+
+    long double GetLinePhysicalSurfaceData(long double coordinate, const std::array<std::array<long double,3>,3>& cofactor, std::array<long double,3>& transformed) const {
+      std::array<long double,3> gradient;
+      const long double inverseDerivative = GetLineSurfaceData(coordinate,gradient);
+      TransformSurfaceGradient(gradient,cofactor,transformed);
+      return inverseDerivative;
+    }
+
     void CompleteSurfaceFactors(long double inverseDerivative, const std::array<long double,3>& rootGradient, const std::array<long double,3>& cofactorGradient, std::array<long double,4>& scalarFactors, std::array<long double,3>& normalFactors) const {
       long double referenceNorm = 0, physicalNorm = 0;
       for(unsigned axis = 0; axis < _rootDimension; ++axis) { if(!std::isfinite(cofactorGradient[axis])) throw std::invalid_argument("Surface cofactor components must be finite."); referenceNorm = std::hypot(referenceNorm,rootGradient[axis]); physicalNorm = std::hypot(physicalNorm,cofactorGradient[axis]); }
@@ -590,6 +667,7 @@ class CutFemLevelSetData {
     void Classify();
     const std::vector<long double>& GetRootDerivative(unsigned axis) const {
       if(axis >= _rootDimension) throw std::out_of_range("Root derivative axis exceeds the original dimension.");
+      if(!_rootGradientAvailable) throw std::logic_error("This slice omitted original-gradient context; restrict again from a prepared ancestor.");
       if(_root) return GetDerivativeCoefficients(axis);
       return _rootDerivatives[axis];
     }
@@ -621,6 +699,7 @@ class CutFemLevelSetData {
 
     bool _initialized = false;
     bool _root = false;
+    bool _rootGradientAvailable = true;
     bool _classified = false;
     bool _degenerate = false;
     GeomElType _geometry = LINE;
@@ -1191,16 +1270,17 @@ inline void CutFemLevelSetData::RestrictBernstein(unsigned axis, long double coo
   child._bernsteinReady = true;
 }
 
-inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, CutFemLevelSetData& child) const {
+inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, CutFemLevelSetData& child, bool retainRootGradient) const {
   if(&child == this) throw std::invalid_argument("Restriction requires distinct parent and child data.");
   GeomElType childGeometry;
   std::array<long double,3> origins, scales;
   RestrictionMap(axis, coordinate, childGeometry, origins, scales);
   EnsurePower();
   EnsureBernstein();
-  for(unsigned rootAxis = 0; rootAxis < _rootDimension; ++rootAxis) GetRootDerivative(rootAxis);
+  if(retainRootGradient) for(unsigned rootAxis = 0; rootAxis < _rootDimension; ++rootAxis) GetRootDerivative(rootAxis);
   child._initialized = true;
   child._root = false;
+  child._rootGradientAvailable = retainRootGradient;
   child._geometry = childGeometry;
   child._dimension = _dimension - 1;
   child._rootDimension = _rootDimension;
@@ -1221,7 +1301,8 @@ inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, 
   child._graphDirectionReady = false;
   RestrictPower(_power, _dimension, 2, axis, coordinate, origins, scales, child._power);
   child._powerReady = true;
-  for(unsigned rootAxis = 0; rootAxis < _rootDimension; ++rootAxis) RestrictPower(GetRootDerivative(rootAxis), _dimension, 2, axis, coordinate, origins, scales, child._rootDerivatives[rootAxis]);
+  if(retainRootGradient) for(unsigned rootAxis = 0; rootAxis < _rootDimension; ++rootAxis) RestrictPower(GetRootDerivative(rootAxis), _dimension, 2, axis, coordinate, origins, scales, child._rootDerivatives[rootAxis]);
+  else for(std::vector<long double>& derivative : child._rootDerivatives) derivative.clear();
   child._parentOrigin.assign(_dimension, 0);
   child._parentOrigin[axis] = coordinate;
   child._parentMap.resize(_dimension);

@@ -23,6 +23,10 @@ Implemented and exercised only in ex47:
 - [x] Evaluate all existing regular-root surface densities together from prepared cofactor-gradient values or a prepared cofactor matrix.
 - [x] Test geometry/cofactor preparation and recursive restriction for every element and all surface modes, including bi/triquadratic QUAD/HEX geometry.
 - [x] Benchmark the actual quadrature kernels against formatting commit `26cbb141` and assert zero steady-state heap allocations in the fixed-output paths.
+- [x] Select one surface measure with a dedicated evaluator; reserve all-measure evaluation for explicitly named batch methods.
+- [x] Share only the derivative and metric required by a requested normal family, with a separate single-component interface.
+- [x] Omit original-gradient preparation/contraction for delta and prepared-cofactor-gradient modes; propagate this choice through recursive restriction.
+- [x] Check selected results against batch/analytic/multiprecision references, including small cuts and input scales, and benchmark selection outside point loops.
 
 Pending production integration after acceptance of this prototype:
 

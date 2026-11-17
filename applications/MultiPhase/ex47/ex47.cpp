@@ -877,6 +877,21 @@ void PrepareSurfaceTestPolynomials(const CutFemLevelSetData& data, unsigned mode
   else degree = 2;
 }
 
+void CheckSelectiveSurfaceFactors(const CutFemLevelSetData& line, long double root, const std::array<long double,3>& cofactorGradient, const std::array<std::array<long double,3>,3>& cofactorMatrix, const std::array<long double,4>& scalar, const std::array<long double,3>& normal, const std::array<long double,4>& matrixScalar, const std::array<long double,3>& matrixNormal) {
+  CheckNear(line.GetLineDeltaFactor(root),scalar[0],0,"selective delta");
+  CheckNear(line.GetLineReferenceSurfaceFactor(root),scalar[1],0,"selective reference surface");
+  CheckNear(line.GetLinePhysicalSurfaceFactor(root,cofactorGradient),scalar[2],0,"selective physical surface");
+  CheckNear(line.GetLineTangentialSurfaceFactor(root,cofactorGradient),scalar[3],0,"selective tangential surface");
+  CheckNear(line.GetLinePhysicalSurfaceFactorFromCofactor(root,cofactorMatrix),matrixScalar[2],0,"selective matrix physical surface");
+  CheckNear(line.GetLineTangentialSurfaceFactorFromCofactor(root,cofactorMatrix),matrixScalar[3],0,"selective matrix tangential surface");
+  std::array<long double,3> selectedNormals, selectedMatrixNormals, alias = cofactorGradient;
+  line.GetLineNormalSurfaceFactors(root,cofactorGradient,selectedNormals);
+  line.GetLineNormalSurfaceFactorsFromCofactor(root,cofactorMatrix,selectedMatrixNormals);
+  line.GetLineNormalSurfaceFactors(root,alias,alias);
+  for(unsigned component = 0; component < 3; ++component) { CheckNear(selectedNormals[component],normal[component],0,"selected normal family"); CheckNear(selectedMatrixNormals[component],matrixNormal[component],0,"selected matrix normal family"); CheckNear(alias[component],normal[component],0,"selected normal input/output alias"); }
+  for(unsigned component = 0; component < line.GetRootDimension(); ++component) { CheckNear(line.GetLineNormalSurfaceFactor(root,cofactorGradient,component),normal[component],0,"single normal component"); CheckNear(line.GetLineNormalSurfaceFactorFromCofactor(root,cofactorMatrix,component),matrixNormal[component],0,"single matrix normal component"); }
+}
+
 void TestFastQuadratureInterfaces(unsigned cases, std::mt19937& random) {
   currentCheck = "fast quadrature interfaces and shared surface factors";
   for(GeomElType geometry : {LINE,QUAD,TRI,HEX,TET,WEDGE}) {
@@ -925,7 +940,7 @@ void TestFastQuadratureInterfaces(unsigned cases, std::mt19937& random) {
         for(unsigned component = 0; component < data.GetDimension(); ++component) CheckNear(rootGradient[component],gradient[component],4e-15L,"all original surface-gradient components");
         std::array<long double,4> scalar;
         std::array<long double,3> normal;
-        line.GetLineSurfaceFactors(root,cofactor,scalar,normal);
+        line.GetLineAllSurfaceFactors(root,cofactor,scalar,normal);
         CheckNear(scalar[0],delta,0,"delta option");
         CheckNear(scalar[1],referenceNorm*delta,5e-15L,"reference surface option");
         CheckNear(scalar[2],physicalNorm*delta,3e-14L,"physical surface option");
@@ -933,10 +948,11 @@ void TestFastQuadratureInterfaces(unsigned cases, std::mt19937& random) {
         for(unsigned component = 0; component < 3; ++component) CheckNear(normal[component],delta*expected[component]/physicalNorm,3e-14L,"three signed normal options");
         std::array<long double,4> matrixScalar;
         std::array<long double,3> matrixNormal;
-        line.GetLineSurfaceFactorsFromCofactor(root,cofactorMatrix,matrixScalar,matrixNormal);
+        line.GetLineAllSurfaceFactorsFromCofactor(root,cofactorMatrix,matrixScalar,matrixNormal);
         for(unsigned option = 0; option < 4; ++option) CheckNear(matrixScalar[option],scalar[option],3e-14L,"matrix and prepared polynomial surface options agree");
         for(unsigned component = 0; component < 3; ++component) CheckNear(matrixNormal[component],normal[component],3e-14L,"matrix and prepared polynomial normal options agree");
-        line.GetLineSurfaceFactors(root,cofactor,scalar,cofactor);
+        CheckSelectiveSurfaceFactors(line,root,cofactor,cofactorMatrix,scalar,normal,matrixScalar,matrixNormal);
+        line.GetLineAllSurfaceFactors(root,cofactor,scalar,cofactor);
         Check(cofactor == normal,"surface input/output storage alias is supported");
       }
     }
@@ -959,11 +975,115 @@ void TestFastQuadratureInterfaces(unsigned cases, std::mt19937& random) {
   try { tangent.GetLineSurfaceData(0,gradient); } catch(const std::domain_error&) { rejected = true; }
   Check(rejected,"singular graph root requires endpoint handling");
   rejected = false;
-  try { regular.GetLineSurfaceFactors(0,{0,0,0},scalar,normal); } catch(const std::domain_error&) { rejected = true; }
+  try { regular.GetLineAllSurfaceFactors(0,{0,0,0},scalar,normal); } catch(const std::domain_error&) { rejected = true; }
   Check(rejected,"zero surface metric rejected");
   rejected = false;
-  try { regular.GetLineSurfaceFactors(0,{std::numeric_limits<long double>::infinity(),0,0},scalar,normal); } catch(const std::invalid_argument&) { rejected = true; }
+  try { regular.GetLineAllSurfaceFactors(0,{std::numeric_limits<long double>::infinity(),0,0},scalar,normal); } catch(const std::invalid_argument&) { rejected = true; }
   Check(rejected,"nonfinite surface components rejected");
+}
+
+void TestSelectiveSurfacePreparation(unsigned cases, std::mt19937& random) {
+  currentCheck = "selective gradient and geometry preparation";
+  for(GeomElType geometry : {LINE,QUAD,TRI,HEX,TET,WEDGE}) {
+    CutFemLevelSetData parent(geometry,MakeField(geometry,1)), full, bare, fullLine, bareLine;
+    for(unsigned sample = 0; sample < cases; ++sample) {
+      if(parent.GetDimension() > 1) {
+        const std::array<unsigned long long,4> before = parent.GetWorkCounts();
+        parent.Restrict(parent.GetDimension()-1,0.17L,bare,false);
+        Check(parent.GetWorkCounts()[2] == before[2],"omitted root derivatives are not prepared");
+        parent.Restrict(parent.GetDimension()-1,0.17L,full);
+        Check(!bare.HasRootGradientContext() && full.HasRootGradientContext(),"explicit slice dependencies");
+        const std::vector<long double> point = RandomPoint(bare.GetGeometry(),random);
+        CheckNear(bare.Evaluate(point),full.Evaluate(point),0,"identical selective slice polynomial");
+        Check(bare.GetBernsteinCoefficients() == full.GetBernsteinCoefficients() && bare.GetBounds() == full.GetBounds() && bare.GetPhase() == full.GetPhase(),"identical selective slice certification");
+        Check(bare.MapToRoot(point) == full.MapToRoot(point),"selective slice preserves maps");
+        bool rejected = false;
+        try { bare.GetRootGradient(point); } catch(const std::logic_error&) { rejected = true; }
+        Check(rejected,"omitted original-gradient context is explicit");
+        if(bare.GetDimension() == 2) {
+          full.Restrict(1,0.19L,fullLine);
+          bare.Restrict(1,0.19L,bareLine);
+          Check(!bareLine.HasRootGradientContext(),"slice dependencies propagate recursively");
+          const std::uint64_t revision = bareLine.GetRevision();
+          rejected = false;
+          try { bare.Restrict(1,0.19L,bareLine,true); } catch(const std::logic_error&) { rejected = true; }
+          Check(rejected && bareLine.GetRevision() == revision,"unavailable context cannot be silently restored");
+        }
+        else { fullLine = full; bareLine = bare; }
+      }
+      else { fullLine = parent; bareLine = parent; }
+      std::array<long double,2> roots;
+      Check(fullLine.GetLineRoots(roots) == 1,"plane root for selective preparation");
+      std::array<long double,2> selectedRoots;
+      Check(bareLine.GetLineRoots(selectedRoots) == 1 && selectedRoots == roots,"identical roots without original-gradient preparation");
+      const long double root = roots[0];
+      const std::array<long double,3> cofactorGradient = {1,0.2L,-0.1L};
+      std::array<long double,4> scalar;
+      std::array<long double,3> normal, selected;
+      fullLine.GetLineAllSurfaceFactors(root,cofactorGradient,scalar,normal);
+      const std::array<unsigned long long,4> before = bareLine.GetWorkCounts();
+      CheckNear(bareLine.GetLineDeltaFactor(root),scalar[0],0,"delta without original gradients or geometry");
+      CheckNear(bareLine.GetLinePhysicalSurfaceFactor(root,cofactorGradient),scalar[2],0,"physical density without original gradients");
+      CheckNear(bareLine.GetLineTangentialSurfaceFactor(root,cofactorGradient),scalar[3],0,"tangential density without original gradients");
+      bareLine.GetLineNormalSurfaceFactors(root,cofactorGradient,selected);
+      Check(selected == normal,"normal family without original gradients");
+      for(unsigned component = 0; component < bareLine.GetRootDimension(); ++component) CheckNear(bareLine.GetLineNormalSurfaceFactor(root,cofactorGradient,component),normal[component],0,"normal component without original gradients");
+      Check(bareLine.GetWorkCounts() == before,"unrequested derivative work remains absent");
+      if(parent.GetDimension() > 1) {
+        bool rejected = false;
+        try { bareLine.GetLineReferenceSurfaceFactor(root); } catch(const std::logic_error&) { rejected = true; }
+        Check(rejected,"reference mode requires retained original gradients");
+        parent.Restrict(parent.GetDimension()-1,0.17L,bare,true);
+        Check(bare.HasRootGradientContext(),"context can be restored from its prepared ancestor");
+      }
+    }
+    if(parent.GetDimension() > 1) for(unsigned axis = 0; axis < parent.GetDimension(); ++axis) { parent.Restrict(axis,0.17L,bare,false); parent.Restrict(axis,0.17L,full); const std::vector<long double> point = RandomPoint(bare.GetGeometry(),random); CheckNear(bare.Evaluate(point),full.Evaluate(point),0,"selective restriction on every axis"); Check(bare.GetGradient(point) == full.GetGradient(point) && bare.GetGraphDirection() == full.GetGraphDirection(),"local derivatives and graph certification remain available"); }
+  }
+  CutFemLevelSetData line(LINE,{-1,1,0}), tangent(LINE,{1,1,0}), saved;
+  const std::array<unsigned long long,4> before = line.GetWorkCounts();
+  CheckNear(line.GetLineDeltaFactor(0),1,0,"delta needs only the line derivative");
+  Check(line.GetWorkCounts()[2] == before[2],"delta does not prepare even local derivative coefficients");
+  long double savedDelta = 0;
+  { CutFemLevelSetData temporary(HEX,MakeField(HEX,1)), child; temporary.Restrict(2,0.17L,child,false); child.Restrict(1,0.19L,saved); savedDelta = saved.GetLineDeltaFactor(0.2L); }
+  CheckNear(saved.GetLineDeltaFactor(0.2L),savedDelta,0,"selective snapshot survives parent destruction");
+  bool rejected = false;
+  try { tangent.GetLineDeltaFactor(0); } catch(const std::domain_error&) { rejected = true; }
+  Check(rejected,"selective delta still rejects a singular root");
+  rejected = false;
+  try { line.GetLinePhysicalSurfaceFactor(0,{0,0,0}); } catch(const std::domain_error&) { rejected = true; }
+  Check(rejected,"selective physical metric validated");
+  rejected = false;
+  try { line.GetLineNormalSurfaceFactor(0,{1,0,0},1); } catch(const std::out_of_range&) { rejected = true; }
+  Check(rejected,"selected normal component validated");
+  rejected = false;
+  try { line.GetLineTangentialSurfaceFactor(0,{std::numeric_limits<long double>::quiet_NaN(),0,0}); } catch(const std::invalid_argument&) { rejected = true; }
+  Check(rejected,"selected metric rejects nonfinite components");
+}
+
+void TestSelectiveSurfaceScaling() {
+  currentCheck = "selective surface factors across scales and small cuts";
+  const std::array<std::array<long double,3>,3> identity = {{{1,0,0},{0,1,0},{0,0,1}}};
+  for(double scale : {1e-200,1.0,1e200}) for(double radius : {0.2,1e-6,1e-12}) {
+    const std::vector<double> nodal = {scale*(1-radius*radius),scale*(1-radius*radius),-scale*radius*radius};
+    CutFemLevelSetData line(LINE,nodal);
+    std::array<long double,2> roots;
+    Check(line.GetLineRoots(roots) == 2,"scaled small cut retains both roots");
+    const boost::multiprecision::cpp_bin_float_quad a = (boost::multiprecision::cpp_bin_float_quad(nodal[0])+boost::multiprecision::cpp_bin_float_quad(nodal[1]))/2-boost::multiprecision::cpp_bin_float_quad(nodal[2]);
+    const boost::multiprecision::cpp_bin_float_quad exactRoot = sqrt(-boost::multiprecision::cpp_bin_float_quad(nodal[2])/a);
+    const long double exactDelta = static_cast<long double>(1/(2*a*exactRoot));
+    for(long double root : roots) {
+      std::array<long double,3> gradient, normal, matrixNormal;
+      std::array<long double,4> scalar, matrixScalar;
+      line.GetLineSurfaceData(root,gradient);
+      line.GetLineAllSurfaceFactors(root,gradient,scalar,normal);
+      line.GetLineAllSurfaceFactorsFromCofactor(root,identity,matrixScalar,matrixNormal);
+      CheckSelectiveSurfaceFactors(line,root,gradient,identity,scalar,normal,matrixScalar,matrixNormal);
+      CheckNear(line.GetLineDeltaFactor(root)/exactDelta,1,5e-18L,"scaled delta versus multiprecision");
+      CheckNear(line.GetLineReferenceSurfaceFactor(root),1,5e-18L,"scaled reference surface is invariant");
+      CheckNear(line.GetLinePhysicalSurfaceFactor(root,gradient),1,5e-18L,"scaled physical surface is invariant");
+      CheckNear(line.GetLineTangentialSurfaceFactor(root,gradient)/(exactDelta*exactDelta),1,5e-18L,"scaled inverse metric versus multiprecision");
+    }
+  }
 }
 
 long double QuadratureKernelSample(CutFemLevelSetData& parent, unsigned operation, unsigned sample, const std::vector<std::vector<long double>>& points, const std::vector<long double>& positions, CutFemLevelSetData& child, CutFemLevelSetData& line, const std::vector<std::vector<long double>>& components, std::vector<std::vector<long double>>& output) {
@@ -1026,7 +1146,7 @@ void BenchmarkQuadratureKernels() {
     std::array<long double,2> roots;
     const unsigned rootCount = line.GetLineRoots(roots);
     const long double coordinate = rootCount > 0 ? roots[0] : 0.91L;
-    line.GetLineSurfaceFactors(coordinate,{1,0.2L,0.3L},scalar,normal);
+    line.GetLineAllSurfaceFactors(coordinate,{1,0.2L,0.3L},scalar,normal);
     for(unsigned operation = 0; operation < 4; ++operation) {
       volatile long double checksum = 0;
 #ifdef EX47_TRACK_ALLOCATIONS
@@ -1037,7 +1157,7 @@ void BenchmarkQuadratureKernels() {
         if(operation == 0) { parent.GetRootGradient(points[iteration%64],gradient); checksum += gradient[0]; }
         else if(operation == 1) checksum += line.EvaluateLine(coordinate);
         else if(operation == 2) checksum += line.GetLineRoots(roots);
-        else { line.GetLineSurfaceFactors(coordinate,{1,0.2L,0.3L},scalar,normal); checksum += scalar[2]+normal[0]; }
+        else { line.GetLineAllSurfaceFactors(coordinate,{1,0.2L,0.3L},scalar,normal); checksum += scalar[2]+normal[0]; }
       }
       const double nanoseconds = 1e9*std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()/iterations;
 #ifdef EX47_TRACK_ALLOCATIONS
@@ -1054,11 +1174,88 @@ void BenchmarkQuadratureKernels() {
   }
 }
 
+long double RunSelectiveSurfaceKernel(unsigned operation, unsigned iterations, const CutFemLevelSetData& full, const CutFemLevelSetData& bare, const std::array<long double,64>& points, const std::array<std::array<long double,3>,64>& gradients, const std::array<std::array<long double,3>,3>& matrix) {
+  volatile long double checksum = 0;
+  std::array<long double,4> scalar;
+  std::array<long double,3> normal;
+  switch(operation) {
+    case 0: for(unsigned i = 0; i < iterations; ++i) { full.GetLineAllSurfaceFactors(points[i%64],gradients[i%64],scalar,normal); checksum += scalar[0]; } break;
+    case 1: for(unsigned i = 0; i < iterations; ++i) checksum += bare.GetLineDeltaFactor(points[i%64]); break;
+    case 2: for(unsigned i = 0; i < iterations; ++i) { full.GetLineAllSurfaceFactors(points[i%64],gradients[i%64],scalar,normal); checksum += scalar[1]; } break;
+    case 3: for(unsigned i = 0; i < iterations; ++i) checksum += full.GetLineReferenceSurfaceFactor(points[i%64]); break;
+    case 4: for(unsigned i = 0; i < iterations; ++i) { full.GetLineAllSurfaceFactors(points[i%64],gradients[i%64],scalar,normal); checksum += scalar[2]; } break;
+    case 5: for(unsigned i = 0; i < iterations; ++i) checksum += bare.GetLinePhysicalSurfaceFactor(points[i%64],gradients[i%64]); break;
+    case 6: for(unsigned i = 0; i < iterations; ++i) { full.GetLineAllSurfaceFactors(points[i%64],gradients[i%64],scalar,normal); checksum += scalar[3]; } break;
+    case 7: for(unsigned i = 0; i < iterations; ++i) checksum += bare.GetLineTangentialSurfaceFactor(points[i%64],gradients[i%64]); break;
+    case 8: for(unsigned i = 0; i < iterations; ++i) { full.GetLineAllSurfaceFactors(points[i%64],gradients[i%64],scalar,normal); checksum += normal[0]; } break;
+    case 9: for(unsigned i = 0; i < iterations; ++i) checksum += bare.GetLineNormalSurfaceFactor(points[i%64],gradients[i%64],0); break;
+    case 10: for(unsigned i = 0; i < iterations; ++i) { full.GetLineAllSurfaceFactors(points[i%64],gradients[i%64],scalar,normal); checksum += normal[0]+normal[1]+normal[2]; } break;
+    case 11: for(unsigned i = 0; i < iterations; ++i) { bare.GetLineNormalSurfaceFactors(points[i%64],gradients[i%64],normal); checksum += normal[0]+normal[1]+normal[2]; } break;
+    case 12: for(unsigned i = 0; i < iterations; ++i) { full.GetLineAllSurfaceFactorsFromCofactor(points[i%64],matrix,scalar,normal); checksum += scalar[2]; } break;
+    case 13: for(unsigned i = 0; i < iterations; ++i) checksum += full.GetLinePhysicalSurfaceFactorFromCofactor(points[i%64],matrix); break;
+    case 14: for(unsigned i = 0; i < iterations; ++i) { full.GetLineAllSurfaceFactorsFromCofactor(points[i%64],matrix,scalar,normal); checksum += scalar[3]; } break;
+    case 15: for(unsigned i = 0; i < iterations; ++i) checksum += full.GetLineTangentialSurfaceFactorFromCofactor(points[i%64],matrix); break;
+    case 16: for(unsigned i = 0; i < iterations; ++i) { full.GetLineAllSurfaceFactorsFromCofactor(points[i%64],matrix,scalar,normal); checksum += normal[0]; } break;
+    case 17: for(unsigned i = 0; i < iterations; ++i) checksum += full.GetLineNormalSurfaceFactorFromCofactor(points[i%64],matrix,0); break;
+    case 18: for(unsigned i = 0; i < iterations; ++i) { full.GetLineAllSurfaceFactorsFromCofactor(points[i%64],matrix,scalar,normal); checksum += normal[0]+normal[1]+normal[2]; } break;
+    case 19: for(unsigned i = 0; i < iterations; ++i) { full.GetLineNormalSurfaceFactorsFromCofactor(points[i%64],matrix,normal); checksum += normal[0]+normal[1]+normal[2]; } break;
+    default: throw std::logic_error("Invalid surface benchmark operation.");
+  }
+  return checksum;
+}
+
+long double RunSelectiveRestrictionKernel(unsigned iterations, const CutFemLevelSetData& parent, bool retainRootGradient, CutFemLevelSetData& child, CutFemLevelSetData& line) {
+  volatile long double checksum = 0;
+  for(unsigned i = 0; i < iterations; ++i) { parent.Restrict(parent.GetDimension()-1,0.1L+0.002L*(i%64),child,retainRootGradient); if(child.GetDimension() == 2) { child.Restrict(1,0.17L,line); checksum += line.GetPowerCoefficients()[0]; } else checksum += child.GetPowerCoefficients()[0]; }
+  return checksum;
+}
+
+void BenchmarkSelectiveSurfaceKernels() {
+  const std::string names[22] = {"all_delta","delta","all_reference","reference","all_physical","physical","all_tangential","tangential","all_normal0","normal0","all_normals","normals","all_matrix_physical","matrix_physical","all_matrix_tangential","matrix_tangential","all_matrix_normal0","matrix_normal0","all_matrix_normals","matrix_normals","restrict_full","restrict_selected"};
+  const unsigned iterations = 20000;
+  for(GeomElType geometry : {LINE,QUAD,TRI,HEX,TET,WEDGE}) {
+    CutFemLevelSetData parent(geometry,MakeField(geometry,2,1,0.29L)), fullChild, bareChild, full, bare;
+    if(parent.GetDimension() == 3) { parent.Restrict(2,0.19L,fullChild); parent.Restrict(2,0.19L,bareChild,false); const long double y = geometry == TET ? 0.17L/0.81L : (geometry == WEDGE ? 0.17L : 0.23L); fullChild.Restrict(1,y,full); bareChild.Restrict(1,y,bare); }
+    else if(parent.GetDimension() == 2) { parent.Restrict(1,geometry == TRI ? 0.17L : 0.23L,full); parent.Restrict(1,geometry == TRI ? 0.17L : 0.23L,bare,false); }
+    else { full = parent; bare = parent; }
+    std::array<long double,2> roots;
+    Check(full.GetLineRoots(roots) > 0,"surface benchmark has an actual intersection");
+    const std::array<std::array<long double,3>,3> matrix = {{{1,0.1L,0.03L},{0.05L,1,-0.02L},{0.1L,0.04L,1}}};
+    std::array<long double,64> points;
+    std::array<std::array<long double,3>,64> gradients = {};
+    for(unsigned sample = 0; sample < points.size(); ++sample) { points[sample] = roots[0]+0.02L*(static_cast<long double>(sample)-31.5L)/64; std::array<long double,3> gradient; full.GetRootGradient({points[sample]},gradient); for(unsigned a = 0; a < parent.GetDimension(); ++a) for(unsigned b = 0; b < parent.GetDimension(); ++b) gradients[sample][a] += matrix[a][b]*gradient[b]; }
+    CutFemLevelSetData restrictionChild, restrictionLine;
+    long double preceding = 0;
+    for(unsigned operation = 0; operation < (parent.GetDimension() == 1 ? 20U : 22U); ++operation) {
+      if(operation < 20) RunSelectiveSurfaceKernel(operation,128,full,bare,points,gradients,matrix);
+      else RunSelectiveRestrictionKernel(128,parent,operation == 20,restrictionChild,restrictionLine);
+#ifdef EX47_TRACK_ALLOCATIONS
+      const unsigned long long before = heapAllocations;
+#endif
+      const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+      const long double checksum = operation < 20 ? RunSelectiveSurfaceKernel(operation,iterations,full,bare,points,gradients,matrix) : RunSelectiveRestrictionKernel(iterations,parent,operation == 20,restrictionChild,restrictionLine);
+      const double nanoseconds = 1e9*std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()/iterations;
+#ifdef EX47_TRACK_ALLOCATIONS
+      const unsigned long long allocated = heapAllocations-before;
+      Check(allocated == 0,"selective surface kernels allocate no heap memory");
+#endif
+      if(operation%2 == 0) preceding = checksum;
+      else CheckNear(checksum,preceding,0,"selective and all-measure benchmark checksums agree");
+      std::cout << std::setprecision(10) << "surface " << GeometryName(geometry) << ' ' << names[operation] << " ns=" << nanoseconds << " checksum=" << checksum;
+#ifdef EX47_TRACK_ALLOCATIONS
+      std::cout << " allocations=" << allocated;
+#endif
+      std::cout << '\n';
+    }
+  }
+}
+
 int main(int argc, char** argv) {
   try {
     unsigned cases = 64, points = 32;
     bool benchmark = false;
     bool quadratureBenchmark = false;
+    bool surfaceBenchmark = false;
     for(int i = 1; i < argc; ++i) {
       const std::string option = argv[i];
       if((option == "--cases" || option == "--points") && i + 1 < argc) {
@@ -1071,13 +1268,15 @@ int main(int argc, char** argv) {
       }
       else if(option == "--benchmark") benchmark = true;
       else if(option == "--benchmark-quadrature") quadratureBenchmark = true;
+      else if(option == "--benchmark-surface") surfaceBenchmark = true;
       else if(option == "--help") {
-        std::cout << "MultiPhase_ex47 [--cases N] [--points N] [--benchmark] [--benchmark-quadrature]\n";
+        std::cout << "MultiPhase_ex47 [--cases N] [--points N] [--benchmark] [--benchmark-quadrature] [--benchmark-surface]\n";
         return 0;
       }
       else throw std::invalid_argument("Unknown or incomplete argument: " + option);
     }
     if(quadratureBenchmark) { BenchmarkQuadratureKernels(); return 0; }
+    if(surfaceBenchmark) { BenchmarkSelectiveSurfaceKernels(); return 0; }
     std::mt19937 random(470013);
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     TestReconstruction(cases, points, random);
@@ -1095,6 +1294,8 @@ int main(int argc, char** argv) {
     TestPrecisionPaths(benchmark, random);
     TestPhysicalSphere(cases, random);
     TestFastQuadratureInterfaces(cases,random);
+    TestSelectiveSurfacePreparation(cases,random);
+    TestSelectiveSurfaceScaling();
     std::cout << std::setprecision(8) << "ex47: " << checks << " checks passed; maximum scaled error=" << maximumScaledError << "; seconds=" << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count() << '\n';
     return 0;
   }
