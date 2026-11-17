@@ -25,3 +25,5 @@ Checked items are implemented and tested only in the local [ex47 prototype](../.
 Preserve the roundoff margins and classify opposite nodal signs, zero nodal values, and unresolved Bernstein cases as possible cuts.
 
 Incremental updates between neighboring slice coordinates are deferred; the current plan evaluates restrictions directly at the nonuniform Gauss-Kronrod points.
+
+The ex47 speed revision starts from formatting commit `26cbb141`, shares immutable reference tables, uses allocation-free prepared restriction/certification, and supplies every regular-root surface density from prepared cofactor-gradient data or a constant affine cofactor matrix. See [kernel timings](../../../applications/MultiPhase/ex47/PERFORMANCE.md); migration into the production integration traversal remains pending.

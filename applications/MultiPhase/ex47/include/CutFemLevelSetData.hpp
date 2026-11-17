@@ -173,42 +173,46 @@ class CutFemLevelSetData {
     long double Evaluate(const std::vector<long double>& point) const {
       EnsurePower();
       ValidatePoint(point);
-      return EvaluatePolynomial(_power, _dimension, 2, point);
+      return EvaluateUnchecked(_power.data(), _dimension, 2, point.data());
     }
 
     long double EvaluateBernstein(const std::vector<long double>& point) const {
       EnsureBernstein();
       ValidatePoint(point);
-      std::vector<long double> unit = point;
-      if(_geometry == LINE || _geometry == QUAD || _geometry == HEX) for(long double& coordinate : unit) coordinate = (coordinate + 1) / 2;
-      if(_geometry == WEDGE) unit[2] = (unit[2] + 1) / 2;
-      long double result = 0;
-      long double correction = 0;
+      std::array<long double,3> unit = {0,0,0};
+      for(unsigned axis = 0; axis < _dimension; ++axis) unit[axis] = point[axis];
+      if(_geometry == LINE || _geometry == QUAD || _geometry == HEX) for(unsigned axis = 0; axis < _dimension; ++axis) unit[axis] = (unit[axis]+1)/2;
+      if(_geometry == WEDGE) unit[2] = (unit[2]+1)/2;
+      const bool simplex = _geometry == TRI || _geometry == TET || _geometry == WEDGE;
+      const unsigned baseDimension = _geometry == TET ? 3U : 2U;
+      static const std::array<std::array<unsigned,35>,3> multipliers = BuildBernsteinMultipliers();
+      const unsigned multiplierLayout = _geometry == TET ? 1U : (_bernsteinOrders[0] == 4 ? 2U : 0U);
+      std::array<std::array<long double,5>,3> factors;
+      std::array<long double,5> remainingPowers;
+      remainingPowers[0] = 1;
+      if(simplex) {
+        long double remaining = 1;
+        for(unsigned axis = 0; axis < baseDimension; ++axis) remaining -= unit[axis];
+        for(unsigned power = 1; power <= _bernsteinOrders[0]; ++power) remainingPowers[power] = remainingPowers[power-1]*remaining;
+      }
+      for(unsigned axis = 0; axis < _dimension; ++axis) {
+        if(simplex && axis < baseDimension) { factors[axis][0] = 1; for(unsigned power = 1; power <= _bernsteinOrders[axis]; ++power) factors[axis][power] = factors[axis][power-1]*unit[axis]; }
+        else for(unsigned power = 0; power <= _bernsteinOrders[axis]; ++power) factors[axis][power] = Bernstein(_bernsteinOrders[axis],power,unit[axis]);
+      }
+      long double result = 0, correction = 0;
       for(unsigned n = 0; n < _bernstein.size(); ++n) {
-        const std::array<unsigned, 3>& index = _bernsteinIndices[n];
+        const std::array<unsigned,3>& index = _bernsteinIndices[n];
         long double value = _bernstein[n];
-        if(_geometry == TRI || _geometry == TET || _geometry == WEDGE) {
-          const unsigned baseDimension = _geometry == TET ? 3U : 2U;
-          const unsigned degree = _bernsteinOrders[0];
-          unsigned sum = 0;
-          long double remaining = 1;
-          for(unsigned axis = 0; axis < baseDimension; ++axis) {
-            sum += index[axis];
-            remaining -= unit[axis];
-          }
-          value *= Multinomial(degree, index, baseDimension) * Power(remaining, degree - sum);
-          for(unsigned axis = 0; axis < baseDimension; ++axis) value *= Power(unit[axis], index[axis]);
-          if(_geometry == WEDGE) value *= Bernstein(_bernsteinOrders[2], index[2], unit[2]);
-        }
-        else for(unsigned axis = 0; axis < _dimension; ++axis) value *= Bernstein(_bernsteinOrders[axis], index[axis], unit[axis]);
-        Accumulate(value, result, correction);
+        if(simplex) { unsigned sum = 0; for(unsigned axis = 0; axis < baseDimension; ++axis) sum += index[axis]; const unsigned baseIndex = _geometry == WEDGE ? n/(_bernsteinOrders[2]+1) : n; value *= multipliers[multiplierLayout][baseIndex]*remainingPowers[_bernsteinOrders[0]-sum]; }
+        for(unsigned axis = 0; axis < _dimension; ++axis) value *= factors[axis][index[axis]];
+        Accumulate(value,result,correction);
       }
       return result;
     }
 
     std::array<long double, 2> GetBounds() const {
       EnsureBernstein();
-      return {*std::min_element(_bernstein.begin(), _bernstein.end()) - _bernsteinPadding, *std::max_element(_bernstein.begin(), _bernstein.end()) + _bernsteinPadding};
+      return {_bernsteinExtrema[0]-_bernsteinPadding,_bernsteinExtrema[1]+_bernsteinPadding};
     }
 
     const std::vector<long double>& GetDerivativeCoefficients(unsigned axis) const {
@@ -224,7 +228,7 @@ class CutFemLevelSetData {
 
     long double EvaluateDerivative(unsigned axis, const std::vector<long double>& point) const {
       ValidatePoint(point);
-      return EvaluatePolynomial(GetDerivativeCoefficients(axis), _dimension, 2, point);
+      return EvaluateUnchecked(GetDerivativeCoefficients(axis).data(), _dimension, 2, point.data());
     }
     long double EvaluateSecondDerivative(unsigned first, unsigned second, const std::vector<long double>& point) const {
       ValidatePoint(point);
@@ -236,32 +240,55 @@ class CutFemLevelSetData {
         _secondDerivativeReady[index] = true;
         ++_workCounts[2];
       }
-      return EvaluatePolynomial(_secondDerivatives[index], _dimension, 2, point);
+      return EvaluateUnchecked(_secondDerivatives[index].data(), _dimension, 2, point.data());
     }
 
     std::vector<long double> GetGradient(const std::vector<long double>& point) const {
+      std::array<long double,3> result;
+      GetGradient(point,result);
+      return std::vector<long double>(result.begin(),result.begin()+_dimension);
+    }
+
+    void GetGradient(const std::vector<long double>& point, std::array<long double,3>& result) const {
       ValidatePoint(point);
-      std::vector<long double> result(_dimension);
-      for(unsigned axis = 0; axis < _dimension; ++axis) result[axis] = EvaluateDerivative(axis, point);
-      return result;
+      result.fill(0);
+      for(unsigned axis = 0; axis < _dimension; ++axis) result[axis] = EvaluateUnchecked(GetDerivativeCoefficients(axis).data(),_dimension,2,point.data());
     }
 
     // Root gradients retain every original reference-coordinate component after dimension reduction.
     std::vector<long double> GetRootGradient(const std::vector<long double>& point) const {
+      std::array<long double,3> result;
+      GetRootGradient(point,result);
+      return std::vector<long double>(result.begin(),result.begin()+_rootDimension);
+    }
+
+    void GetRootGradient(const std::vector<long double>& point, std::array<long double,3>& result) const {
       ValidatePoint(point);
-      std::vector<long double> result(_rootDimension);
-      for(unsigned axis = 0; axis < _rootDimension; ++axis) result[axis] = EvaluatePolynomial(GetRootDerivative(axis), _dimension, 2, point);
-      return result;
+      result.fill(0);
+      for(unsigned axis = 0; axis < _rootDimension; ++axis) result[axis] = EvaluateUnchecked(GetRootDerivative(axis).data(),_dimension,2,point.data());
     }
 
     std::array<long double, 2> GetDerivativeBounds(unsigned axis) const {
-      const std::vector<long double>& derivative = GetDerivativeCoefficients(axis);
+      RequireInitialized();
+      if(axis >= _dimension) throw std::out_of_range("Derivative axis exceeds the active dimension.");
       if(!_derivativeBoundsReady[axis]) {
         EnsureBernstein();
-        std::vector<long double> controls;
-        ConvertToBernstein(derivative, _geometry, _bernsteinOrders, controls);
-        const long double padding = Padding(controls) + 2 * _bernsteinOrders[axis] * _bernsteinPadding;
-        _derivativeBounds[axis] = {*std::min_element(controls.begin(), controls.end()) - padding, *std::max_element(controls.begin(), controls.end()) + padding};
+        const bool simplexAxis = _geometry == TRI || _geometry == TET || (_geometry == WEDGE && axis < 2);
+        const unsigned degree = _bernsteinOrders[axis];
+        const long double factor = simplexAxis ? degree : degree/2.0L;
+        long double minimum = std::numeric_limits<long double>::infinity(), maximum = -minimum, norm = 0;
+        for(unsigned n = 0; n < _bernsteinIndices.size(); ++n) {
+          std::array<unsigned,3> index = _bernsteinIndices[n];
+          const unsigned total = _geometry == TET ? index[0]+index[1]+index[2] : index[0]+index[1];
+          if(simplexAxis ? total >= degree : index[axis] >= degree) continue;
+          ++index[axis];
+          const long double value = factor*(_bernstein[BernsteinIndex(_geometry,_bernsteinOrders,index)]-_bernstein[n]);
+          minimum = std::min(minimum,value);
+          maximum = std::max(maximum,value);
+          norm += std::abs(value);
+        }
+        const long double padding = 8192*std::numeric_limits<long double>::epsilon()*norm+2*degree*_bernsteinPadding;
+        _derivativeBounds[axis] = {minimum-padding,maximum+padding};
         _derivativeBoundsReady[axis] = true;
       }
       return _derivativeBounds[axis];
@@ -269,6 +296,7 @@ class CutFemLevelSetData {
 
     int GetGraphDirection() const {
       RequireInitialized();
+      if(_graphDirectionReady) return _graphDirection;
       int result = -1;
       long double best = -1;
       for(unsigned axis = 0; axis < _dimension; ++axis) {
@@ -281,7 +309,9 @@ class CutFemLevelSetData {
           result = static_cast<int>(axis);
         }
       }
-      return result;
+      _graphDirection = result;
+      _graphDirectionReady = true;
+      return _graphDirection;
     }
 
     const std::vector<long double>& GetParentOrigin() const {
@@ -310,8 +340,7 @@ class CutFemLevelSetData {
 
     // External polynomial components keep their component count and their full supplied degree under restriction.
     void RestrictComponents(unsigned axis, long double coordinate, unsigned degree, const std::vector<std::vector<long double>>& components, std::vector<std::vector<long double>>& output) const {
-      std::vector<long double> origin;
-      std::vector<long double> scales;
+      std::array<long double,3> origin, scales;
       GeomElType childGeometry;
       RestrictionMap(axis, coordinate, childGeometry, origin, scales);
       if(&components == &output) throw std::invalid_argument("Restriction input and output components must be distinct.");
@@ -323,10 +352,77 @@ class CutFemLevelSetData {
     }
 
     std::vector<long double> GetLineRoots() const;
+    unsigned GetLineRoots(std::array<long double,2>& roots) const;
+
+    long double EvaluateLine(long double coordinate) const { EnsurePower(); ValidateLineCoordinate(coordinate); return EvaluateQuadratic(_power.data(),1,coordinate); }
+
+    long double GetLineSurfaceData(long double coordinate, std::array<long double,3>& rootGradient) const {
+      EnsurePower();
+      ValidateLineCoordinate(coordinate);
+      const long double derivative = 2*_power[2]*coordinate+_power[1];
+      if(derivative == 0) throw std::domain_error("A singular line root requires endpoint handling.");
+      rootGradient.fill(0);
+      for(unsigned axis = 0; axis < _rootDimension; ++axis) rootGradient[axis] = EvaluateQuadratic(GetRootDerivative(axis).data(),1,coordinate);
+      return 1/std::abs(derivative);
+    }
+
+    // Scalars are delta, reference surface, physical surface, and inverse metric; normals are the signed delta measures.
+    void GetLineSurfaceFactors(long double coordinate, const std::array<long double,3>& cofactorGradient, std::array<long double,4>& scalarFactors, std::array<long double,3>& normalFactors) const {
+      std::array<long double,3> rootGradient;
+      const long double inverseDerivative = GetLineSurfaceData(coordinate,rootGradient);
+      CompleteSurfaceFactors(inverseDerivative,rootGradient,cofactorGradient,scalarFactors,normalFactors);
+    }
+
+    void GetLineSurfaceFactorsFromCofactor(long double coordinate, const std::array<std::array<long double,3>,3>& cofactor, std::array<long double,4>& scalarFactors, std::array<long double,3>& normalFactors) const {
+      std::array<long double,3> rootGradient, transformed = {0,0,0};
+      const long double inverseDerivative = GetLineSurfaceData(coordinate,rootGradient);
+      for(unsigned physical = 0; physical < _rootDimension; ++physical) for(unsigned reference = 0; reference < _rootDimension; ++reference) { if(!std::isfinite(cofactor[physical][reference])) throw std::invalid_argument("Surface cofactor entries must be finite."); transformed[physical] += cofactor[physical][reference]*rootGradient[reference]; }
+      CompleteSurfaceFactors(inverseDerivative,rootGradient,transformed,scalarFactors,normalFactors);
+    }
 
     static long double EvaluatePolynomial(const std::vector<long double>& coefficient, unsigned dimension, unsigned degree, const std::vector<long double>& point) {
       if(dimension < 1 || dimension > 3 || point.size() != dimension || coefficient.size() != PolynomialSize(dimension, degree)) throw std::invalid_argument("Invalid polynomial evaluation layout.");
       for(long double coordinate : point) if(!std::isfinite(coordinate)) throw std::invalid_argument("Polynomial evaluation coordinates must be finite.");
+      return EvaluateUnchecked(coefficient.data(),dimension,degree,point.data());
+    }
+
+  private:
+    void CompleteSurfaceFactors(long double inverseDerivative, const std::array<long double,3>& rootGradient, const std::array<long double,3>& cofactorGradient, std::array<long double,4>& scalarFactors, std::array<long double,3>& normalFactors) const {
+      long double referenceNorm = 0, physicalNorm = 0;
+      for(unsigned axis = 0; axis < _rootDimension; ++axis) { if(!std::isfinite(cofactorGradient[axis])) throw std::invalid_argument("Surface cofactor components must be finite."); referenceNorm = std::hypot(referenceNorm,rootGradient[axis]); physicalNorm = std::hypot(physicalNorm,cofactorGradient[axis]); }
+      if(physicalNorm == 0) throw std::domain_error("The physical surface metric is zero.");
+      scalarFactors = {inverseDerivative,referenceNorm*inverseDerivative,physicalNorm*inverseDerivative,inverseDerivative/physicalNorm};
+      for(unsigned axis = 0; axis < normalFactors.size(); ++axis) normalFactors[axis] = axis < _rootDimension ? inverseDerivative*(cofactorGradient[axis]/physicalNorm) : 0;
+    }
+
+    struct BernsteinRestrictionPlan {
+      bool simplex = false;
+      unsigned degree = 0;
+      std::array<unsigned,3> orders = {0,0,0};
+      std::vector<std::array<unsigned,3>> indices;
+      std::vector<std::array<unsigned,3>> terms;
+      std::vector<unsigned> offsets;
+    };
+
+    static std::array<BernsteinRestrictionPlan,17> BuildRestrictionPlans();
+    const BernsteinRestrictionPlan& GetRestrictionPlan(unsigned axis) const {
+      static const std::array<BernsteinRestrictionPlan,17> plans = BuildRestrictionPlans();
+      const unsigned base = _geometry == HEX ? 0U : (_geometry == TET ? 3U : (_geometry == WEDGE ? 6U : (_geometry == QUAD ? (_bernsteinOrders[0] == 3 ? 15U : 9U) : (_bernsteinOrders[0] == 4 ? 13U : 11U))));
+      return plans[base+axis];
+    }
+
+    static long double EvaluateQuadratic(const long double* coefficient, unsigned stride, long double coordinate) { return (coefficient[2*stride]*coordinate+coefficient[stride])*coordinate+coefficient[0]; }
+
+    static long double EvaluateUnchecked(const long double* coefficient, unsigned dimension, unsigned degree, const long double* point) {
+      if(degree == 2) {
+        if(dimension == 1) return EvaluateQuadratic(coefficient,1,point[0]);
+        long double rows[3];
+        for(unsigned i = 0; i < 3; ++i) {
+          if(dimension == 2) rows[i] = EvaluateQuadratic(coefficient+3*i,1,point[1]);
+          else { long double lines[3]; for(unsigned j = 0; j < 3; ++j) lines[j] = EvaluateQuadratic(coefficient+9*i+3*j,1,point[2]); rows[i] = EvaluateQuadratic(lines,1,point[1]); }
+        }
+        return EvaluateQuadratic(rows,1,point[0]);
+      }
       const unsigned side = degree + 1;
       long double result = 0;
       if(dimension == 1) {
@@ -350,7 +446,6 @@ class CutFemLevelSetData {
       return result;
     }
 
-  private:
     static unsigned Dimension(GeomElType geometry) {
       return geometry == LINE ? 1U : (geometry == QUAD || geometry == TRI ? 2U : 3U);
     }
@@ -383,8 +478,13 @@ class CutFemLevelSetData {
     }
     static long double Binomial(unsigned n, unsigned k) {
       if(k > n) return 0;
+      k = std::min(k,n-k);
+      if(k == 0) return 1;
+      if(k == 1) return n;
+      if(k == 2) return n*(n-1)/2U;
+      if(k == 3) return n*(n-1)*(n-2)/6U;
       long double result = 1;
-      for(unsigned i = 1; i <= k; ++i) result *= static_cast<long double>(n - i + 1) / i;
+      for(unsigned i = 1; i <= k; ++i) result *= static_cast<long double>(n-i+1)/i;
       return result;
     }
     static long double Falling(unsigned n, unsigned k) {
@@ -402,6 +502,13 @@ class CutFemLevelSetData {
         result *= Binomial(degree, index[axis]);
         degree -= index[axis];
       }
+      return result;
+    }
+    static std::array<std::array<unsigned,35>,3> BuildBernsteinMultipliers() {
+      const GeomElType geometries[3] = {TRI,TET,TRI};
+      const std::array<std::array<unsigned,3>,3> orders = {{{3,3,0},{4,4,4},{4,4,0}}};
+      std::array<std::array<unsigned,35>,3> result = {};
+      for(unsigned layout = 0; layout < 3; ++layout) { std::vector<std::array<unsigned,3>> indices; BuildBernsteinIndices(geometries[layout],orders[layout],indices); for(unsigned n = 0; n < indices.size(); ++n) result[layout][n] = static_cast<unsigned>(Multinomial(orders[layout][0],indices[n],Dimension(geometries[layout]))); }
       return result;
     }
     static void Accumulate(long double term, long double& sum, long double& correction) {
@@ -449,6 +556,14 @@ class CutFemLevelSetData {
       if((_geometry == TRI || _geometry == TET || _geometry == WEDGE) && sum > 1 + 128 * std::numeric_limits<long double>::epsilon()) throw std::out_of_range("Point lies outside the reference simplex.");
     }
 
+    void ValidateLineCoordinate(long double coordinate) const {
+      RequireInitialized();
+      if(_dimension != 1) throw std::logic_error("A line operation requires one-dimensional data.");
+      if(!std::isfinite(coordinate)) throw std::invalid_argument("Line coordinates must be finite.");
+      const long double padding = 64*std::numeric_limits<long double>::epsilon();
+      if(coordinate < -1-padding || coordinate > 1+padding) throw std::out_of_range("Point lies outside the reference line.");
+    }
+
     static void Differentiate(const std::vector<long double>& coefficient, unsigned dimension, unsigned degree, unsigned axis, std::vector<long double>& result) {
       result.assign(coefficient.size(), 0);
       for(unsigned n = 0; n < coefficient.size(); ++n) {
@@ -466,6 +581,12 @@ class CutFemLevelSetData {
     }
     void EnsurePower() const;
     void EnsureBernstein() const;
+    void UpdateBernsteinBounds(long double inheritedPadding) const {
+      long double minimum = _bernstein[0], maximum = minimum, norm = 0;
+      for(long double value : _bernstein) { minimum = std::min(minimum,value); maximum = std::max(maximum,value); norm += std::abs(value); }
+      _bernsteinExtrema = {minimum,maximum};
+      _bernsteinPadding = inheritedPadding+8192*std::numeric_limits<long double>::epsilon()*norm;
+    }
     void Classify();
     const std::vector<long double>& GetRootDerivative(unsigned axis) const {
       if(axis >= _rootDimension) throw std::out_of_range("Root derivative axis exceeds the original dimension.");
@@ -478,12 +599,24 @@ class CutFemLevelSetData {
     static void AddBarycentricProduct(const std::array<std::array<long double, 4>, 4>& barycentric, const std::vector<unsigned>& factors, long double multiplier, std::vector<long double>& coefficient);
     static void ConvertToBernstein(const std::vector<long double>& power, GeomElType geometry, const std::array<unsigned, 3>& orders, std::vector<long double>& controls);
     static void BuildBernsteinIndices(GeomElType geometry, const std::array<unsigned, 3>& orders, std::vector<std::array<unsigned, 3>>& indices);
+    static std::array<std::vector<std::array<unsigned,3>>,10> BuildCachedBernsteinIndices() {
+      const GeomElType geometries[10] = {HEX,TET,WEDGE,QUAD,TRI,TRI,QUAD,LINE,LINE,LINE};
+      const std::array<std::array<unsigned,3>,10> orders = {{{2,2,2},{4,4,4},{3,3,2},{2,2,0},{3,3,0},{4,4,0},{3,2,0},{2,0,0},{3,0,0},{4,0,0}}};
+      std::array<std::vector<std::array<unsigned,3>>,10> result;
+      for(unsigned layout = 0; layout < result.size(); ++layout) BuildBernsteinIndices(geometries[layout],orders[layout],result[layout]);
+      return result;
+    }
+    static const std::vector<std::array<unsigned,3>>& CachedBernsteinIndices(GeomElType geometry, const std::array<unsigned,3>& orders) {
+      static const std::array<std::vector<std::array<unsigned,3>>,10> indices = BuildCachedBernsteinIndices();
+      const unsigned layout = geometry == HEX ? 0U : (geometry == TET ? 1U : (geometry == WEDGE ? 2U : (geometry == QUAD ? (orders[0] == 3 ? 6U : 3U) : (geometry == TRI ? (orders[0] == 4 ? 5U : 4U) : orders[0]+5U))));
+      return indices[layout];
+    }
     static unsigned BernsteinIndex(GeomElType geometry, const std::array<unsigned, 3>& orders, const std::array<unsigned, 3>& index);
     static void AffinePower(const std::vector<long double>& input, unsigned dimension, unsigned degree, unsigned axis, long double origin, long double scale, std::vector<long double>& output);
-    static bool CertifySign(GeomElType geometry, const std::array<unsigned, 3>& orders, const std::vector<long double>& controls, int sign, long double padding, unsigned depth);
-    static void SplitBernstein(GeomElType geometry, const std::array<unsigned, 3>& orders, const std::vector<long double>& controls, std::vector<long double>& left, std::vector<long double>& right);
-    void RestrictionMap(unsigned axis, long double coordinate, GeomElType& childGeometry, std::vector<long double>& origins, std::vector<long double>& scales) const;
-    static void RestrictPower(const std::vector<long double>& input, unsigned dimension, unsigned degree, unsigned axis, long double coordinate, const std::vector<long double>& origins, const std::vector<long double>& scales, std::vector<long double>& output);
+    static bool CertifySign(GeomElType geometry, const std::array<unsigned,3>& orders, const long double* controls, unsigned count, int sign, long double padding, unsigned depth);
+    static bool SplitBernstein(GeomElType geometry, const std::array<unsigned,3>& orders, const long double* controls, unsigned count, std::array<long double,35>& left, std::array<long double,35>& right);
+    void RestrictionMap(unsigned axis, long double coordinate, GeomElType& childGeometry, std::array<long double,3>& origins, std::array<long double,3>& scales) const;
+    static void RestrictPower(const std::vector<long double>& input, unsigned dimension, unsigned degree, unsigned axis, long double coordinate, const std::array<long double,3>& origins, const std::array<long double,3>& scales, std::vector<long double>& output);
     void RestrictBernstein(unsigned axis, long double coordinate, CutFemLevelSetData& child) const;
 
     bool _initialized = false;
@@ -510,10 +643,13 @@ class CutFemLevelSetData {
     mutable std::vector<long double> _normalized;
     mutable std::vector<long double> _bernstein;
     mutable long double _bernsteinPadding = 0;
+    mutable std::array<long double,2> _bernsteinExtrema = {0,0};
     mutable std::vector<std::array<unsigned, 3>> _bernsteinIndices;
     std::array<unsigned, 3> _bernsteinOrders = {0, 0, 0};
     mutable std::array<bool, 3> _derivativeReady = {false, false, false};
     mutable std::array<bool, 3> _derivativeBoundsReady = {false, false, false};
+    mutable bool _graphDirectionReady = false;
+    mutable int _graphDirection = -1;
     mutable std::array<std::vector<long double>, 3> _derivatives;
     mutable std::array<bool, 6> _secondDerivativeReady = {false, false, false, false, false, false};
     mutable std::array<std::vector<long double>, 6> _secondDerivatives;
@@ -655,34 +791,19 @@ inline void CutFemLevelSetData::EnsurePower() const {
 inline void CutFemLevelSetData::AffinePower(const std::vector<long double>& input, unsigned dimension, unsigned degree, unsigned axis, long double origin, long double scale, std::vector<long double>& output) {
   if(&input != &output) output = input;
   if(origin == 0 && scale == 1) return;
-  std::array<long double, 33> scalePowers, originPowers;
+  const unsigned side = degree+1;
+  unsigned stride = 1;
+  for(unsigned next = axis+1; next < dimension; ++next) stride *= side;
+  std::array<long double,33> scalePowers, originPowers;
   scalePowers[0] = originPowers[0] = 1;
-  for(unsigned n = 1; n <= degree; ++n) {
-    scalePowers[n] = scalePowers[n - 1] * scale;
-    originPowers[n] = originPowers[n - 1] * origin;
-  }
-  if(origin == 0) {
-    for(unsigned n = 0; n < input.size(); ++n) output[n] = input[n] * scalePowers[PowerExponents(n, dimension, degree)[axis]];
-    return;
-  }
-  for(unsigned n = 0; n < input.size(); ++n) {
-    std::array<unsigned, 3> index = PowerExponents(n, dimension, degree);
-    if(index[axis] != 0) continue;
-    std::array<long double, 33> source, transformed;
-    for(unsigned power = 0; power <= degree; ++power) {
-      index[axis] = power;
-      source[power] = output[PowerIndex(index, dimension, degree)];
-    }
-    for(unsigned power = 0; power <= degree; ++power) {
-      long double sum = 0;
-      long double correction = 0;
-      for(unsigned old = power; old <= degree; ++old) Accumulate(source[old]*Binomial(old, power)*originPowers[old - power]*scalePowers[power], sum, correction);
-      transformed[power] = sum;
-    }
-    for(unsigned power = 0; power <= degree; ++power) {
-      index[axis] = power;
-      output[PowerIndex(index, dimension, degree)] = transformed[power];
-    }
+  for(unsigned n = 1; n <= degree; ++n) { scalePowers[n] = scalePowers[n-1]*scale; originPowers[n] = originPowers[n-1]*origin; }
+  if(origin == 0) { for(unsigned n = 0; n < input.size(); ++n) output[n] = input[n]*scalePowers[(n/stride)%side]; return; }
+  for(unsigned block = 0; block < input.size(); block += stride*side) for(unsigned offset = 0; offset < stride; ++offset) {
+    const unsigned base = block+offset;
+    std::array<long double,33> source, transformed;
+    for(unsigned power = 0; power <= degree; ++power) source[power] = output[base+power*stride];
+    for(unsigned power = 0; power <= degree; ++power) { long double sum = 0, correction = 0; for(unsigned old = power; old <= degree; ++old) Accumulate(source[old]*Binomial(old,power)*originPowers[old-power]*scalePowers[power],sum,correction); transformed[power] = sum; }
+    for(unsigned power = 0; power <= degree; ++power) output[base+power*stride] = transformed[power];
   }
 }
 
@@ -709,8 +830,7 @@ inline void CutFemLevelSetData::ConvertToBernstein(const std::vector<long double
       AffinePower(unit, dimension, 2, axis, -1, 2, scratch);
       unit.swap(scratch);
     }
-  std::vector<std::array<unsigned, 3>> indices;
-  BuildBernsteinIndices(geometry, orders, indices);
+  const std::vector<std::array<unsigned,3>>& indices = CachedBernsteinIndices(geometry,orders);
   controls.assign(indices.size(), 0);
   for(unsigned n = 0; n < indices.size(); ++n) {
     long double correction = 0;
@@ -739,8 +859,8 @@ inline void CutFemLevelSetData::EnsureBernstein() const {
   EnsurePower();
   if(_bernsteinReady) return;
   ConvertToBernstein(_power, _geometry, _bernsteinOrders, _bernstein);
-  BuildBernsteinIndices(_geometry, _bernsteinOrders, _bernsteinIndices);
-  _bernsteinPadding = Padding(_bernstein);
+  _bernsteinIndices = CachedBernsteinIndices(_geometry,_bernsteinOrders);
+  UpdateBernsteinBounds(0);
   _bernsteinReady = true;
   ++_workCounts[1];
 }
@@ -770,8 +890,8 @@ inline void CutFemLevelSetData::Classify() {
   }
   EnsureBernstein();
   const long double padding = _bernsteinPadding;
-  const long double minimum = *std::min_element(_bernstein.begin(), _bernstein.end());
-  const long double maximum = *std::max_element(_bernstein.begin(), _bernstein.end());
+  const long double minimum = _bernsteinExtrema[0];
+  const long double maximum = _bernsteinExtrema[1];
   if(minimum > padding) {
     _phase = 1;
     _classification = "positive";
@@ -821,16 +941,16 @@ inline void CutFemLevelSetData::Classify() {
     }
   }
   const int sign = positive ? 1 : -1;
-  if(CertifySign(_geometry, _bernsteinOrders, _bernstein, sign, padding, _maximumDepth)) {
+  if(CertifySign(_geometry, _bernsteinOrders, _bernstein.data(), static_cast<unsigned>(_bernstein.size()), sign, padding, _maximumDepth)) {
     _phase = sign;
     _classification = sign > 0 ? "positive" : "negative";
   }
   _classified = true;
 }
 
-inline bool CutFemLevelSetData::CertifySign(GeomElType geometry, const std::array<unsigned, 3>& orders, const std::vector<long double>& controls, int sign, long double padding, unsigned depth) {
+inline bool CutFemLevelSetData::CertifySign(GeomElType geometry, const std::array<unsigned,3>& orders, const long double* controls, unsigned count, int sign, long double padding, unsigned depth) {
   bool certified = true;
-  for(long double value : controls) certified = certified && sign * value > padding;
+  for(unsigned n = 0; n < count; ++n) certified = certified && sign*controls[n] > padding;
   if(certified) return true;
   if(depth == 0) return false;
   if(geometry == TRI || geometry == TET || geometry == WEDGE) {
@@ -850,18 +970,35 @@ inline bool CutFemLevelSetData::CertifySign(GeomElType geometry, const std::arra
       if(sign * controls[BernsteinIndex(geometry, orders, index)] <= padding) return false;
     }
   }
-  std::vector<long double> left, right;
-  SplitBernstein(geometry, orders, controls, left, right);
-  if(left.empty()) return false;
-  return CertifySign(geometry, orders, left, sign, padding, depth - 1) && CertifySign(geometry, orders, right, sign, padding, depth - 1);
+  std::array<long double,35> left, right;
+  if(!SplitBernstein(geometry,orders,controls,count,left,right)) return false;
+  return CertifySign(geometry,orders,left.data(),count,sign,padding,depth-1) && CertifySign(geometry,orders,right.data(),count,sign,padding,depth-1);
 }
 
-inline void CutFemLevelSetData::SplitBernstein(GeomElType geometry, const std::array<unsigned, 3>& orders, const std::vector<long double>& controls, std::vector<long double>& left, std::vector<long double>& right) {
+inline bool CutFemLevelSetData::SplitBernstein(GeomElType geometry, const std::array<unsigned,3>& orders, const long double* controls, unsigned count, std::array<long double,35>& left, std::array<long double,35>& right) {
   const unsigned dimension = Dimension(geometry);
   const bool simplex = geometry == TRI || geometry == TET || geometry == WEDGE;
   const unsigned baseDimension = geometry == TET ? 3U : 2U;
-  std::vector<std::array<unsigned, 3>> indices;
-  BuildBernsteinIndices(geometry, orders, indices);
+  static constexpr long double dyad[5] = {1,0.5L,0.25L,0.125L,0.0625L};
+  if(!simplex) {
+    std::array<unsigned,3> strides = {1,1,1};
+    for(unsigned axis = dimension-1; axis > 0; --axis) strides[axis-1] = strides[axis]*(orders[axis]+1);
+    long double variation = 0;
+    unsigned selectedAxis = 0;
+    for(unsigned n = 0; n < count; ++n) for(unsigned axis = 0; axis < dimension; ++axis) { if((n/strides[axis])%(orders[axis]+1) == orders[axis]) continue; const long double difference = std::abs(controls[n]-controls[n+strides[axis]]); if(difference > variation) { variation = difference; selectedAxis = axis; } }
+    if(variation == 0) return false;
+    const unsigned stride = strides[selectedAxis], degree = orders[selectedAxis];
+    for(unsigned n = 0; n < count; ++n) {
+      const unsigned index = (n/stride)%(degree+1), base = n-index*stride;
+      long double first = 0, second = 0, firstCorrection = 0, secondCorrection = 0;
+      for(unsigned k = 0; k <= index; ++k) Accumulate(Binomial(index,k)*dyad[index]*controls[base+k*stride],first,firstCorrection);
+      for(unsigned k = 0; k <= degree-index; ++k) Accumulate(Binomial(degree-index,k)*dyad[degree-index]*controls[base+(index+k)*stride],second,secondCorrection);
+      left[n] = first;
+      right[n] = second;
+    }
+    return true;
+  }
+  const std::vector<std::array<unsigned,3>>& indices = CachedBernsteinIndices(geometry,orders);
   long double variation = 0;
   unsigned selectedAxis = 0;
   unsigned selectedFirst = 0;
@@ -903,9 +1040,7 @@ inline void CutFemLevelSetData::SplitBernstein(GeomElType geometry, const std::a
         }
       }
   }
-  if(variation == 0) return;
-  left.resize(controls.size());
-  right.resize(controls.size());
+  if(variation == 0) return false;
   for(unsigned n = 0; n < indices.size(); ++n) {
     long double firstValue = 0, secondValue = 0, firstCorrection = 0, secondCorrection = 0;
     if(!triangleSplit) {
@@ -914,11 +1049,11 @@ inline void CutFemLevelSetData::SplitBernstein(GeomElType geometry, const std::a
       const unsigned degree = orders[selectedAxis];
       for(unsigned k = 0; k <= index; ++k) {
         source[selectedAxis] = k;
-        Accumulate(Binomial(index, k)*std::ldexp(1.0L, -static_cast<int>(index))*controls[BernsteinIndex(geometry, orders, source)], firstValue, firstCorrection);
+        Accumulate(Binomial(index, k)*dyad[index]*controls[BernsteinIndex(geometry, orders, source)], firstValue, firstCorrection);
       }
       for(unsigned k = 0; k <= degree - index; ++k) {
         source[selectedAxis] = index + k;
-        Accumulate(Binomial(degree - index, k)*std::ldexp(1.0L, -static_cast<int>(degree - index))*controls[BernsteinIndex(geometry, orders, source)], secondValue, secondCorrection);
+        Accumulate(Binomial(degree - index, k)*dyad[degree-index]*controls[BernsteinIndex(geometry, orders, source)], secondValue, secondCorrection);
       }
     }
     else {
@@ -935,7 +1070,7 @@ inline void CutFemLevelSetData::SplitBernstein(GeomElType geometry, const std::a
         shifted[selectedSecond] -= k;
         std::array<unsigned, 3> source = indices[n];
         for(unsigned axis = 0; axis < baseDimension; ++axis) source[axis] = shifted[axis + 1];
-        Accumulate(Binomial(secondCount, k)*std::ldexp(1.0L, -static_cast<int>(secondCount))*controls[BernsteinIndex(geometry, orders, source)], firstValue, firstCorrection);
+        Accumulate(Binomial(secondCount, k)*dyad[secondCount]*controls[BernsteinIndex(geometry, orders, source)], firstValue, firstCorrection);
       }
       for(unsigned k = 0; k <= firstCount; ++k) {
         std::array<unsigned, 4> shifted = barycentric;
@@ -943,15 +1078,16 @@ inline void CutFemLevelSetData::SplitBernstein(GeomElType geometry, const std::a
         shifted[selectedSecond] += k;
         std::array<unsigned, 3> source = indices[n];
         for(unsigned axis = 0; axis < baseDimension; ++axis) source[axis] = shifted[axis + 1];
-        Accumulate(Binomial(firstCount, k)*std::ldexp(1.0L, -static_cast<int>(firstCount))*controls[BernsteinIndex(geometry, orders, source)], secondValue, secondCorrection);
+        Accumulate(Binomial(firstCount, k)*dyad[firstCount]*controls[BernsteinIndex(geometry, orders, source)], secondValue, secondCorrection);
       }
     }
     left[n] = firstValue;
     right[n] = secondValue;
   }
+  return true;
 }
 
-inline void CutFemLevelSetData::RestrictionMap(unsigned axis, long double coordinate, GeomElType& childGeometry, std::vector<long double>& origins, std::vector<long double>& scales) const {
+inline void CutFemLevelSetData::RestrictionMap(unsigned axis, long double coordinate, GeomElType& childGeometry, std::array<long double,3>& origins, std::array<long double,3>& scales) const {
   RequireInitialized();
   if(_dimension < 2) throw std::logic_error("A line has no positive-dimensional slice.");
   if(axis >= _dimension) throw std::out_of_range("Slice axis exceeds the active dimension.");
@@ -959,98 +1095,106 @@ inline void CutFemLevelSetData::RestrictionMap(unsigned axis, long double coordi
   const bool simplexAxis = _geometry == TRI || _geometry == TET || (_geometry == WEDGE && axis < 2);
   if(coordinate < (simplexAxis ? 0 : -1) || coordinate > 1) throw std::out_of_range("Slice coordinate lies outside the reference element.");
   childGeometry = _geometry == HEX ? QUAD : (_geometry == TET ? TRI : (_geometry == WEDGE ? (axis == 2 ? TRI : QUAD) : LINE));
-  origins.assign(_dimension - 1, 0);
-  scales.assign(_dimension - 1, 1);
+  origins.fill(0);
+  scales.fill(1);
   const long double width = 1 - coordinate;
   if(_geometry == TET) std::fill(scales.begin(), scales.end(), width);
   if(_geometry == TRI || (_geometry == WEDGE && axis < 2)) origins[0] = scales[0] = width / 2;
 }
 
-inline void CutFemLevelSetData::RestrictPower(const std::vector<long double>& input, unsigned dimension, unsigned degree, unsigned axis, long double coordinate, const std::vector<long double>& origins, const std::vector<long double>& scales, std::vector<long double>& output) {
+inline void CutFemLevelSetData::RestrictPower(const std::vector<long double>& input, unsigned dimension, unsigned degree, unsigned axis, long double coordinate, const std::array<long double,3>& origins, const std::array<long double,3>& scales, std::vector<long double>& output) {
+  const unsigned side = degree+1;
+  unsigned stride = 1;
+  for(unsigned next = axis+1; next < dimension; ++next) stride *= side;
   output.resize(PolynomialSize(dimension - 1, degree));
   for(unsigned n = 0; n < output.size(); ++n) {
-    const std::array<unsigned, 3> childIndex = PowerExponents(n, dimension - 1, degree);
-    std::array<unsigned, 3> parentIndex = {0, 0, 0};
-    unsigned childAxis = 0;
-    for(unsigned parentAxis = 0; parentAxis < dimension; ++parentAxis) if(parentAxis != axis) parentIndex[parentAxis] = childIndex[childAxis++];
-    parentIndex[axis] = degree;
-    long double value = input[PowerIndex(parentIndex, dimension, degree)];
+    const unsigned base = (n/stride)*stride*side+n%stride;
+    if(degree == 2) { output[n] = EvaluateQuadratic(input.data()+base,stride,coordinate); continue; }
+    long double value = input[base+degree*stride];
     for(unsigned power = degree; power > 0; --power) {
-      parentIndex[axis] = power - 1;
-      value = value * coordinate + input[PowerIndex(parentIndex, dimension, degree)];
+      value = value*coordinate+input[base+(power-1)*stride];
     }
     output[n] = value;
   }
   for(unsigned childAxis = 0; childAxis < dimension - 1; ++childAxis) AffinePower(output, dimension - 1, degree, childAxis, origins[childAxis], scales[childAxis], output);
 }
 
-inline void CutFemLevelSetData::RestrictBernstein(unsigned axis, long double coordinate, CutFemLevelSetData& child) const {
-  const bool simplexSlice = _geometry == TRI || _geometry == TET || (_geometry == WEDGE && axis < 2);
-  child._bernsteinOrders = {0, 0, 0};
-  if(simplexSlice) {
-    if(_geometry == TET) child._bernsteinOrders = {_bernsteinOrders[0], _bernsteinOrders[0], 0};
-    else if(_geometry == WEDGE) child._bernsteinOrders = {_bernsteinOrders[0], _bernsteinOrders[2], 0};
-    else child._bernsteinOrders = {_bernsteinOrders[0], 0, 0};
-  }
-  else {
-    unsigned next = 0;
-    for(unsigned parentAxis = 0; parentAxis < _dimension; ++parentAxis) if(parentAxis != axis) child._bernsteinOrders[next++] = _bernsteinOrders[parentAxis];
-  }
-  BuildBernsteinIndices(child._geometry, child._bernsteinOrders, child._bernsteinIndices);
-  child._bernstein.resize(child._bernsteinIndices.size());
-  if(!simplexSlice) {
-    const long double unit = (coordinate + 1) / 2;
-    const unsigned degree = _bernsteinOrders[axis];
-    std::array<long double, 33> weights;
-    for(unsigned k = 0; k <= degree; ++k) weights[k] = Bernstein(degree, k, unit);
-    for(unsigned n = 0; n < child._bernstein.size(); ++n) {
-      std::array<unsigned, 3> source = {0, 0, 0};
-      unsigned next = 0;
-      for(unsigned parentAxis = 0; parentAxis < _dimension; ++parentAxis) if(parentAxis != axis) source[parentAxis] = child._bernsteinIndices[n][next++];
-      long double value = 0, correction = 0;
-      for(unsigned k = 0; k <= degree; ++k) {
-        source[axis] = k;
-        Accumulate(weights[k]*_bernstein[BernsteinIndex(_geometry, _bernsteinOrders, source)], value, correction);
+inline std::array<CutFemLevelSetData::BernsteinRestrictionPlan,17> CutFemLevelSetData::BuildRestrictionPlans() {
+  const GeomElType geometries[7] = {HEX,TET,WEDGE,QUAD,TRI,TRI,QUAD};
+  const std::array<std::array<unsigned,3>,7> orders = {{{2,2,2},{4,4,4},{3,3,2},{2,2,0},{3,3,0},{4,4,0},{3,2,0}}};
+  std::array<BernsteinRestrictionPlan,17> result;
+  unsigned nextPlan = 0;
+  for(unsigned layout = 0; layout < 7; ++layout) {
+    const GeomElType geometry = geometries[layout];
+    const unsigned dimension = Dimension(geometry);
+    for(unsigned axis = 0; axis < dimension; ++axis) {
+      BernsteinRestrictionPlan& plan = result[nextPlan++];
+      plan.simplex = geometry == TRI || geometry == TET || (geometry == WEDGE && axis < 2);
+      plan.degree = orders[layout][axis];
+      const GeomElType childGeometry = geometry == HEX ? QUAD : (geometry == TET ? TRI : (geometry == WEDGE ? (axis == 2 ? TRI : QUAD) : LINE));
+      if(plan.simplex) {
+        if(geometry == TET) plan.orders = {plan.degree,plan.degree,0};
+        else if(geometry == WEDGE) plan.orders = {plan.degree,orders[layout][2],0};
+        else plan.orders = {plan.degree,0,0};
       }
-      child._bernstein[n] = value;
-    }
-  }
-  else {
-    const unsigned degree = _bernsteinOrders[0];
-    const unsigned baseDimension = _geometry == TET ? 3U : 2U;
-    std::array<long double, 33> fixedPowers, widthPowers;
-    fixedPowers[0] = widthPowers[0] = 1;
-    for(unsigned k = 1; k <= degree; ++k) {
-      fixedPowers[k] = fixedPowers[k - 1] * coordinate;
-      widthPowers[k] = widthPowers[k - 1] * (1 - coordinate);
-    }
-    for(unsigned n = 0; n < child._bernstein.size(); ++n) {
-      const std::array<unsigned, 3>& childIndex = child._bernsteinIndices[n];
-      const unsigned first = childIndex[0];
-      const unsigned second = _geometry == TET ? childIndex[1] : 0;
-      const unsigned zeroth = degree - first - second;
-      long double value = 0, correction = 0;
-      for(unsigned a = 0; a <= zeroth; ++a) for(unsigned b = 0; b <= first; ++b) for(unsigned c = 0; c <= second; ++c) {
-            const unsigned total = a + b + c;
-            std::array<unsigned, 3> source = {0, 0, 0};
-            source[axis] = degree - total;
+      else { unsigned next = 0; for(unsigned parentAxis = 0; parentAxis < dimension; ++parentAxis) if(parentAxis != axis) plan.orders[next++] = orders[layout][parentAxis]; }
+      BuildBernsteinIndices(childGeometry,plan.orders,plan.indices);
+      plan.offsets.push_back(0);
+      for(const std::array<unsigned,3>& index : plan.indices) {
+        if(!plan.simplex) {
+          std::array<unsigned,3> source = {0,0,0};
+          unsigned next = 0;
+          for(unsigned parentAxis = 0; parentAxis < dimension; ++parentAxis) if(parentAxis != axis) source[parentAxis] = index[next++];
+          for(unsigned k = 0; k <= plan.degree; ++k) { source[axis] = k; plan.terms.push_back({BernsteinIndex(geometry,orders[layout],source),k,1}); }
+        }
+        else {
+          const unsigned baseDimension = geometry == TET ? 3U : 2U;
+          const unsigned first = index[0], second = geometry == TET ? index[1] : 0U, zeroth = plan.degree-first-second;
+          for(unsigned a = 0; a <= zeroth; ++a) for(unsigned b = 0; b <= first; ++b) for(unsigned c = 0; c <= second; ++c) {
+            const unsigned total = a+b+c;
+            std::array<unsigned,3> source = {0,0,0};
+            source[axis] = plan.degree-total;
             unsigned next = 0;
             for(unsigned parentAxis = 0; parentAxis < baseDimension; ++parentAxis) if(parentAxis != axis) source[parentAxis] = next++ == 0 ? b : c;
-            if(_geometry == WEDGE) source[2] = childIndex[1];
-            const long double factor = Binomial(zeroth, a) * Binomial(first, b) * Binomial(second, c) * fixedPowers[degree - total] * widthPowers[total];
-            Accumulate(factor * _bernstein[BernsteinIndex(_geometry, _bernsteinOrders, source)], value, correction);
+            if(geometry == WEDGE) source[2] = index[1];
+            const unsigned multiplier = static_cast<unsigned>(Binomial(zeroth,a)*Binomial(first,b)*Binomial(second,c));
+            plan.terms.push_back({BernsteinIndex(geometry,orders[layout],source),plan.degree-total,multiplier});
           }
-      child._bernstein[n] = value;
+        }
+        plan.offsets.push_back(static_cast<unsigned>(plan.terms.size()));
+      }
     }
   }
-  child._bernsteinPadding = _bernsteinPadding + Padding(child._bernstein);
+  return result;
+}
+
+inline void CutFemLevelSetData::RestrictBernstein(unsigned axis, long double coordinate, CutFemLevelSetData& child) const {
+  const BernsteinRestrictionPlan& plan = GetRestrictionPlan(axis);
+  if(child._bernsteinOrders != plan.orders || child._bernsteinIndices.size() != plan.indices.size()) { child._bernsteinOrders = plan.orders; child._bernsteinIndices = plan.indices; }
+  child._bernstein.resize(plan.indices.size());
+  std::array<long double,5> weights, fixedPowers, widthPowers;
+  if(plan.simplex) {
+    fixedPowers[0] = widthPowers[0] = 1;
+    for(unsigned k = 1; k <= plan.degree; ++k) { fixedPowers[k] = fixedPowers[k-1]*coordinate; widthPowers[k] = widthPowers[k-1]*(1-coordinate); }
+  }
+  else { const long double unit = (coordinate+1)/2; for(unsigned k = 0; k <= plan.degree; ++k) weights[k] = Bernstein(plan.degree,k,unit); }
+  for(unsigned n = 0; n < child._bernstein.size(); ++n) {
+    long double value = 0, correction = 0;
+    for(unsigned term = plan.offsets[n]; term < plan.offsets[n+1]; ++term) {
+      const std::array<unsigned,3>& entry = plan.terms[term];
+      const long double factor = plan.simplex ? entry[2]*fixedPowers[entry[1]]*widthPowers[plan.degree-entry[1]] : weights[entry[1]];
+      Accumulate(factor*_bernstein[entry[0]],value,correction);
+    }
+    child._bernstein[n] = value;
+  }
+  child.UpdateBernsteinBounds(_bernsteinPadding);
   child._bernsteinReady = true;
 }
 
 inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, CutFemLevelSetData& child) const {
   if(&child == this) throw std::invalid_argument("Restriction requires distinct parent and child data.");
   GeomElType childGeometry;
-  std::vector<long double> origins, scales;
+  std::array<long double,3> origins, scales;
   RestrictionMap(axis, coordinate, childGeometry, origins, scales);
   EnsurePower();
   EnsureBernstein();
@@ -1074,6 +1218,7 @@ inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, 
   child._derivativeReady.fill(false);
   child._secondDerivativeReady.fill(false);
   child._derivativeBoundsReady.fill(false);
+  child._graphDirectionReady = false;
   RestrictPower(_power, _dimension, 2, axis, coordinate, origins, scales, child._power);
   child._powerReady = true;
   for(unsigned rootAxis = 0; rootAxis < _rootDimension; ++rootAxis) RestrictPower(GetRootDerivative(rootAxis), _dimension, 2, axis, coordinate, origins, scales, child._rootDerivatives[rootAxis]);
@@ -1090,11 +1235,13 @@ inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, 
       ++next;
     }
   child._degenerate = _degenerate || child._parentMeasure == 0;
-  child._rootOrigin = ApplyMap(_rootOrigin, _rootMap, child._parentOrigin);
+  child._rootOrigin.resize(_rootDimension);
+  for(unsigned rootAxis = 0; rootAxis < _rootDimension; ++rootAxis) { child._rootOrigin[rootAxis] = _rootOrigin[rootAxis]; for(unsigned parentAxis = 0; parentAxis < _dimension; ++parentAxis) child._rootOrigin[rootAxis] += _rootMap[rootAxis][parentAxis]*child._parentOrigin[parentAxis]; }
   child._rootMap.resize(_rootDimension);
   for(unsigned rootAxis = 0; rootAxis < _rootDimension; ++rootAxis) {
     child._rootMap[rootAxis].assign(child._dimension, 0);
-    for(unsigned local = 0; local < child._dimension; ++local) for(unsigned parentAxis = 0; parentAxis < _dimension; ++parentAxis) child._rootMap[rootAxis][local] += _rootMap[rootAxis][parentAxis] * child._parentMap[parentAxis][local];
+    unsigned local = 0;
+    for(unsigned parentAxis = 0; parentAxis < _dimension; ++parentAxis) if(parentAxis != axis) { child._rootMap[rootAxis][local] = _rootMap[rootAxis][parentAxis]*scales[local]; ++local; }
   }
   RestrictBernstein(axis, coordinate, child);
   child.Classify();
@@ -1102,36 +1249,45 @@ inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, 
 }
 
 inline std::vector<long double> CutFemLevelSetData::GetLineRoots() const {
+  std::array<long double,2> roots;
+  const unsigned count = GetLineRoots(roots);
+  return std::vector<long double>(roots.begin(),roots.begin()+count);
+}
+
+inline unsigned CutFemLevelSetData::GetLineRoots(std::array<long double,2>& roots) const {
   EnsurePower();
   if(_dimension != 1) throw std::logic_error("Line roots require one-dimensional data.");
   const long double a = _power[2] / _normalization;
   const long double b = _power[1] / _normalization;
   const long double c = _power[0] / _normalization;
-  std::vector<long double> candidates, result;
+  roots.fill(0);
+  std::array<long double,2> candidates;
+  unsigned count = 0, result = 0;
   if(a == 0) {
     if(b == 0) {
       if(c == 0) throw std::domain_error("An identically zero line has no isolated root set.");
-      return result;
+      return 0;
     }
-    candidates.push_back(-c / b);
+    candidates[count++] = -c/b;
   }
   else {
     const long double square = b * b;
     const long double product = 4 * a * c;
     const long double discriminant = (square - product) + (std::fma(b, b, -square) - std::fma(4 * a, c, -product));
-    if(discriminant < 0) return result;
-    if(discriminant == 0) candidates.push_back(-b / (2 * a));
+    if(discriminant < 0) return 0;
+    if(discriminant == 0) candidates[count++] = -b/(2*a);
     else {
       const long double q = -0.5L * (b + std::copysign(std::sqrt(discriminant), b));
-      candidates.push_back(q / a);
-      candidates.push_back(c / q);
+      candidates[count++] = q/a;
+      candidates[count++] = c/q;
     }
   }
-  std::sort(candidates.begin(), candidates.end());
+  if(count == 2 && candidates[1] < candidates[0]) std::swap(candidates[0],candidates[1]);
   const long double padding = 64 * std::numeric_limits<long double>::epsilon();
-  for(long double root : candidates) if(std::isfinite(root) && root >= -1 - padding && root <= 1 + padding) {
+  for(unsigned n = 0; n < count; ++n) if(std::isfinite(candidates[n]) && candidates[n] >= -1-padding && candidates[n] <= 1+padding) {
+      long double root = candidates[n];
       root = std::max(-1.0L, std::min(1.0L, root));
-      if(result.empty() || root != result.back()) result.push_back(root);
+      if(result == 0 || root != roots[result-1]) roots[result++] = root;
     }
   return result;
 }

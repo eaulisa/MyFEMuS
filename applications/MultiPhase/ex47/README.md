@@ -9,11 +9,12 @@ cmake -S applications/MultiPhase/ex47 -B build-ex47 -DCMAKE_BUILD_TYPE=Release
 cmake --build build-ex47 --parallel 2
 ./build-ex47/MultiPhase_ex47
 ./build-ex47/MultiPhase_ex47 --cases 256 --points 64 --benchmark
+./build-ex47/MultiPhase_ex47 --benchmark-quadrature
 ```
 
 If Boost is outside the compiler's search path, add `-DEX47_BOOST_INCLUDE_DIR=/path/to/boost`. The normal FEMuS build also exposes `MultiPhase_ex47`. `run_ex47.sh` offers the standalone build and accepts the main's arguments; `EX47_BUILD_DIR`, `EX47_JOBS`, `EX47_BOOST_INCLUDE_DIR`, and `CMAKE` override its defaults.
 
-For sanitizers, configure another build with `-DEX47_SANITIZE=ON -DCMAKE_BUILD_TYPE=Debug` and run its main. The main defaults to 64 random cases and 32 points per case; `--benchmark` additionally prints six arithmetic timing/reference-error rows.
+For sanitizers, configure another build with `-DEX47_SANITIZE=ON -DCMAKE_BUILD_TYPE=Debug` and run its main. The main defaults to 64 random cases and 32 points per case; `--benchmark` additionally prints six arithmetic timing/reference-error rows. `--benchmark-quadrature` runs a separate, deterministic benchmark of prepared quadrature kernels. Configure another Release build with `-DEX47_TRACK_ALLOCATIONS=ON` to count allocations and assert zero heap allocations in the prepared restriction, certification, external-component, and fixed-output kernels.
 
 ## Core interface
 
@@ -39,13 +40,19 @@ long double value = line.Evaluate({0.1L});
 | Polynomial data | `GetPowerCoefficients()`, `GetNormalizedPowerCoefficients()`, `GetNormalizationScale()` |
 | Bernstein data | `GetBernsteinCoefficients()`, `GetBernsteinIndices()`, `GetBernsteinOrders()`, `GetBounds()` |
 | Evaluation | `Evaluate(point)`, `EvaluateBernstein(point)` |
+| Scalar line evaluation | `EvaluateLine(coordinate)` |
 | Derivatives | `GetGradient(point)`, `GetDerivativeCoefficients(axis)`, `EvaluateDerivative(axis, point)`, `EvaluateSecondDerivative(first, second, point)` |
 | Graph certification | `GetDerivativeBounds(axis)`, `GetGraphDirection()`; direction is an active axis or -1 if none is certified |
 | Slice metadata | `GetDimension()`, `GetRootDimension()`, `GetGeometry()`, `IsDegenerate()`, `GetRevision()` |
 | Coordinate maps | `MapToParent(point)`, `MapToRoot(point)`, `GetParentOrigin()`, `GetParentMap()`, `GetParentMeasureScale()` |
 | Original gradient components | `GetRootGradient(point)` |
+| Allocation-free gradients | `GetGradient(point, std::array<long double,3>&)`, `GetRootGradient(point, std::array<long double,3>&)` |
 | External geometry polynomials | `RestrictComponents(axis, coordinate, degree, components, output)` |
 | One-dimensional roots | `GetLineRoots()`; repeated roots appear once, endpoint roots are retained |
+| Allocation-free roots | `GetLineRoots(std::array<long double,2>&)` returns the root count |
+| Shared regular-root data | `GetLineSurfaceData(coordinate, rootGradient)` returns `1/abs(dG/dt)` and all original reference-gradient components |
+| Shared surface options | `GetLineSurfaceFactors(coordinate, cofactorGradient, scalarFactors, normalFactors)` |
+| Prepared cofactor matrix | `GetLineSurfaceFactorsFromCofactor(coordinate, cofactorMatrix, scalarFactors, normalFactors)` |
 | Ownership metadata | `SetContext(level, elementId, nodalVersion)` and the corresponding getters |
 | Preparation counters | `GetWorkCounts()` returns nodal expansions, power-to-Bernstein conversions, local derivatives, and restrictions |
 
@@ -69,4 +76,24 @@ The class owns its nodal snapshot. Coefficients, normalization, derivatives, and
 
 No quadrature degree, GK rule, tolerance, moment matrix, or final quadrature weight array is owned by this class. It is mutable preparation/workspace data, so concurrent mutation of the same instance requires caller synchronization.
 
-The agreed tasks are tracked in [the shared TODO](../../../src/quadrature/cutfem_ls/TODO.md), with [local status](TODO.md) and [validation results](VALIDATION.md).
+## Quadrature reuse and geometry
+
+Reference index tables, Bernstein restriction plans, and simplex multipliers are shared immutable data initialized once. Restrictions use strided Horner contraction, retained child storage, sparse coordinate-map composition, and fixed-size subdivision buffers. Bounds and graph directions are cached. Derivative bounds come directly from the Bernstein control net, without reconstructing derivative polynomials. The vector-returning interfaces remain available; use the fixed-output overloads in quadrature loops.
+
+Element coordinates are unnecessary for cut detection, root solving, delta densities, and reference-surface measures. Physical surface modes require geometry. For affine geometry, retain the constant cofactor matrix and use `GetLineSurfaceFactorsFromCofactor()`; the class applies it to the root gradient once and shares the result between every surface option. For non-affine geometry, prepare `h = cof(J)*grad_ref(G)` once per element state, retain its polynomial components separately, and restrict them alongside `G` with `RestrictComponents()`. Evaluate the restricted components at each line root and pass the resulting three-component array to `GetLineSurfaceFactors()`. Every original component survives dimension reduction. Geometry-dependent preparation must be refreshed when either the geometry or the level-set state changes.
+
+For a regular root in the final LINE chart, let `a = 1/abs(dG/dt)`, `g = grad_ref(G)`, and `m = abs(h)`. The shared evaluator returns these existing integration densities:
+
+| Output | Density |
+| --- | --- |
+| `scalarFactors[0]` | `a` for delta integration |
+| `scalarFactors[1]` | `a*abs(g)` for reference surface |
+| `scalarFactors[2]` | `a*m` for physical surface |
+| `scalarFactors[3]` | `a/m` for the inverse-metric tangential formulation |
+| `normalFactors[i]` | `a*h[i]/m` for each signed normal option |
+
+Multiply these densities by the outer chart measure scales and the selected quadrature weights. No extra physical determinant belongs in these surface factors. They are integrand densities, not final fitted CutFEM Gauss weights: moment integration and the reusable moment-to-weight operator remain the integration layer's responsibility. Norms and inverse norms are evaluated directly, without polynomial approximation. Zero line derivatives require endpoint handling and zero physical metrics are rejected.
+
+`PrepareSurfaceTestPolynomials()` and `TestFastQuadratureInterfaces()` in the main demonstrate this flow for every element family, with affine and non-affine geometry, including bi/triquadratic QUAD/HEX geometry. The production integration interfaces have not yet been migrated.
+
+The agreed tasks are tracked in [the shared TODO](../../../src/quadrature/cutfem_ls/TODO.md), with [local status](TODO.md), [validation results](VALIDATION.md), and [kernel timings](PERFORMANCE.md).

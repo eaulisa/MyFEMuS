@@ -17,11 +17,18 @@ Implemented and exercised only in ex47:
 - [x] Preserve long-double arithmetic through coefficient conversion and restriction; compare double and extended arithmetic against multiprecision references in main.
 - [x] Keep all executable tests inside ex47 main, including nested volume/surface and nonuniform GK slice checks.
 - [x] Keep fixed quadrature objects, moment matrices, and final weight arrays outside the new class.
+- [x] Share immutable reference indices, simplex multipliers, and exact Bernstein restriction plans; use strided Horner kernels and fixed-size subdivision buffers.
+- [x] Cache bounds and graph certificates, with derivative bounds obtained directly from Bernstein controls.
+- [x] Add allocation-free gradient, scalar-line, and root interfaces while preserving vector compatibility wrappers.
+- [x] Evaluate all existing regular-root surface densities together from prepared cofactor-gradient values or a prepared cofactor matrix.
+- [x] Test geometry/cofactor preparation and recursive restriction for every element and all surface modes, including bi/triquadratic QUAD/HEX geometry.
+- [x] Benchmark the actual quadrature kernels against formatting commit `26cbb141` and assert zero steady-state heap allocations in the fixed-output paths.
 
 Pending production integration after acceptance of this prototype:
 
 - [ ] Move the accepted class into the shared library and retain its records across actual mesh-level classification and assembly loops.
 - [ ] Add prepared-data overloads to `CutFemWeight_LS` while preserving its nodal wrappers; reuse records in every volume/surface weight mode.
+- [ ] Integrate all requested surface moment families in one traversal using the shared densities, roots, and prepared geometry.
 - [ ] Connect record lifecycle and geometry-dependent cache invalidation to actual level-set updates, refinement, geometry changes, and MPI redistribution.
 - [ ] Remove unnecessary intermediate double conversions from the existing TRI7/WEDGE21 reconstruction and TRI/TET moment-output paths, with integration regressions.
 - [ ] Validate the resulting complete integration paths, high moment orders, and production memory/runtime behavior before selecting lower precision in well-conditioned kernels.
