@@ -1459,7 +1459,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
         unsigned cut = (fabs(C - 0.5) < 0.1 ) ? 1 : 0;
         const bool tangentialSurfaceWeights = cutFemIntegration == CutFemIntegration::Quadratic && !axisymmetric;
-        CutFemWeight_LS<TypeIO,TypeA>* elementSurfaceRule = cfwLS[ielGeom];
+        // CutFemWeight_LS<TypeIO,TypeA>* elementSurfaceRule = cfwLS[ielGeom];
+        auto* elementSurfaceRule = cfwLS[ielGeom];
+        CutFemWeight_LS<TypeIO,SurfaceFitPrecision>* elementSurfaceQuadRule = nullptr;
+        const double* elementSurfaceGaussWeights = elementSurfaceRule->GetGaussWeightPointer();
 
         if(cut == 1) { // this can happen only on l == levelF
           if (l != levelF) throw std::runtime_error("CUT CELL SHOULD BE ONLY AT LEVELF\n");
@@ -1468,8 +1471,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           femP = integrationFem.GetFiniteElement(ielGeom,solPType);
           femXi = integrationFem.GetFiniteElement(ielGeom,solXiType);
           femPsi = integrationFem.GetFiniteElement(ielGeom,psiType);
+          // if(tangentialSurfaceWeights) {
+          //   elementSurfaceRule = surfaceRules->GetRule(static_cast<GeomElType>(ielGeom));
+          // }
           if(tangentialSurfaceWeights) {
-            elementSurfaceRule = surfaceRules->GetRule(static_cast<GeomElType>(ielGeom));
+            elementSurfaceQuadRule = surfaceRules->GetRule(static_cast<GeomElType>(ielGeom));
+            elementSurfaceGaussWeights = elementSurfaceQuadRule->GetGaussWeightPointer();
           }
 
           nDofsPsi = msh->GetElementDofNumber(iel, psiType);
@@ -1511,24 +1518,61 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             cfw[ielGeom]->GetWeightWithMap(-1, a, d, weightCF);
 
           }
+          // else {
+
+          //   CutFemWeight_LS<TypeIO,TypeA>* rule = elementSurfaceRule;
+
+          //   if(rule == nullptr) {
+          //     throw std::runtime_error("Unsupported quadratic CutFEM element.");
+          //   }
+
+          //   if(rule->GetGaussQuadraturePointNumber() != nGauss) {
+          //     throw std::runtime_error("Quadratic CutFEM Gauss rule mismatch");
+          //   }
+
+          //   double tol = 1.e-8;
+          //   if(tangentialSurfaceWeights) {
+          //     rule->GetTangentialSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,tol,tol);
+          //     if(dim == 3 && surfaceWeightCount == 3) rule->GetNormalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCFNormal,tol,tol);
+          //   }
+          //   else rule->GetPhysicalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,tol,tol);
+          // }
           else {
 
-            CutFemWeight_LS<TypeIO,TypeA>* rule = elementSurfaceRule;
+            const double tol = 1.e-8;
 
-            if(rule == nullptr) {
-              throw std::runtime_error("Unsupported quadratic CutFEM element.");
-            }
-
-            if(rule->GetGaussQuadraturePointNumber() != nGauss) {
-              throw std::runtime_error("Quadratic CutFEM Gauss rule mismatch");
-            }
-
-            double tol = 1.e-8;
             if(tangentialSurfaceWeights) {
-              rule->GetTangentialSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,tol,tol);
-              if(dim == 3 && surfaceWeightCount == 3) rule->GetNormalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCFNormal,tol,tol);
+
+              auto* rule = elementSurfaceQuadRule;
+
+              if(rule == nullptr)
+                throw std::runtime_error("Unsupported quadratic CutFEM element.");
+
+              if(rule->GetGaussQuadraturePointNumber() != nGauss)
+                throw std::runtime_error("Quadratic CutFEM Gauss rule mismatch");
+
+              rule->GetTangentialSurfaceWeightsFromNodalGeometry(
+                psi, coordX, weightCFInt, weightCF, tol, tol
+              );
+
+              if(dim == 3 && surfaceWeightCount == 3) {
+                rule->GetNormalSurfaceWeightsFromNodalGeometry(
+                  psi, coordX, weightCFInt, weightCFNormal, tol, tol
+                );
+              }
+
             }
-            else rule->GetPhysicalSurfaceWeightsFromNodalGeometry(psi,coordX,weightCFInt,weightCF,tol,tol);
+            else {
+
+              auto* rule = elementSurfaceRule;
+
+              if(rule->GetGaussQuadraturePointNumber() != nGauss)
+                throw std::runtime_error("Quadratic CutFEM Gauss rule mismatch");
+
+              rule->GetPhysicalSurfaceWeightsFromNodalGeometry(
+                psi, coordX, weightCFInt, weightCF, tol, tol
+              );
+            }
           }
 
           for(unsigned i = 0; i < nGauss; ++i) {
@@ -1709,7 +1753,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           if(cut == 1) {
 
             if(cutFemIntegration == CutFemIntegration::Quadratic) {
-              surfaceWeight = elementSurfaceRule->GetGaussWeightPointer()[ig] * weightCF[ig];
+              // surfaceWeight = elementSurfaceRule->GetGaussWeightPointer()[ig] * weightCF[ig];
+              surfaceWeight = elementSurfaceGaussWeights[ig] * weightCF[ig];
             }
             else {
               surfaceWeight = weight * weightCF[ig] * dsN;
@@ -1804,7 +1849,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                 if (tangentialSurfaceWeights && dim == 3 && surfaceWeightCount == 3) {
 
                   physicalSurfaceForce =
-                      sigma * elementSurfaceRule->GetGaussWeightPointer()[ig] *
+                      // sigma * elementSurfaceRule->GetGaussWeightPointer()[ig] *
+                      sigma * elementSurfaceGaussWeights[ig] *
                       (
                         weightCFNormal[(I + 1U) % 3U][ig] *
                         surfaceTangent[3U * i + (I + 2U) % 3U]
