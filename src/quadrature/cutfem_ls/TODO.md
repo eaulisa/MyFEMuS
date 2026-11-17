@@ -15,6 +15,10 @@
 - [ ] Carry the slice domain, active coordinates, reference-domain rescaling, normalization, classification, and derivative context through each restriction; keep integration dimension separate from physical dimension and retain all three physical surface-factor components for slices of a 3D element.
 - [ ] Allocate one reusable child workspace per integration level; overwrite slice-dependent data and invalidate derived caches when the slicing coordinate changes while retaining allocated storage and the shared fixed quadrature objects.
 - [ ] Specialize identity and zero-origin scaling chart transformations to avoid unnecessary generic polynomial transformations during slicing.
+- [ ] Keep parent power/Bernstein coefficients, derivatives, normalization, and all recursive restrictions in `long double`, with explicit precision boundaries for double nodal inputs and final outputs.
+- [ ] Audit and remove unnecessary intermediate conversions to `double`, particularly TRI7 coefficients, their use in WEDGE21, and TRI/TET moment outputs before moment-to-weight accumulation; preserve existing public input/output compatibility.
+- [ ] Preserve extended precision in sensitive root/discriminant calculations, geometry/cofactor polynomial algebra, moment accumulation, and compensated weight construction; retain the one-time multiprecision construction of the fixed moment-to-weight matrices.
+- [ ] Compare accuracy and runtime of double and extended-precision paths on all supported elements, including small cuts, near tangencies, cancellation, and high moment orders, before considering lower precision in frequently called well-conditioned kernels.
 
 Preserve the roundoff margins and classify opposite nodal signs, zero nodal values, and unresolved Bernstein cases as possible cuts.
 
