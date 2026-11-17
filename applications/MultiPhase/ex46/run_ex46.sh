@@ -17,8 +17,8 @@ NREINIT=1
 # Problem
 # ------------------------------------------------------------
 
-DIM=3
-SIMULATION="par"
+DIM=2
+SIMULATION="rb1"
 SYMMETRIC=0
 AXISYMMETRIC=0
 
@@ -26,10 +26,10 @@ AXISYMMETRIC=0
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(1)
-ADAPTIVE_LEVELS=(0)
+UNIFORM_LEVELS=(2)
+ADAPTIVE_LEVELS=(4)
 LEVEL_OFFSET_PSI=0
-LEVEL_OFFSET=0
+LEVEL_OFFSET=2
 
 # ------------------------------------------------------------
 # Time discretization
@@ -42,7 +42,7 @@ NSTEPS=(1000)
 # ------------------------------------------------------------
 
 CUTFEM_INTEGRATION="quadratic"     # linear | quadratic
-SURFACE_MOMENT_ORDER=17
+SURFACE_MOMENT_ORDER=10
 SURFACE_WEIGHTS="${SURFACE_WEIGHTS:-1}" # 1: legacy scalar weight; 3: component RHS weights
 
 # ------------------------------------------------------------

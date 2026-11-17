@@ -18,7 +18,6 @@
 #include "petscmat.h"
 #include "PetscMatrix.hpp"
 #include "Fem.hpp"
-#include "SurfaceForceBalance.hpp"
 
 #include "MyMatrix.hpp"
 #include "VTKWriter.hpp"
@@ -42,12 +41,6 @@ using namespace femus;
 #include "../includeLS/GhostPenaltySparsityPattern.hpp"
 
 bool printdb = false;
-bool runSurfaceForceRepresentability = false;
-
-// const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Zero;
-//const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Translation;
-//const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Rotation;
-//const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Vortex;
 
 #include "../includeLS/Utils.hpp"
 
@@ -198,8 +191,6 @@ int main(int argc, char **argv) {
     cfwLS[geometry]->SetOuterQuadratureRules(surfaceQuadratureRules);
   }
 
-  runSurfaceForceRepresentability = (simulation == SimulationCase::PAR);
-
   const ElemType elementType = (requestedDim == 2) ? QUAD9 : HEX27;
 
   static const SimulationConfig cfg = GetSimulationConfig(simulation, requestedDim, symmetric, axisymmetric);
@@ -337,10 +328,8 @@ int main(int argc, char **argv) {
       MultiLevelMesh mlMsh0;
       std::string meshName = (requestedDim == 2) ? "./input/unstructured_PC_coarse.neu" : "./input/unstructured_cube_hex27.neu";
 
-      if (simulation == SimulationCase::PAR) mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      else mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
-
-      if (simulation == SimulationCase::PAR) InitializeParasiticCurrents(levelC);
+      // if (simulation == SimulationCase::PAR) mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      mlMsh0.GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
 
       if(cutFemIntegration == CutFemIntegration::Quadratic && !axisymmetric) InitializeSurfaceQuadrature(*mlMsh0.GetLevel(0));
 
@@ -457,8 +446,8 @@ int main(int argc, char **argv) {
       LevelSetMarkers markers(psiName, dim);
 
       // Load coarse mesh and build uniform refinement levels
-      if (simulation == SimulationCase::PAR) mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
-      else mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
+      // if (simulation == SimulationCase::PAR) mlmsh1->ReadCoarseMesh(meshName.c_str(), "seventh", scalingFactor);
+      mlmsh1->GenerateCoarseBoxMesh(nx, ny, nz, xmin, xmax, ymin, ymax, zmin, zmax, elementType, "seventh"); // Turek 1&2
 
       mlmsh1->RefineMesh(numberOfUniformLevels, numberOfUniformLevels, nullptr);
 
@@ -560,7 +549,7 @@ int main(int argc, char **argv) {
         std::ofstream(bbOutputPrefix + "_droplets.dat", std::ios::trunc).close();
       }
 
-      for (unsigned t = 1; t <= 1 + 0*nSteps; t++) {
+      for (unsigned t = 1; t <= 1 + nSteps; t++) {
 
         std::cout << "==============================================\n";
         std::cout << "  ITERATION " << t << std::endl;
@@ -634,22 +623,22 @@ int main(int argc, char **argv) {
         auto &Sol0_Psi = (mlsol0->GetSolutionLevel(levelPsi))->_Sol;
         auto &Sol3 = (mlSol3.GetSolutionLevel(levelPsi - level0))->_Sol;
 
-        // const unsigned c0Index = mlsol0->GetIndex(cName.c_str());
-        // const unsigned c2Index = mlSol2.GetIndex(cName.c_str());
+        const unsigned c0Index = mlsol0->GetIndex(cName.c_str());
+        const unsigned c2Index = mlSol2.GetIndex(cName.c_str());
 
-        // auto originalC = NumericVector::build();
+        auto originalC = NumericVector::build();
 
-        // originalC->init(*Sol0_C[c0Index]);
+        originalC->init(*Sol0_C[c0Index]);
 
-        // *originalC = *Sol0_C[c0Index];
+        *originalC = *Sol0_C[c0Index];
 
-        // ReclassifyUnsupportedPressureCells(mlSol2, cName, levelC - level0, levelC);
+        ReclassifyUnsupportedPressureCells(mlSol2, cName, levelC - level0, levelC);
 
-        // if(level0 < levelC) {
-        //   RestrictPWDCField(mlSol2, cName, 0, levelC - level0);
-        // }
+        if(level0 < levelC) {
+          RestrictPWDCField(mlSol2, cName, 0, levelC - level0);
+        }
 
-        // *Sol0_C[c0Index] = *Sol2[c2Index];
+        *Sol0_C[c0Index] = *Sol2[c2Index];
 
         std::vector<double> xtarget = (simulation == SimulationCase::PI) ?
                                       std::vector<double> {0.075, 0.075, 0.} :
@@ -738,7 +727,7 @@ int main(int argc, char **argv) {
         FS1.push_back(&FS_P);
 
         FieldSplitTree FS_NS(GMRES, FIELDSPLIT_SCHUR_PRECOND, FS1, "Navier-Stokes");
-        FS_NS.SetTolerances(1.e-8, 1.e-12, 1.e+50, 10);
+        FS_NS.SetTolerances(1.e-8, 1.e-12, 1.e+50, 50);
 
         CoarseLevelInclude includeCoarseLevel = INCLUDE_COARSE_LEVEL_TRUE;
 
@@ -754,7 +743,7 @@ int main(int argc, char **argv) {
 
         system2.SetOuterSolver(FGMRES);
         system2.SetFieldSplitTree(&FS_NS);
-        system2.SetTolerances(1.e-8, 1.e-12, 1.e+50, 50);
+        system2.SetTolerances(1.e-8, 1.e-12, 1.e+50, 200);
         system2.SetAbsoluteLinearConvergenceTolerance(1.e-8);
 
         system3.SetMaxNumberOfLinearIterations(10);
@@ -811,11 +800,7 @@ int main(int argc, char **argv) {
         //system2.MGsolve();
         system2.Solve();
 
-        if(simulation == SimulationCase::PAR) {
-          PrintParasiticCurrents(&mlSol2, levelC - level0, levelC, time, vName, cfg, cutFemIntegration);
-        }
-
-        // *Sol0_C[c0Index] = *originalC;
+        *Sol0_C[c0Index] = *originalC;
 
         for(unsigned l = 0; l < msh2.size(); l++)
           msh2[l]->SetLevel(l + level0);
@@ -1095,14 +1080,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   const unsigned levelC = mParam.levelC;
   const unsigned level0 = mParam.level0;
 
-  const bool checkForceBalance = runSurfaceForceRepresentability && (levelToAssemble + level0 == levelC);
-
-  ex46_balance::SurfaceForceRepresentability forceBalance;
-
-  if (checkForceBalance) {
-    forceBalance.initialize(static_cast<PetscInt>(RES->local_size()),static_cast<PetscInt>(RES->size()));
-  }
-
   const TimeDiscretization td = mParam.td;
   const double cold = (td == TimeDiscretization::CrankNicholson) ? 0.5 : 0.;
   const double cnew = (td == TimeDiscretization::CrankNicholson) ? 0.5 : 1.;
@@ -1230,9 +1207,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   Solution* sol = mlSol->GetLevel(levelToAssemble);
 
   start_time = clock();
-
-  double A = 0;
-  double Per = 0;
 
   for (unsigned l = levelC; l <= levelF; ++l) {
     Solution* sol0 = mlSol0->GetLevel(l);
@@ -1415,22 +1389,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
         Res.assign(nDofsVP, 0.);
         Jac.assign(nDofsVP * nDofsVP, 0.);
 
-        std::vector<double> localSurfaceForce;
-        std::vector<double> localVelocityMass;
-
-        std::vector<char> freeVelocity;
-        std::vector<char> freeP1;
-        std::vector<char> freeP2;
-
-        if (checkForceBalance) {
-          localSurfaceForce.assign(dim * nDofsV, 0.0);
-          localVelocityMass.assign(nDofsV * nDofsV, 0.0);
-
-          freeVelocity.assign(dim * nDofsV, 0);
-          freeP1.assign(nDofsP, 0);
-          freeP2.assign(nDofsP, 0);
-        }
-
         for(unsigned  d = 0; d < dim; d++) {
           solV[d].resize(nDofsV);
           solVOld[d].resize(nDofsV);
@@ -1475,23 +1433,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             sysDof[dim * nDofsV + nDofsP + i ] = pdeSys->GetSystemDof(solP2Index, solP2PdeIndex, solPDof);
           }
         }
-
-
-        if (checkForceBalance) {
-          for (unsigned i = 0; i < nDofsV; ++i) {
-            const unsigned solDof = (l == levelC) ? msh->GetSolutionDof(i, iel, solVType) : dofV_recv[offsetV[k] + i];
-            for (unsigned I = 0; I < dim; ++I) {
-              freeVelocity[I * nDofsV + i] =(*sol->_Bdc[solVIndex[I]])(solDof) > 0.5;
-            }
-          }
-
-          for (unsigned j = 0; j < nDofsP; ++j) {
-            const unsigned solDof = (l == levelC) ? msh->GetSolutionDof(j, iel, solPType) : dofP_recv[offsetP[k] + j];
-            freeP1[j] = (*sol->_Bdc[solP1Index])(solDof) > 0.5;
-            freeP2[j] = (*sol->_Bdc[solP2Index])(solDof) > 0.5;
-          }
-        }
-
 
         // local storage of coordinates
         for(unsigned i = 0; i < nDofsX; i++) {
@@ -1775,18 +1716,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
             }
           }
 
-          A += weight * weightCFInt[ig];
-          Per += surfaceWeight*(tangentialSurfaceWeights ? surfaceMetricSquared : 1.);
-
-          if (checkForceBalance) {
-            const double dm = weight * axisWeight;
-            for (unsigned i = 0; i < nDofsV; ++i) {
-              for (unsigned j = 0; j < nDofsV; ++j) {
-                localVelocityMass[i * nDofsV + j] += dm * phiV[i] * phiV[j];
-              }
-            }
-          }
-
           for (unsigned d = 0; d < dim; ++d) {
             solV_gss[d] = 0.0;
             solVOld_gss[d] = 0.0;
@@ -1868,51 +1797,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
               Res[I * nDofsV + i] -=  NSV;
 
-//               // surface tension stabilization -- rhs contribution
-// <<<<<<< HEAD
-//               // if(cut == 1) {
-//               //   if(tangentialSurfaceWeights) Res[I*nDofsV+i] -= sigma*surfaceForce[i*dim+I]*surfaceWeight;
-//               //   else for(unsigned d = 0; d < dim; ++d) Res[I*nDofsV+i] -= sigma*axisWeight*P[I][d]*phiV_x[i*dim+d]*surfaceWeight;
-// =======
-//               if(cut == 1) {
-//                 if(tangentialSurfaceWeights && dim == 3 && surfaceWeightCount == 3) Res[I*nDofsV+i] -= sigma*elementSurfaceRule->GetGaussWeightPointer()[ig]*(weightCFNormal[(I+1U)%3U][ig]*surfaceTangent[3U*i+(I+2U)%3U]-weightCFNormal[(I+2U)%3U][ig]*surfaceTangent[3U*i+(I+1U)%3U]);
-//                 else if(tangentialSurfaceWeights) Res[I*nDofsV+i] -= sigma*surfaceForce[i*dim+I]*surfaceWeight;
-//                 else for(unsigned d = 0; d < dim; ++d) Res[I*nDofsV+i] -= sigma*axisWeight*P[I][d]*phiV_x[i*dim+d]*surfaceWeight;
-// >>>>>>> upstream/barbi-cut-detection-surface13
-
-//               //   if(axisymmetric && I == 0) {
-//               //     Res[I * nDofsV + i] += -sigma * phiV[i] * surfaceWeight;
-//               //   }
-
-//               //   double stabSF = 0.0;
-
-//               if (cut == 1) {
-//                 double physicalSurfaceForce = 0.0;
-//                 if (tangentialSurfaceWeights) {
-//                   physicalSurfaceForce = sigma * surfaceForce[i * dim + I] * surfaceWeight;
-//                 }
-//                 else {
-//                   for (unsigned d = 0; d < dim; ++d) {
-//                     physicalSurfaceForce += sigma * axisWeight * P[I][d] * phiV_x[i * dim + d] *surfaceWeight;
-//                   }
-//                 }
-
-//                 if (axisymmetric && I == 0) {
-//                   physicalSurfaceForce += sigma * phiV[i] * surfaceWeight;
-//                 }
-
-//                 // Original Navier-Stokes residual.
-//                 Res[I * nDofsV + i] -= physicalSurfaceForce;
-
-//                 // Positive surface force for the projection.
-//                 if (checkForceBalance) {
-//                   localSurfaceForce[I * nDofsV + i] += physicalSurfaceForce;
-//                 }
-
-//                 // Keep the existing stabilization code unchanged below.
-//                 double stabSF = 0.0;
-
- // Surface tension and stabilization.
               if (cut == 1) {
 
                 double physicalSurfaceForce = 0.0;
@@ -1931,64 +1815,47 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
                 }
                 else if (tangentialSurfaceWeights) {
-
-                  physicalSurfaceForce =
-                      sigma * surfaceForce[i * dim + I] * surfaceWeight;
-
+                  physicalSurfaceForce = sigma * surfaceForce[i * dim + I] * surfaceWeight;
                 }
                 else {
-
                   for (unsigned d = 0; d < dim; ++d) {
-                    physicalSurfaceForce +=
-                        sigma * axisWeight *
-                        P[I][d] *
-                        phiV_x[i * dim + d] *
-                        surfaceWeight;
+                    physicalSurfaceForce += sigma * axisWeight * P[I][d] * phiV_x[i * dim + d] * surfaceWeight;
                   }
                 }
 
                 if (axisymmetric && I == 0) {
-                  physicalSurfaceForce +=
-                      sigma * phiV[i] * surfaceWeight;
+                  physicalSurfaceForce += sigma * phiV[i] * surfaceWeight;
                 }
 
-                // Original Navier-Stokes residual.
                 Res[I * nDofsV + i] -= physicalSurfaceForce;
 
-                // Same force used in the representability diagnostic.
-                if (checkForceBalance) {
-                  localSurfaceForce[I * nDofsV + i] += physicalSurfaceForce;
-                }
+                // double stabSF = 0.0;
 
-                // Surface tension stabilization (unchanged below).
-                double stabSF = 0.0;
+                // if(tangentialSurfaceWeights) {
+                //   for(unsigned a = 0; a < surfaceTangentSize; ++a) {
+                //     double increment = 0.;
+                //     for(unsigned j = 0; j < nDofsV; ++j) increment += (cnew*solV[I][j]-cold*solVOld[I][j])*surfaceTangent[j*surfaceTangentSize+a];
+                //     stabSF += increment*surfaceTangent[i*surfaceTangentSize+a];
+                //   }
+                // }
+                // else {
+                //   for (unsigned a = 0; a < dim; ++a) {
 
+                //     double gradDeltaU_tg = 0.0;
+                //     double gradPhi_tg    = 0.0;
 
-                if(tangentialSurfaceWeights) {
-                  for(unsigned a = 0; a < surfaceTangentSize; ++a) {
-                    double increment = 0.;
-                    for(unsigned j = 0; j < nDofsV; ++j) increment += (cnew*solV[I][j]-cold*solVOld[I][j])*surfaceTangent[j*surfaceTangentSize+a];
-                    stabSF += increment*surfaceTangent[i*surfaceTangentSize+a];
-                  }
-                }
-                else {
-                  for (unsigned a = 0; a < dim; ++a) {
+                //     for (unsigned b = 0; b < dim; ++b) {
 
-                    double gradDeltaU_tg = 0.0;
-                    double gradPhi_tg    = 0.0;
+                //       gradDeltaU_tg += P[a][b] * (cnew * gradSolV_gss[I][b] - cold * gradSolVOld_gss[I][b]);
+                //       gradPhi_tg += P[a][b] * phiV_x[i * dim + b];
 
-                    for (unsigned b = 0; b < dim; ++b) {
-
-                      gradDeltaU_tg += P[a][b] * (cnew * gradSolV_gss[I][b] - cold * gradSolVOld_gss[I][b]);
-                      gradPhi_tg += P[a][b] * phiV_x[i * dim + b];
-
-                    }
-                    stabSF += gradDeltaU_tg * gradPhi_tg;
-                  }
-                }
-                if(axisymmetric && I == 0) {
-                  stabSF += (cnew * solV_gss[0] - cold * solVOld_gss[0]) * phiV[i] / (r * r);
-                }
+                //     }
+                //     stabSF += gradDeltaU_tg * gradPhi_tg;
+                //   }
+                // }
+                // if(axisymmetric && I == 0) {
+                //   stabSF += (cnew * solV_gss[0] - cold * solVOld_gss[0]) * phiV[i] / (r * r);
+                // }
 
                 // Res[I * nDofsV + i] += -cnew * sigma * dt * stabSF * surfaceWeight * axisWeight;
               }
@@ -2010,16 +1877,6 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
             Res[dim * nDofsV + i] += - weightedDivU * phiP[i]  * weight * weightCFInt[ig]; //continuity
             Res[dim * nDofsV + nDofsP + i] += - weightedDivU * phiP[i]  * weight * weightCFExt[ig]; //continuity
-
-            // if(C == 0)
-            //   Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * (1 - C) * eps; //penalty
-            // if(C == 1)
-            //   Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i]  * weight * C * eps; //penalty
-
-            // if(C > 0.1)
-            //   Res[dim * nDofsV + i] += - solP1_gss * phiP[i]  * weight * epsilonp; //penalty
-            // if(C < 0.9)
-            //   Res[dim * nDofsV + nDofsP + i] += - solP2_gss * phiP[i] * weight * epsilonp; //penalty
 
           } // end phiP_i loop
           // end gauss point loop
@@ -2073,9 +1930,9 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
 
                 Jac[ VIrow + VIcolumn] += diagonalContribution; //diagonal
 
-                if(axisymmetric && cut == 1 && I == 0) {
-                  Jac[VIrow + VIcolumn] += surfaceTensionCoefficient * phiProduct / (r * r);
-                }
+                // if(axisymmetric && cut == 1 && I == 0) {
+                //   Jac[VIrow + VIcolumn] += surfaceTensionCoefficient * phiProduct / (r * r);
+                // }
 
                 if(axisymmetric && I == 0) {
                   Jac[VIrow + VIcolumn] += 2. * cnew * mu * phiV[i] * phiV[j] * weight / r;
@@ -2112,120 +1969,12 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
               }
             }
           }
-          // for(unsigned i = 0; i < nDofsP; i++) {
-          //   unsigned P1row = dim * nDofsV + i;
-          //   unsigned P2row = dim * nDofsV + nDofsP + i;
-          //   for(unsigned j = 0; j < nDofsP; j++) {
-          //     unsigned P1column = dim * nDofsV + j;
-          //     unsigned P2column = dim * nDofsV + nDofsP + j;
-          //     if(C == 0)
-          //       Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight * (1 - C) * eps; //continuity
-          //     if(C == 1)
-          //       Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight * C * eps; //continuity
 
-          //     if(C > 0.1)
-          //       Jac[P1row * nDofsVP + P1column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
-          //     if(C < 0.9)
-          //       Jac[P2row * nDofsVP + P2column] += phiP[i] * phiP[j] * weight  * epsilonp; //continuity
-          //   }
-          // }
-
-        }
-
-        if (checkForceBalance) {
-
-          forceBalance.addElement(
-              sysDof,
-              dim,
-              nDofsV,
-              nDofsP,
-              freeVelocity,
-              freeP1,
-              freeP2,
-              localSurfaceForce,
-              localVelocityMass,
-              Jac);
         }
 
         RES->add_vector_blocked(Res, sysDof);
         KK->add_matrix_blocked(Jac, sysDof, sysDof);
       }
-      // else {
-
-      //   std::vector<std::vector<double>> Xichild(dim * nChildren);
-
-      //   for (unsigned d = 0; d < dim; ++d) {
-      //     std::vector<std::vector<double>> XichildComponent;
-      //     ProlongateFieldToChildren(XichildComponent, PMatrix[iel_type], coordXi[d]);
-      //     for (unsigned j = 0; j < nChildren; ++j) {
-      //       Xichild[d * nChildren + j].swap(XichildComponent[j]);
-      //     }
-      //   }
-
-      //   for (unsigned j = 0; j < nChildren; ++j) {
-      //     const unsigned jel = el->GetChild(iel, j);
-      //     const unsigned jproc = mshp->IsdomBisectionSearch(jel, 3);
-      //     el_send[jproc][posEl_send[jproc]] = jel;
-      //     // el_gf_send[jproc][posEl_send[jproc]] = iel_gf;
-      //     ++posEl_send[jproc];
-
-      //     for (unsigned i = 0; i < nDofsV; ++i) {
-      //       if (l == levelC) {
-      //         const unsigned solVDof = msh->GetSolutionDof(i, iel, solVType);
-      //         dofV_send[jproc][posV_send[jproc]] = solVDof;
-      //         for (unsigned d = 0; d < dim; ++d) {
-      //           solV_send[d * nprocs + jproc][posV_send[jproc]] = (*sol->_Sol[solVIndex[d]])(solVDof);
-      //           solVOld_send[d * nprocs + jproc][posV_send[jproc]] = (*sol->_SolOld[solVIndex[d]])(solVDof);
-      //         }
-      //       }
-      //       else {
-      //         dofV_send[jproc][posV_send[jproc]] = dofV_recv[offsetV[k] + i];
-      //         for (unsigned d = 0; d < dim; ++d) {
-      //           solV_send[d * nprocs + jproc][posV_send[jproc]] = solV_recv[d][offsetV[k] + i];
-      //           solVOld_send[d * nprocs + jproc][posV_send[jproc]] = solVOld_recv[d][offsetV[k] + i];
-      //         }
-      //       }
-      //       ++posV_send[jproc];
-      //     }
-
-      //     for (unsigned i = 0; i < nDofsP; ++i) {
-      //       if (l == levelC) {
-      //         const unsigned solPDof = msh->GetSolutionDof(i, iel, solPType);
-      //         dofP_send[jproc][posP_send[jproc]] = solPDof;
-      //         solP1_send[jproc][posP_send[jproc]] = (*sol->_Sol[solP1Index])(solPDof);
-      //         solP2_send[jproc][posP_send[jproc]] = (*sol->_Sol[solP2Index])(solPDof);
-      //       }
-      //       else {
-      //         dofP_send[jproc][posP_send[jproc]] = dofP_recv[offsetP[k] + i];
-      //         solP1_send[jproc][posP_send[jproc]] = solP1_recv[offsetP[k] + i];
-      //         solP2_send[jproc][posP_send[jproc]] = solP2_recv[offsetP[k] + i];
-      //       }
-      //       ++posP_send[jproc];
-      //     }
-
-      //     for (unsigned i = 0; i < nDofsX; ++i) {
-      //       if (l == levelC) {
-      //         const unsigned XDof = msh->GetSolutionDof(i, iel, solXType);
-      //         for (unsigned d = 0; d < dim; ++d) {
-      //           X_send[d * nprocs + jproc][posX_send[jproc]] = (*msh->_topology->_Sol[d])(XDof);
-      //         }
-      //       }
-      //       else {
-      //         for (unsigned d = 0; d < dim; ++d) {
-      //           X_send[d * nprocs + jproc][posX_send[jproc]] = X_recv[d][offsetX[k] + i];
-      //         }
-      //       }
-      //       ++posX_send[jproc];
-      //     }
-
-      //     for (unsigned i = 0; i < nDofsXi; ++i) {
-      //       for (unsigned d = 0; d < dim; ++d) {
-      //         Xi_send[d * nprocs + jproc][posXi_send[jproc]] = Xichild[d * nChildren + j][i];
-      //       }
-      //       ++posXi_send[jproc];
-      //     }
-      //   }
-      // }
       else {
 
         const bool refined = (msh->GetRefinedElementIndex(iel) != 0u);
@@ -2475,24 +2224,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   RES->close();
   KK->close();
 
-  if (checkForceBalance) {
-    forceBalance.report();
-    forceBalance.destroy();
-  }
-
   std::cout << "Matrix Assembly time        = " << static_cast<double>(clock() - start_time) / CLOCKS_PER_SEC << std::flush << std::endl;
-
-  MPI_Allreduce(MPI_IN_PLACE, &A, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, &Per, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-
-  double radius  = 0.002;
-  double radius2 = radius * radius;
-  double radius3 = radius2 * radius;
-  double per_th = (dim == 2) ? 2 * M_PI * radius : 4. * M_PI * radius2;
-  double A_th = (dim == 2) ? M_PI * radius2 : 4. / 3. * M_PI * radius3;
-  std::cout << " Area error " << std::abs(A - A_th)/A_th << std::endl;
-  std::cout << " Perimetro error " << std::abs(Per - per_th)/per_th << std::endl;
 
 }
 
