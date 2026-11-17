@@ -5,6 +5,7 @@
 #include <iostream>
 #include <limits>
 #include <stdexcept>
+#include <sstream>
 #include <vector>
 
 unsigned sliceChecks = 0;
@@ -38,12 +39,17 @@ void CheckTetOutputRounding() {
   std::vector<std::vector<std::vector<double>>> positive(1,std::vector<std::vector<double>>(1,std::vector<double>(1,17.0)));
   std::vector<std::vector<std::vector<double>>> delta(1,std::vector<std::vector<double>>(1,std::vector<double>(1,19.0)));
   std::vector<double> estimated;
+  std::ostringstream warnings;
+  std::streambuf* previous = std::cerr.rdbuf(warnings.rdbuf());
   bool rejected = false;
   try { FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodal,0,positive,delta,8.0e-18,0.0,true,24,0,200000,&estimated,0); }
   catch(const std::exception&) { rejected = true; }
-  CheckSlice(rejected,"An unattainable final double-output tolerance was accepted.");
-  CheckSlice(positive == std::vector<std::vector<std::vector<double>>>(1,std::vector<std::vector<double>>(1,std::vector<double>(1,17.0))),"Rejected TET output rounding changed positive moments.");
-  CheckSlice(delta == std::vector<std::vector<std::vector<double>>>(1,std::vector<std::vector<double>>(1,std::vector<double>(1,19.0))),"Rejected TET output rounding changed delta moments.");
+  std::cerr.rdbuf(previous);
+  CheckSlice(!rejected,"An unattainable output tolerance aborted instead of returning its quadrature.");
+  CheckSliceValue(positive[0][0][0],1.0L/6.0L,2.0e-17L);
+  CheckSlice(delta[0][0][0] == 0,"Uncertified full-cell quadrature acquired an interface mass.");
+  CheckSlice(estimated.size() >= 2 && estimated[0] > 8.0e-18,"Unmet output accuracy was hidden in the error estimate.");
+  CheckSlice(warnings.str().find("rounded volume moment exceeds tolerance") != std::string::npos,"An unattainable output tolerance omitted its rounding warning.");
   bool completed = false;
   try {
     FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodal,0,positive,delta,2.0e-17,0.0,true,24,0,200000,&estimated,0);

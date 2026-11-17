@@ -2,6 +2,7 @@
 #include "Tri7DirectionSelection.hpp"
 #include <cmath>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -108,13 +109,20 @@ void ProbeTolerance(bool triangle) {
   std::vector<double> nodal(triangle ? 7U : 9U,1.0);
   std::vector<std::vector<double>> positive(1,std::vector<double>(1,17.0));
   std::vector<std::vector<double>> delta(1,std::vector<double>(1,19.0));
+  std::ostringstream warnings;
+  std::streambuf* previous = std::cerr.rdbuf(warnings.rdbuf());
   bool rejected = false;
   try {
     if(triangle) FELevelSetMoments::IntegrateTri7NodalSelected(nodal,3,positive,delta,1.0e-22,0.0);
     else FELevelSetMoments::IntegrateQuad9NodalSelected(nodal,3,positive,delta,1.0e-22,0.0);
   }
-  catch(const std::runtime_error&) { rejected = true; }
-  if(!rejected || positive.size() != 1 || positive[0][0] != 17.0 || delta.size() != 1 || delta[0][0] != 19.0) throw std::runtime_error("An unattainable tolerance was not rejected atomically.");
+  catch(const std::exception&) { rejected = true; }
+  std::cerr.rdbuf(previous);
+  if(rejected || positive.size() != 4 || delta.size() != 4 || warnings.str().find("rounded volume moment exceeds tolerance") == std::string::npos) throw std::runtime_error("An unattainable tolerance did not return its quadrature with a rounding warning.");
+  for(unsigned i = 0; i <= 3; ++i) for(unsigned j = 0; j <= 3-i; ++j) {
+    ProbeCheck(positive[i][j],triangle ? ProbeTriangle(i,j) : ProbeInterval(i,-1,1)*ProbeInterval(j,-1,1),"uncertified full-cell H");
+    ProbeCheck(delta[i][j],0,"uncertified full-cell delta");
+  }
   ++momentChecks;
   ++momentCases;
 }

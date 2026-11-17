@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <vector>
 #include "ReferenceSurfaceMoments.hpp"
+#include "QuadratureWarnings.hpp"
 #include "ReferenceElementLS.hpp"
 
 // Normalized coordinates below are local integration charts; nodal entries use FEMuS reference elements.
@@ -634,6 +635,7 @@ namespace FELevelSetMoments {
     static const long double kronrod[8] = {0.022935322010529224963732008058970L, 0.063092092629978553290700663189204L, 0.104790010322250183839876322541518L, 0.140653259715525918745189590510238L, 0.169004726639267902826583426598550L, 0.190350578064785409913256402421014L, 0.204432940075298892414161999234649L, 0.209482141084727828012999174891714L};
     static const long double gauss[4] = {0.129484966168869693270611432679082L, 0.279705391489276667901467771423780L, 0.381830050505118944950369775488975L, 0.417959183673469387755102040816327L};
 
+    QuadratureWarningScope warningScope("Canonical graph interval");
     const unsigned count = (degree + 1U) * (degree + 2U) / 2U;
     const unsigned size = 2U * count;
     const long double width = right - left;
@@ -691,6 +693,11 @@ namespace FELevelSetMoments {
         total[k] += high[k];
         totalError[k] += error[k];
       }
+      else if(error[k] <= 512*std::numeric_limits<long double>::epsilon()*std::abs(high[k])) {
+        total[k] += high[k];
+        totalError[k] += error[k];
+        WarnQuadrature("Canonical graph","floating-point error floor prevents requested tolerance",k,error[k],tolerance);
+      }
       else {
         failed[k] = 1;
         anyFailed = true;
@@ -702,7 +709,11 @@ namespace FELevelSetMoments {
       return;
     }
 
-    if(depth >= maximumDepth || middle == left || middle == right) throw std::runtime_error("Monotone graph integration did not reach the requested tolerance.");
+    if(depth >= maximumDepth || middle == left || middle == right) {
+      for(unsigned k = 0; k < size; ++k) if(failed[k]) { total[k] += high[k]; totalError[k] += error[k]; WarnQuadrature("Canonical graph",depth >= maximumDepth ? "maximum depth reached before tolerance" : "coordinate precision exhausted before tolerance",k,error[k],(k < count ? absoluteH : absoluteDelta)*width+relativeTolerance*std::abs(high[k])); }
+      ++accepted;
+      return;
+    }
 
     IntegrateCanonicalGraphInterval(coefficient, degree, order, left, middle, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle, surfaceGradient, &failed);
     IntegrateCanonicalGraphInterval(coefficient, degree, order, middle, right, computeDelta, absoluteH, absoluteDelta, relativeTolerance, depth + 1U, maximumDepth, total, totalError, accepted, triangle, surfaceGradient, &failed);
@@ -711,6 +722,7 @@ namespace FELevelSetMoments {
 
 
   inline bool IntegrateCanonicalGraph(const std::vector<std::vector<long double>>& coefficient, unsigned degree, unsigned order, bool triangle, bool computeDelta, long double derivativeBound, long double absoluteH, long double absoluteDelta, long double relativeTolerance, unsigned maximumDepth, std::vector<long double>& total, std::vector<long double>& totalError, unsigned& accepted, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr) {
+    QuadratureWarningScope warningScope("Canonical graph integration");
     const std::vector<long double> domain = {0.0L, 1.0L, 0.0L, 1.0L};
     std::vector<std::vector<long double>> field(3, std::vector<long double>(3));
     long double norm = 0.0L;

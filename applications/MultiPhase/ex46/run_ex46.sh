@@ -42,7 +42,8 @@ NSTEPS=(1000)
 # ------------------------------------------------------------
 
 CUTFEM_INTEGRATION="quadratic"     # linear | quadratic
-SURFACE_MOMENT_ORDER=10
+SURFACE_MOMENT_ORDER=17
+SURFACE_WEIGHTS="${SURFACE_WEIGHTS:-1}" # 1: legacy scalar weight; 3: component RHS weights
 
 # ------------------------------------------------------------
 # Velocity multigrid
@@ -69,6 +70,11 @@ OPTIONS_LEFT=true
 # ============================================================
 # Basic checks
 # ============================================================
+
+if [[ "${SURFACE_WEIGHTS}" != "1" && "${SURFACE_WEIGHTS}" != "3" ]]; then
+  echo "ERROR: SURFACE_WEIGHTS must be 1 or 3."
+  exit 1
+fi
 
 if [[ "${MULTIGRID_TYPE}" != "hmg" &&
       "${MULTIGRID_TYPE}" != "mg" ]]; then
@@ -302,6 +308,7 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
       echo "Level offset       : ${LEVEL_OFFSET}"
       echo "Level offset psi   : ${LEVEL_OFFSET_PSI}"
       echo "CutFEM integration : ${CUTFEM_INTEGRATION}"
+      echo "Surface RHS weights: ${SURFACE_WEIGHTS}"
       echo "Solver levels      : ${NLEVELS}"
       echo "Number of steps    : ${nsteps}"
       echo "Dimension          : ${DIM}"
@@ -321,6 +328,7 @@ for uniform_levels in "${UNIFORM_LEVELS[@]}"; do
         --level-offset-psi "${LEVEL_OFFSET_PSI}" \
         --cutfem-integration "${CUTFEM_INTEGRATION}" \
         --surface-moment-order "${SURFACE_MOMENT_ORDER}" \
+        --surface-weights "${SURFACE_WEIGHTS}" \
         --nsteps "${nsteps}" \
         --dim "${DIM}" \
         --simulation "${SIMULATION}" \

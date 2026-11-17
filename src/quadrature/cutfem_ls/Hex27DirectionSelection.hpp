@@ -14,6 +14,7 @@ inline void Hex27SelectedAxes(unsigned order, unsigned& inner, unsigned& middle,
 }
 
 inline void IntegrateHex27ReferenceSelected(const std::vector<std::vector<std::vector<double>>>& coefficient, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance = 1.0e-10, double relativeTolerance = 1.0e-10, bool computeDelta = true, unsigned maximumDepth = 24, unsigned integrationOrder = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1,  const std::vector<unsigned>* zeroFaces = nullptr, std::vector<double>* directionInfo = nullptr, bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+  QuadratureWarningScope warningScope("HEX27 moments");
   rules.Validate();
   if(&positive == &delta || degree > 64 || !(absoluteTolerance > 0.0) || !(relativeTolerance >= 0.0) || !std::isfinite(absoluteTolerance) || !std::isfinite(relativeTolerance) || maximumDepth > 48 || integrationOrder > 6 || maximumEvaluations == 0 || validationMode > 2 || (directionInfo != nullptr && directionInfo == estimatedError)) throw std::invalid_argument("Invalid selected-direction HEX27 integration input.");
   if(inverseJacobian != nullptr && !referenceSurface) throw std::invalid_argument("A physical HEX27 metric requires surface moments.");

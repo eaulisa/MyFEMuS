@@ -20,7 +20,8 @@ inline void Tri7SurfaceCoordinatePolynomials(const std::vector<std::vector<doubl
   }
 }
 
-inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationDirection = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr,  bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
+inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned maximumDepth = 28, unsigned integrationDirection = 0, unsigned maximumEvaluations = 200000, std::vector<double>* estimatedError = nullptr, unsigned validationMode = 1, const std::vector<unsigned>* zeroBoundary = nullptr,  bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1) {
+  QuadratureWarningScope warningScope("TRI reference moments");
   rules.Validate();
   if(inverseSurface && geometryCoordinates == nullptr) throw std::invalid_argument("Inverse surface moments require nodal geometry.");
   if(geometryCoordinates != nullptr) {
@@ -69,9 +70,9 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
     for(unsigned component = 0; component < gradient.size(); ++component) gradient[component] = EndpointSimplexChart::Triangle(gradient[component]);
     if(zeroBoundary != nullptr) { transformedBoundary = {(*zeroBoundary)[2],(*zeroBoundary)[1],(*zeroBoundary)[0]}; zeroBoundary = &transformedBoundary; }
   }
-  TriangleIntegration::Integrate(normalized,degree,computeDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,referenceSurface ? &gradient : nullptr,nullptr,nullptr,integrationDirection == 3 ? 1U : integrationDirection,fullBoundaryDelta,zeroBoundary,rules,inverseSurface);
+  TriangleIntegration::Integrate(normalized,degree,computeDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,referenceSurface ? &gradient : nullptr,nullptr,nullptr,integrationDirection == 3 ? 1U : integrationDirection,fullBoundaryDelta,zeroBoundary,rules,inverseSurface,normalComponent);
   unsigned compared = 0;
-  if(validationMode == 2) compared = PlanarEndpointIntegration::Compare(normalized,degree,true,computeDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,referenceSurface ? &gradient : nullptr,nullptr,fullBoundaryDelta,zeroBoundary,rules,inverseSurface);
+  if(validationMode == 2) compared = PlanarEndpointIntegration::Compare(normalized,degree,true,computeDelta,absoluteTolerance/amplification,absoluteTolerance*scale/amplification,relativeTolerance/amplification,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,referenceSurface ? &gradient : nullptr,nullptr,fullBoundaryDelta,zeroBoundary,rules,inverseSurface,normalComponent);
   if(integrationDirection == 3) {
     std::vector<long double> source;
     std::vector<long double> sourceErrors;
@@ -94,9 +95,11 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
       resultD[i][j] = computeDelta ? static_cast<double>(values[count+n]/scale) : 0;
       const long double hError = errors[n]+std::abs(values[n]-resultH[i][j]);
       const long double dError = computeDelta ? errors[count+n]/scale+std::abs(values[count+n]/scale-resultD[i][j]) : 0;
-      if(!std::isfinite(resultH[i][j]) || !std::isfinite(resultD[i][j]) || hError > absoluteTolerance+relativeTolerance*std::abs(values[n]) || dError > absoluteTolerance+relativeTolerance*std::abs(resultD[i][j])) throw std::runtime_error("Rounded TRI moments exceed tolerance.");
-      errorH = std::max(errorH,hError);
-      errorD = std::max(errorD,dError);
+      if(!std::isfinite(resultH[i][j]) || !std::isfinite(resultD[i][j])) throw std::overflow_error("A rounded TRI moment exceeds double precision range.");
+      if(!std::isfinite(hError) || hError < 0 || hError > absoluteTolerance+relativeTolerance*std::abs(values[n])) WarnQuadrature("TRI output","rounded volume moment exceeds tolerance",n,hError,absoluteTolerance+relativeTolerance*std::abs(values[n]));
+      if(!std::isfinite(dError) || dError < 0 || dError > absoluteTolerance+relativeTolerance*std::abs(resultD[i][j])) WarnQuadrature("TRI output","rounded interface moment exceeds tolerance",count+n,dError,absoluteTolerance+relativeTolerance*std::abs(resultD[i][j]));
+      errorH = std::max(errorH,std::isfinite(hError) && hError >= 0 ? hError : std::numeric_limits<long double>::infinity());
+      errorD = std::max(errorD,std::isfinite(dError) && dError >= 0 ? dError : std::numeric_limits<long double>::infinity());
     }
   }
   positive.swap(resultH);
@@ -104,11 +107,11 @@ inline void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>
   if(estimatedError != nullptr) *estimatedError = {static_cast<double>(errorH),static_cast<double>(errorD),static_cast<double>(accepted),static_cast<double>(evaluations),static_cast<double>(selected),static_cast<double>(compared),1};
 }
 
-inline void IntegrateTri7NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr,  bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
+inline void IntegrateTri7NodalSelected(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance = 1.0e-12, double relativeTolerance = 1.0e-12, bool computeDelta = true, bool fullBoundaryDelta = false, unsigned validationMode = 1, unsigned integrationDirection = 0, std::vector<double>* estimatedError = nullptr,  bool referenceSurface = false, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1) {
   std::vector<std::vector<double>> coefficient;
   Tri7ReferenceCoefficientsFromNodalValues(nodalValues,coefficient);
   const std::vector<unsigned> boundary = {static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[1] == 0.0 && nodalValues[3] == 0.0),static_cast<unsigned>(nodalValues[0] == 0.0 && nodalValues[2] == 0.0 && nodalValues[5] == 0.0),static_cast<unsigned>(nodalValues[1] == 0.0 && nodalValues[2] == 0.0 && nodalValues[4] == 0.0)};
-  IntegrateTri7ReferenceSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,28U,integrationDirection,200000,estimatedError,validationMode,&boundary,referenceSurface,inverseJacobian,geometryCoordinates,rules,inverseSurface);
+  IntegrateTri7ReferenceSelected(coefficient,degree,positive,delta,absoluteTolerance,relativeTolerance,computeDelta,fullBoundaryDelta,28U,integrationDirection,200000,estimatedError,validationMode,&boundary,referenceSurface,inverseJacobian,geometryCoordinates,rules,inverseSurface,normalComponent);
 }
 
 }

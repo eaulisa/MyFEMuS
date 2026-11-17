@@ -48,6 +48,7 @@ struct EndpointStripDirection {
   bool upperZero = false;
   bool fullBoundaryDelta = false;
   bool inverseSurface = false;
+  int normalComponent = -1;
   unsigned triangle = 0;
   std::array<long double,5> parent = {0,1,0,1,1};
   std::vector<unsigned char> requested;
@@ -95,7 +96,8 @@ public:
     return false;
   }
 
-  static bool Try(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, long double metricScale = 1, const std::vector<std::vector<std::vector<long double>>>* coordinates = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::array<long double,5>* parent = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned requestedDirection = 0, bool fullBoundaryDelta = false, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false) {
+  static bool Try(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, long double metricScale = 1, const std::vector<std::vector<std::vector<long double>>>* coordinates = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::array<long double,5>* parent = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned requestedDirection = 0, bool fullBoundaryDelta = false, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1) {
+    QuadratureWarningScope warningScope("Endpoint curve integration");
     rules.Validate();
     if(requestedDirection > 2) throw std::invalid_argument("Invalid endpoint direction.");
     ++Statistics().attempts;
@@ -117,9 +119,10 @@ public:
     if(gradient != nullptr) { directions[0].gradient = *gradient; SurfaceGradientTranspose(*gradient,directions[1].gradient); }
     for(unsigned d = 0; d < 2; ++d) { directions[d].metricScale = metricScale; if(inverseJacobian != nullptr) directions[d].inverseJacobian = *inverseJacobian; }
     if(coordinates != nullptr) { directions[0].coordinates = *coordinates; SurfaceGradientTranspose(*coordinates,directions[1].coordinates); }
-    for(unsigned d = 0; d < 2; ++d) { directions[d].fullBoundaryDelta = fullBoundaryDelta; directions[d].inverseSurface = inverseSurface; if(parent != nullptr) directions[d].parent = LineIntegration::MomentCoordinates(parent,d+1U); directions[d].requested = LineIntegration::MomentRequest(degree,requested,d+1U,computeDelta); }
+    for(unsigned d = 0; d < 2; ++d) { directions[d].fullBoundaryDelta = fullBoundaryDelta; directions[d].inverseSurface = inverseSurface; directions[d].normalComponent = normalComponent; if(parent != nullptr) directions[d].parent = LineIntegration::MomentCoordinates(parent,d+1U); directions[d].requested = LineIntegration::MomentRequest(degree,requested,d+1U,computeDelta); }
     const unsigned first = requestedDirection != 0 ? requestedDirection-1U : PreferredDirection() == 0 ? (directions[1].score < directions[0].score ? 1U : 0U) : PreferredDirection()-1U;
     std::string resolutionFailure;
+    std::string accuracyFailure;
     for(unsigned attempt = 0; attempt < (requestedDirection == 0 ? 2U : 1U); ++attempt) {
       const unsigned axis = attempt == 0 ? first : 1U-first;
       if(!std::isfinite(directions[axis].score)) continue;
@@ -142,10 +145,12 @@ public:
         ++Statistics().directions[axis];
         return true;
       }
+      catch(const QuadratureAccuracyRetry& error) { evaluations += localEvaluations; Statistics().failure = error.what(); accuracyFailure = error.what(); if(evaluations >= maximumEvaluations) break; }
       catch(const OuterQuadratureResolutionError& error) { evaluations += localEvaluations; Statistics().failure = error.what(); resolutionFailure = error.what(); if(evaluations >= maximumEvaluations) break; }
       catch(const std::runtime_error& error) { evaluations += localEvaluations; Statistics().failure = error.what(); if(evaluations >= maximumEvaluations) break; }
     }
     ++Statistics().rejected;
+    if(!accuracyFailure.empty()) throw QuadratureAccuracyRetry(accuracyFailure);
     if(!resolutionFailure.empty() && evaluations < maximumEvaluations) throw OuterQuadratureResolutionError(resolutionFailure);
     return false;
   }
@@ -273,7 +278,7 @@ private:
     for(unsigned r = 0; r < roots.size(); ++r) {
       if(!(derivative > 0)) throw std::runtime_error("A bulk node reached a singular fiber.");
       long double weight = (interval.boundary[r] == 0 || data.fullBoundaryDelta ? 1.0L : 0.5L)*surfaceRatio;
-      if(!data.gradient.empty()) weight *= SurfaceGradientFactor(data.gradient,x,roots[r],data.inverseSurface);
+      if(!data.gradient.empty()) weight *= SurfaceGradientFactor(data.gradient,x,roots[r],data.inverseSurface,data.normalComponent);
       const long double parentRoot = std::fma(data.parent[3],roots[r],data.parent[2]);
       long double power = 1;
       for(unsigned j = 0; j <= degree; ++j) { d[j] += weight*power; power *= parentRoot; }
@@ -326,7 +331,7 @@ private:
         OuterIntervalQuadrature::Adaptive(context,CurveSample,plan[part],plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,intervalBudget*absoluteH/plan.size(),intervalBudget*absoluteD/plan.size(),relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,2,active,values,errors,rules);
       }
     }
-    for(unsigned n = 0; n < values.size(); ++n) if(data.requested[n] && (!std::isfinite(values[n]) || !std::isfinite(errors[n]) || errors[n] > (n < count ? absoluteH : absoluteD)+relative*std::abs(values[n]))) throw std::runtime_error("Accumulated non-graph moment error exceeds tolerance.");
+    CheckQuadratureTolerance("Endpoint curve moments","accumulated non-graph error exceeds tolerance",values,errors,absoluteH,absoluteD,relative,&data.requested);
   }
 };
 

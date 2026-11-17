@@ -10,8 +10,8 @@
 #include "CDWeights.hpp"
 #include "MultiLevelProblem.hpp"
 typedef double TypeIO;
-// typedef cpp_bin_float_oct TypeA;
-typedef long double TypeA;
+typedef cpp_bin_float_oct TypeA;
+// typedef long double TypeA;
 typedef cpp_bin_float_oct oct;
 
 const RungeKutta::VelKind velocityType = RungeKutta::VelKind::Zero;
@@ -26,6 +26,7 @@ CutFemWeight <TypeIO, TypeA> line = CutFemWeight<TypeIO, TypeA >(LINE, 5, "legen
 const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&hex, &tet, &wedge, &quad, &tri, &line};
 
 #include "CutFemWeight_LS.hpp"
+#include "CutFemWeightRules_LS.hpp"
 
 enum class CutFemIntegration {
   Linear,
@@ -38,7 +39,7 @@ CutFemWeight_LS<TypeIO, TypeA> wedgeLS(WEDGE, wedge.GetCutFEMQuadratureOrder(), 
 CutFemWeight_LS<TypeIO, TypeA> quadLS(QUAD, quad.GetCutFEMQuadratureOrder(), "legendre");
 CutFemWeight_LS<TypeIO, TypeA> triLS(TRI, tri.GetCutFEMQuadratureOrder(), "legendre");
 CutFemWeight_LS<TypeIO, TypeA> lineLS(LINE, line.GetCutFEMQuadratureOrder(), "legendre");
-
+//
 const std::vector<CutFemWeight_LS<TypeIO, TypeA>*> cfwLS = {
   &hexLS, &tetLS, &wedgeLS, &quadLS, &triLS, &lineLS
 };
@@ -53,6 +54,28 @@ const std::vector<CutFemWeight_LS<TypeIO, TypeA>*> cfwLS = {
 // const std::vector< CDWeight <TypeA> *> cfCDw0 = {&hexCD0, &quadCD0, &quadCD0, &quadCD0, &triCD0};
 
 Fem fem = Fem(hex.GetGaussQuadratureOrder(), hex.GetDimension());
+
+unsigned surfaceMomentOrder = 13;
+unsigned surfaceWeightCount = 3;
+FELevelSetMoments::OuterQuadratureRules surfaceQuadratureRules;
+std::unique_ptr<Fem> surfaceFem;
+std::unique_ptr<CutFemWeightRules_LS<TypeIO,TypeA>> surfaceRules;
+
+// Initializes only mesh element types, before any assembly, and keeps the selected profile fixed.
+void InitializeSurfaceQuadrature(Mesh& mesh) {
+  if(surfaceRules) {
+    if(surfaceRules->GetOrder() != surfaceMomentOrder || !surfaceRules->GetOuterRules().SameAs(surfaceQuadratureRules)) throw std::logic_error("The initialized surface quadrature profile cannot change during assembly.");
+    return;
+  }
+  int localGeometry[6] = {}, globalGeometry[6] = {};
+  const unsigned processor = mesh.processor_id();
+  for(unsigned element = mesh._elementOffset[processor]; element < mesh._elementOffset[processor+1U]; ++element) localGeometry[mesh.GetElementType(element)] = 1;
+  MPI_Allreduce(localGeometry,globalGeometry,6,MPI_INT,MPI_MAX,MPI_COMM_WORLD);
+  std::vector<GeomElType> geometries;
+  for(unsigned geometry = 0; geometry < 6; ++geometry) if(globalGeometry[geometry]) geometries.push_back(static_cast<GeomElType>(geometry));
+  surfaceRules.reset(new CutFemWeightRules_LS<TypeIO,TypeA>(surfaceMomentOrder,geometries,surfaceQuadratureRules));
+  surfaceFem.reset(new Fem(2U*surfaceMomentOrder,mesh.GetDimension()));
+}
 
 void RungeKutta4(std::vector<MyVector<double>> &X,
                  MultiLevelSolution & mlSol,
@@ -741,34 +764,13 @@ void FlagFinestMeshLevel(MultiLevelMesh& mlMsh, const PsiType& psi) {
 
     const unsigned nDof = msh.GetElementDofNumber(iel, xType);
 
-    const unsigned xDof0 = msh.GetSolutionDof(0, iel, xType);
-
-    for(unsigned k = 0; k < dim; ++k)
-      x[k] = (*xv[k])(xDof0);
-
-    const double psi0 = psi(x);
-    const int sign0 = (psi0 > 0.) ? 1 : -1;
-
-    bool signChange = false;
-
-    for(unsigned i = 1; i < nDof; ++i) {
-
+    std::vector<double> nodalValues(nDof);
+    for(unsigned i = 0; i < nDof; ++i) {
       const unsigned xDof = msh.GetSolutionDof(i, iel, xType);
-
-      for(unsigned k = 0; k < dim; ++k)
-        x[k] = (*xv[k])(xDof);
-
-      const double psii = psi(x);
-      const int signi = (psii > 0.) ? 1 : -1;
-
-      if(signi != sign0) {
-        signChange = true;
-        break;
-      }
+      for(unsigned k = 0; k < dim; ++k) x[k] = (*xv[k])(xDof);
+      nodalValues[i] = psi(x);
     }
-
-    if(signChange)
-      amrFlag->set(iel, 2);
+    if(FELevelSetMoments::NodalLevelSetPhase(static_cast<GeomElType>(msh.GetElementType(iel)),nodalValues) == 0) amrFlag->set(iel,2);
   }
 
   amrFlag->close();
@@ -1037,19 +1039,10 @@ void UpdateColorFunction(MultiLevelSolution & mlSol, const std::string & psiName
   // Loop over local elements and interpolate psi2D at solution DoFs
   for (unsigned iel = offset; iel < offsetp1; ++iel) {
     const unsigned nDof = msh.GetElementDofNumber(iel, psiType);
-    double value0 = (*psiVec)(msh.GetSolutionDof(0, iel, psiType));
-    bool signChanged = false;
-    for (unsigned i = 1; i < nDof; ++i) {
-      double value = (*psiVec)(msh.GetSolutionDof(i, iel, psiType));
-      if(value0 * value <= 0.) {
-        cVec->set(iel, 0.5);
-        signChanged = true;
-        break;
-      }
-    }
-    if(!signChanged && value0 > 0.) {
-      cVec->set(iel, 1.);
-    }
+    std::vector<double> nodalValues(nDof);
+    for(unsigned i = 0; i < nDof; ++i) nodalValues[i] = (*psiVec)(msh.GetSolutionDof(i,iel,psiType));
+    const int phase = FELevelSetMoments::NodalLevelSetPhase(static_cast<GeomElType>(msh.GetElementType(iel)),nodalValues);
+    cVec->set(iel,phase == 0 ? 0.5 : (phase > 0 ? 1. : 0.));
   }
   cVec->close();
 }
