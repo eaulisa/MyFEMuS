@@ -491,6 +491,8 @@ int main(int argc,char** argv) {
   mlMsh0.RefineMesh(opt.uniformLevels,opt.uniformLevels,nullptr);
   mlMsh0.PrintInfo();
 
+  BBoxToIel bbox(mlMsh0, 0, 3);
+
   MultiLevelSolution mlSol0(&mlMsh0);
   const char* velocities[] = {"U","V","W"};
   const char* pressures[] = {"P1","P2"};
@@ -518,6 +520,20 @@ int main(int argc,char** argv) {
   UpdateColorFunction(mlSol0,psiName,cName);
   mlSol0.AttachSetBoundaryConditionFunction(SetBoundaryCondition);
   mlSol0.GenerateBdc("All");
+
+  // Build coarse-level phase classifications from the finest level.
+    if(levelC > 0)
+    RestrictPWDCField(mlSol0, cName, 0, levelC);
+
+    // Temporary solution receiving the transported level set.
+    // It shares the same fixed multilevel mesh.
+    MultiLevelSolution transportedPsi(&mlMsh0);
+
+    transportedPsi.AddSolution(
+    psiName.c_str(), LAGRANGE, SECOND, 0, false
+    );
+
+    transportedPsi.Initialize("All");
 
   const double hC=GetMaxElementH(mlMsh0.GetLevel(levelC),levelC);
   const double dt=cfg.period/opt.nStepsPerPeriod;
@@ -567,7 +583,13 @@ int main(int argc,char** argv) {
     for(const char* pname:pressures) {
       *(dst->_Sol[mlSol2.GetIndex(pname)])=*(src->_Sol[mlSol0.GetIndex(pname)]);
     }
-    *(dst->_Sol[mlSol2.GetIndex("C")])=*(src->_Sol[mlSol0.GetIndex("C")]);
+
+    *(dst->_Sol[mlSol2.GetIndex("Psi")]) = *(src->_Sol[mlSol0.GetIndex("Psi")]);
+
+    const unsigned c0Index = mlSol0.GetIndex(cName.c_str());
+    const unsigned c2Index = mlSol2.GetIndex(cName.c_str());
+
+    for(unsigned l = 0; l <= levelC; ++l) *(mlSol2.GetSolutionLevel(l)->_Sol[c2Index]) = *(mlSol0.GetSolutionLevel(l)->_Sol[c0Index]);
 
     // Production pressure constraints are essential even when the range
     // diagnostic exports its pressure space as unconstrained.
@@ -625,7 +647,7 @@ int main(int argc,char** argv) {
     FS_P.MgSetParameters(4,4,0);
     std::vector<FieldSplitTree*> splits={&FS_V,&FS_P};
     FieldSplitTree FS_NS(GMRES,FIELDSPLIT_SCHUR_PRECOND,splits,"Navier-Stokes");
-    FS_NS.SetTolerances(1.e-20,1.e-20,1.e+50,50);
+    FS_NS.SetTolerances(1.e-14,1.e-14,1.e+50,50);
     system.SetLinearEquationSolverType(FEMuS_FIELDSPLIT,INCLUDE_COARSE_LEVEL_TRUE);
     system.SetMaxNumberOfNonLinearIterations(1);
     system.SetMaxNumberOfLinearIterations(10);
@@ -633,8 +655,8 @@ int main(int argc,char** argv) {
     system.init();
     system.SetOuterSolver(FGMRES);
     system.SetFieldSplitTree(&FS_NS);
-    system.SetTolerances(1.e-20,1.e-20,1.e+50,200);
-    system.SetAbsoluteLinearConvergenceTolerance(1.e-16);
+    system.SetTolerances(1.e-14,1.e-14,1.e+50,200);
+    system.SetAbsoluteLinearConvergenceTolerance(1.e-14);
     for(unsigned l=0;l<=levelC;++l)
       system._LinSolver[l]->SetSolution(&mlSol2.GetSolutionLevel(l)->_Sol);
 
@@ -657,7 +679,7 @@ int main(int argc,char** argv) {
     const double time = (static_cast<double>(step) - 0.5) * dt;
 
     PrintParasiticCurrents(&mlSol2, levelC, levelC, time, vName, cfg,cutFemIntegration);
-    
+
     if(rank==0) {
       std::cout << "PAR step " << step << '/' << opt.solveSteps
                 << ", t=" << std::setprecision(15) << time
@@ -669,18 +691,50 @@ int main(int argc,char** argv) {
           << norms.l2 << ' ' << norms.maxGauss << ' ' << norms.maxNodal << '\n';
     }
     // The pressure and velocity are advanced, but Psi and C remain fixed.
-    for(unsigned d=0;d<dim;++d) {
-      const unsigned i0=mlSol0.GetIndex(velocities[d]);
-      const unsigned i2=mlSol2.GetIndex(velocities[d]);
-      *(src->_Sol[i0])=*(dst->_Sol[i2]);
+    // for(unsigned d=0;d<dim;++d) {
+    //   const unsigned i0=mlSol0.GetIndex(velocities[d]);
+    //   const unsigned i2=mlSol2.GetIndex(velocities[d]);
+    //   *(src->_Sol[i0])=*(dst->_Sol[i2]);
+    // }
+    // for(const char* pname:pressures)
+    //   *(src->_Sol[mlSol0.GetIndex(pname)])=
+    //     *(dst->_Sol[mlSol2.GetIndex(pname)]);
+    // {
+    //   VTKWriter writer(&mlSol2);
+    //   writer.Write(levelC,"output_par_vel","biquadratic",allVariables,step);
+    // }
+
+
+    for(unsigned d = 0; d < dim; ++d) {
+        const unsigned i0 = mlSol0.GetIndex(velocities[d]);
+        const unsigned i2 = mlSol2.GetIndex(velocities[d]);
+
+        *(src->_Sol[i0]) = *(dst->_Sol[i2]);
     }
-    for(const char* pname:pressures)
-      *(src->_Sol[mlSol0.GetIndex(pname)])=
-        *(dst->_Sol[mlSol2.GetIndex(pname)]);
-    {
-      VTKWriter writer(&mlSol2);
-      writer.Write(levelC,"output_par_vel","biquadratic",allVariables,step);
-    }
+
+    for(const char* pname : pressures) *(src->_Sol[mlSol0.GetIndex(pname)]) = *(dst->_Sol[mlSol2.GetIndex(pname)]);
+
+    const double dtTransport = (step == 1) ? 0.5 * dt : dt;
+
+    ProjectSolution(mlSol0,transportedPsi,bbox,cfg.x_min,cfg.x_max,{psiName},levelC,levelC,vName,levelC,Boundary(),-dtTransport,time,cfg.period);
+
+    const unsigned psi0Index = mlSol0.GetIndex(psiName.c_str());
+
+    const unsigned psiTransportIndex = transportedPsi.GetIndex(psiName.c_str());
+
+    *(src->_Sol[psi0Index]) = *(transportedPsi.GetSolutionLevel(levelC)->_Sol[psiTransportIndex]);
+
+    UpdateColorFunction(mlSol0, psiName, cName);
+
+    if(levelC > 0)
+    RestrictPWDCField(mlSol0, cName, 0, levelC);
+
+    for(auto* rule : cfwLS) if(rule != nullptr) rule->ClearCache();
+
+    // {
+    //     VTKWriter writer(&mlSol0);
+    //     writer.Write(levelC,"output_par_vel","biquadratic",allVariables,step);
+    // }
   }
   return 0;
 }
@@ -1652,7 +1706,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                   stabSF += (cnew * solV_gss[0] - cold * solVOld_gss[0]) * phiV[i] / (r * r);
                 }
 
-                // Res[I * nDofsV + i] += -cnew * sigma * dt * stabSF * surfaceWeight * axisWeight;
+                Res[I * nDofsV + i] += -cnew * sigma * dt * stabSF * surfaceWeight * axisWeight;
               }
             }
           } // end phiV_i loop
@@ -1726,7 +1780,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                 double tangentialGradDot = 0.;
                 if(tangentialSurfaceWeights) for(unsigned a = 0; a < surfaceTangentSize; ++a) tangentialGradDot += surfaceTangent[i*surfaceTangentSize+a]*surfaceTangent[j*surfaceTangentSize+a];
                 else tangentialGradDot = gradPhi_dot_gradPhi-normalDotGradPhi[i]*normalDotGradPhi[j];
-                // diagonalContribution += surfaceTensionCoefficient * tangentialGradDot;
+                diagonalContribution += surfaceTensionCoefficient * tangentialGradDot;
               }
 
               for(unsigned I = 0; I < dim; I++) { //row velocity blocks or dimension

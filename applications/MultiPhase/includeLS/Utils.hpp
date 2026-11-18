@@ -4286,7 +4286,7 @@ SimulationConfig GetSimulationConfig(const SimulationCase simulation, const unsi
       cfg.n[1] = (dim == 3) ? 2 : 4;
       cfg.n[2] = (dim == 3) ? 2 : 0;
 
-      cfg.period = 0.03;
+      cfg.period = 0.01;
 
       cfg.psi.type = PsiType::BALL;
       cfg.psi.center = {0.005, 0.005, 0.005};
@@ -5796,7 +5796,13 @@ void PrintParasiticCurrents(
   if(mlSol->GetSolutionType(p2Index) != pType)
     throw std::runtime_error("Pressure FE type mismatch");
 
-  Psi exactPsi(cfg.psi);
+  // Psi exactPsi(cfg.psi);
+  const unsigned psiIndex = mlSol->GetIndex("Psi");
+
+  if(mlSol->GetSolutionType(psiIndex) != xType)
+    throw std::runtime_error(
+      "Psi and geometry must have the same FE type"
+    );
 
   // ============================================================
   // 3. Integrate pressure over the physical phases
@@ -5859,7 +5865,8 @@ void PrintParasiticCurrents(
           coordX[d][i] = x[d];
         }
 
-        psi[i] = exactPsi(x);
+        // psi[i] = exactPsi(x);
+        psi[i] = (*sol->_Sol[psiIndex])(dof);
 
         psiMin = std::min(psiMin, psi[i]);
         psiMax = std::max(psiMax, psi[i]);

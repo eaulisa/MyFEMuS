@@ -5,7 +5,7 @@ set -euo pipefail
 # PARASITIC CURRENTS: EDIT ONLY THIS CONFIGURATION SECTION
 # ============================================================
 NPROC=8
-DIM=2                               # 2 | 3
+DIM=3                               # 2 | 3
 MESHES=(imported)                  # generated | imported; may run both
 
 # Imported mesh: Q1-projected QUAD9/HEX27 .neu files.
@@ -20,20 +20,23 @@ NZ=8
 
 UNIFORM_LEVELS=(1)
 NSTEPS=(1000)                       # dt = 0.03 / NSTEPS; not actual solves
-SOLVE_STEPS=1                       # actual NS steps, with fixed interface
+SOLVE_STEPS=1000                       # actual NS steps, with fixed interface
 INITIAL_PRESSURE="young-laplace"   # young-laplace | zero
 
 # Keep uploaded ex46 defaults initially; vary one switch at a time.
 PRESSURE_GP=1
-VELOCITY_GP=0
-STABILIZATION=0
+VELOCITY_GP=1
+STABILIZATION=1
 
-SURFACE_MOMENT_ORDER=10
-SURFACE_MOMENT_TOL=1.e-12
+SURFACE_MOMENT_ORDER=17
+SURFACE_MOMENT_TOL=1.e-8
 SURFACE_WEIGHTS=1                   # 3D: three signed-normal moments
-SURFACE_GK="15/31"
+SURFACE_GK2="7/15"
+SURFACE_GK2t="7/15"
+SURFACE_GK3="15/31"
+SURFACE_GK3t="15/31"
 SURFACE_EXTENDED_BUDGET=1
-SURFACE_PRESSURE_DIAGNOSTIC=1
+SURFACE_PRESSURE_DIAGNOSTIC=0
 
 MULTIGRID_TYPE="mg"               # mg | hmg
 EXECUTABLE="./MultiPhase_ex46_par"
@@ -61,8 +64,8 @@ write_solver_options() {
   mkdir -p "$(dirname "$OPTIONS_FILE")"
   cat > "$OPTIONS_FILE" <<EOF
 -ksp_type fgmres
--ksp_rtol 1.e-20
--ksp_atol 1.e-20
+-ksp_rtol 1.e-14
+-ksp_atol 1.e-14
 -ksp_divtol 1.e+50
 -ksp_max_it 200
 -level-0ksp_max_it 200
@@ -81,8 +84,8 @@ EOF
     cat >> "$OPTIONS_FILE" <<EOF
 -level-${i}ksp_norm_type unpreconditioned
 -level-${i}ksp_type gmres
--level-${i}ksp_rtol 1.e-20
--level-${i}ksp_atol 1.e-20
+-level-${i}ksp_rtol 1.e-14
+-level-${i}ksp_atol 1.e-14
 -level-${i}ksp_max_it 200
 -level-${i}pc_fieldsplit_schur_fact_type upper
 -level-${i}pc_fieldsplit_schur_precondition selfp
@@ -139,8 +142,8 @@ for mesh in "${MESHES[@]}"; do
         --surface-moment-order "$SURFACE_MOMENT_ORDER"
         --surface-moment-tolerance "$SURFACE_MOMENT_TOL"
         --surface-weights "$SURFACE_WEIGHTS"
-        --gk-regular-2d "$SURFACE_GK" --gk-tangent-2d "$SURFACE_GK"
-        --gk-regular-3d "$SURFACE_GK" --gk-tangent-3d "$SURFACE_GK"
+        --gk-regular-2d "$SURFACE_GK2" --gk-tangent-2d "$SURFACE_GK2t"
+        --gk-regular-3d "$SURFACE_GK3" --gk-tangent-3d "$SURFACE_GK3t"
         --surface-pressure-diagnostic "$SURFACE_PRESSURE_DIAGNOSTIC"
         --surface-pressure-prefix "${prefix}_surface_pressure"
         --output-prefix "$prefix"

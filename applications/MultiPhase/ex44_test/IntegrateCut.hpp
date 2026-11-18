@@ -61,6 +61,16 @@ struct IntegrationResult {
   unsigned cutElements = 0;
   unsigned algoimVolumePoints = 0;
   unsigned algoimSurfacePoints = 0;
+
+  // Final-volume quadrature evaluations, NOT internal 1D adaptive nodes.
+  // Counts are global after the collective reductions in Integrate().
+  std::uint64_t fullyPositiveElements = 0;
+  std::uint64_t fullPositiveGaussPoints = 0;
+  std::uint64_t momentCutGaussPoints = 0;
+  std::uint64_t momentSurfaceNonzeroGaussPoints = 0;
+  // Min/max standard FEMuS Gauss points per active element.
+  unsigned minGaussPointsPerActiveElement = 0;
+  unsigned maxGaussPointsPerActiveElement = 0;
   bool momentComputed = false;
   bool algoimComputed = false;
   std::uint64_t momentAlgoimVolumeGenerated = 0;
@@ -220,6 +230,8 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
   femus::Fem fem(2U * options.momentDegree, dim);
 
   const auto elementLoopStart = std::chrono::steady_clock::now();
+  unsigned localMinGauss = std::numeric_limits<unsigned>::max();
+  unsigned localMaxGauss = 0;
 
   for(unsigned iel = msh->_elementOffset[iproc]; iel < msh->_elementOffset[iproc + 1]; ++iel) {
     const unsigned geom = msh->GetElementType(iel);
@@ -248,6 +260,12 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
     const bool isCut = IsCutElementQuadratic(psi, geom);
     if(isCut) ++result.cutElements;
     if(!isCut && psi[0] <= 0.) continue;
+
+    // Only active (cut or fully positive) elements contribute to the
+    // final numerical volume integration.
+    localMinGauss = std::min(localMinGauss, nGauss);
+    localMaxGauss = std::max(localMaxGauss, nGauss);
+    if(!isCut) ++result.fullyPositiveElements;
 
     std::vector<double> weightOmega;
     std::vector<double> weightGamma;
@@ -351,6 +369,12 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
       std::vector<double> phi, phi_x;
       std::vector<double> x(dim, 0.);
       for(unsigned ig = 0; ig < nGauss; ++ig) {
+        // One FE quadrature evaluation for each visited point. In compare
+        // mode the fully positive evaluations serve both methods, and must
+        // not be counted twice for either method's total.
+        if(isCut) ++result.momentCutGaussPoints;
+        else      ++result.fullPositiveGaussPoints;
+
         double physicalWeight = 0.;
         fe->Jacobian(coordX, ig, physicalWeight, phi, phi_x);
         std::fill(x.begin(), x.end(), 0.);
@@ -363,7 +387,10 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
         }
         else {
           result.omega1 += value * physicalWeight * weightOmega[ig];
-          if(weightGamma[ig] != 0.) result.gamma += value * fe->GetGaussWeight(ig) * weightGamma[ig];
+          if(weightGamma[ig] != 0.) {
+            ++result.momentSurfaceNonzeroGaussPoints;
+            result.gamma += value * fe->GetGaussWeight(ig) * weightGamma[ig];
+          }
         }
       }
     }
@@ -411,6 +438,71 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
   result.momentAlgoimVolumeGenerated = momentCounts[0];
   result.momentAlgoimVolumeUsed = momentCounts[1];
   result.momentAlgoimSurfacePoints = momentCounts[2];
+
+  // Combine the final-integration point counts over MPI ranks.
+  // unsigned long long is used for exact compatibility with the MPI type.
+  unsigned long long gaussCounts[4] = {
+      static_cast<unsigned long long>(result.fullyPositiveElements),
+      static_cast<unsigned long long>(result.fullPositiveGaussPoints),
+      static_cast<unsigned long long>(result.momentCutGaussPoints),
+      static_cast<unsigned long long>(result.momentSurfaceNonzeroGaussPoints)
+  };
+  MPI_Allreduce(MPI_IN_PLACE, gaussCounts, 4,
+                MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+  result.fullyPositiveElements = gaussCounts[0];
+  result.fullPositiveGaussPoints = gaussCounts[1];
+  result.momentCutGaussPoints = gaussCounts[2];
+  result.momentSurfaceNonzeroGaussPoints = gaussCounts[3];
+
+  unsigned globalMinGauss = 0;
+  unsigned globalMaxGauss = 0;
+  MPI_Allreduce(&localMinGauss, &globalMinGauss, 1,
+                MPI_UNSIGNED, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&localMaxGauss, &globalMaxGauss, 1,
+                MPI_UNSIGNED, MPI_MAX, MPI_COMM_WORLD);
+  if(result.cutElements + result.fullyPositiveElements != 0) {
+    result.minGaussPointsPerActiveElement = globalMinGauss;
+    result.maxGaussPointsPerActiveElement = globalMaxGauss;
+  }
+
+  if(iproc == 0) {
+    const std::uint64_t full = result.fullPositiveGaussPoints;
+    std::cout << "Quadrature point counts (final integral, global MPI sum):\n";
+    std::cout << "  Cut elements                     = "
+              << result.cutElements << '\n';
+    std::cout << "  Fully positive elements          = "
+              << result.fullyPositiveElements << '\n';
+    if(result.cutElements + result.fullyPositiveElements != 0) {
+      std::cout << "  FEMuS Gauss points/active element = "
+                << result.minGaussPointsPerActiveElement;
+      if(result.maxGaussPointsPerActiveElement != result.minGaussPointsPerActiveElement)
+        std::cout << " to " << result.maxGaussPointsPerActiveElement;
+      std::cout << '\n';
+    }
+    std::cout << "  Full-positive volume Gauss points = " << full << '\n';
+    if(runMoment) {
+      std::cout << "  Moment cut-cell volume Gauss points = "
+                << result.momentCutGaussPoints << '\n';
+      std::cout << "  Moment TOTAL volume Gauss points = "
+                << (full + result.momentCutGaussPoints) << '\n';
+      std::cout << "  Moment nonzero surface FE points = "
+                << result.momentSurfaceNonzeroGaussPoints << '\n';
+    }
+    if(runAlgoim) {
+      std::cout << "  Direct Algoim cut volume points  = "
+                << result.algoimVolumePoints << '\n';
+      std::cout << "  Direct Algoim TOTAL volume points = "
+                << (full + static_cast<std::uint64_t>(result.algoimVolumePoints)) << '\n';
+      std::cout << "  Direct Algoim surface points     = "
+                << result.algoimSurfacePoints << '\n';
+    }
+    if(useAlgoimMoments) {
+      std::cout << "  Algoim-generated moment volume points = "
+                << result.momentAlgoimVolumeGenerated << '\n';
+      std::cout << "  Algoim-generated moment surface points = "
+                << result.momentAlgoimSurfacePoints << '\n';
+    }
+  }
 
   return result;
 
