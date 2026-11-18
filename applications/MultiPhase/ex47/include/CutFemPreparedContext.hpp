@@ -94,6 +94,15 @@ struct PreparedPlane {
 
   bool ZeroBoundary(unsigned order, bool upper) const { const unsigned inner = InnerAxis(order); return data->IsZeroOnBoundary(data->GetGeometry() == TRI ? (upper ? 0U : inner+1) : 2*inner+static_cast<unsigned>(upper)); }
 
+  bool ZeroBoundary(unsigned order, long double constant, long double slope) const {
+    const bool triangle = data->GetGeometry() == TRI;
+    if(slope == 0 && constant == (triangle ? 0.0L : -1.0L)) return ZeroBoundary(order,false);
+    if(constant == 1 && slope == (triangle ? -1.0L : 0.0L)) return ZeroBoundary(order,true);
+    const std::vector<long double> coefficient = BoundaryPolynomial(order,constant,slope);
+    for(long double value : coefficient) if(value != 0) return false;
+    return true;
+  }
+
   std::vector<unsigned> Boundaries() const {
     if(data->GetGeometry() == TRI) return {static_cast<unsigned>(data->IsZeroOnBoundary(1)),static_cast<unsigned>(data->IsZeroOnBoundary(2)),static_cast<unsigned>(data->IsZeroOnBoundary(0))};
     return {static_cast<unsigned>(data->IsZeroOnBoundary(0)),static_cast<unsigned>(data->IsZeroOnBoundary(1)),static_cast<unsigned>(data->IsZeroOnBoundary(2)),static_cast<unsigned>(data->IsZeroOnBoundary(3))};

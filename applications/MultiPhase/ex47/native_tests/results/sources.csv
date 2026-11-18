@@ -1,0 +1,51 @@
+test,cases,old_passed,prepared_passed,speedup,timing
+benchmark_graph_dimensions,2,2,2,3.6563918420414647,sum of benchmark case medians
+benchmark_quad_tri,1,1,1,0.6476022925061714,sum of benchmark case medians
+benchmark_surface_reuse,1,1,1,2.7465307833312123,same/different element calls; setup excluded
+direct_parent_moments,1,1,1,0.7056199046627994,"whole fixture, including startup/setup"
+endpoint_comparison,70,70,70,1.621028822003334,internal seconds per call
+endpoint_coordinate_resolution,1,1,1,0.6353222332979377,"whole fixture, including startup/setup"
+endpoint_exponents,1,1,1,0.6274687391197783,"whole fixture, including startup/setup"
+endpoint_line_comparison,2,2,2,41.165971274292545,internal seconds per call
+endpoint_nested_contacts,2,2,1,1.6705180076934407,"whole fixture, including startup/setup"
+endpoint_surface_regressions,3,3,3,0.9681949548070832,"whole fixture, including startup/setup"
+enriched_3d,24,24,24,1.1976262086543659,"whole fixture, including startup/setup"
+hex_curved_endpoint_regressions,1,1,0,,"whole fixture, including startup/setup"
+hex_sphere_boundary_tangencies,1,1,1,0.719410881465967,"whole fixture, including startup/setup"
+hex_tet_validation,60,58,58,1.110205174511401,driver integration seconds
+line_integration,1,1,1,4.217091897251928,"whole fixture, including startup/setup"
+line_mesh_refinement,1,1,1,1.0296209560082505,"whole fixture, including startup/setup"
+mesh_refinement,1,1,1,1.1756137781802034,"whole fixture, including startup/setup"
+native_suite,386,386,386,2.363984256922934,median per-case API speedup
+nodal_cut_detection,2,2,1,0.9810262366128559,"whole fixture, including startup/setup"
+normal_surface,1,1,1,4.753204286671902,public API calls; construction/oracles excluded
+outer_interval_benchmark,8,8,6,2.492980991844445,sum of internal case medians
+outer_interval_contract,1,1,1,0.891928899697652,"whole fixture, including startup/setup"
+planar_suite,147,147,147,0.8935089160011169,"whole fixture, including startup/setup"
+quad_curved_endpoint_regressions,1,1,1,0.962840549573699,"whole fixture, including startup/setup"
+quad_native_quadrants,1,1,1,1.020065272558088,"whole fixture, including startup/setup"
+quad_scaled_plane,1,1,1,1.1729751530166648,"whole fixture, including startup/setup"
+quad_tri_standard_moments,1,1,1,0.7430123326700063,"whole fixture, including startup/setup"
+quadrature_rule_selection,1,1,0,,public API calls; construction/oracles excluded
+review_regressions,2,2,2,1.009359802272129,"whole fixture, including startup/setup"
+simplex_high_degree,1,1,1,0.7641846759798695,"whole fixture, including startup/setup"
+single_graph_root,2,2,2,0.9318104070059836,"whole fixture, including startup/setup"
+surface_rule_reuse,1,1,1,10.896477322452737,public API calls; construction/oracles excluded
+tangential_surface,1,1,1,3.383620115571272,public API calls; construction/oracles excluded
+test_contract,1,1,1,2.198187828498117,public API calls; construction/oracles excluded
+test_hex_native,2,2,2,1.0276843482604003,"whole fixture, including startup/setup"
+test_ls_multiprecision,1,1,1,0.49193963433336274,public API calls; construction/oracles excluded
+test_ls_output_range,1,1,1,0.9663201868766145,public API calls; construction/oracles excluded
+test_order_ls_first,1,1,1,0.6355438401775804,public API calls; construction/oracles excluded
+test_order_planar_first,1,1,1,0.5164573433560665,public API calls; construction/oracles excluded
+test_reference_coefficients,1,1,1,0.9740859331896345,"whole fixture, including startup/setup"
+test_root_candidate_regression,1,1,1,0.6883312427711942,"whole fixture, including startup/setup"
+test_tet_slice_regression,1,1,1,0.9130644709805695,"whole fixture, including startup/setup"
+tet_standard_moments,1,1,1,1.379976603693873,"whole fixture, including startup/setup"
+tolerance_warnings,1,1,0,,public API calls; construction/oracles excluded
+tri_circle_probe,1,1,1,1.0404300912125366,"whole fixture, including startup/setup"
+tri_endpoint_regressions,1,1,1,0.9341179295899887,"whole fixture, including startup/setup"
+unit_element_moments,1,1,1,1.0975921143116234,public API calls; construction/oracles excluded
+wedge21_moments,1,1,1,1.6420727110592221,public API calls; construction/oracles excluded
+wide_unit_mesh,12,12,12,2.0691663286263133,mesh seconds; rule setup excluded
+wide_unit_validation,12,11,8,1.7631729937036806,case seconds; fitting setup excluded

@@ -58,3 +58,12 @@ Pending production integration after acceptance of this prototype:
 - [ ] Validate the resulting complete integration paths, high moment orders, and production memory/runtime behavior before selecting lower precision in well-conditioned kernels.
 
 Incremental updates between neighboring slice coordinates remain deferred; restrictions are evaluated directly at GK points. Existing production quadrature and its one-time multiprecision matrix construction are unchanged.
+
+Native-suite comparison follow-up (local ex47 only):
+
+- [ ] Preserve endpoint offsets/parameter derivatives through native-coordinate HEX slicing; `native_tests/curved_public_regression.cpp` and the curved HEX27 native fixture currently fail while the original unit-coordinate path passes.
+- [ ] Resolve the enriched HEX bubble surface-moment error and the degree-10 cubic-contact HEX rejection before production integration.
+- [ ] Restore forced physical-surface HEX projection order 1 in the outer-interval graph benchmark; automatic directions and the other tested directions succeed.
+- [ ] Skip LINE restriction/root analysis for a certified boundary root; the low-order QUAD boundary benchmarks currently use the same 15 samples but take about twice as long.
+- [ ] Preserve and check analytic LINE moment error estimates at the public weight interface so unattainable tolerances retain the original aggregated warning behavior.
+- [ ] Keep depth-1 conservative detection distinct from depth-12 strict-certification comparisons; the shallower default intentionally retains more possible cuts.

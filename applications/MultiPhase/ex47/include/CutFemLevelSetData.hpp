@@ -90,6 +90,37 @@ class CutFemLevelSetData {
       *this = std::move(replacement);
     }
 
+    // Imports native coefficients directly for polynomial-level integration and testing.
+    void ResetPowerCoefficients(GeomElType geometry, const std::vector<long double>& coefficient, unsigned maximumDepth = 1) {
+      ValidateGeometry(geometry);
+      ValidateDepth(maximumDepth);
+      const unsigned dimension = Dimension(geometry);
+      if(coefficient.size() != PolynomialSize(dimension,2)) throw std::invalid_argument("Incorrect native power-coefficient count.");
+      long double maximum = 0;
+      for(unsigned n = 0; n < coefficient.size(); ++n) { if(!std::isfinite(coefficient[n])) throw std::invalid_argument("Power coefficients must be finite."); const std::array<unsigned,3> power = PowerExponents(n,dimension,2); if(coefficient[n] != 0 && ((geometry == TET && power[0]+power[1]+power[2] > 4) || (geometry == WEDGE && power[0]+power[1] > 3))) throw std::invalid_argument("Polynomial exceeds the supported reference layout."); maximum = std::max(maximum,std::abs(coefficient[n])); }
+      CutFemLevelSetData replacement;
+      replacement._initialized = true;
+      replacement._geometry = geometry;
+      replacement._dimension = replacement._rootDimension = replacement._parentDimension = dimension;
+      replacement._maximumDepth = maximumDepth;
+      replacement._power = coefficient;
+      replacement._powerReady = true;
+      replacement._nodalVersion = _nodalVersion+1;
+      replacement._revision = _revision+1;
+      replacement._meshLevel = _meshLevel;
+      replacement._elementId = _elementId;
+      replacement._parentOrigin.assign(dimension,0);
+      replacement._rootOrigin.assign(dimension,0);
+      replacement._parentMap.assign(dimension,std::vector<long double>(dimension,0));
+      for(unsigned axis = 0; axis < dimension; ++axis) { replacement._parentMap[axis][axis] = 1; Differentiate(coefficient,dimension,2,axis,replacement._rootDerivatives[axis]); }
+      replacement._rootMap = replacement._parentMap;
+      replacement.SetBernsteinOrders();
+      if(geometry == TRI && coefficient[8] != 0) replacement._bernsteinOrders = {4,4,0};
+      if(maximum > 0) { int exponent = 0; std::frexp(maximum,&exponent); replacement._normalization = std::ldexp(1.0L,exponent-1); }
+      replacement._workCounts = _workCounts;
+      *this = std::move(replacement);
+    }
+
     void SetMaximumDepth(unsigned maximumDepth) {
       RequireInitialized();
       ValidateDepth(maximumDepth);

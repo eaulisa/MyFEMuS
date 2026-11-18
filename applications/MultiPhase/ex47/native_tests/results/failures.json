@@ -1,0 +1,625 @@
+[
+  {
+    "test": "curved_public_regression",
+    "case": "curved_public_regression",
+    "backend": "prepared",
+    "exit": -6,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": -6
+        }
+      ]
+    },
+    "stderr": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  Unsupported endpoint topology: No complete finite outer rule is available at coordinate resolution.\n",
+    "stdout": ""
+  },
+  {
+    "test": "endpoint_nested_contacts",
+    "case": "endpoint_nested_contacts_10_1e-10",
+    "backend": "prepared",
+    "exit": 1,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": 1
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [3D endpoint integration]; Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=289, worst moment=571, estimated error=4.91011e-15, requested tolerance=5.00352e-13); Outer quadrature: maximum depth reached before tolerance (failed checks=132, worst moment=71, estimated error=2.58382e-18, requested tolerance=1.58946e-21); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [3D endpoint integration]; Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=328, worst moment=571, estimated error=5.02151e-15, requested tolerance=5.00352e-13); Outer quadrature: maximum depth reached before tolerance (failed checks=130, worst moment=66, estimated error=2.58382e-18, requested tolerance=1.58946e-21); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [3D endpoint integration]; Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=229, worst moment=275, estimated error=9.56409e-14, requested tolerance=1.23224e-12); Outer quadrature: maximum depth reached before tolerance (failed checks=396, worst moment=70, estimated error=2.21077e-18, requested tolerance=1.12392e-21); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [3D endpoint integration]; Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=231, worst moment=275, estimated error=9.56409e-14, requested tolerance=1.23224e-12); Outer quadrature: maximum depth reached before tolerance (failed checks=390, worst moment=67, estimated error=2.21077e-18, requested tolerance=1.12392e-21); returning the best available quadrature; the reported accuracy checks were not satisfied.\nEX47_NATIVE_TIMING {\"spatial_kernel\":{\"calls\":16,\"failures\":2,\"seconds\":3.412148294,\"evaluations\":424124,\"panels\":28259,\"subdivisions\":11644,\"outer_samples\":4814,\"integration_passes\":16,\"graph_cells\":",
+    "stdout": "UNSUPPORTED,0,3,0,Unsupported endpoint topology: A tangency strip requires a regular simple fold.\nUNSUPPORTED,0,3,1,Unsupported endpoint topology: A tangency strip requires a regular simple fold.\nPASS,0,4,0,7.589415207398531e-19,5.7976626971489864e-15,44475\nPASS,0,4,1,7.589415207398531e-19,2.9326482919606739e-16,49125\nPASS,1,3,0,4.6446707489380288e-15,4.1040133113691103e-15,24885\nPASS,1,3,1,6.3965204436323747e-16,1.2281552458473384e-14,27585\nPASS,1,4,0,3.5142568812487536e-15,1.0609922401138313e-15,27765\nPASS,1,4,1,3.5142568812487536e-15,1.6980113092812091e-14,33735\n"
+  },
+  {
+    "test": "hex_curved_endpoint_regressions",
+    "case": "hex_curved_endpoint_regressions",
+    "backend": "prepared",
+    "exit": -6,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": -6
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [3D endpoint integration]; 3D moments: evaluation budget exhausted before accumulated tolerance (failed checks=571, worst moment=571, estimated error=0.0708451, requested tolerance=1.07085e-10); Endpoint curve moments: accumulated non-graph error exceeds tolerance (failed checks=9123, worst moment=96, estimated error=0.233128, requested tolerance=4.32335e-31); Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=1846, worst moment=76, estimated error=1.47534e-09, requested tolerance=1.12339e-37); Outer quadrature: evaluation budget exhausted before tolerance (failed checks=3432, worst moment=96, estimated error=0.233128, requested tolerance=2.41941e-31); Outer quadrature: floating-point error floor prevents requested tolerance (failed checks=345925, worst moment=87, estimated error=9.67801e-22, requested tolerance=9.96919e-36); Outer quadrature: maximum depth reached before tolerance (failed checks=91132, worst moment=76, estimated error=1.2162e-05, requested tolerance=1.92382e-34); returning the best available quadrature; the reported accuracy checks were not satisfied.\nterminate called after throwing an instance of 'std::runtime_error'\n  what():  The curved HEX27 regression failed its independent reference.\n",
+    "stdout": ""
+  },
+  {
+    "test": "hex_tet_validation",
+    "case": "hex_tet_validation_mesh_HEX_10_4_1e-11",
+    "backend": "old",
+    "exit": 1,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": 1
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [HEX27 moments]; 3D moments: evaluation budget exhausted before accumulated tolerance (failed checks=572, worst moment=355, estimated error=0.000381607, requested tolerance=2.5429e-12); 3D output: rounded interface moment exceeds tolerance (failed checks=286, worst moment=355, estimated error=0.00151409, requested tolerance=1.00893e-11); 3D output: rounded volume moment exceeds tolerance (failed checks=286, worst moment=165, estimated error=1.3461e-05, requested tolerance=1.07993e-11); Endpoint curve moments: accumulated non-graph error exceeds tolerance (failed checks=10434, worst moment=78, estimated error=1.13247, requested tolerance=4.26605e-22); Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=3432, worst moment=294, estimated error=0.0771932, requested tolerance=2.80866e-21); Outer quadrature: evaluation budget exhausted before tolerance (failed checks=9768, worst moment=11, estimated error=1.79334, requested tolerance=4.15428e-22); Outer quadrature: floating-point error floor prevents requested tolerance (failed checks=38392, worst moment=111, estimated error=6.26804e-18, requested tolerance=3.86903e-23); returning the best available quadrature; the reported accuracy checks were not satisfied.\nA sphere mesh-refinement reference failed.\nEX47_NATIVE_TIMING {\"spatial_kernel\":{\"calls\":64,\"failures\":0,\"seconds\":30.025751671,\"evaluations\":1659919,\"panels\":110721,\"subdivisions\":49775,\"outer_samples\":10357,\"integration_passes\":65,\"graph_cells\":31,\"general_surfaces\":4,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+    "stdout": ""
+  },
+  {
+    "test": "hex_tet_validation",
+    "case": "hex_tet_validation_mesh_HEX_10_4_1e-11",
+    "backend": "prepared",
+    "exit": 1,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": 1
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [Prepared spatial compatibility]; 3D moments: evaluation budget exhausted before accumulated tolerance (failed checks=572, worst moment=355, estimated error=0.000378522, requested tolerance=2.52234e-12); 3D output: rounded interface moment exceeds tolerance (failed checks=286, worst moment=355, estimated error=0.00151409, requested tolerance=1.00893e-11); 3D output: rounded volume moment exceeds tolerance (failed checks=286, worst moment=165, estimated error=1.3461e-05, requested tolerance=1.07993e-11); Endpoint curve moments: accumulated non-graph error exceeds tolerance (failed checks=10434, worst moment=78, estimated error=1.12331, requested tolerance=4.23156e-22); Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=3432, worst moment=294, estimated error=0.076569, requested tolerance=2.78595e-21); Outer quadrature: evaluation budget exhausted before tolerance (failed checks=9806, worst moment=11, estimated error=1.79334, requested tolerance=4.15428e-22); Outer quadrature: floating-point error floor prevents requested tolerance (failed checks=38476, worst moment=111, estimated error=6.23416e-18, requested tolerance=3.83774e-23); returning the best available quadrature; the reported accuracy checks were not satisfied.\nA sphere mesh-refinement reference failed.\nEX47_NATIVE_TIMING {\"spatial_kernel\":{\"calls\":64,\"failures\":0,\"seconds\":19.022614836,\"evaluations\":1659925,\"panels\":110723,\"subdivisions\":49776,\"outer_samples\":10357,\"integration_passes\":65,\"graph_cells\":31,\"general_surfaces\":4,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+    "stdout": ""
+  },
+  {
+    "test": "hex_tet_validation",
+    "case": "hex_tet_validation_mesh_HEX_6_4_1e-11",
+    "backend": "old",
+    "exit": 1,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": 1
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [HEX27 moments]; 3D moments: evaluation budget exhausted before accumulated tolerance (failed checks=168, worst moment=153, estimated error=0.000381607, requested tolerance=2.5429e-12); 3D output: rounded interface moment exceeds tolerance (failed checks=84, worst moment=153, estimated error=0.00151409, requested tolerance=1.00893e-11); 3D output: rounded volume moment exceeds tolerance (failed checks=84, worst moment=15, estimated error=1.07172e-05, requested tolerance=1.11409e-11); Endpoint curve moments: accumulated non-graph error exceeds tolerance (failed checks=4429, worst moment=36, estimated error=1.13247, requested tolerance=4.26605e-22); Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=1008, worst moment=92, estimated error=0.0771932, requested tolerance=2.80866e-21); Outer quadrature: evaluation budget exhausted before tolerance (failed checks=3584, worst moment=7, estimated error=1.79334, requested tolerance=4.15428e-22); Outer quadrature: floating-point error floor prevents requested tolerance (failed checks=19895, worst moment=53, estimated error=6.26804e-18, requested tolerance=3.86903e-23); returning the best available quadrature; the reported accuracy checks were not satisfied.\nA sphere mesh-refinement reference failed.\nEX47_NATIVE_TIMING {\"spatial_kernel\":{\"calls\":64,\"failures\":0,\"seconds\":13.788188002,\"evaluations\":1321009,\"panels\":88119,\"subdivisions\":38733,\"outer_samples\":9907,\"integration_passes\":65,\"graph_cells\":31,\"general_surfaces\":4,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+    "stdout": ""
+  },
+  {
+    "test": "hex_tet_validation",
+    "case": "hex_tet_validation_mesh_HEX_6_4_1e-11",
+    "backend": "prepared",
+    "exit": 1,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": 1
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [Prepared spatial compatibility]; 3D moments: evaluation budget exhausted before accumulated tolerance (failed checks=168, worst moment=153, estimated error=0.000378522, requested tolerance=2.52234e-12); 3D output: rounded interface moment exceeds tolerance (failed checks=84, worst moment=153, estimated error=0.00151409, requested tolerance=1.00893e-11); 3D output: rounded volume moment exceeds tolerance (failed checks=84, worst moment=15, estimated error=1.07172e-05, requested tolerance=1.11409e-11); Endpoint curve moments: accumulated non-graph error exceeds tolerance (failed checks=4429, worst moment=36, estimated error=1.12331, requested tolerance=4.23156e-22); Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=1008, worst moment=92, estimated error=0.076569, requested tolerance=2.78595e-21); Outer quadrature: evaluation budget exhausted before tolerance (failed checks=3584, worst moment=7, estimated error=1.79334, requested tolerance=4.15428e-22); Outer quadrature: floating-point error floor prevents requested tolerance (failed checks=19897, worst moment=53, estimated error=6.23416e-18, requested tolerance=3.83774e-23); returning the best available quadrature; the reported accuracy checks were not satisfied.\nA sphere mesh-refinement reference failed.\nEX47_NATIVE_TIMING {\"spatial_kernel\":{\"calls\":64,\"failures\":0,\"seconds\":10.771099623,\"evaluations\":1321009,\"panels\":88119,\"subdivisions\":38733,\"outer_samples\":9907,\"integration_passes\":65,\"graph_cells\":31,\"general_surfaces\":4,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+    "stdout": ""
+  },
+  {
+    "test": "nodal_cut_detection",
+    "case": "nodal_cut_detection",
+    "backend": "prepared",
+    "exit": 1,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": 1
+        }
+      ]
+    },
+    "stderr": "Nodal cut-detection check 25 failed.\nEX47_NATIVE_TIMING {\"bernstein\":{\"calls\":3,\"failures\":0,\"seconds\":5.9711e-05,\"evaluations\":0,\"panels\":0,\"subdivisions\":0,\"outer_samples\":0,\"integration_passes\":0,\"graph_cells\":0,\"general_surfaces\":0,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0},\"phase\":{\"calls\":10,\"failures\":0,\"seconds\":2.0538e-05,\"evaluations\":0,\"panels\":0,\"subdivisions\":0,\"outer_samples\":0,\"integration_passes\":0,\"graph_cells\":0,\"general_surfaces\":0,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+    "stdout": ""
+  },
+  {
+    "test": "outer_interval_benchmark",
+    "case": "outer_interval_benchmark_2_10",
+    "backend": "prepared",
+    "exit": 0,
+    "assessment": {
+      "checks": 25168,
+      "failures": [
+        {
+          "field": "graph",
+          "metric": 2,
+          "error": "No complete finite outer rule is available at coordinate resolution."
+        }
+      ],
+      "maximum_absolute_error": 1.451764073133509e-14
+    },
+    "stderr": "EX47_NATIVE_TIMING {\"unit_kernel\":{\"calls\":133,\"failures\":0,\"seconds\":20.273751031,\"evaluations\":594480,\"panels\":39632,\"subdivisions\":15138,\"outer_samples\":7338,\"integration_passes\":136,\"graph_cells\":42,\"general_surfaces\":83,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+    "stdout": "{\"counter_schema\":2,\"field\":\"full\",\"element\":2,\"degree\":10,\"tolerance\":1.00000000000000003643e-10,\"metric\":0,\"direction\":0,\"seconds\":0.000259928999999999997723,\"root_samples\":0,\"slices\":0,\"outer_samples\":0,\"statistics\":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],\"legacy\": [0,0,0],\"values\":[1,0.5,0.5,0.5,0.333333333333333333342,0.25,0.25,0.333333333333333333342,0.25,0.333333333333333333342,0.25,0.166666666666666666671,0.166666666666666666671,0.166666666666666666671,0.125,0.166666666666666666671,0.25,0.166666666666666666671,0.166666666666666666671,0.25,0.200000000000000000003,0.125,0.125,0.11111111111111111111,0.0833333333333333333356,0.11111111111111111111,0.125,0.0833333333333333333356,0.0833333333333333333356,0.125,0.200000000000000000003,0.125,0.11111111111111111111,0.125,0.200000000000000000003,0.166666666666666666671,0.100000000000000000001,0.100000000000000000001,0.0833333333333333333356,0.0625,0.0833333333333333333356,0.0833333333333333333356,0.0555555555555555555548,0.0555555555555555555548,0.0833333333333333333356,0.100000000000000000001,0.0625,0.0555555555555555555548,0.0625,0.100000000000000000001,0.166666666666666666671,0.100000000000000000001,0.0833333333333333333356,0.0833333333333333333356,0.100000000000000000001,0.166666666666666666671,0.142857142857142857141,0.0833333333333333333356,0.0833333333333333333356,0.0666666666666666666698,0.0500000000000000000007,0.0666666666666666666698,0.0625,0.0416666666666666666678,0.0416666666666666666678,0"
+  },
+  {
+    "test": "outer_interval_benchmark",
+    "case": "outer_interval_benchmark_2_2",
+    "backend": "prepared",
+    "exit": 0,
+    "assessment": {
+      "checks": 880,
+      "failures": [
+        {
+          "field": "graph",
+          "metric": 2,
+          "error": "No complete finite outer rule is available at coordinate resolution."
+        }
+      ],
+      "maximum_absolute_error": 2.929947950924827e-15
+    },
+    "stderr": "EX47_NATIVE_TIMING {\"unit_kernel\":{\"calls\":133,\"failures\":0,\"seconds\":13.077356263,\"evaluations\":541110,\"panels\":36074,\"subdivisions\":13878,\"outer_samples\":6573,\"integration_passes\":133,\"graph_cells\":39,\"general_surfaces\":83,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+    "stdout": "{\"counter_schema\":2,\"field\":\"full\",\"element\":2,\"degree\":2,\"tolerance\":1.00000000000000003643e-10,\"metric\":0,\"direction\":0,\"seconds\":7.31000000000000031507e-06,\"root_samples\":0,\"slices\":0,\"outer_samples\":0,\"statistics\":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],\"legacy\": [0,0,0],\"values\":[1,0.5,0.5,0.5,0.333333333333333333342,0.25,0.25,0.333333333333333333342,0.25,0.333333333333333333342,0,0,0,0,0,0,0,0,0,0],\"error\":null}\n{\"counter_schema\":2,\"field\":\"full\",\"element\":2,\"degree\":2,\"tolerance\":1.00000000000000003643e-10,\"metric\":1,\"direction\":0,\"seconds\":7.43099999999999966479e-06,\"root_samples\":0,\"slices\":0,\"outer_samples\":0,\"statistics\":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],\"legacy\": [0,0,0],\"values\":[1,0.5,0.5,0.5,0.333333333333333333342,0.25,0.25,0.333333333333333333342,0.25,0.333333333333333333342,0,0,0,0,0,0,0,0,0,0],\"error\":null}\n{\"counter_schema\":2,\"field\":\"empty\",\"element\":2,\"degree\":2,\"tolerance\":1.00000000000000003643e-10,\"metric\":0,\"direction\":0,\"seconds\":5.03000000000000012178e-06,\"root_samples\":0,\"slices\":0,\"outer_samples\":0,\"statistics\":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],\"legacy\": [0,0,0],\"values\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\"error\":null}\n{\"counter_schema\":2,\"field\":\"empty\",\"element\":2,\"degree\":2,\"tolerance\":1.00000000000000003643e-10,\"metric\":1,\"direction\":0,\"seconds\":7.16200000000000020742e-06,\"root_samples\":0,\"slices\":0,\"outer_samples\":0,\"statistics\":[[0,0,0,0,0,0,0,0"
+  },
+  {
+    "test": "quadrature_rule_selection",
+    "case": "quadrature_rule_selection",
+    "backend": "prepared",
+    "exit": 1,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": 1
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [2D outer quadrature]; Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=2, worst moment=10, estimated error=2.41621e-19, requested tolerance=7.75138e-27); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [3D outer quadrature]; Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=2, worst moment=10, estimated error=2.41621e-19, requested tolerance=7.75138e-27); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [3D endpoint integration]; Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=655, worst moment=156, estimated error=1.86293e-06, requested tolerance=4.34748e-05); Outer quadrature: maximum depth reached before tolerance (failed checks=903, worst moment=53, estimated error=1.21122e-08, requested tolerance=3.38753e-14); returning the best available quadrature; the reported accuracy checks were not satisfied.\nA refined curved HEX failed its analytic volume or surface reference.\nEX47_NATIVE_TIMING {\"planar_kernel\":{\"calls\":38,\"failures\":0,\"seconds\":0.036577055,\"evaluations\":3014,\"panels\":478,\"subdivisions\":182,\"outer_samples\":0,\"integration_passes\":0,\"graph_cells\":0,\"general_surfaces\":0,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0},\"spatial_kernel\":{\"calls\":62,\"failures\":0,\"seconds\":3.831895359,\"evaluations\":244941,\"panels\":68125,\"subdivisions\":32607,\"outer_samples\":3084,\"integration_passes\":62,\"graph_cells\":31,\"general_surfaces\":31,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0},\"unit_kernel\":{\"calls\":101,\"failures\":0,\"seconds\":2.137496744,\"evaluations\":271943,\"panels\":70196,\"subdivisions\":33679,\"outer_samples\":3234,\"integration_passes\":63,\"graph_cells\":31,\"general_surfaces\":33,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+    "stdout": ""
+  },
+  {
+    "test": "tolerance_warnings",
+    "case": "tolerance_warnings",
+    "backend": "prepared",
+    "exit": 1,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": 1
+        }
+      ]
+    },
+    "stderr": "Tolerance failures were not aggregated into one warning per FEM rule.\nCutFemWeight_LS warning [2D outer quadrature]; Outer quadrature: maximum depth reached before tolerance (failed checks=1, worst moment=0, estimated error=0.0014154, requested tolerance=1e-15); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [2D outer quadrature]; Outer quadrature: evaluation budget exhausted before tolerance (failed checks=2, worst moment=1, estimated error=0.00859375, requested tolerance=1e-30); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [2D outer quadrature]; Outer quadrature: evaluation budget exhausted before tolerance (failed checks=2, worst moment=1, estimated error=0.0710937, requested tolerance=1e-30); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [QUAD endpoint integration]; Outer quadrature: evaluation budget exhausted before tolerance (failed checks=4, worst moment=2, estimated error=0.125, requested tolerance=1e-30); Outer quadrature: floating-point error floor prevents requested tolerance (failed checks=2, worst moment=3, estimated error=1.38778e-17, requested tolerance=5e-31); Planar moments: accumulated error exceeds requested tolerance (failed checks=6, worst moment=2, estimated error=0.125, requested tolerance=1e-30); Planar moments: evaluation budget exhausted before accumulated tolerance (failed checks=6, worst moment=2, estimated error=0.125, requested tolerance=1e-30); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [QUAD endpoint integration]; Outer quadrature: evaluation budget exhausted before tolerance (failed checks=1, worst moment=0, estimated error=0.0833333, requested tolerance=1e-30); Outer quadrature: floating-point error floor prevents requested tolerance (failed checks=1, worst moment=3, estimated error=1.38778e-17, requested tolerance=5e-31); Planar moments: accumulated error exceeds requested tolerance (failed checks=2, worst moment=0, estimated error=0.0833333, requested tole",
+    "stdout": ""
+  },
+  {
+    "test": "wide_unit_validation",
+    "case": "wide_unit_validation_1_2",
+    "backend": "old",
+    "exit": 0,
+    "assessment": {
+      "checks": 1053,
+      "failures": [
+        {
+          "checks": 0,
+          "failures": [
+            {
+              "kind": "exception",
+              "message": "Unsupported endpoint topology: A nearly parallel projection retains the transverse direction."
+            }
+          ],
+          "maximum_error_ratio": 0.0,
+          "maximum_absolute_error": 0.0,
+          "oracle_error": 0.0
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [TRI reference moments]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI reference moments]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI7 q=2 delta]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI7 q=2 surface]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI reference moments]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1.11111e-11); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI reference moments]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1.11111e-11); returning the best available quadrature; the reported accuracy c",
+    "stdout": "{\"field\":\"full\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,0.5,0,0,null,0.500000000000000999147,0,0,null,null],[0,1,0,0.166666666666666657415,0,0,null,0.166666666666666581466,0,0,null,null],[0,2,0,0.0833333333333333287074,0,0,null,0.0833333333333330436164,0,0,null,null],[1,0,0,0.166666666666666657415,0,0,null,0.166666666666666581439,0,0,null,null],[1,1,0,0.0416666666666666643537,0,0,null,0.0416666666666665644038,0,0,null,null],[2,0,0,0.0833333333333333287074,0,0,null,0.0833333333333330436097,0,0,null,null]],\"setup_seconds\":0.0118543999999999993128,\"seconds\":0.0122453419999999993384,\"error\":null}\n{\"field\":\"empty\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,0,0,0,null,0,0,0,null,null],[0,1,0,0,0,0,null,0,0,0,null,null],[0,2,0,0,0,0,null,0,0,0,null,null],[1,0,0,0,0,0,null,0,0,0,null,null],[1,1,0,0,0,0,null,0,0,0,null,null],[2,0,0,0,0,0,null,0,0,0,null,null]],\"setup_seconds\":0,\"seconds\":4.90219999999999992237e-05,\"error\":null}\n{\"field\":\"boundary_low\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0"
+  },
+  {
+    "test": "wide_unit_validation",
+    "case": "wide_unit_validation_1_2",
+    "backend": "prepared",
+    "exit": 0,
+    "assessment": {
+      "checks": 1053,
+      "failures": [
+        {
+          "checks": 0,
+          "failures": [
+            {
+              "kind": "exception",
+              "message": "Unsupported endpoint topology: A nearly parallel projection retains the transverse direction."
+            }
+          ],
+          "maximum_error_ratio": 0.0,
+          "maximum_absolute_error": 0.0,
+          "oracle_error": 0.0
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [Prepared planar compatibility]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [Prepared planar compatibility]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI7 q=2 delta]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI7 q=2 surface]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [Prepared planar compatibility]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1.11111e-11); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [Prepared planar compatibility]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1.11111e-11); returning the best available qua",
+    "stdout": "{\"field\":\"full\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,0.5,0,0,null,0.500000000000000999147,0,0,null,null],[0,1,0,0.166666666666666657415,0,0,null,0.166666666666666590655,0,0,null,null],[0,2,0,0.0833333333333333287074,0,0,null,0.0833333333333330482175,0,0,null,null],[1,0,0,0.166666666666666657415,0,0,null,0.166666666666666590655,0,0,null,null],[1,1,0,0.0416666666666666643537,0,0,null,0.0416666666666665667044,0,0,null,null],[2,0,0,0.0833333333333333287074,0,0,null,0.0833333333333330482175,0,0,null,null]],\"setup_seconds\":0.0250393660000000004007,\"seconds\":0.0256360599999999987098,\"error\":null}\n{\"field\":\"empty\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,0,0,0,null,0,0,0,null,null],[0,1,0,0,0,0,null,0,0,0,null,null],[0,2,0,0,0,0,null,0,0,0,null,null],[1,0,0,0,0,0,null,0,0,0,null,null],[1,1,0,0,0,0,null,0,0,0,null,null],[2,0,0,0,0,0,null,0,0,0,null,null]],\"setup_seconds\":0,\"seconds\":4.64939999999999990332e-05,\"error\":null}\n{\"field\":\"boundary_low\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0"
+  },
+  {
+    "test": "wide_unit_validation",
+    "case": "wide_unit_validation_2_10",
+    "backend": "prepared",
+    "exit": 0,
+    "assessment": {
+      "checks": 39864,
+      "failures": [
+        {
+          "checks": 2508,
+          "failures": [
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 4,
+              "actual": 34.04504412723863,
+              "expected": 34.04504408913909,
+              "error": 3.809954307598673e-08,
+              "limit": 7.012088842786173e-09
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 5,
+              "actual": 0.6450081817113701,
+              "expected": 0.6450081807942786,
+              "error": 9.170915138412283e-10,
+              "limit": 3.3208166111721103e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 6,
+              "actual": 0.6604660819043906,
+              "expected": 0.660466080987299,
+              "error": 9.170916248635308e-10,
+              "limit": 3.351732411558152e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 8,
+              "actual": 34.045044127238654,
+              "expected": 34.04504408913909,
+              "error": 3.80995643922688e-08,
+              "limit": 7.012088842786173e-09
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 9,
+              "actual": 0.6450081817113693,
+              "expected": 0.6450081807942786,
+              "error": 9.170907366851111e-10,
+              "limit": 3.3208166111721103e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 10,
+              "actual": 0.6604660819043898,
+              "expected": 0.660466080987299,
+              "error": 9.170908477074136e-10,
+              "limit": 3.351732411558152e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                1
+              ],
+              "column": 4,
+              "actual": 8.511261034166905,
+              "expected": 8.51126102228476,
+              "error": 1.1882145045660764e-08,
+              "limit": 1.9053322294153077e-09
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                1
+              ],
+              "column": 5,
+              "actual": 0.1631379301067111,
+              "expected": 0.16313792982069697,
+              "error": 2.8601412904727397e-10,
+              "limit": 2.357076109224948e-10
+            }
+          ],
+          "maximum_error_ratio": 6.333535849510483,
+          "maximum_absolute_error": 3.80995643922688e-08,
+          "oracle_error": 1.3500311979441904e-13
+        }
+      ]
+    },
+    "stderr": "EX47_NATIVE_TIMING {\"construction\":{\"calls\":1,\"failures\":0,\"seconds\":6.70423794,\"evaluations\":0,\"panels\":0,\"subdivisions\":0,\"outer_samples\":0,\"integration_passes\":0,\"graph_cells\":0,\"general_surfaces\":0,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0},\"physical\":{\"calls\":7,\"failures\":0,\"seconds\":2.571492389,\"evaluations\":96735,\"panels\":6449,\"subdivisions\":2608,\"outer_samples\":825,\"integration_passes\":7,\"graph_cells\":0,\"general_surfaces\":7,\"line_restrictions\":100158,\"metric_preparations\":5,\"coefficient_expansions\":0},\"unit_kernel\":{\"calls\":53,\"failures\":0,\"seconds\":9.280901489,\"evaluations\":345855,\"panels\":23057,\"subdivisions\":9301,\"outer_samples\":3449,\"integration_passes\":55,\"graph_cells\":12,\"general_surfaces\":39,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0},\"weights\":{\"calls\":34,\"failures\":0,\"seconds\":5.488412707,\"evaluations\":208350,\"panels\":13890,\"subdivisions\":5619,\"outer_samples\":1988,\"integration_passes\":36,\"graph_cells\":12,\"general_surfaces\":20,\"line_restrictions\":130380,\"metric_preparations\":0,\"coefficient_expansions\":15}}\n",
+    "stdout": "{\"field\":\"full\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,1,0,0,null,1.00000000000002183529,0,0,null,null],[0,0,1,0.5,0,0,null,0.500000000000008508493,0,0,null,null],[0,0,2,0.333333333333333333342,0,0,null,0.333333333333338828025,0,0,null,null],[0,0,3,0.25,0,0,null,0.250000000000004169462,0,0,null,null],[0,0,4,0.200000000000000000003,0,0,null,0.20000000000000343981,0,0,null,null],[0,0,5,0.166666666666666666671,0,0,null,0.166666666666669654488,0,0,null,null],[0,0,6,0.142857142857142857141,0,0,null,0.142857142857145541856,0,0,null,null],[0,0,7,0.125,0,0,null,0.125000000000002469853,0,0,null,null],[0,0,8,0.111111111111111111116,0,0,null,0.111111111111113423001,0,0,null,null],[0,0,9,0.100000000000000000001,0,0,null,0.100000000000002193098,0,0,null,null],[0,0,10,0.0909090909090909090934,0,0,null,0.0909090909090930115918,0,0,null,null],[0,1,0,0.5,0,0,null,0.500000000000007849461,0,0,null,null],[0,1,1,0.25,0,0,null,0.250000000000002615746,0,0,null,null],[0,1,2,0.166666666666666666671,0,0,null,0.166666666666668396584,0,0,null,null],[0,1,3,0.125,0,0,null,0.12500000000000138786,0,0,null,null],[0,1,4,0.100000000000000000001,0,0,null,0.100000000000001202056,0,0,null,null],[0,1,5,0.0833333333333333333356,0,0,null,0.0833333333333344176868,0,0,null,null],[0,1,6,0.0714285714285714285705,0,0,null,0.0714285714285724324942,0,0,nul"
+  },
+  {
+    "test": "wide_unit_validation",
+    "case": "wide_unit_validation_2_2",
+    "backend": "prepared",
+    "exit": 0,
+    "assessment": {
+      "checks": 1728,
+      "failures": [
+        {
+          "checks": 84,
+          "failures": [
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 4,
+              "actual": 34.04504412723863,
+              "expected": 34.04504408913909,
+              "error": 3.809954307598673e-08,
+              "limit": 7.012088842786173e-09
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 5,
+              "actual": 0.6450081817113701,
+              "expected": 0.6450081807942786,
+              "error": 9.170915138412283e-10,
+              "limit": 3.3208166111721103e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 6,
+              "actual": 0.6604660819043906,
+              "expected": 0.660466080987299,
+              "error": 9.170916248635308e-10,
+              "limit": 3.351732411558152e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 8,
+              "actual": 34.045044127239414,
+              "expected": 34.04504408913909,
+              "error": 3.8100324672996067e-08,
+              "limit": 7.012088842786173e-09
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 9,
+              "actual": 0.6450081817113854,
+              "expected": 0.6450081807942786,
+              "error": 9.171068349189682e-10,
+              "limit": 3.3208166111721103e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 10,
+              "actual": 0.6604660819044063,
+              "expected": 0.660466080987299,
+              "error": 9.17107279008178e-10,
+              "limit": 3.351732411558152e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                1
+              ],
+              "column": 4,
+              "actual": 8.511261034166905,
+              "expected": 8.51126102228476,
+              "error": 1.1882145045660764e-08,
+              "limit": 1.9053322294153077e-09
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                1
+              ],
+              "column": 5,
+              "actual": 0.1631379301067111,
+              "expected": 0.16313792982069697,
+              "error": 2.8601412904727397e-10,
+              "limit": 2.357076109224948e-10
+            }
+          ],
+          "maximum_error_ratio": 6.333562794002448,
+          "maximum_absolute_error": 3.8100324672996067e-08,
+          "oracle_error": 1.3500311979441904e-13
+        }
+      ]
+    },
+    "stderr": "EX47_NATIVE_TIMING {\"construction\":{\"calls\":1,\"failures\":0,\"seconds\":0.000431564,\"evaluations\":0,\"panels\":0,\"subdivisions\":0,\"outer_samples\":0,\"integration_passes\":0,\"graph_cells\":0,\"general_surfaces\":0,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0},\"physical\":{\"calls\":7,\"failures\":0,\"seconds\":4.126518359,\"evaluations\":87645,\"panels\":5843,\"subdivisions\":2365,\"outer_samples\":765,\"integration_passes\":7,\"graph_cells\":0,\"general_surfaces\":7,\"line_restrictions\":90768,\"metric_preparations\":5,\"coefficient_expansions\":0},\"unit_kernel\":{\"calls\":65,\"failures\":0,\"seconds\":11.653042316,\"evaluations\":282045,\"panels\":18803,\"subdivisions\":7522,\"outer_samples\":2933,\"integration_passes\":79,\"graph_cells\":36,\"general_surfaces\":39,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0},\"weights\":{\"calls\":46,\"failures\":0,\"seconds\":11.137469831,\"evaluations\":168990,\"panels\":11266,\"subdivisions\":4505,\"outer_samples\":1802,\"integration_passes\":60,\"graph_cells\":36,\"general_surfaces\":20,\"line_restrictions\":120180,\"metric_preparations\":0,\"coefficient_expansions\":16}}\n",
+    "stdout": "{\"field\":\"full\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,1,0,0,null,1.00000000000002246836,0,0,null,null],[0,0,1,0.5,0,0,null,0.500000000000011232822,0,0,null,null],[0,0,2,0.333333333333333333342,0,0,null,0.33333333333334037678,0,0,null,null],[0,1,0,0.5,0,0,null,0.500000000000011233852,0,0,null,null],[0,1,1,0.25,0,0,null,0.250000000000005615896,0,0,null,null],[0,2,0,0.333333333333333333342,0,0,null,0.33333333333334037781,0,0,null,null],[1,0,0,0.5,0,0,null,0.500000000000011234232,0,0,null,null],[1,0,1,0.25,0,0,null,0.250000000000005616655,0,0,null,null],[1,1,0,0.25,0,0,null,0.250000000000005616818,0,0,null,null],[2,0,0,0.333333333333333333342,0,0,null,0.33333333333334037819,0,0,null,null]],\"setup_seconds\":0.000444212999999999997181,\"seconds\":0.00142442799999999993553,\"error\":null}\n{\"field\":\"empty\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,0,0,0,null,0,0,0,null,null],[0,0,1,0,0,0,null,0,0,0,null,null],[0,0,2,0,0,0,null,0,0,0,null,null],[0,1,0,0,0,0,null,0,0,0,null,null],[0,1,1,0,0,0,null,0,0,0,null,null],[0,2,0,0,0,0,null,0,0,0,null,null],[1,0,0,0,0,0,null,0,0,0,null,null],[1,0,1,0,0,0,null,0,0,0,null,null],[1,1,0,0,0,0,null,0,0,0,null,null],[2,0,0,"
+  },
+  {
+    "test": "wide_unit_validation",
+    "case": "wide_unit_validation_2_5",
+    "backend": "prepared",
+    "exit": 0,
+    "assessment": {
+      "checks": 7749,
+      "failures": [
+        {
+          "checks": 483,
+          "failures": [
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 4,
+              "actual": 34.04504412723863,
+              "expected": 34.04504408913909,
+              "error": 3.809954307598673e-08,
+              "limit": 7.012088842786173e-09
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 5,
+              "actual": 0.6450081817113701,
+              "expected": 0.6450081807942786,
+              "error": 9.170915138412283e-10,
+              "limit": 3.3208166111721103e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 6,
+              "actual": 0.6604660819043906,
+              "expected": 0.660466080987299,
+              "error": 9.170916248635308e-10,
+              "limit": 3.351732411558152e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 8,
+              "actual": 34.04504412723933,
+              "expected": 34.04504408913909,
+              "error": 3.8100239407867775e-08,
+              "limit": 7.012088842786173e-09
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 9,
+              "actual": 0.6450081817113836,
+              "expected": 0.6450081807942786,
+              "error": 9.171050585621288e-10,
+              "limit": 3.3208166111721103e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                0
+              ],
+              "column": 10,
+              "actual": 0.6604660819044044,
+              "expected": 0.660466080987299,
+              "error": 9.171053916290361e-10,
+              "limit": 3.351732411558152e-10
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                1
+              ],
+              "column": 4,
+              "actual": 8.511261034166905,
+              "expected": 8.51126102228476,
+              "error": 1.1882145045660764e-08,
+              "limit": 1.9053322294153077e-09
+            },
+            {
+              "kind": "moment",
+              "power": [
+                0,
+                0,
+                1
+              ],
+              "column": 5,
+              "actual": 0.1631379301067111,
+              "expected": 0.16313792982069697,
+              "error": 2.8601412904727397e-10,
+              "limit": 2.357076109224948e-10
+            }
+          ],
+          "maximum_error_ratio": 6.333555963004485,
+          "maximum_absolute_error": 3.8100239407867775e-08,
+          "oracle_error": 1.3500311979441904e-13
+        }
+      ]
+    },
+    "stderr": "EX47_NATIVE_TIMING {\"construction\":{\"calls\":1,\"failures\":0,\"seconds\":0.02614849,\"evaluations\":0,\"panels\":0,\"subdivisions\":0,\"outer_samples\":0,\"integration_passes\":0,\"graph_cells\":0,\"general_surfaces\":0,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0},\"physical\":{\"calls\":7,\"failures\":0,\"seconds\":5.58509571,\"evaluations\":87645,\"panels\":5843,\"subdivisions\":2365,\"outer_samples\":765,\"integration_passes\":7,\"graph_cells\":0,\"general_surfaces\":7,\"line_restrictions\":90768,\"metric_preparations\":5,\"coefficient_expansions\":0},\"unit_kernel\":{\"calls\":53,\"failures\":0,\"seconds\":8.315608084,\"evaluations\":294585,\"panels\":19639,\"subdivisions\":7892,\"outer_samples\":2969,\"integration_passes\":55,\"graph_cells\":12,\"general_surfaces\":39,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0},\"weights\":{\"calls\":34,\"failures\":0,\"seconds\":5.892816866,\"evaluations\":181530,\"panels\":12102,\"subdivisions\":4875,\"outer_samples\":1838,\"integration_passes\":36,\"graph_cells\":12,\"general_surfaces\":20,\"line_restrictions\":120360,\"metric_preparations\":0,\"coefficient_expansions\":15}}\n",
+    "stdout": "{\"field\":\"full\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,1,0,0,null,1.00000000000000561042,0,0,null,null],[0,0,1,0.5,0,0,null,0.500000000000002806837,0,0,null,null],[0,0,2,0.333333333333333333342,0,0,null,0.333333333333334782921,0,0,null,null],[0,0,3,0.25,0,0,null,0.250000000000000770407,0,0,null,null],[0,0,4,0.200000000000000000003,0,0,null,0.200000000000000327662,0,0,null,null],[0,0,5,0.166666666666666666671,0,0,null,0.166666666666666669707,0,0,null,null],[0,1,0,0.5,0,0,null,0.500000000000002806945,0,0,null,null],[0,1,1,0.25,0,0,null,0.250000000000001405424,0,0,null,null],[0,1,2,0.166666666666666666671,0,0,null,0.166666666666667392775,0,0,null,null],[0,1,3,0.125,0,0,null,0.125000000000000386261,0,0,null,null],[0,1,4,0.100000000000000000001,0,0,null,0.100000000000000164665,0,0,null,null],[0,2,0,0.333333333333333333342,0,0,null,0.333333333333334783219,0,0,null,null],[0,2,1,0.166666666666666666671,0,0,null,0.166666666666667393032,0,0,null,null],[0,2,2,0.11111111111111111111,0,0,null,0.111111111111111454232,0,0,null,null],[0,2,3,0.0833333333333333333356,0,0,null,0.0833333333333334846292,0,0,null,null],[0,3,0,0.25,0,0,null,0.250000000000000771003,0,0,null,null],[0,3,1,0.125,0,0,null,0.125000000000000386694,0,0,null,null],[0,3,2,0.0833333333333333333356,0,0,null,0.0833333333333334847715,0,0,null,null],[0,4,0,0.2000"
+  }
+]

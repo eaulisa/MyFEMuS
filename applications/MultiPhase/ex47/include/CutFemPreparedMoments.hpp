@@ -64,7 +64,7 @@ inline void TrimMetric(unsigned dimension, std::vector<std::vector<long double>>
 }
 
 inline void PrepareMetric(const CutFemLevelSetData& data, const std::vector<std::vector<double>>& geometry, PreparedMomentWorkspace& workspace) {
-  if(workspace.metricNodes == data.GetNodalValues() && workspace.metricGeometry == geometry && !workspace.metric.empty()) return;
+  if(!data.GetNodalValues().empty() && workspace.metricNodes == data.GetNodalValues() && workspace.metricGeometry == geometry && !workspace.metric.empty()) return;
   const unsigned dimension = data.GetDimension();
   std::vector<std::vector<long double>> coordinates(dimension), gradient(dimension);
   for(unsigned component = 0; component < dimension; ++component) {
@@ -130,7 +130,7 @@ inline void NativeToUnitMoments(GeomElType geometry, unsigned degree, const std:
 inline void IntegratePlanar(const CutFemLevelSetData& source, unsigned degree, double absolute, double relative, bool referenceSurface, const std::vector<std::vector<double>>* geometry, unsigned direction, unsigned validation, const OuterQuadratureRules& rules, bool inverseSurface, int normalComponent, bool computePositive, PreparedMomentWorkspace& workspace, std::vector<long double>& values, std::vector<long double>& errors) {
   const CutFemLevelSetData* field = &source;
   const bool barycentric = source.GetGeometry() == TRI && direction == 3;
-  if(barycentric) { if(workspace.chartNodes != source.GetNodalValues()) { source.PermuteSimplexVertices({1,0,2,3},workspace.chart); workspace.chartNodes = source.GetNodalValues(); workspace.chartMetricRevision = 0; } field = &workspace.chart; }
+  if(barycentric) { if(!workspace.chart.IsInitialized() || source.GetNodalValues().empty() || workspace.chartNodes != source.GetNodalValues()) { source.PermuteSimplexVertices({1,0,2,3},workspace.chart); workspace.chartNodes = source.GetNodalValues(); workspace.chartMetricRevision = 0; } field = &workspace.chart; }
   const long double normalization = source.GetNormalizationScale();
   const std::vector<std::vector<long double>>* metric = nullptr;
   unsigned metricDegree = 0;
@@ -157,13 +157,15 @@ inline void IntegratePlanar(const CutFemLevelSetData& source, unsigned degree, d
   std::vector<long double> h(count), d(count);
   for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) { const unsigned original = ReferenceMomentIndex2D(degree,i,j), target = UnitMomentIndex(2,i,j); h[target] = native[original]; d[target] = native[count+original]/normalization; }
   NativeToUnitMoments(source.GetGeometry(),degree,h,d,values);
-  errors = nativeErrors;
+  std::vector<long double> eh(count), ed(count);
+  for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) { const unsigned original = ReferenceMomentIndex2D(degree,i,j), target = UnitMomentIndex(2,i,j); eh[target] = nativeErrors[original]; ed[target] = nativeErrors[count+original]/normalization; }
+  NativeToUnitMoments(source.GetGeometry(),degree,eh,ed,errors);
 }
 
 inline void IntegrateSpatial(const CutFemLevelSetData& source, unsigned degree, double absolute, double relative, bool referenceSurface, const std::vector<std::vector<double>>* geometry, unsigned direction, unsigned validation, const OuterQuadratureRules& rules, bool inverseSurface, int normalComponent, bool computePositive, PreparedMomentWorkspace& workspace, std::vector<long double>& values, std::vector<long double>& errors) {
   const CutFemLevelSetData* field = &source;
   const bool barycentric = source.GetGeometry() == TET && direction == 1;
-  if(barycentric) { if(workspace.chartNodes != source.GetNodalValues()) { source.PermuteSimplexVertices({1,0,2,3},workspace.chart); workspace.chartNodes = source.GetNodalValues(); workspace.chartMetricRevision = 0; } field = &workspace.chart; }
+  if(barycentric) { if(!workspace.chart.IsInitialized() || source.GetNodalValues().empty() || workspace.chartNodes != source.GetNodalValues()) { source.PermuteSimplexVertices({1,0,2,3},workspace.chart); workspace.chartNodes = source.GetNodalValues(); workspace.chartMetricRevision = 0; } field = &workspace.chart; }
   const long double normalization = field->GetNormalizationScale();
   const std::vector<std::vector<long double>>* metric = nullptr;
   unsigned metricDegree = 0;
@@ -210,7 +212,9 @@ inline void IntegrateSpatial(const CutFemLevelSetData& source, unsigned degree, 
   std::vector<long double> h(native.begin(),native.begin()+count), d(native.begin()+count,native.end());
   for(long double& value : d) value /= normalization;
   NativeToUnitMoments(source.GetGeometry(),degree,h,d,values);
-  errors = nativeErrors;
+  std::vector<long double> eh(nativeErrors.begin(),nativeErrors.begin()+count), ed(nativeErrors.begin()+count,nativeErrors.end());
+  for(long double& value : ed) value /= normalization;
+  NativeToUnitMoments(source.GetGeometry(),degree,eh,ed,errors);
 }
 
 }

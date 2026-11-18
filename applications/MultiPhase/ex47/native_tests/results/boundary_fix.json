@@ -1,0 +1,740 @@
+[
+  {
+    "case": "e4_q5_boundary_low_identity_s1_v0",
+    "before": {
+      "assertions": 397,
+      "maximum_asserted_normalized_error": 0.019741575352039423,
+      "maximum_error_fraction_of_limit": 394831507.0407885,
+      "failures": [
+        {
+          "kind": "moment",
+          "method": "raw_delta",
+          "powers": [
+            0,
+            1,
+            0
+          ],
+          "actual": 0.09497311872425485,
+          "expected": 0.08333333333333298,
+          "error": 0.011639785390921864,
+          "normalized_error": 0.011639785390921864,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_inside",
+          "powers": [
+            0,
+            1,
+            0
+          ],
+          "actual": 0.09497311872425485,
+          "expected": 0.08333333333333298,
+          "error": 0.011639785390921864,
+          "normalized_error": 0.011639785390921864,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_outside",
+          "powers": [
+            0,
+            1,
+            0
+          ],
+          "actual": 0.09497311872425485,
+          "expected": 0.08333333333333298,
+          "error": 0.011639785390921864,
+          "normalized_error": 0.011639785390921864,
+          "limit": 4.9999999999999995e-11
+        }
+      ],
+      "maximum_errors": {
+        "volume": 4.435061085207104e-05,
+        "raw_delta": 0.01974157535203941,
+        "surface_inside": 0.019741575352039395,
+        "surface_outside": 0.01974157535203941,
+        "physical_inside": 0.01974157535203941,
+        "physical_outside": 0.019741575352039423,
+        "physical_volume": 4.435061085207104e-05
+      },
+      "approximate_formulations": [],
+      "reference_quadrature_discrepancy": 8.326672684688674e-17,
+      "failure_count": 112
+    },
+    "after": {
+      "assertions": 397,
+      "maximum_asserted_normalized_error": 9.43689570931383e-16,
+      "maximum_error_fraction_of_limit": 1.8873791418627665e-05,
+      "failures": [],
+      "maximum_errors": {
+        "volume": 8.604228440844963e-16,
+        "raw_delta": 9.43689570931383e-16,
+        "surface_inside": 9.43689570931383e-16,
+        "surface_outside": 9.43689570931383e-16,
+        "physical_inside": 9.43689570931383e-16,
+        "physical_outside": 9.43689570931383e-16,
+        "physical_volume": 8.604228440844963e-16
+      },
+      "approximate_formulations": [],
+      "reference_quadrature_discrepancy": 8.326672684688674e-17
+    }
+  },
+  {
+    "case": "e4_q2_zero_face_identity_s1_v0",
+    "before": {
+      "assertions": 55,
+      "maximum_asserted_normalized_error": 0.011221673801912607,
+      "maximum_error_fraction_of_limit": 224433476.03825217,
+      "failures": [
+        {
+          "kind": "moment",
+          "method": "raw_delta",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.2510009264975297,
+          "expected": 0.24018928362980432,
+          "error": 0.010811642867725374,
+          "normalized_error": 0.010811642867725374,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_inside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.2612216738019125,
+          "expected": 0.24999999999999992,
+          "error": 0.011221673801912607,
+          "normalized_error": 0.011221673801912607,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "physical_inside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.2612216738019125,
+          "expected": 0.24999999999999992,
+          "error": 0.011221673801912607,
+          "normalized_error": 0.011221673801912607,
+          "limit": 4.9999999999999995e-11
+        }
+      ],
+      "maximum_errors": {
+        "volume": 1.970645868709653e-15,
+        "raw_delta": 0.010811642867725374,
+        "surface_inside": 0.011221673801912607,
+        "surface_outside": 0.01122282035685021,
+        "physical_inside": 0.011221673801912607,
+        "physical_outside": 0.011222820356850266,
+        "physical_volume": 1.970645868709653e-15
+      },
+      "approximate_formulations": [
+        {
+          "method": "surface_outside",
+          "actual": 0.2612228203568501,
+          "expected": 0.24999999999999992,
+          "absolute_error": 0.01122282035685021,
+          "relative_error": 0.044891281427400856
+        },
+        {
+          "method": "physical_outside",
+          "actual": 0.2612228203568502,
+          "expected": 0.24999999999999992,
+          "absolute_error": 0.011222820356850266,
+          "relative_error": 0.04489128142740108
+        }
+      ],
+      "reference_quadrature_discrepancy": 8.326672684688674e-17,
+      "failure_count": 18
+    },
+    "after": {
+      "assertions": 55,
+      "maximum_asserted_normalized_error": 1.970645868709653e-15,
+      "maximum_error_fraction_of_limit": 3.9412917374193064e-05,
+      "failures": [],
+      "maximum_errors": {
+        "volume": 1.970645868709653e-15,
+        "raw_delta": 1.2471569119771285e-15,
+        "surface_inside": 1.2812449059064306e-15,
+        "surface_outside": 0.00013159616181784498,
+        "physical_inside": 1.2840926306750995e-15,
+        "physical_outside": 0.00013159616181784297,
+        "physical_volume": 1.970645868709653e-15
+      },
+      "approximate_formulations": [
+        {
+          "method": "surface_outside",
+          "actual": 0.25000110516376967,
+          "expected": 0.24999999999999992,
+          "absolute_error": 1.1051637697490069e-06,
+          "relative_error": 4.420655078996029e-06
+        },
+        {
+          "method": "physical_outside",
+          "actual": 0.2500011051637697,
+          "expected": 0.24999999999999992,
+          "absolute_error": 1.105163769804518e-06,
+          "relative_error": 4.420655079218074e-06
+        }
+      ],
+      "reference_quadrature_discrepancy": 8.326672684688674e-17
+    }
+  },
+  {
+    "case": "e2_q2_boundary_low_identity_s1_v0",
+    "before": {
+      "assertions": 47,
+      "maximum_asserted_normalized_error": 0.00355671400914237,
+      "maximum_error_fraction_of_limit": 71134280.18284741,
+      "failures": [
+        {
+          "kind": "moment",
+          "method": "raw_delta",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.5035567140091423,
+          "expected": 0.5,
+          "error": 0.003556714009142259,
+          "normalized_error": 0.003556714009142259,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_inside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.5035567140091423,
+          "expected": 0.5,
+          "error": 0.003556714009142259,
+          "normalized_error": 0.003556714009142259,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_outside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.5035567140091423,
+          "expected": 0.5,
+          "error": 0.003556714009142259,
+          "normalized_error": 0.003556714009142259,
+          "limit": 4.9999999999999995e-11
+        }
+      ],
+      "maximum_errors": {
+        "volume": 9.992007221626409e-16,
+        "raw_delta": 0.003556714009142259,
+        "surface_inside": 0.003556714009142259,
+        "surface_outside": 0.003556714009142259,
+        "physical_inside": 0.003556714009142259,
+        "physical_outside": 0.00355671400914237,
+        "physical_volume": 9.992007221626409e-16
+      },
+      "approximate_formulations": [],
+      "reference_quadrature_discrepancy": 1.3877787807814457e-16,
+      "failure_count": 15
+    },
+    "after": {
+      "assertions": 47,
+      "maximum_asserted_normalized_error": 6.84384325469814e-15,
+      "maximum_error_fraction_of_limit": 0.0001368768650939628,
+      "failures": [],
+      "maximum_errors": {
+        "volume": 9.992007221626409e-16,
+        "raw_delta": 6.836023446529088e-15,
+        "surface_inside": 6.829511457230597e-15,
+        "surface_outside": 6.8341260927272385e-15,
+        "physical_inside": 6.829511457230597e-15,
+        "physical_outside": 6.84384325469814e-15,
+        "physical_volume": 9.992007221626409e-16
+      },
+      "approximate_formulations": [],
+      "reference_quadrature_discrepancy": 1.3877787807814457e-16
+    }
+  },
+  {
+    "case": "e2_q5_boundary_low_identity_s1_v0",
+    "before": {
+      "assertions": 152,
+      "maximum_asserted_normalized_error": 0.003556714009127271,
+      "maximum_error_fraction_of_limit": 71134280.18254542,
+      "failures": [
+        {
+          "kind": "moment",
+          "method": "raw_delta",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.5035567140091272,
+          "expected": 0.5,
+          "error": 0.00355671400912716,
+          "normalized_error": 0.00355671400912716,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_inside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.5035567140091272,
+          "expected": 0.5,
+          "error": 0.00355671400912716,
+          "normalized_error": 0.00355671400912716,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_outside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.5035567140091273,
+          "expected": 0.5,
+          "error": 0.003556714009127271,
+          "normalized_error": 0.003556714009127271,
+          "limit": 4.9999999999999995e-11
+        }
+      ],
+      "maximum_errors": {
+        "volume": 1.3877787807814457e-15,
+        "raw_delta": 0.00355671400912716,
+        "surface_inside": 0.00355671400912716,
+        "surface_outside": 0.003556714009127271,
+        "physical_inside": 0.00355671400912716,
+        "physical_outside": 0.003556714009127271,
+        "physical_volume": 1.3877787807814457e-15
+      },
+      "approximate_formulations": [],
+      "reference_quadrature_discrepancy": 1.3877787807814457e-16,
+      "failure_count": 30
+    },
+    "after": {
+      "assertions": 152,
+      "maximum_asserted_normalized_error": 1.5265566588595902e-14,
+      "maximum_error_fraction_of_limit": 0.0003053113317719181,
+      "failures": [],
+      "maximum_errors": {
+        "volume": 1.3877787807814457e-15,
+        "raw_delta": 1.5210055437364645e-14,
+        "surface_inside": 1.5265566588595902e-14,
+        "surface_outside": 1.5210055437364645e-14,
+        "physical_inside": 1.5265566588595902e-14,
+        "physical_outside": 1.5154544286133387e-14,
+        "physical_volume": 1.3877787807814457e-15
+      },
+      "approximate_formulations": [],
+      "reference_quadrature_discrepancy": 1.3877787807814457e-16
+    }
+  },
+  {
+    "case": "e2_q0_boundary_low_identity_s1_v0",
+    "before": {
+      "assertions": 12,
+      "maximum_asserted_normalized_error": 0.003556714009142592,
+      "maximum_error_fraction_of_limit": 71134280.18285185,
+      "failures": [
+        {
+          "kind": "moment",
+          "method": "raw_delta",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.5035567140091426,
+          "expected": 0.5,
+          "error": 0.003556714009142592,
+          "normalized_error": 0.003556714009142592,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_inside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.5035567140091426,
+          "expected": 0.5,
+          "error": 0.003556714009142592,
+          "normalized_error": 0.003556714009142592,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_outside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.5035567140091426,
+          "expected": 0.5,
+          "error": 0.003556714009142592,
+          "normalized_error": 0.003556714009142592,
+          "limit": 4.9999999999999995e-11
+        }
+      ],
+      "maximum_errors": {
+        "volume": 0.0,
+        "raw_delta": 0.003556714009142592,
+        "surface_inside": 0.003556714009142592,
+        "surface_outside": 0.003556714009142592,
+        "physical_inside": 0.003556714009142592,
+        "physical_outside": 0.003556714009142592,
+        "physical_volume": 0.0
+      },
+      "approximate_formulations": [],
+      "reference_quadrature_discrepancy": 1.3877787807814457e-16,
+      "failure_count": 5
+    },
+    "after": {
+      "assertions": 12,
+      "maximum_asserted_normalized_error": 0.0,
+      "maximum_error_fraction_of_limit": 0.0,
+      "failures": [],
+      "maximum_errors": {
+        "volume": 0.0,
+        "raw_delta": 0.0,
+        "surface_inside": 0.0,
+        "surface_outside": 0.0,
+        "physical_inside": 0.0,
+        "physical_outside": 0.0,
+        "physical_volume": 0.0
+      },
+      "approximate_formulations": [],
+      "reference_quadrature_discrepancy": 1.3877787807814457e-16
+    }
+  },
+  {
+    "case": "e4_q0_zero_face_identity_s1_v0",
+    "before": {
+      "assertions": 10,
+      "maximum_asserted_normalized_error": 0.01122167380191838,
+      "maximum_error_fraction_of_limit": 224433476.03836763,
+      "failures": [
+        {
+          "kind": "moment",
+          "method": "raw_delta",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.2510009264975353,
+          "expected": 0.24018928362980432,
+          "error": 0.01081164286773098,
+          "normalized_error": 0.01081164286773098,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_inside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.2612216738019183,
+          "expected": 0.24999999999999992,
+          "error": 0.01122167380191838,
+          "normalized_error": 0.01122167380191838,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "physical_inside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.2612216738019183,
+          "expected": 0.24999999999999992,
+          "error": 0.01122167380191838,
+          "normalized_error": 0.01122167380191838,
+          "limit": 4.9999999999999995e-11
+        }
+      ],
+      "maximum_errors": {
+        "volume": 3.0253577421035516e-15,
+        "raw_delta": 0.01081164286773098,
+        "surface_inside": 0.01122167380191838,
+        "surface_outside": 0.008963523315666105,
+        "physical_inside": 0.01122167380191838,
+        "physical_outside": 0.008963523315666105,
+        "physical_volume": 3.0253577421035516e-15
+      },
+      "approximate_formulations": [
+        {
+          "method": "surface_outside",
+          "actual": 0.258963523315666,
+          "expected": 0.24999999999999992,
+          "absolute_error": 0.008963523315666105,
+          "relative_error": 0.035854093262664435
+        },
+        {
+          "method": "physical_outside",
+          "actual": 0.258963523315666,
+          "expected": 0.24999999999999992,
+          "absolute_error": 0.008963523315666105,
+          "relative_error": 0.035854093262664435
+        }
+      ],
+      "reference_quadrature_discrepancy": 8.326672684688674e-17,
+      "failure_count": 3
+    },
+    "after": {
+      "assertions": 10,
+      "maximum_asserted_normalized_error": 5.079270337660091e-15,
+      "maximum_error_fraction_of_limit": 0.00010158540675320184,
+      "failures": [],
+      "maximum_errors": {
+        "volume": 3.0253577421035516e-15,
+        "raw_delta": 4.829470157119431e-15,
+        "surface_inside": 5.079270337660091e-15,
+        "surface_outside": 0.002191101366105924,
+        "physical_inside": 5.079270337660091e-15,
+        "physical_outside": 0.002191101366105924,
+        "physical_volume": 3.0253577421035516e-15
+      },
+      "approximate_formulations": [
+        {
+          "method": "surface_outside",
+          "actual": 0.247808898633894,
+          "expected": 0.24999999999999992,
+          "absolute_error": 0.002191101366105924,
+          "relative_error": 0.0087644054644237
+        },
+        {
+          "method": "physical_outside",
+          "actual": 0.247808898633894,
+          "expected": 0.24999999999999992,
+          "absolute_error": 0.002191101366105924,
+          "relative_error": 0.0087644054644237
+        }
+      ],
+      "reference_quadrature_discrepancy": 8.326672684688674e-17
+    }
+  },
+  {
+    "case": "e4_q2_boundary_low_identity_s1_v0",
+    "before": {
+      "assertions": 75,
+      "maximum_asserted_normalized_error": 0.01974157535203741,
+      "maximum_error_fraction_of_limit": 394831507.04074824,
+      "failures": [
+        {
+          "kind": "moment",
+          "method": "raw_delta",
+          "powers": [
+            0,
+            1,
+            0
+          ],
+          "actual": 0.0949731187242524,
+          "expected": 0.08333333333333298,
+          "error": 0.011639785390919422,
+          "normalized_error": 0.011639785390919422,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_inside",
+          "powers": [
+            0,
+            1,
+            0
+          ],
+          "actual": 0.0949731187242524,
+          "expected": 0.08333333333333298,
+          "error": 0.011639785390919422,
+          "normalized_error": 0.011639785390919422,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_outside",
+          "powers": [
+            0,
+            1,
+            0
+          ],
+          "actual": 0.09497311872425242,
+          "expected": 0.08333333333333298,
+          "error": 0.011639785390919435,
+          "normalized_error": 0.011639785390919435,
+          "limit": 4.9999999999999995e-11
+        }
+      ],
+      "maximum_errors": {
+        "volume": 1.970645868709653e-15,
+        "raw_delta": 0.01974157535203734,
+        "surface_inside": 0.01974157535203734,
+        "surface_outside": 0.019741575352037355,
+        "physical_inside": 0.01974157535203734,
+        "physical_outside": 0.01974157535203741,
+        "physical_volume": 1.970645868709653e-15
+      },
+      "approximate_formulations": [],
+      "reference_quadrature_discrepancy": 8.326672684688674e-17,
+      "failure_count": 25
+    },
+    "after": {
+      "assertions": 75,
+      "maximum_asserted_normalized_error": 1.970645868709653e-15,
+      "maximum_error_fraction_of_limit": 3.9412917374193064e-05,
+      "failures": [],
+      "maximum_errors": {
+        "volume": 1.970645868709653e-15,
+        "raw_delta": 1.285998031289948e-15,
+        "surface_inside": 1.281244482389957e-15,
+        "surface_outside": 1.2856956405277783e-15,
+        "physical_inside": 1.2840922071586259e-15,
+        "physical_outside": 1.2788516143139635e-15,
+        "physical_volume": 1.970645868709653e-15
+      },
+      "approximate_formulations": [],
+      "reference_quadrature_discrepancy": 8.326672684688674e-17
+    }
+  },
+  {
+    "case": "e4_q5_zero_face_identity_s1_v0",
+    "before": {
+      "assertions": 285,
+      "maximum_asserted_normalized_error": 0.011221673801911497,
+      "maximum_error_fraction_of_limit": 224433476.03822997,
+      "failures": [
+        {
+          "kind": "moment",
+          "method": "raw_delta",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.25100092649752864,
+          "expected": 0.24018928362980432,
+          "error": 0.01081164286772432,
+          "normalized_error": 0.01081164286772432,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "surface_inside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.2612216738019114,
+          "expected": 0.24999999999999992,
+          "error": 0.011221673801911497,
+          "normalized_error": 0.011221673801911497,
+          "limit": 4.9999999999999995e-11
+        },
+        {
+          "kind": "moment",
+          "method": "physical_inside",
+          "powers": [
+            0,
+            0,
+            0
+          ],
+          "actual": 0.2612216738019114,
+          "expected": 0.24999999999999992,
+          "error": 0.011221673801911497,
+          "normalized_error": 0.011221673801911497,
+          "limit": 4.9999999999999995e-11
+        }
+      ],
+      "maximum_errors": {
+        "volume": 4.322550454426361e-05,
+        "raw_delta": 0.01081164286772432,
+        "surface_inside": 0.011221673801911497,
+        "surface_outside": 0.011221673804391624,
+        "physical_inside": 0.011221673801911497,
+        "physical_outside": 0.011221673804391624,
+        "physical_volume": 4.322550454426404e-05
+      },
+      "approximate_formulations": [
+        {
+          "method": "surface_outside",
+          "actual": 0.26122167380439154,
+          "expected": 0.24999999999999992,
+          "absolute_error": 0.011221673804391624,
+          "relative_error": 0.04488669521756651
+        },
+        {
+          "method": "physical_outside",
+          "actual": 0.26122167380439154,
+          "expected": 0.24999999999999992,
+          "absolute_error": 0.011221673804391624,
+          "relative_error": 0.04488669521756651
+        }
+      ],
+      "reference_quadrature_discrepancy": 8.326672684688674e-17,
+      "failure_count": 75
+    },
+    "after": {
+      "assertions": 285,
+      "maximum_asserted_normalized_error": 9.43689570931383e-16,
+      "maximum_error_fraction_of_limit": 1.8873791418627665e-05,
+      "failures": [],
+      "maximum_errors": {
+        "volume": 8.604228440844963e-16,
+        "raw_delta": 9.159339953157541e-16,
+        "surface_inside": 9.43689570931383e-16,
+        "surface_outside": 1.4503083533220305e-06,
+        "physical_inside": 9.43689570931383e-16,
+        "physical_outside": 1.45030835332104e-06,
+        "physical_volume": 8.604228440844963e-16
+      },
+      "approximate_formulations": [
+        {
+          "method": "surface_outside",
+          "actual": 0.25000000000226613,
+          "expected": 0.24999999999999992,
+          "absolute_error": 2.266214993440485e-12,
+          "relative_error": 9.064859973761944e-12
+        },
+        {
+          "method": "physical_outside",
+          "actual": 0.25000000000226613,
+          "expected": 0.24999999999999992,
+          "absolute_error": 2.266214993440485e-12,
+          "relative_error": 9.064859973761944e-12
+        }
+      ],
+      "reference_quadrature_discrepancy": 8.326672684688674e-17
+    }
+  }
+]

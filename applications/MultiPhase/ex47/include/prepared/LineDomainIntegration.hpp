@@ -98,6 +98,7 @@ public:
     unsigned number = 0;
     bool preparedPositive = false;
     if(prepared != nullptr && mappedDerivative < 0) {
+      if(derivativeSign != 0) ++Statistics().singleRootSamples;
       const CutFemLevelSetData& fiber = prepared->Fiber(preparedOrder,x);
       const CutFemLevelSetData::LineAnalysis& analysis = fiber.GetLineAnalysis();
       if(analysis.identicallyZero) throw std::runtime_error("A graph projection reached an entire zero fiber.");
@@ -105,6 +106,7 @@ public:
       preparedPositive = analysis.positiveIntervalCount != 0;
       for(unsigned n = 0; n < analysis.rootCount; ++n) { const long double candidate = prepared->RootCoordinate(preparedOrder,analysis.roots[n]); if(candidate >= lower-tolerance && candidate <= upper+tolerance) { root = std::max(lower,std::min(upper,candidate)); signedDerivative = prepared->WorkingDerivative(preparedOrder,analysis.roots[n]); derivative = std::abs(signedDerivative); ++number; } }
       if(number > 1) throw std::runtime_error("A graph projection contains multiple roots.");
+      if(number == 1 && (lowerZero || upperZero)) root = lowerZero ? lower : upper;
     }
     else if(derivativeSign != 0) {
       ++Statistics().singleRootSamples;
@@ -318,8 +320,8 @@ public:
     std::vector<long double> tangencies;
     CollectEvents(coefficient,strip,events,&tangencies,graph && !mapped,prepared,preparedOrder);
     const long double intervalBudget = events.size() > 1 ? 1.0L/(events.size()-1U) : 1;
-    const bool lowerZero = strip.certifiedLowerZero || (prepared == nullptr ? BoundaryIsZero(coefficient,strip.lowerConstant,strip.lowerSlope) : prepared->ZeroBoundary(preparedOrder,false));
-    const bool upperZero = strip.certifiedUpperZero || (prepared == nullptr ? BoundaryIsZero(coefficient,strip.upperConstant,strip.upperSlope) : prepared->ZeroBoundary(preparedOrder,true));
+    const bool lowerZero = strip.certifiedLowerZero || (prepared == nullptr ? BoundaryIsZero(coefficient,strip.lowerConstant,strip.lowerSlope) : prepared->ZeroBoundary(preparedOrder,strip.lowerConstant,strip.lowerSlope));
+    const bool upperZero = strip.certifiedUpperZero || (prepared == nullptr ? BoundaryIsZero(coefficient,strip.upperConstant,strip.upperSlope) : prepared->ZeroBoundary(preparedOrder,strip.upperConstant,strip.upperSlope));
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     std::vector<unsigned char> active = requested == nullptr ? std::vector<unsigned char>(2U*count,1) : *requested;
     if(!computeDelta) std::fill(active.begin()+count,active.end(),0);

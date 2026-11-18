@@ -181,6 +181,10 @@ inline const CutFemLevelSetData::LineAnalysis& CutFemLevelSetData::GetLineAnalys
   if(!_lineAnalysis->identicallyZero) {
     std::array<long double,2> candidates;
     const unsigned count = SolveQuadratic(a,b,c,discriminant,candidates);
+    if(count != 0 && _zeroBoundaryMask != 0) {
+      if(_zeroBoundaryMask == 3 && count == 2) { candidates[0] = -1; candidates[1] = 1; }
+      else { const long double endpoint = (_zeroBoundaryMask&1U) != 0 ? -1 : 1; unsigned nearest = 0; for(unsigned n = 1; n < count; ++n) if(std::abs(candidates[n]-endpoint) < std::abs(candidates[nearest]-endpoint)) nearest = n; candidates[nearest] = endpoint; }
+    }
     const long double slope = a == 0 ? b : (discriminant > 0 ? std::sqrt(discriminant) : 0);
     const long double padding = 64*std::numeric_limits<long double>::epsilon();
     for(unsigned n = 0; n < count; ++n) if(std::isfinite(candidates[n]) && candidates[n] >= -1-padding && candidates[n] <= 1+padding) {

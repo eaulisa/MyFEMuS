@@ -1,0 +1,389 @@
+{
+  "base_commit": "4b4fd0495055bfac99567fb5c18406b144376d78",
+  "native_sources": 50,
+  "fixture_runs": 385,
+  "native_cases": 386,
+  "native_assertions": {
+    "old": 36860,
+    "prepared": 36860
+  },
+  "original_failed": [
+    "hex_tet_validation_mesh_HEX_10_4_1e-11",
+    "hex_tet_validation_mesh_HEX_6_4_1e-11",
+    "wide_unit_validation_1_2"
+  ],
+  "prepared_failed": [
+    "curved_public_regression",
+    "endpoint_nested_contacts_10_1e-10",
+    "hex_curved_endpoint_regressions",
+    "hex_tet_validation_mesh_HEX_10_4_1e-11",
+    "hex_tet_validation_mesh_HEX_6_4_1e-11",
+    "nodal_cut_detection",
+    "outer_interval_benchmark_2_10",
+    "outer_interval_benchmark_2_2",
+    "quadrature_rule_selection",
+    "tolerance_warnings",
+    "wide_unit_validation_1_2",
+    "wide_unit_validation_2_10",
+    "wide_unit_validation_2_2",
+    "wide_unit_validation_2_5"
+  ],
+  "native_timing_passed": {
+    "old": 386,
+    "prepared": 386
+  },
+  "native_speed_by_element": {
+    "LINE3": {
+      "weights": {
+        "cases": 79,
+        "median_speedup": 5.725298384367782,
+        "slower_over_10_percent": 0
+      },
+      "physical": {
+        "cases": 79,
+        "median_speedup": 6.174638653239367,
+        "slower_over_10_percent": 0
+      }
+    },
+    "QUAD9": {
+      "weights": {
+        "cases": 79,
+        "median_speedup": 1.0708529853801407,
+        "slower_over_10_percent": 15
+      },
+      "physical": {
+        "cases": 79,
+        "median_speedup": 1.4049421396807107,
+        "slower_over_10_percent": 9
+      }
+    },
+    "TRI7": {
+      "weights": {
+        "cases": 76,
+        "median_speedup": 1.5347030338188723,
+        "slower_over_10_percent": 9
+      },
+      "physical": {
+        "cases": 76,
+        "median_speedup": 2.7728514720425386,
+        "slower_over_10_percent": 0
+      }
+    },
+    "HEX27": {
+      "weights": {
+        "cases": 76,
+        "median_speedup": 1.7854914672764992,
+        "slower_over_10_percent": 1
+      },
+      "physical": {
+        "cases": 76,
+        "median_speedup": 2.1111158829938605,
+        "slower_over_10_percent": 4
+      }
+    },
+    "TET15": {
+      "weights": {
+        "cases": 76,
+        "median_speedup": 1.841612300648114,
+        "slower_over_10_percent": 3
+      },
+      "physical": {
+        "cases": 76,
+        "median_speedup": 5.057092718883995,
+        "slower_over_10_percent": 0
+      }
+    }
+  },
+  "native_rows_slower_over_10_percent": 41,
+  "regressions_with_separated_sample_ranges": 20,
+  "retained_mode_rows": 58,
+  "ctest": {
+    "cases": 32,
+    "old_passed": 32,
+    "prepared_passed": 28,
+    "prepared_failed": [
+      "cutfem_nodal_cut_detection",
+      "cutfem_tolerance_warnings",
+      "cutfem_hex_curved_endpoint_regressions",
+      "cutfem_quadrature_rule_selection"
+    ]
+  },
+  "certified_boundary_cases_fixed": 8,
+  "shared_failed": [
+    "hex_tet_validation_mesh_HEX_10_4_1e-11",
+    "hex_tet_validation_mesh_HEX_6_4_1e-11",
+    "wide_unit_validation_1_2"
+  ],
+  "prepared_only_failed": [
+    "curved_public_regression",
+    "endpoint_nested_contacts_10_1e-10",
+    "hex_curved_endpoint_regressions",
+    "nodal_cut_detection",
+    "outer_interval_benchmark_2_10",
+    "outer_interval_benchmark_2_2",
+    "quadrature_rule_selection",
+    "tolerance_warnings",
+    "wide_unit_validation_2_10",
+    "wide_unit_validation_2_2",
+    "wide_unit_validation_2_5"
+  ],
+  "timing_environment": {
+    "cpu": 0,
+    "samples": 3,
+    "target_batch_seconds": 0.01,
+    "maximum_repetitions": 10000,
+    "compiler": "c++ (Debian 14.2.0-19) 14.2.0"
+  },
+  "additional_benchmark_accuracy": {
+    "passed": true,
+    "checks": 59520,
+    "records": [
+      {
+        "test": "benchmark_graph_accuracy",
+        "arguments": [
+          "2"
+        ],
+        "limit": 4e-10,
+        "backends": {
+          "old": {
+            "exit": 0,
+            "seconds": 0.28357780299847946
+          },
+          "prepared": {
+            "exit": 0,
+            "seconds": 0.05398737000359688
+          }
+        },
+        "checks": 640,
+        "maximum_scaled_difference": 1.8869590119026887e-16,
+        "failures": [],
+        "passed": true
+      },
+      {
+        "test": "benchmark_graph_accuracy",
+        "arguments": [
+          "10"
+        ],
+        "limit": 4e-10,
+        "backends": {
+          "old": {
+            "exit": 0,
+            "seconds": 0.8847287969983881
+          },
+          "prepared": {
+            "exit": 0,
+            "seconds": 0.26082111799769336
+          }
+        },
+        "checks": 14080,
+        "maximum_scaled_difference": 1.8869590119026887e-16,
+        "failures": [],
+        "passed": true
+      },
+      {
+        "test": "benchmark_surface_accuracy",
+        "arguments": [],
+        "limit": 1.6e-07,
+        "backends": {
+          "old": {
+            "exit": 0,
+            "seconds": 20.925863155993284
+          },
+          "prepared": {
+            "exit": 0,
+            "seconds": 23.15010669500043
+          }
+        },
+        "checks": 44800,
+        "maximum_scaled_difference": 3.051031490405947e-12,
+        "failures": [],
+        "passed": true
+      }
+    ]
+  },
+  "source_hashes": {
+    "applications/MultiPhase/ex47/include/CutFemLevelSetData.hpp": "3c7b86d92eed234942948a9027abf32b0c288d50e2f4ec85c5ed507828520612",
+    "applications/MultiPhase/ex47/include/CutFemLevelSetDataAnalysis.hpp": "b991d675e1caebd6709c601a1fb0a7fa032c5608bc4dca871193123159e387b3",
+    "applications/MultiPhase/ex47/include/CutFemLevelSetDataCharts.hpp": "2c432a1a799283af69cf0c065a2f36a0cb1af1861dfb0df37b48b5d3e815c252",
+    "applications/MultiPhase/ex47/include/CutFemPreparedContext.hpp": "0a68054f71b27c12c676dbaf3fca858603ecbec866a8e51b063aec377b1445ea",
+    "applications/MultiPhase/ex47/include/CutFemPreparedMoments.hpp": "b57cb72e686c025b43890a103df9c064ddcc090ea72b9cabdc86473436925cd0",
+    "applications/MultiPhase/ex47/include/CutFemWeight_LS.hpp": "dbbb835c1d51cf3e8b598ce49ab0ec8fca79a16c7b00b23e3f5369cbcf0e6f1b",
+    "applications/MultiPhase/ex47/include/prepared/EndpointProjection.hpp": "b0763fa0d77ef62db5beefe9ee3498aa3675e0337501c5132c00f979aa7894e2",
+    "applications/MultiPhase/ex47/include/prepared/EndpointStripQuadrature.hpp": "cfa71225c236663c8d1bac0329db8a14b73718b37eefc4785fb778c557ac2c29",
+    "applications/MultiPhase/ex47/include/prepared/LineDomainIntegration.hpp": "ea3849c435fe1570243da4da7139228ed0e524be95d9d523e828779776c6c255",
+    "applications/MultiPhase/ex47/include/prepared/LineIntegration.hpp": "d8901e8265e9798147b43b5312fa1cae3b6f8129040fb91ef1dbe6bbcda7c20e",
+    "applications/MultiPhase/ex47/include/prepared/PlanarEndpointIntegration.hpp": "2a596a878355d686acbe8166f6be2e1ef52b97730a38abc808732038c9d93f46",
+    "applications/MultiPhase/ex47/include/prepared/SurfaceEndpointIntegration.hpp": "f8be5448e462152fdbbe246bd62d5c013b5b543d3ec2d999bb8be7bf966d23de",
+    "applications/MultiPhase/ex47/native_tests/MeasuredWeights.hpp": "d2af05c2a724c85ac7cc7bd5b4f5534ee3eb70f10213eb270f225b3bc2015736",
+    "applications/MultiPhase/ex47/native_tests/NativeCompatibility.cpp": "b962dc255ce3967158b34e2057a0a47d1f37f24aa1b0e385a3e291d8033338a2",
+    "applications/MultiPhase/ex47/native_tests/NativeCompatibility.hpp": "ec812b79393e27ed40dff7cca7bde958b114e8f1f849c990a8b355e3fe3c6472",
+    "applications/MultiPhase/ex47/native_tests/OriginalCompatibility.cpp": "5647700ab6d0564989e446c7e168bc838bb1578a2a25f88368f12b79b96eadcf",
+    "applications/MultiPhase/ex47/native_tests/build_comparison.py": "c30e97c8ddc79c5c791ae1b0d92fb555d7de3831884a5422db8f9f4f366fcf77",
+    "applications/MultiPhase/ex47/native_tests/curved_public_regression.cpp": "660b1c5cfe555ed330ba3e3388ae134a587e2160e2f0bc51ca15a43dc592e439",
+    "applications/MultiPhase/ex47/native_tests/make_report.py": "2c0ad2c5e11cd2ff349eb8bcb04464229abbc3fda5c2a9cb460f5e6a7790f0e9",
+    "applications/MultiPhase/ex47/native_tests/run_benchmark_accuracy.py": "3a5c71a87e33e52c6bba8e126ea39137a9138e810cf5d9a96de6c469fd38fcf3",
+    "applications/MultiPhase/ex47/native_tests/run_comparison.py": "cbf66eba74dd203696580d80be2edefada3bfb72eccbf6be0be3306aa929f051",
+    "applications/MultiPhase/ex47/native_tests/run_native_cases.py": "05197b9aadc7844861f13a124d12997b882e20385498052cb011efdd37ad5c3b",
+    "applications/MultiPhase/ex47/native_tests/time_native_cases.py": "ed2809f2c3cf2e43c518465fd9bfb9c4b07c01c392f834c9dfbaa30cfb11a35d",
+    "unittests/testCutFemWeightLSNative/benchmark_graph_dimensions.cpp": "b5a5961a909b17e1316c58a98d042c2189f681d4b57ad497baedf8c74970aa86",
+    "unittests/testCutFemWeightLSNative/benchmark_quad_tri.cpp": "9f3863778f612a35452e3f39b15fcffc1550f9cbf1421588e7a170b0441e0bc2",
+    "unittests/testCutFemWeightLSNative/benchmark_surface_reuse.cpp": "94fa2d9d36940fb74f467847d44912bef4f900780860d8fc3b3f73fc5ad3d978",
+    "unittests/testCutFemWeightLSNative/direct_parent_moments.cpp": "1e75cbe09cd5efa190c1810b783a56103f06d73cbdc7788b1139dc01fe322c86",
+    "unittests/testCutFemWeightLSNative/endpoint_comparison.cpp": "d86b52781858efd4c05462221fe4d09d68b84205262ab8e1236a875552539294",
+    "unittests/testCutFemWeightLSNative/endpoint_coordinate_resolution.cpp": "2fd8892b505d8ffbdcecfdc5e2f87061c63b79ec1897924e2122e17ff1544979",
+    "unittests/testCutFemWeightLSNative/endpoint_exponents.cpp": "b8d81233d4f0cb1421f7b9ae3ca4a03aa98ed7f24de4e87929fce9c911b56075",
+    "unittests/testCutFemWeightLSNative/endpoint_line_comparison.cpp": "c4b98afd4d0186b84f32f6ae1efbd0be6bfb2e5efda9e002875f654a0a6e2984",
+    "unittests/testCutFemWeightLSNative/endpoint_nested_contacts.cpp": "fdc102408d60cb787dbdcd7116e348849ca3be49d2cdeff3ecddd9119e67a2f7",
+    "unittests/testCutFemWeightLSNative/endpoint_surface_regressions.cpp": "9c4bb01c9fa9cd7b77401aed139e9768d07e6db669d97d82d2ab52380cf2bfea",
+    "unittests/testCutFemWeightLSNative/enriched_3d.cpp": "176561673b05f80cd5b95f5fbda2926fa7361da001ea43c57fd815580a646122",
+    "unittests/testCutFemWeightLSNative/hex_curved_endpoint_regressions.cpp": "175b6ff51187e98a3b5dc0fcd556b2c9efb51801bb8b2a0efa71ddf51a4cdd41",
+    "unittests/testCutFemWeightLSNative/hex_sphere_boundary_tangencies.cpp": "4c247d854a3575d46927c53c719de189edfa36c7ff8e5fb008530baaa932cb13",
+    "unittests/testCutFemWeightLSNative/hex_tet_validation.cpp": "cba63fb91aa5d4e4bd32daf129b56fb7875fdc184e15bf634d119194881f0591",
+    "unittests/testCutFemWeightLSNative/line_integration.cpp": "1db2f71431b3c0accc43ca6496e9ed141dc7d6866b1408383d24e06bdee2c20d",
+    "unittests/testCutFemWeightLSNative/line_mesh_refinement.cpp": "927c61fdf9dc5d82ceec59bfac5841e2f47bf04e3fb561e7afb0efb95aa0e429",
+    "unittests/testCutFemWeightLSNative/mesh_refinement.cpp": "c01489233cfa878120c99ad8fe52009a9a98423398829f989f3248c82081ec03",
+    "unittests/testCutFemWeightLSNative/native_suite.cpp": "58470c1e6e4fd391e9fb4bcf4e97cf5b9921d579eb1c2e514fd9ff40d1eedf85",
+    "unittests/testCutFemWeightLSNative/nodal_cut_detection.cpp": "0df61d5cad81a4983fddae156104d7fef181be0b6560ec2d224810b491fb51f2",
+    "unittests/testCutFemWeightLSNative/normal_surface.cpp": "7db7dcabbc71d56ea47f96b9efe19d46469baaa13e171c0b6c754c52259e912a",
+    "unittests/testCutFemWeightLSNative/outer_interval_benchmark.cpp": "86ff5a2aaad1be2f99735194b32b7edeea977ecf9b811af359de33ea20102e1a",
+    "unittests/testCutFemWeightLSNative/outer_interval_contract.cpp": "a40d8141c5704093e723f051511a317b2ddb444fafd5c1efa3e867d40dd3f4e0",
+    "unittests/testCutFemWeightLSNative/planar_suite.cpp": "6dce4c86b493dc816829c106f215e36341da961ea9ee04ca39c2a378145816ec",
+    "unittests/testCutFemWeightLSNative/quad_curved_endpoint_regressions.cpp": "06278cf8e7b2f979b8c41358d07df9f28ef4f8984e348504b5ddbbfa458bfdcf",
+    "unittests/testCutFemWeightLSNative/quad_native_quadrants.cpp": "cfa0e402b6ea28ef792e4ad083f5320ad2d236aab74bd215296113c43f07788d",
+    "unittests/testCutFemWeightLSNative/quad_scaled_plane.cpp": "929f84c01977d8ccb7c4b126646e5984ef0c534c2370017507e010c821e775c7",
+    "unittests/testCutFemWeightLSNative/quad_tri_standard_moments.cpp": "b4d335502006f99e0f18244ea2fc9f691cbddd01226570826aed7859a57d0e2b",
+    "unittests/testCutFemWeightLSNative/quadrature_rule_selection.cpp": "056af77b75bf03dc35d9b2702139eff49e22a7d04b4a3d019bd373bb8b95782a",
+    "unittests/testCutFemWeightLSNative/review_regressions.cpp": "d7e16ce816b845480704c2d5035fb83a8a01e6f2097de5dddf7f6c3399c8bfbb",
+    "unittests/testCutFemWeightLSNative/simplex_high_degree.cpp": "283319b23cb89ab0ca4bd990cdf2403530f59a562fcfb6e286608f188ce43ed3",
+    "unittests/testCutFemWeightLSNative/single_graph_root.cpp": "dc7e31d34744d0d44f2f927b15e0d848c73bf905793ee303510139de32d3521a",
+    "unittests/testCutFemWeightLSNative/surface_rule_reuse.cpp": "20432e0ab153f82e947cfe548ffd89c7539fa86e281d391996f5e32afa5d4002",
+    "unittests/testCutFemWeightLSNative/tangential_surface.cpp": "1f198898e5d1e9780949445035ac673e3f135d47ef71d0ebe523d04e3017f769",
+    "unittests/testCutFemWeightLSNative/test_contract.cpp": "ba29df12f5d9c14fe3d81d2962735e1c280e67941e34019f678bfc26d4ad1ca7",
+    "unittests/testCutFemWeightLSNative/test_hex_native.cpp": "3c42c70df0af24bc82eacf735c4f4c039dedefd78095b24f023f8bfd25005e23",
+    "unittests/testCutFemWeightLSNative/test_ls_multiprecision.cpp": "beffdb258521c9fe2a6196dc56622a9a4aeca79a190282240773b8c842aaa2b2",
+    "unittests/testCutFemWeightLSNative/test_ls_output_range.cpp": "21851a71bbbdc6f4568ff5b32141aeebfa33b5087b22a4cbad2b8d99a154f7ce",
+    "unittests/testCutFemWeightLSNative/test_order_ls_first.cpp": "9ad2ecb5c31cc60f9dd09ef4f7e29fa1449804cb7018bcd2b8f5d658d06cc0ca",
+    "unittests/testCutFemWeightLSNative/test_order_planar_first.cpp": "617cd6d11ec60f4d5c01461abfcba146a9dbd10098626cc97a63b52a663761d9",
+    "unittests/testCutFemWeightLSNative/test_reference_coefficients.cpp": "f7669b6059b963dce9732fa4d1611fe4677b60773c7423f44f769c909e241664",
+    "unittests/testCutFemWeightLSNative/test_root_candidate_regression.cpp": "c2f4dbb946f59589038c57caf051e7efc3e0d233cae2b78f0cba5a22ad084036",
+    "unittests/testCutFemWeightLSNative/test_tet_slice_regression.cpp": "9bdecc595a4ff37382e5f250f858b2c6129bbd7b2722f4cd84b665ce7fafad57",
+    "unittests/testCutFemWeightLSNative/tet_standard_moments.cpp": "772bba78e0582a7ca9a1a8f90fa82c0cd9c4d855724ff786afc5cba4da1d1103",
+    "unittests/testCutFemWeightLSNative/tolerance_warnings.cpp": "560e17e6e3efd1ed77bfd431c0b0d6c5cda293139c93f555ccc76f6721bae697",
+    "unittests/testCutFemWeightLSNative/tri_circle_probe.cpp": "8985bdc3a39cc1e47d24e21b60f144af07bc6f3dc8582309996c58f0c93c30dd",
+    "unittests/testCutFemWeightLSNative/tri_endpoint_regressions.cpp": "8c0b6df7a9f70c0a0b616212ee6eb22428126f496957bd8309c7609218cd221b",
+    "unittests/testCutFemWeightLSNative/unit_element_moments.cpp": "51af1123cfa0b85a0400d34aaec2ee21c79bc3cfa49dfc29a27facf6c8d5cd43",
+    "unittests/testCutFemWeightLSNative/wedge21_moments.cpp": "1ab5ae3a44826529afdb58119cb97542c0ab3bdad699a26220054f54dc4a18e7",
+    "unittests/testCutFemWeightLSNative/wide_unit_mesh.cpp": "8adaee85aa8e63b89875aa8d4a81fcf5278bbd065d2f7207e9b2233f18dafe1d",
+    "unittests/testCutFemWeightLSNative/wide_unit_validation.cpp": "e88bdc9215267f5d249b3ffc8164f07032e390d65fc9c6925aa91baa3e0ab509"
+  },
+  "binary_hashes": {
+    "old/benchmark_graph_accuracy": "83f8b00f6caacb90895c9be8dc30ced7d08149e4fae7d84a9fb3e91f4931945f",
+    "old/benchmark_graph_dimensions": "a919a363e56f68c6b0757135f4763fc5787dea1e06b85a60f42750191b29a5a6",
+    "old/benchmark_quad_tri": "b061ae9507186118dc9f685b11b9501e15d9b93101a1aa4a1ca456d41ea5da12",
+    "old/benchmark_surface_accuracy": "da2cbf9c20a177c8c06ad4bce3437ea1290acc491c851dca523a8d64649f280d",
+    "old/benchmark_surface_reuse": "99da25ff513552e84cd6fef1c2dfb45c6ecd07c3067e8e6771748d7085e74b9a",
+    "old/curved_public_regression": "0115394f0f89bd54b8f4e6b2fee4cfca5d74923b716e3b5d2cf85f075d41697a",
+    "old/direct_parent_moments": "c166b6a12eb03cccb6d38ece0c689f99a6b47e03681ead9a23f9e281a5eea702",
+    "old/endpoint_comparison": "a07b558ec276465c3be78755493ada86a72f4cb269e3928f4b65685172beb85a",
+    "old/endpoint_coordinate_resolution": "d863f999ca398ec9aabcfde406f5f41f5cac892628ee230d859b2edfe2206b6f",
+    "old/endpoint_exponents": "d42f1ea8bca7efeffc258f2944c7d2aafdd3cd3cf39f67ac542a4a8aef45018e",
+    "old/endpoint_line_comparison": "f751cf6c882c4509168ea16528bef45b9e406d68bba6141b49304f5df17fdf9d",
+    "old/endpoint_nested_contacts": "6d17da1601e15c104cf42ee9f30f2e53e91f9ef431e211e1f6f682190fe68e87",
+    "old/endpoint_surface_regressions": "c41cb6dbeb4f655d18cc0ca7e149e50e1e40a13b6a1a71e7c87b61f3fccfa31a",
+    "old/enriched_3d": "bcc19a461b6255c33d94c82928f294adb6bfbd3a39857e78443529ec5115f367",
+    "old/hex_curved_endpoint_regressions": "2eb7a45d1592d79ceafb0a38dc9a76a16a6a16ed568e66d1fad8b78a094856bf",
+    "old/hex_sphere_boundary_tangencies": "e94d8173fbba327b39945ab67368a4df4646567579433c11b20caee207836177",
+    "old/hex_tet_validation": "cdfd64d20f1c121cb54eedee5fa6ee59cde92e88af2f045d4d4b1808ff72dacf",
+    "old/line_integration": "e84fefb2dae446ebaee7ef19a88197f75dfc0e0b31383e9201669073e6f37a5d",
+    "old/line_mesh_refinement": "d5ee13fd6962f11e89dc01fa64f8f4c9169b498d7302e36fefe2971d32a4f533",
+    "old/mesh_refinement": "269cd094a664d6d065e375e56aba28787037076af880afae5be4289e0eb4dffe",
+    "old/native_suite": "70220e45999f6f1fdf04a27bbfcabbb7b393acdd4c4b969e9a89675fa0322e2b",
+    "old/native_suite_speed": "4765f84be9f3229f742b21693c72259fe364cdc55fcc91767f255711e07f6ea9",
+    "old/nodal_cut_detection": "0bd422261cc7456bdbf7dcd1b0f4ace04acfdbccdfcf640729a6d1d36b27394d",
+    "old/normal_surface": "8c5a40ea44cdc2be9b882ac51fd39bcd144f77a6795e85564127e28bc04c52cd",
+    "old/outer_interval_benchmark": "9dac071c9a2fc3270736dca96428623193b6479415c622df487c2cb6e75dda81",
+    "old/outer_interval_contract": "f8267545a1710a516a38cb7e395a257474c7911b199428373900db3d0824336d",
+    "old/planar_suite": "06bfdf46c9f72a685ccc52936dcfebf33fd5558f6db19711a7fe0c18af78f99b",
+    "old/quad_curved_endpoint_regressions": "b654062081dfca496e4903d3f8a4c6f60b000d471f36fba925c53459cc3669a8",
+    "old/quad_native_quadrants": "bea80b70fe9693f408d8aa264d1146181451c3307353e008001bcac7df2c30db",
+    "old/quad_scaled_plane": "36946a2cfc7bdac06431229cee12ec8f7b070d4391a713cedc11afc800a47092",
+    "old/quad_tri_standard_moments": "fddd5b2f72e00fd7d38224ae4fe09dcb2132df88b68cc79e1162f17107f821f0",
+    "old/quadrature_rule_selection": "3063adf070ce04eb1778b732f090e126c32b69d2f2f7e2fc4714391c8654fb7e",
+    "old/review_regressions": "0ac53f77b382fb94e34b9e26750be66bbbb8c766e1d54684277b2b25c9dcdb6c",
+    "old/simplex_high_degree": "b8551cf283a864f880caddc906f8a9a4d8107dfc068b1e03ef938886d51f7794",
+    "old/single_graph_root": "8c0b19424f013026cd41c6615e4445bc243b4f156e1089a1dc3469f478f008dd",
+    "old/surface_rule_reuse": "75dfb772883632849ab2c94acb4e70a0936818ecc84f0a2090f867478c948cbe",
+    "old/tangential_surface": "8dd9d139ca7cd70a450688c62718f9fd07567c5cc410c2e0aace33372b2a6d96",
+    "old/test_contract": "3a6a06136471742a1d7c960a3cb091a9cd85b1f248040c08c18d161cb56c4542",
+    "old/test_hex_native": "9bafb4f1645428aff3afb663d936bd37183d5d9be9c806e1a0a63bfad70a796e",
+    "old/test_ls_multiprecision": "e157fcda574b3cb712230a0ffd59d5c5e5681567615206d9a4af7cecaf655560",
+    "old/test_ls_output_range": "d756b960978408cf194f9ed96d445c8de1ffc97b7d81566eacc722342113b23d",
+    "old/test_order_ls_first": "4462ffae5fb5cd79b501bf8acd0de84bd2134dc59441e458b55c05fc8a6d2cf3",
+    "old/test_order_planar_first": "070b7b806dcf1b46bcdfa562f6c6239b2b6926f3102794d24866c0dc2fffc77d",
+    "old/test_reference_coefficients": "1cff22cdb6ce6a3bda5d32032cc22286a32b9624a81bc0e093e50a2feee4b351",
+    "old/test_root_candidate_regression": "b543d751563215c3b41fb16028a0fe2453620fc893585e99981649ad0c49af12",
+    "old/test_tet_slice_regression": "cfb350f346c8848e08e97d3fae4b5edce77c8413482716c38b1b16bf77a4663a",
+    "old/tet_standard_moments": "a168b2f0efa23ddabd82172af049bbaa662faa87dfcb4a7a40a3e654d8ec384a",
+    "old/tolerance_warnings": "a7e6e0e2464387bdf7462a6ab3197eb84d3d0a14762059f1e6e67d2555be6433",
+    "old/tri_circle_probe": "6f24c9a82b0357a0d825ff35905304e9f0f0b88fe230e693b85d00b1837fc285",
+    "old/tri_endpoint_regressions": "c9a3c3255212aae449ca6ff5b3d972cb7a656118d72730be779e71c8abbfd56e",
+    "old/unit_element_moments": "d9d40b419eeeee36ab7f624db64234d56991588de5471bdd43e7031a9f8ed2db",
+    "old/wedge21_moments": "70ee8d6dd657a892eac0e1ae3c136c7c644d65c8329160fcc820a9fc2e35e403",
+    "old/wide_unit_mesh": "7ccf488a9c6e57876edd98692f1927782a3225b599dba743726a14e373bf7992",
+    "old/wide_unit_validation": "b891096ae3e54cfbf54004fa369dabc265bb491ec6d8c8a8ea7c871bdb02f40e",
+    "prepared/benchmark_graph_accuracy": "64417e5189cce08e49d96195175bd9bacc10d71bea60e0b9b664ac3dfae1f2eb",
+    "prepared/benchmark_graph_dimensions": "7dc7a40d50a11e6cd8f510d6dd5efeef06eb715ec4399e827689cb73ced18475",
+    "prepared/benchmark_quad_tri": "12356c332baad44f9904de44bcfd2878ddba38281a90166f96f69fcffcffc32d",
+    "prepared/benchmark_surface_accuracy": "332f7aa23d5eb4d1155b0ebe981dbafafa551dd393621d5a8c12cbcd0f23a8e7",
+    "prepared/benchmark_surface_reuse": "9afbe6e233fd0efc78cd501d80278a7b79b44837d385baa5f8390336e7ce932d",
+    "prepared/curved_public_regression": "cd18afb1a11b14c5add5a8fabc24c2cc610c22a676a0e8c0eb4f392397372bd6",
+    "prepared/direct_parent_moments": "39cafe58897d575a74f47baa7c4b414592fe2957cc62ba1ac429ee9613e585c1",
+    "prepared/endpoint_comparison": "99d9b91400a1d484735d280c61107c343372c8f3358cabe82a7cae9bd296db0c",
+    "prepared/endpoint_coordinate_resolution": "9c7b892c56ba00679380aab586858ed0c8e285b0659886dc59a60489a1178b72",
+    "prepared/endpoint_exponents": "c572a8ec8bb98fbbe8f4cbb395436ea79e5bf305a78591ff9fbaf7f8dc7e52fc",
+    "prepared/endpoint_line_comparison": "959f834fe7e221453b33d653f6e606bb33f55225aba4a4c54d6430d647774923",
+    "prepared/endpoint_nested_contacts": "cd1f9e271e0a541a6c011bde6c3adbaa8f8e4e1d57ca2a85941350629e9d76f6",
+    "prepared/endpoint_surface_regressions": "0cf7ff0587ee1fa173bdf9692a8f1a4fa995f6db41e94b69ba179aedb984ba46",
+    "prepared/enriched_3d": "1028c918c2171d1c5bb4172e719e3bf79719a571f0fb40fbaa0eca3260992282",
+    "prepared/hex_curved_endpoint_regressions": "4ab3f97a9d3eea1ae3776f6b9ec6b82e4bf7219f41c9e3a0cd9b1f64cad46835",
+    "prepared/hex_sphere_boundary_tangencies": "37a765c53c90181d280f9ef7b7d50054fc96577fa95a6cb2eddfb3125311318e",
+    "prepared/hex_tet_validation": "2b417148917c0dce0c072bd2fe41c209a949e8354a04358797737517f1135d09",
+    "prepared/line_integration": "5ae93dfea465fa530492365d910073189195894c969c178fbe59f3637f121546",
+    "prepared/line_mesh_refinement": "d17c722b29eacae134a87904d7c92927b2a2070668b93df7bd4f41e3a382d6de",
+    "prepared/mesh_refinement": "56ddb479c98cd91a54f904d68dfce253a2f2f4d360937d2e0bd95f918508e4b1",
+    "prepared/native_suite": "2e17460faae86de646f977e36c80fc3f4cf22c65ee33da47f4f0df864828ab3a",
+    "prepared/native_suite_speed": "c18d83df2aac76fe7d65c04a1c4a5555880321ee18c26ce6e47c157fc07f712d",
+    "prepared/nodal_cut_detection": "8440f65b6976ffc07c0e16431d9b69cfe18dd8c853902979143a41819bd27d35",
+    "prepared/normal_surface": "9177dbea0b38c5fdbb97efe7ba377d267efef856e32cd1ea402d0afc34350bdd",
+    "prepared/outer_interval_benchmark": "b7566cc5ba117145a8ed2e8d80134cd74b9c687327a3e6bc71046306887c9816",
+    "prepared/outer_interval_contract": "f8e5bf76c2ac7068103b781084856ded0bd5e87887ad868075567564edde6957",
+    "prepared/planar_suite": "b1c5533deec9a9f94f41e19c5766f116d9a4ead7136f853eb2edaec464a6d8a5",
+    "prepared/quad_curved_endpoint_regressions": "dd2b25281a75c1ea3c78bb0be607c9cd0e1fdc0dff653405a9e72ed112c9b99f",
+    "prepared/quad_native_quadrants": "31c7cb71999981a9b00f2d5b39b258869f8e0aeb3492d3bf4f68f8d38b482bad",
+    "prepared/quad_scaled_plane": "579eabea34342868f12664fe57ff9e7516e751bb752361ba3e7af1daaa45c55a",
+    "prepared/quad_tri_standard_moments": "4e9e0aefa8cb05fafd2b78771ad48854d0dc2b3e873a4ef338de503a99f9ddd6",
+    "prepared/quadrature_rule_selection": "921782f723dd1ced615ae8035c897a3721b1e19b42ca1e4b4cf1ec030de051c6",
+    "prepared/review_regressions": "01750320265e1b2273ec3bbf51b12d34037cf8ec66743ad3b1ad6ec74f1b16f5",
+    "prepared/simplex_high_degree": "cb2fba59c194ea1bc63d987a00d291a31412b1fbbb4a73bf029dda8a6ac574a2",
+    "prepared/single_graph_root": "0a8df72c5b6bc85ba9dec0403a596fa1f7bd69cc12ff5084e9534b10c12053c2",
+    "prepared/surface_rule_reuse": "1167d745603b092304b5b5bf9de8bfbdd34f1be67d21121626a34e6ec2630529",
+    "prepared/tangential_surface": "de8317ac288c2829018da2e00ba1e727679b5740bf593fdd4aafbff7e6996fda",
+    "prepared/test_contract": "d67a3041d370238d8379a10d4c6812bc14989ab2eb449419e2b364732878d054",
+    "prepared/test_hex_native": "7dc821c7d7f419eb72fd7f8b8668f0152a676e5583671856c97ffda750ed77ad",
+    "prepared/test_ls_multiprecision": "7a20846cbd6d36c8a42bd97ef0d19433f5a0d4325ef32d96f601e1f2aaf9f193",
+    "prepared/test_ls_output_range": "1e58d4888f470b27540f4c3a9eeb45032feebd7891c7d55e4226459d3d74e6b7",
+    "prepared/test_order_ls_first": "ac1c8cf0f3bddd8530e7a3455bf270ea756a9b93ff7708b7daf40c39cdd701ec",
+    "prepared/test_order_planar_first": "6814d4b28d93cdcfc497cc4042049318989d270f625a2ac7e3f45bb60e26f297",
+    "prepared/test_reference_coefficients": "a7ed08c198bdb8726805145fc5e48d38457da6b3d5741225edb366eb7ddb432a",
+    "prepared/test_root_candidate_regression": "8a0406f619f909f5c4b5843ecaf4dfa24d2a92132e9405c4d0b75c863c380a15",
+    "prepared/test_tet_slice_regression": "6a6627b53256795cec8fd8c04994c29ef6f8d886805149fbc17a00819bd390c7",
+    "prepared/tet_standard_moments": "65c9cceebec495d02e8030473156ffbf036779fbdb6e8cb4ed76ae59f5835f0a",
+    "prepared/tolerance_warnings": "aecace23be5813e75e7c1a50706f3ae98c7e9c2e8a289021ff470c9f44f70550",
+    "prepared/tri_circle_probe": "d7fd48bd9c89eb53809df7b36ca74c77c88079b2d96cc858259ec63a5fc7b2aa",
+    "prepared/tri_endpoint_regressions": "68e7cb708cdd7d7011554fa8adb0da7990ac1b2403406f20afe13e2731569263",
+    "prepared/unit_element_moments": "029032cf613a07422afdcbbbc40caa111273b6c1c18c23a0fd194c1eac87c88f",
+    "prepared/wedge21_moments": "316d40aa015364d984cb81ccf181484283e5559188663c7054c7c924d20b1872",
+    "prepared/wide_unit_mesh": "a514b7af8237aaecfbe87746f159edae73b360d291da70b678d2cb7a79e4c39b",
+    "prepared/wide_unit_validation": "d753afc2a8178ebe7138390844295f6c0b26a81aa9fb921362da21172cec62bd"
+  }
+}
