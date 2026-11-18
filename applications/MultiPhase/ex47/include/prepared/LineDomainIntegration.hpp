@@ -555,7 +555,7 @@ public:
     }
     const std::vector<long double> discriminant = prepared == nullptr ? LineSliceUtilities::PolynomialSum(LineSliceUtilities::PolynomialProduct(b,b),LineSliceUtilities::PolynomialProduct(a,c),-4.0L) : prepared->DiscriminantPolynomial(preparedOrder);
     std::vector<long double> discriminantEvents;
-    if(!certifiedGraph && (prepared == nullptr || prepared->data->GetNodalValues().empty() || !prepared->data->GetCompensatedDiscriminantRoots(PreparedPlane::InnerAxis(preparedOrder),strip.left,strip.right,discriminantEvents))) LineSliceUtilities::PolynomialRoots(discriminant,strip.left,strip.right,discriminantEvents);
+    if(!certifiedGraph && (prepared == nullptr || !prepared->data->HasNodalPolynomialSource() || !prepared->data->GetCompensatedDiscriminantRoots(PreparedPlane::InnerAxis(preparedOrder),strip.left,strip.right,discriminantEvents))) LineSliceUtilities::PolynomialRoots(discriminant,strip.left,strip.right,discriminantEvents);
     for(unsigned k = 0; k < discriminantEvents.size(); ++k) {
       const long double event = RefineDiscriminantEvent(coefficient,discriminantEvents[k],strip.left,strip.right,prepared,preparedOrder);
       discriminantEvents[k] = event;

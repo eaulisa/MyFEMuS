@@ -52,7 +52,6 @@ class CutFemWeight_LS {
       _nodalValues.clear();
       _nodalGeometryCoordinates.clear();
       _nodalPositiveWeight.clear();
-      _nodalSurfaceGradient.clear();
       for(unsigned mode = 0; mode < _nodalDeltaWeightCache.size(); ++mode) _nodalDeltaWeightCache[mode].clear();
     }
 
@@ -89,14 +88,10 @@ class CutFemWeight_LS {
 
       if(&positiveWeight == &surfaceWeight) throw std::invalid_argument("Weight outputs must be distinct.");
 
+      for(unsigned n = 0; n < _L; ++n) if(!std::isfinite(positiveMoments[n]) || !std::isfinite(surfaceMoments[n])) throw std::invalid_argument("Nonfinite external moment.");
       ClearCache();
-
-      for(unsigned n = 0; n < _L; ++n) {
-        if(!std::isfinite(positiveMoments[n]) || !std::isfinite(surfaceMoments[n])) throw std::invalid_argument("Nonfinite external moment.");
-
-        _fPair(n,0) = static_cast<TypeA>(positiveMoments[n]);
-        _fPair(n,1) = static_cast<TypeA>(surfaceMoments[n]);
-      }
+      _haveIntegratedMoments = false;
+      for(unsigned n = 0; n < _L; ++n) { _fPair(n,0) = static_cast<TypeA>(positiveMoments[n]); _fPair(n,1) = static_cast<TypeA>(surfaceMoments[n]); }
 
       EvaluateMomentWeightPair(positiveWeight,surfaceWeight);
     }
@@ -135,6 +130,7 @@ class CutFemWeight_LS {
       surface.swap(result);
     }
 
+    // Returns the last actually integrated pair; cached weight returns do not replace it.
     void GetLastIntegratedMoments(std::vector<long double>& positive, std::vector<long double>& surface) const {
       if(!_haveIntegratedMoments || &positive == &surface) throw std::logic_error("Distinct outputs and a completed integration are required.");
       positive.resize(_L);
@@ -270,10 +266,7 @@ class CutFemWeight_LS {
         return;
       }
       const bool reusePositive = sameInput && _dim == 3;
-      if(!sameInput) {
-        _nodalSurfaceGradient.clear();
-        for(unsigned cachedMode = 0; cachedMode < _nodalDeltaWeightCache.size(); ++cachedMode) _nodalDeltaWeightCache[cachedMode].clear();
-      }
+      if(!sameInput) for(unsigned cachedMode = 0; cachedMode < _nodalDeltaWeightCache.size(); ++cachedMode) _nodalDeltaWeightCache[cachedMode].clear();
       _nodalWeightCacheValid = false;
       IntegrateNodalMomentPair(nodalValues,absoluteTolerance,relativeTolerance,referenceSurface,rules,geometryCoordinates,inverseSurface,normalComponent,!reusePositive);
       _cachedOuterQuadratureRules = rules;
@@ -384,7 +377,6 @@ class CutFemWeight_LS {
     std::vector<std::vector<double>> _nodalGeometryCoordinates;
     std::vector<TypeIO> _nodalPositiveWeight;
     std::array<std::vector<TypeIO>,6> _nodalDeltaWeightCache;
-    std::vector<std::vector<long double>> _nodalSurfaceGradient;
 };
 
 

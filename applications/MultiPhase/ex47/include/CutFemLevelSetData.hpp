@@ -74,6 +74,7 @@ class CutFemLevelSetData {
       replacement._nodalValues = nodalValues;
       replacement._initialized = true;
       replacement._root = true;
+      replacement._nativeSpace = true;
       replacement._meshLevel = _meshLevel;
       replacement._elementId = _elementId;
       replacement._nodalVersion = _nodalVersion + 1;
@@ -188,6 +189,8 @@ class CutFemLevelSetData {
       Classify();
       return _classification;
     }
+    // True for a nodal polynomial in the active chart, rather than an ancestor-only source.
+    bool HasNodalPolynomialSource() const { RequireInitialized(); return _root || (_source && _restrictionSteps == 0 && _source->nodes != 0); }
     bool HasPowerCoefficients() const {
       return _powerReady;
     }
@@ -897,19 +900,24 @@ class CutFemLevelSetData {
       mutable std::array<long double,27> power = {};
       mutable std::array<long double,27> tail = {};
       std::array<long double,27> nodal = {};
+      std::vector<long double> nodalTail;
+      std::array<long double,2> GetNodal(unsigned node) const { return {nodal[node],nodalTail.empty() ? 0 : nodalTail[node]}; }
       unsigned nodes = 0;
       mutable bool compensatedReady = false;
     };
 
+    void PreserveChartSource(CutFemLevelSetData& chart) const;
     void InvalidateAnalysis();
     void EnsureSource() const;
     void EnsureCompensatedSource() const;
     void EnsureCompensatedProjection(unsigned axis) const;
     bool GetLocalFiberCoefficients(unsigned axis, long double coordinate, std::array<std::array<long double,2>,3>& coefficient) const;
     void MapCompensatedSourcePoint(const std::array<long double,3>& coordinate, std::array<std::array<long double,2>,3>& point, std::array<std::array<long double,2>,3>* direction = nullptr, unsigned axis = 0) const;
+    void MapCompensatedSourceCoordinates(const std::array<std::array<long double,2>,3>& coordinate, std::array<std::array<long double,2>,3>& point, std::array<std::array<long double,2>,3>* direction, unsigned axis) const;
     void GetCompensatedFiberCoefficients(unsigned axis, const std::array<long double,3>& coordinate, std::array<std::array<long double,2>,3>& coefficient) const;
     void GetCompensatedLineCoefficients(std::array<std::array<long double,2>,3>& coefficient) const;
     std::array<long double,2> CompensatedSourceValue(const std::array<long double,3>& point) const;
+    std::array<long double,2> CompensatedSourceValueAt(const std::array<std::array<long double,2>,3>& coordinate) const;
     static std::array<long double,2> CompensatedAdd(const std::array<long double,2>& first, const std::array<long double,2>& second);
     static std::array<long double,2> CompensatedMultiply(const std::array<long double,2>& first, const std::array<long double,2>& second);
     static std::array<long double,2> CompensatedEvaluate(const long double* coefficient, unsigned dimension, unsigned degree, const std::array<std::array<long double,2>,3>& point);
@@ -928,6 +936,7 @@ class CutFemLevelSetData {
     const GraphCertificate& PrepareGraphCertificate(unsigned axis, bool includeWeak) const;
 
     mutable std::shared_ptr<const PolynomialSource> _source;
+    std::shared_ptr<PolynomialSource> _chartSourceStorage;
     unsigned _restrictionSteps = 0;
     std::array<unsigned,2> _restrictionAxes = {0,0};
     std::array<long double,2> _restrictionCoordinates = {0,0};
@@ -952,6 +961,7 @@ class CutFemLevelSetData {
     mutable std::vector<long double> _componentNext;
 
     bool _initialized = false;
+    bool _nativeSpace = false;
     bool _root = false;
     bool _rootGradientAvailable = true;
     mutable bool _classified = false;
@@ -1531,6 +1541,7 @@ inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, 
   if(retainRootGradient) for(unsigned rootAxis = 0; rootAxis < _rootDimension; ++rootAxis) GetRootDerivative(rootAxis);
   child._initialized = true;
   child._root = false;
+  child._nativeSpace = _nativeSpace;
   child._rootGradientAvailable = retainRootGradient;
   child._geometry = childGeometry;
   child._dimension = _dimension - 1;

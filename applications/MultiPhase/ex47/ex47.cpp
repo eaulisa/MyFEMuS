@@ -2126,6 +2126,8 @@ void TestHighDegreePreparedMoments() {
     for(unsigned mode = 0; mode < 4; ++mode) {
       std::vector<long double> values, errors, exactH, exactD;
       FELevelSetMoments::Ex47Prepared::IntegrateSpatial(data,13,1e-10,1e-10,mode != 0,mode >= 2 ? &coordinates : nullptr,0,1,FELevelSetMoments::OuterQuadratureRules(),mode == 3,-1,true,workspace,values,errors);
+      if(mode == 1 && geometry == WEDGE) Check(workspace.surface.gradient == workspace.referenceMetric,"WEDGE reference bookkeeping uses the selected metric exactly once");
+      if(mode >= 2) Check(workspace.surface.gradient == workspace.metric,"physical bookkeeping retains the selected cofactor metric");
       ReferenceBallWeightMoments(geometry,13,mode,center,radius,exactH,exactD);
       const long double measure = geometry == HEX ? 8 : (geometry == WEDGE ? 2 : 1);
       const long double surfaceFactor = mode == 0 ? 1 : (mode >= 2 ? (mode == 3 ? measure : 1/measure) : (geometry == HEX ? 0.5L : 1.0L));
@@ -2242,6 +2244,123 @@ void TestCenteredNormalWeights() {
   }
 }
 
+void TestReviewedChartContracts(std::mt19937& random) {
+  currentCheck = "reviewed chart contracts";
+  for(GeomElType geometry : {TRI,TET,WEDGE}) {
+    const unsigned dimension = Dimension(geometry), count = dimension == 2 ? 9U : 27U;
+    std::vector<long double> power(count,0);
+    power[dimension == 2 ? 8U : (geometry == TET ? 24U : 21U)] = 1;
+    CutFemLevelSetData imported, chart;
+    imported.ResetPowerCoefficients(geometry,power);
+    imported.PermuteSimplexVertices({0,2,1,3},chart);
+    for(unsigned sample = 0; sample < 30; ++sample) {
+      const std::vector<long double> point = RandomPoint(geometry,random), parent = chart.MapToParent(point);
+      CheckNear(chart.Evaluate(point),imported.Evaluate(parent),3e-17L,"imported chart preserves every power coefficient");
+      CheckNear(chart.EvaluateBernstein(point),chart.Evaluate(point),3e-17L,"imported chart Bernstein and powers agree");
+      const std::vector<long double> expected = imported.GetRootGradient(parent), gradient = chart.GetRootGradient(point);
+      for(unsigned axis = 0; axis < dimension; ++axis) CheckNear(gradient[axis],expected[axis],3e-17L,"imported chart retains original gradient components");
+    }
+    bool rejected = false;
+    try { imported.PermuteSimplexVertices({1,0,2,3},chart); } catch(const std::domain_error&) { rejected = true; }
+    Check(rejected && !chart.IsInitialized(),"unsupported chart degree is rejected without a partial polynomial");
+    for(unsigned n = 0; n < count; ++n) {
+      const unsigned i = dimension == 2 ? n/3 : n/9, j = dimension == 2 ? n%3 : (n/3)%3, k = dimension == 2 ? 0U : n%3;
+      power[n] = i+j+k <= 2 ? static_cast<long double>(static_cast<int>(n%5)-2)/7 : 0;
+    }
+    imported.ResetPowerCoefficients(geometry,power);
+    imported.PermuteSimplexVertices({1,0,2,3},chart);
+    for(unsigned sample = 0; sample < 30; ++sample) { const std::vector<long double> point = RandomPoint(geometry,random); CheckNear(chart.Evaluate(point),imported.Evaluate(chart.MapToParent(point)),3e-17L,"imported affine composition preserves complete quadratics"); }
+    for(unsigned test = 0; test < 20; ++test) {
+      std::unique_ptr<femus::basis> basis = MakeBasis(geometry);
+      std::vector<double> nodal(basis->_nc);
+      for(unsigned node = 0; node < nodal.size(); ++node) nodal[node] = std::sin(0.37*(1+node+test));
+      CutFemLevelSetData native(geometry,nodal), first, second;
+      native.PermuteAxes({1,0,2},first);
+      first.PermuteSimplexVertices({1,0,2,3},second);
+      for(unsigned sample = 0; sample < 10; ++sample) { const std::vector<long double> point = RandomPoint(geometry,random); CheckNear(second.Evaluate(point),native.Evaluate(second.MapToRoot(point)),3e-13L,"repeated native charts retain FEM-space closure"); CheckNear(second.EvaluateBernstein(point),second.Evaluate(point),3e-13L,"repeated native chart representations agree"); }
+      if(dimension == 3) {
+        native.Restrict(2,0.17L,first);
+        first.PermuteSimplexVertices({1,0,2,3},second);
+        for(unsigned sample = 0; sample < 10; ++sample) { const std::vector<long double> point = RandomPoint(second.GetGeometry(),random); CheckNear(second.Evaluate(point),native.Evaluate(second.MapToRoot(point)),3e-13L,"native slices retain chart closure"); }
+      }
+    }
+  }
+  CutFemLevelSetData data(QUAD,MakeField(QUAD,2)), slice;
+  std::array<long double,5> shifted = {19,19,19,19,19};
+  data.PermuteAxes({1,0,2},slice);
+  bool rejected = false;
+  try { slice.GetLocalShiftedFiberDiscriminant(0,std::numeric_limits<long double>::quiet_NaN(),shifted); } catch(const std::invalid_argument&) { rejected = true; }
+  Check(rejected && shifted == std::array<long double,5>{{19,19,19,19,19}},"invalid local shifted discriminants preserve outputs");
+  std::vector<long double> roots;
+  rejected = false;
+  try { data.GetCompensatedDiscriminantRoots(0,0.8L,0.2L,roots); } catch(const std::invalid_argument&) { rejected = true; }
+  Check(rejected,"compensated root bounds are ordered");
+}
+
+void TestReviewedChartPrecision() {
+  currentCheck = "chart source precision";
+  for(GeomElType geometry : {QUAD,HEX,TET,WEDGE}) for(double minimum : {-1e-24,-1e-80,-1e-200}) {
+    if((geometry == TET || geometry == WEDGE) && minimum != -1e-24) continue;
+    std::vector<double> nodal(MakeBasis(geometry)->_nc,1);
+    nodal.back() = minimum;
+    CutFemLevelSetData parent(geometry,nodal), chart, direct, transformed, planar;
+    if(geometry == TET || geometry == WEDGE) parent.PermuteSimplexVertices({1,0,2,3},chart);
+    else parent.PermuteAxes({1,0,2},chart);
+    Check(chart.HasNodalPolynomialSource(),"a native chart retains its own nodal source");
+    const long double height = geometry == TET ? 0.25L : 0.5L, fixed = geometry == TET || geometry == WEDGE ? 1.0L/3 : 0.5L;
+    if(Dimension(geometry) == 3) { parent.Restrict(2,height,planar,false); planar.Restrict(0,fixed,direct,false); chart.Restrict(2,height,planar,false); planar.Restrict(0,fixed,transformed,false); }
+    else { parent.Restrict(0,fixed,direct,false); chart.Restrict(0,fixed,transformed,false); }
+    const CutFemLevelSetData::LineAnalysis& expected = direct.GetLineAnalysis();
+    const CutFemLevelSetData::LineAnalysis& actual = transformed.GetLineAnalysis();
+    Check(expected.rootCount == 2 && actual.rootCount == 2,"chart permutations preserve both small-cut roots");
+    for(unsigned n = 0; n < 2; ++n) { Check(actual.roots[n].multiplicity == 1,"chart permutations retain simple roots"); CheckNear(transformed.GetLineDeltaFactor(actual.roots[n])/direct.GetLineDeltaFactor(expected.roots[n]),1,3e-15L,"chart root densities preserve retained nodal precision"); }
+    if(geometry == HEX) {
+      parent.Restrict(2,0.5L,planar,false);
+      planar.PermuteAxes({1,0,2},chart);
+      chart.Restrict(0,0.5L,transformed,false);
+      Check(transformed.GetLineAnalysis().rootCount == 2,"a chart of a slice preserves sub-ULP nodal information");
+      for(unsigned n = 0; n < 2; ++n) CheckNear(transformed.GetLineDeltaFactor(transformed.GetLineAnalysis().roots[n])/direct.GetLineDeltaFactor(expected.roots[n]),1,3e-15L,"slice-chart densities match direct restrictions");
+    }
+    const CutFemLevelSetData saved = chart;
+    parent.Reset(geometry,std::vector<double>(nodal.size(),2));
+    if(geometry == TET || geometry == WEDGE) parent.PermuteSimplexVertices({1,0,2,3},chart);
+    else parent.PermuteAxes({1,0,2},chart);
+    if(saved.GetDimension() == 3) { saved.Restrict(2,height,planar,false); planar.Restrict(0,fixed,transformed,false); }
+    else saved.Restrict(0,fixed,transformed,false);
+    Check(transformed.GetLineAnalysis().rootCount == 2,"chart source snapshots survive output reuse");
+    chart.Reset(geometry,std::vector<double>(nodal.size(),3));
+    Check(saved.HasNodalPolynomialSource(),"chart sources survive parent and output reset");
+  }
+}
+
+void TestReviewedWeightState() {
+  currentCheck = "reviewed weight state";
+  Ex47::CutFemWeight_LS<long double,boost::multiprecision::cpp_bin_float_quad> rule(LINE,2,"legendre");
+  std::vector<long double> h,d,originalH,originalD,afterH,afterD;
+  rule.GetWeightsFromNodalValues({-0.3,0.7,0.2},h,d);
+  rule.GetLastIntegratedMoments(originalH,originalD);
+  std::vector<long double> invalid = originalD, changed = originalH;
+  changed[0] += 1;
+  invalid.back() = std::numeric_limits<long double>::quiet_NaN();
+  bool rejected = false;
+  try { rule.GetWeightsFromExternalMoments(changed,invalid,h,d); } catch(const std::invalid_argument&) { rejected = true; }
+  Check(rejected,"invalid external moments are rejected before state mutation");
+  rule.GetLastIntegratedMoments(afterH,afterD);
+  Check(afterH == originalH && afterD == originalD,"invalid external fitting preserves integrated moments");
+  rule.GetWeightsFromExternalMoments(originalH,originalD,h,d);
+  rejected = false;
+  try { rule.GetLastIntegratedMoments(afterH,afterD); } catch(const std::logic_error&) { rejected = true; }
+  Check(rejected,"external fitting cannot masquerade as completed integration");
+  rule.GetWeightsFromNodalValues({-0.3,0.7,0.2},h,d);
+  rule.GetLastIntegratedMoments(afterH,afterD);
+  Check(afterH == originalH && afterD == originalD,"integration state is restored after external fitting");
+  rule.GetWeightsFromNodalValues({-0.3,0.7,0.2},h,d,1e-12,1e-12,true);
+  rule.GetLastIntegratedMoments(originalH,originalD);
+  rule.GetWeightsFromNodalValues({-0.3,0.7,0.2},h,d);
+  rule.GetLastIntegratedMoments(afterH,afterD);
+  Check(afterH == originalH && afterD == originalD,"cache hits retain the last actually integrated pair");
+}
+
 int main(int argc, char** argv) {
   try {
     unsigned cases = 64, points = 32;
@@ -2281,7 +2400,7 @@ int main(int argc, char** argv) {
     if(surfaceBenchmark) { BenchmarkSelectiveSurfaceKernels(); return 0; }
     if(dataBenchmark) { BenchmarkDataReuse(); return 0; }
     if(algebraBenchmark) { BenchmarkPreparedAlgebra(); return 0; }
-    if(weightTests) { if(weightDimension == 0 || weightDimension == 1) TestLineWeightIntegration(); if(weightDimension == 0 || weightDimension == 2) { TestBallWeightIntegration(2); TestElementWeightOptions(2); TestSmallPlanarWeights(); } if(weightDimension == 0 || weightDimension == 3) { TestBallWeightIntegration(3); TestElementWeightOptions(3); TestCenteredNormalWeights(); TestHighDegreePreparedMoments(); } std::cout << "weight checks passed: " << checks << '\n'; return 0; }
+    if(weightTests) { TestReviewedWeightState(); if(weightDimension == 0 || weightDimension == 1) TestLineWeightIntegration(); if(weightDimension == 0 || weightDimension == 2) { TestBallWeightIntegration(2); TestElementWeightOptions(2); TestSmallPlanarWeights(); } if(weightDimension == 0 || weightDimension == 3) { TestBallWeightIntegration(3); TestElementWeightOptions(3); TestCenteredNormalWeights(); TestHighDegreePreparedMoments(); } std::cout << "weight checks passed: " << checks << '\n'; return 0; }
     if(weightBenchmark) { if(weightDimension == 0 || weightDimension == 1) BenchmarkLineWeights(); if(weightDimension == 0 || weightDimension == 2) BenchmarkElementWeights(2); if(weightDimension == 0 || weightDimension == 3) BenchmarkElementWeights(3); return 0; }
     std::mt19937 random(470013);
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
@@ -2311,6 +2430,8 @@ int main(int argc, char** argv) {
     TestRootSurfaceInterfaces();
     TestLocalFiberAnalysis(cases,random);
     TestPreparedDataInvalidInputs();
+    TestReviewedChartContracts(random);
+    TestReviewedChartPrecision();
     std::cout << std::setprecision(8) << "root accuracy: rounded-root density=" << maximumRoundedRootError << "; retained-slope density=" << maximumRootDensityError << "; last-ULP fold density=" << maximumFoldDensityError << '\n';
     std::cout << std::setprecision(8) << "ex47: " << checks << " checks passed; maximum scaled error=" << maximumScaledError << "; seconds=" << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count() << '\n';
     return 0;

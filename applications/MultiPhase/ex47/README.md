@@ -184,3 +184,11 @@ Quadrature uses the local fiber methods consistently for topology, event refinem
 Selected surface densities evaluate the retained two-dimensional gradient or metric polynomials directly. They do not construct a LINE record or restrict geometry polynomials at each inner quadrature node. Original graph qualification remains a fallback when the stricter prepared graph certificate is inconclusive.
 
 Current validation and coordinate conventions are recorded in [UNIT_COORDINATE_AUDIT.md](UNIT_COORDINATE_AUDIT.md). Earlier performance/validation reports describe the pre-correction implementation unless explicitly marked as unit-coordinate results.
+
+### Reviewed polynomial and state contracts
+
+Native nodal fields retain their FEM-space closure through supported restrictions and vertex charts. `ResetPowerCoefficients()` imports a polynomial rather than projecting it onto the nodal FEM space: vertex charts compose its coefficients and reject transformations that require coordinate degree above two. `TransformParentComponents()` remains the separate interface for higher-degree external components.
+
+`GetLastIntegratedMoments()` returns the last pair actually integrated; a cached weight return does not replace it. Invalid external moments leave that pair intact. Successful external-moment fitting invalidates it because the supplied moments were not integrated by the object.
+
+Native chart changes preserve a nodal source snapshot, including compensated low parts when the parent is a slice. `HasNodalPolynomialSource()` identifies a source in the active chart rather than a source belonging only to an ancestor. Source storage is reused when unshared and detached when an existing child or copy still owns it.

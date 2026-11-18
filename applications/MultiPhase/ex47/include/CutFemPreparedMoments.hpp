@@ -173,7 +173,7 @@ inline void IntegrateSpatial(const CutFemLevelSetData& source, unsigned degree, 
   data.statistics = &workspace.statistics;
   data.coefficient = field->GetNormalizedPowerCoefficients();
   data.gradient.clear();
-  if(referenceSurface) { if(metric != nullptr) data.gradient = *metric; else { data.gradient.resize(3); for(unsigned component = 0; component < 3; ++component) data.gradient[component] = field->GetRootDerivativeCoefficients(component); } if(source.GetGeometry() == WEDGE) for(long double& value : data.gradient[2]) value *= 0.5L; }
+  if(referenceSurface) { if(metric != nullptr) data.gradient = *metric; else { data.gradient.resize(3); for(unsigned component = 0; component < 3; ++component) data.gradient[component] = field->GetRootDerivativeCoefficients(component); } }
   data.degree = degree;
   data.evaluations = data.accepted = 0;
   data.graphAxis = data.preferredInner = data.preferredOuter = 3;

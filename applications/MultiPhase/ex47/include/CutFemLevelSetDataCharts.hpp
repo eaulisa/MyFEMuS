@@ -132,6 +132,7 @@ inline void CutFemLevelSetData::InitializeChart(CutFemLevelSetData& chart) const
   EnsureBernstein();
   chart._initialized = true;
   chart._root = false;
+  chart._nativeSpace = _nativeSpace;
   chart._rootGradientAvailable = _rootGradientAvailable;
   chart._geometry = _geometry;
   chart._dimension = _dimension;
@@ -160,6 +161,40 @@ inline void CutFemLevelSetData::InitializeChart(CutFemLevelSetData& chart) const
   chart._parentOrigin.assign(_dimension,0);
   chart._parentMap.resize(_dimension);
   for(std::vector<long double>& row : chart._parentMap) row.assign(_dimension,0);
+}
+
+inline void CutFemLevelSetData::PreserveChartSource(CutFemLevelSetData& chart) const {
+  if(!_nativeSpace) return;
+  const std::vector<std::array<long double,3>>& nodes = ReferenceNodes(_geometry);
+  if(!chart._chartSourceStorage || !chart._chartSourceStorage.unique()) chart._chartSourceStorage = std::make_shared<PolynomialSource>();
+  std::shared_ptr<PolynomialSource> source = chart._chartSourceStorage;
+  source->power.fill(0);
+  source->tail.fill(0);
+  source->nodalTail.clear();
+  source->norm = 0;
+  source->compensatedReady = false;
+  source->geometry = chart._geometry;
+  source->dimension = chart._dimension;
+  source->nodes = nodes.size();
+  std::copy(chart._power.begin(),chart._power.end(),source->power.begin());
+  for(long double value : chart._power) source->norm += std::abs(value);
+  for(unsigned node = 0; node < nodes.size(); ++node) {
+    std::array<long double,3> point = {0,0,0};
+    for(unsigned row = 0; row < _dimension; ++row) { point[row] = chart._parentOrigin[row]; for(unsigned column = 0; column < _dimension; ++column) point[row] += chart._parentMap[row][column]*nodes[node][column]; }
+    unsigned match = nodes.size();
+    for(unsigned candidate = 0; candidate < nodes.size(); ++candidate) { bool equal = true; for(unsigned axis = 0; axis < _dimension; ++axis) equal = equal && std::abs(nodes[candidate][axis]-point[axis]) <= 64*std::numeric_limits<long double>::epsilon(); if(equal) { match = candidate; break; } }
+    if(match == nodes.size()) throw std::logic_error("A supported chart must preserve the reference nodes.");
+    if(_root) source->nodal[node] = _nodalValues[match];
+    else if(_source && _restrictionSteps == 0 && _source->nodes == nodes.size()) { const std::array<long double,2> value = _source->GetNodal(match); source->nodal[node] = value[0]; if(value[1] != 0) { if(source->nodalTail.empty()) source->nodalTail.resize(nodes.size(),0); source->nodalTail[node] = value[1]; } }
+    else {
+      std::array<std::array<long double,2>,3> coordinate = {};
+      for(unsigned axis = 0; axis < _dimension; ++axis) { const long double value = nodes[match][axis]; coordinate[axis] = {value,value == 1.0L/3 ? std::fma(-3.0L,value,1.0L)/3 : 0}; }
+      const std::array<long double,2> value = CompensatedSourceValueAt(coordinate);
+      source->nodal[node] = value[0];
+      if(value[1] != 0) { if(source->nodalTail.empty()) source->nodalTail.resize(nodes.size(),0); source->nodalTail[node] = value[1]; }
+    }
+  }
+  chart._source = source;
 }
 
 inline void CutFemLevelSetData::ComposeChartMaps(CutFemLevelSetData& chart) const {
@@ -209,6 +244,7 @@ inline void CutFemLevelSetData::PermuteAxes(const std::array<unsigned,3>& axes, 
   }
   ComposeChartMaps(chart);
   chart.UpdateBernsteinBounds(_bernsteinPadding);
+  PreserveChartSource(chart);
   chart.Classify();
 }
 
@@ -224,27 +260,48 @@ inline void CutFemLevelSetData::PermuteSimplexVertices(const std::array<unsigned
     for(unsigned column = 0; column < baseDimension; ++column) chart._parentMap[row][column] = (vertices[column+1] == row+1 ? 1 : 0)-chart._parentOrigin[row];
   }
   if(_geometry == WEDGE) chart._parentMap[2][2] = 1;
-  const std::vector<std::array<long double,3>>& nodes = ReferenceNodes(_geometry);
-  chart._chartNodal.resize(nodes.size());
-  std::vector<long double>& nodal = chart._chartNodal;
-  for(unsigned n = 0; n < nodes.size(); ++n) {
-    std::array<long double,3> point = {0,0,0};
-    for(unsigned row = 0; row < _dimension; ++row) { point[row] = chart._parentOrigin[row]; for(unsigned column = 0; column < _dimension; ++column) point[row] += chart._parentMap[row][column]*nodes[n][column]; }
-    if(_root) {
-      unsigned match = nodes.size();
-      for(unsigned candidate = 0; candidate < nodes.size(); ++candidate) { bool equal = true; for(unsigned axis = 0; axis < _dimension; ++axis) equal = equal && std::abs(nodes[candidate][axis]-point[axis]) <= 64*std::numeric_limits<long double>::epsilon(); if(equal) { match = candidate; break; } }
-      if(match == nodes.size()) throw std::logic_error("A supported vertex permutation must preserve the FEMuS nodes.");
-      nodal[n] = _nodalValues[match];
+  if(_nativeSpace) {
+    const std::vector<std::array<long double,3>>& nodes = ReferenceNodes(_geometry);
+    chart._chartNodal.resize(nodes.size());
+    std::vector<long double>& nodal = chart._chartNodal;
+    for(unsigned n = 0; n < nodes.size(); ++n) {
+      std::array<long double,3> point = {0,0,0};
+      for(unsigned row = 0; row < _dimension; ++row) { point[row] = chart._parentOrigin[row]; for(unsigned column = 0; column < _dimension; ++column) point[row] += chart._parentMap[row][column]*nodes[n][column]; }
+      if(_root) {
+        unsigned match = nodes.size();
+        for(unsigned candidate = 0; candidate < nodes.size(); ++candidate) { bool equal = true; for(unsigned axis = 0; axis < _dimension; ++axis) equal = equal && std::abs(nodes[candidate][axis]-point[axis]) <= 64*std::numeric_limits<long double>::epsilon(); if(equal) { match = candidate; break; } }
+        if(match == nodes.size()) throw std::logic_error("A supported vertex permutation must preserve the FEMuS nodes.");
+        nodal[n] = _nodalValues[match];
+      }
+      else nodal[n] = EvaluateUnchecked(_power.data(),_dimension,2,point.data());
     }
-    else nodal[n] = EvaluateUnchecked(_power.data(),_dimension,2,point.data());
+    ExpandChartNodal(_geometry,nodal,chart._power);
+    if(_rootGradientAvailable) for(unsigned component = 0; component < _rootDimension; ++component) {
+      const std::vector<long double>& derivative = GetRootDerivative(component);
+      for(unsigned n = 0; n < nodes.size(); ++n) { std::array<long double,3> point = {0,0,0}; for(unsigned row = 0; row < _dimension; ++row) { point[row] = chart._parentOrigin[row]; for(unsigned column = 0; column < _dimension; ++column) point[row] += chart._parentMap[row][column]*nodes[n][column]; } nodal[n] = EvaluateUnchecked(derivative.data(),_dimension,2,point.data()); }
+      ExpandChartNodal(_geometry,nodal,chart._rootDerivatives[component]);
+    }
+    else for(std::vector<long double>& derivative : chart._rootDerivatives) derivative.clear();
   }
-  ExpandChartNodal(_geometry,nodal,chart._power);
-  if(_rootGradientAvailable) for(unsigned component = 0; component < _rootDimension; ++component) {
-    const std::vector<long double>& derivative = GetRootDerivative(component);
-    for(unsigned n = 0; n < nodes.size(); ++n) { std::array<long double,3> point = {0,0,0}; for(unsigned row = 0; row < _dimension; ++row) { point[row] = chart._parentOrigin[row]; for(unsigned column = 0; column < _dimension; ++column) point[row] += chart._parentMap[row][column]*nodes[n][column]; } nodal[n] = EvaluateUnchecked(derivative.data(),_dimension,2,point.data()); }
-    ExpandChartNodal(_geometry,nodal,chart._rootDerivatives[component]);
+  else {
+    std::vector<std::vector<long double>> components(1,_power), transformed;
+    if(_rootGradientAvailable) for(unsigned component = 0; component < _rootDimension; ++component) components.push_back(GetRootDerivative(component));
+    unsigned degree = 0;
+    chart.TransformParentComponents(2,components,degree,transformed);
+    for(unsigned component = 0; component < transformed.size(); ++component) {
+      std::vector<long double> compact(PolynomialSize(_dimension,2),0);
+      for(unsigned n = 0; n < transformed[component].size(); ++n) {
+        const std::array<unsigned,3> index = PowerExponents(n,_dimension,degree);
+        bool supported = true;
+        for(unsigned axis = 0; axis < _dimension; ++axis) supported = supported && index[axis] <= 2;
+        if(supported) compact[PowerIndex(index,_dimension,2)] = transformed[component][n];
+        else if(transformed[component][n] != 0) { chart = CutFemLevelSetData(); throw std::domain_error("The simplex chart exceeds the supported coordinate degree."); }
+      }
+      if(component == 0) chart._power.swap(compact);
+      else chart._rootDerivatives[component-1].swap(compact);
+    }
+    if(!_rootGradientAvailable) for(std::vector<long double>& derivative : chart._rootDerivatives) derivative.clear();
   }
-  else for(std::vector<long double>& derivative : chart._rootDerivatives) derivative.clear();
   chart._bernsteinOrders = _bernsteinOrders;
   chart._bernsteinIndices = _bernsteinIndices;
   chart._bernstein.resize(_bernstein.size());
@@ -261,6 +318,7 @@ inline void CutFemLevelSetData::PermuteSimplexVertices(const std::array<unsigned
   if(_geometry == WEDGE) chart._zeroBoundaryMask |= _zeroBoundaryMask&24U;
   ComposeChartMaps(chart);
   chart.UpdateBernsteinBounds(_bernsteinPadding+Padding(chart._power));
+  PreserveChartSource(chart);
   chart.Classify();
 }
 

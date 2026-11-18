@@ -80,7 +80,7 @@ inline void CutFemLevelSetData::EnsureCompensatedSource() const {
     const unsigned count = PolynomialSize(_source->dimension,2);
     for(unsigned power = 0; power < count; ++power) {
       std::array<long double,2> coefficient = {0,0};
-      for(unsigned node = 0; node < _source->nodes; ++node) coefficient = CompensatedAdd(coefficient,CompensatedMultiply({_source->nodal[node],0},{tables[static_cast<unsigned>(_source->geometry)][node][power],0}));
+      for(unsigned node = 0; node < _source->nodes; ++node) coefficient = CompensatedAdd(coefficient,CompensatedMultiply(_source->GetNodal(node),{tables[static_cast<unsigned>(_source->geometry)][node][power],0}));
       _source->power[power] = coefficient[0];
       _source->tail[power] = coefficient[1];
     }
@@ -89,7 +89,12 @@ inline void CutFemLevelSetData::EnsureCompensatedSource() const {
 }
 
 inline void CutFemLevelSetData::MapCompensatedSourcePoint(const std::array<long double,3>& coordinate, std::array<std::array<long double,2>,3>& point, std::array<std::array<long double,2>,3>* direction, unsigned axis) const {
-  point = {{{coordinate[0],0},{coordinate[1],0},{coordinate[2],0}}};
+  const std::array<std::array<long double,2>,3> input = {{{coordinate[0],0},{coordinate[1],0},{coordinate[2],0}}};
+  MapCompensatedSourceCoordinates(input,point,direction,axis);
+}
+
+inline void CutFemLevelSetData::MapCompensatedSourceCoordinates(const std::array<std::array<long double,2>,3>& coordinate, std::array<std::array<long double,2>,3>& point, std::array<std::array<long double,2>,3>* direction, unsigned axis) const {
+  point = coordinate;
   if(direction != nullptr) { *direction = {}; (*direction)[axis] = {1,0}; }
   if(!_source || _restrictionSteps == 0) return;
   std::array<GeomElType,3> geometries = {_source->geometry,LINE,LINE};
@@ -115,8 +120,14 @@ inline void CutFemLevelSetData::MapCompensatedSourcePoint(const std::array<long 
 }
 
 inline std::array<long double,2> CutFemLevelSetData::CompensatedSourceValue(const std::array<long double,3>& coordinate) const {
+  const std::array<std::array<long double,2>,3> input = {{{coordinate[0],0},{coordinate[1],0},{coordinate[2],0}}};
+  return CompensatedSourceValueAt(input);
+}
+
+inline std::array<long double,2> CutFemLevelSetData::CompensatedSourceValueAt(const std::array<std::array<long double,2>,3>& coordinate) const {
+  EnsureSource();
   std::array<std::array<long double,2>,3> point;
-  MapCompensatedSourcePoint(coordinate,point);
+  MapCompensatedSourceCoordinates(coordinate,point,nullptr,0);
   if(_source && _source->nodes != 0 && (_source->geometry == LINE || _source->geometry == QUAD || _source->geometry == HEX)) {
     const std::vector<std::array<long double,3>>& nodes = ReferenceNodes(_source->geometry);
     std::array<std::array<std::array<long double,2>,3>,3> factors;
@@ -128,12 +139,13 @@ inline std::array<long double,2> CutFemLevelSetData::CompensatedSourceValue(cons
     }
     std::array<long double,2> value = {0,0};
     for(unsigned node = 0; node < _source->nodes; ++node) {
-      std::array<long double,2> term = {_source->nodal[node],0};
+      std::array<long double,2> term = _source->GetNodal(node);
       for(unsigned axis = 0; axis < _source->dimension; ++axis) term = CompensatedMultiply(term,factors[axis][static_cast<unsigned>(2*nodes[node][axis])]);
       value = CompensatedAdd(value,term);
     }
     return value;
   }
+  EnsureCompensatedSource();
   return _source ? CompensatedAdd(CompensatedEvaluate(_source->power.data(),_source->dimension,2,point),CompensatedEvaluate(_source->tail.data(),_source->dimension,2,point)) : CompensatedEvaluate(_power.data(),_dimension,2,point);
 }
 
@@ -331,21 +343,22 @@ inline bool CutFemLevelSetData::GetLocalFiberCoefficients(unsigned axis, long do
   bool resolved = true;
   for(unsigned power = 0; power < 3; ++power) { long double bound = 0; for(long double value : projection.coefficients[power]) bound += std::abs(value); if(bound != 0 && std::abs(coefficient[power][0]) <= 256*std::numeric_limits<long double>::epsilon()*bound) resolved = false; }
   if(resolved && (coefficient[2][0] == 0 || std::abs(square-product) > 0.000001L*(square+std::abs(product)))) return false;
-  if(_root) { std::array<long double,3> point = {0,0,0}; point[1-axis] = coordinate; GetCompensatedFiberCoefficients(axis,point,coefficient); return true; }
+  if(HasNodalPolynomialSource()) { std::array<long double,3> point = {0,0,0}; point[1-axis] = coordinate; GetCompensatedFiberCoefficients(axis,point,coefficient); return true; }
   const std::array<std::array<long double,2>,3> point = {{{coordinate,0},{0,0},{0,0}}};
   for(unsigned power = 0; power < 3; ++power) coefficient[power] = CompensatedEvaluate(projection.coefficients[power].data(),1,2,point);
   return true;
 }
 
 inline long double CutFemLevelSetData::EvaluateLocalFiberDiscriminant(unsigned axis, long double coordinate) const {
-  if(_root) return EvaluateFiberDiscriminant(axis,coordinate);
+  if(HasNodalPolynomialSource()) return EvaluateFiberDiscriminant(axis,coordinate);
   std::array<std::array<long double,2>,3> coefficient;
   GetLocalFiberCoefficients(axis,coordinate,coefficient);
   return QuadraticDiscriminant(coefficient);
 }
 
 inline void CutFemLevelSetData::GetLocalShiftedFiberDiscriminant(unsigned axis, long double endpoint, std::array<long double,5>& coefficient) const {
-  if(_root) { GetShiftedFiberDiscriminant(axis,endpoint,coefficient); return; }
+  if(_dimension != 2 || !std::isfinite(endpoint)) throw std::invalid_argument("A shifted local discriminant requires a finite planar endpoint.");
+  if(HasNodalPolynomialSource()) { GetShiftedFiberDiscriminant(axis,endpoint,coefficient); return; }
   const FiberProjection& projection = GetFiberProjection(axis);
   coefficient.fill(0);
   for(unsigned power = 0; power < 5; ++power) for(unsigned old = power; old < 5; ++old) coefficient[power] += projection.discriminant[old]*Binomial(old,power)*Power(endpoint,old-power);
@@ -436,6 +449,7 @@ inline void CutFemLevelSetData::CompensatedPolynomialRoots(const std::array<std:
 }
 
 inline bool CutFemLevelSetData::GetCompensatedDiscriminantRoots(unsigned axis, long double left, long double right, std::vector<long double>& roots) const {
+  if(!std::isfinite(left) || !std::isfinite(right) || left > right) throw std::invalid_argument("Discriminant root bounds must be finite and ordered.");
   const FiberProjection& projection = GetFiberProjection(axis);
   if(projection.dimension != 1) return false;
   const long double a = projection.discriminant[2], b = projection.discriminant[1], c = projection.discriminant[0], norm = std::abs(a)+std::abs(b)+std::abs(c);
@@ -450,7 +464,7 @@ inline long double CutFemLevelSetData::EvaluateFiberDiscriminant(unsigned axis, 
   if(_dimension != 2 || !std::isfinite(point)) throw std::invalid_argument("A scalar discriminant requires a finite planar coordinate.");
   if(axis >= 2) throw std::out_of_range("Discriminant axis exceeds the planar dimension.");
   if(_zeroReady && _identicallyZero) return 0;
-  if((_source && _restrictionSteps != 0) || _root) {
+  if(_source || _root) {
     std::array<long double,3> coordinate = {0,0,0};
     coordinate[1-axis] = point;
     std::array<std::array<long double,2>,3> coefficient;
