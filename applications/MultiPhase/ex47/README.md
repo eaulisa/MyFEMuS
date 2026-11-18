@@ -184,3 +184,7 @@ Quadrature uses the local fiber methods consistently for topology, event refinem
 Selected surface densities evaluate the retained two-dimensional gradient or metric polynomials directly. They do not construct a LINE record or restrict geometry polynomials at each inner quadrature node. Original graph qualification remains a fallback when the stricter prepared graph certificate is inconclusive.
 
 Current validation and coordinate conventions are recorded in [UNIT_COORDINATE_AUDIT.md](UNIT_COORDINATE_AUDIT.md). Earlier performance/validation reports describe the pre-correction implementation unless explicitly marked as unit-coordinate results.
+
+### Deferred Bernstein experiment
+
+On `barbi-ex47-lazy-bernstein`, `Restrict()` retains a shared immutable ancestor Bernstein snapshot and defers child restriction until requested. `HasBernsteinCoefficients()` remains false until materialization; public method signatures are unchanged. Parent reset/destruction is safe. Root Bernstein preparation is still performed once when capturing the ancestor snapshot. [Measurements](native_tests/results/deferred_bernstein/REPORT.md) show faster monomial-only restriction but no convincing complete-integration gain; this trial has not replaced the integration branch.

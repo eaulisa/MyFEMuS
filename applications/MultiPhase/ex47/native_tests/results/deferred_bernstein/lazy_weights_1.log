@@ -1,0 +1,12 @@
+weight_speed LINE3 q=2 mode=0 old_us=5.124339 prepared_us=0.4587085 speedup=11.171232
+weight_speed LINE3 q=2 mode=1 old_us=5.2011065 prepared_us=0.6484075 speedup=8.0213546
+weight_speed LINE3 q=2 mode=2 old_us=4.844829 prepared_us=0.540393 speedup=8.9653808
+weight_speed LINE3 q=2 mode=3 old_us=5.118866 prepared_us=0.5559115 speedup=9.2080592
+weight_speed LINE3 q=5 mode=0 old_us=5.202093 prepared_us=0.76506 speedup=6.7995883
+weight_speed LINE3 q=5 mode=1 old_us=5.3080645 prepared_us=0.828807 speedup=6.4044639
+weight_speed LINE3 q=5 mode=2 old_us=5.9573755 prepared_us=0.974354 speedup=6.1141798
+weight_speed LINE3 q=5 mode=3 old_us=5.3160815 prepared_us=0.8600495 speedup=6.1811343
+weight_speed LINE3 q=10 mode=0 old_us=6.653353 prepared_us=1.5911335 speedup=4.1815178
+weight_speed LINE3 q=10 mode=1 old_us=8.741198 prepared_us=2.433516 speedup=3.5920035
+weight_speed LINE3 q=10 mode=2 old_us=8.8308145 prepared_us=2.5956785 speedup=3.4021218
+weight_speed LINE3 q=10 mode=3 old_us=6.8123555 prepared_us=1.812586 speedup=3.7583626

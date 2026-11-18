@@ -1,0 +1,16 @@
+weight_speed QUAD9 q=2 mode=0 old_us=403.96688 prepared_us=443.0645 speedup=0.91175636
+weight_speed QUAD9 q=2 mode=1 old_us=650.22456 prepared_us=473.27431 speedup=1.3738852
+weight_speed QUAD9 q=2 mode=2 old_us=1005.5731 prepared_us=474.24081 speedup=2.120385
+weight_speed QUAD9 q=2 mode=3 old_us=1055.9734 prepared_us=493.71569 speedup=2.138829
+weight_speed QUAD9 q=5 mode=0 old_us=485.44769 prepared_us=508.39287 speedup=0.95486721
+weight_speed QUAD9 q=5 mode=1 old_us=710.63356 prepared_us=536.33175 speedup=1.3249888
+weight_speed QUAD9 q=5 mode=2 old_us=1126.5228 prepared_us=572.65894 speedup=1.9671792
+weight_speed QUAD9 q=5 mode=3 old_us=1215.8053 prepared_us=658.37231 speedup=1.8466834
+weight_speed TRI7 q=2 mode=0 old_us=1274.8566 prepared_us=1413.1612 speedup=0.90213108
+weight_speed TRI7 q=2 mode=1 old_us=1940.3567 prepared_us=1408.7758 speedup=1.3773353
+weight_speed TRI7 q=2 mode=2 old_us=2691.7578 prepared_us=1479.3827 speedup=1.8195142
+weight_speed TRI7 q=2 mode=3 old_us=2937.4183 prepared_us=1563.8198 speedup=1.8783611
+weight_speed TRI7 q=5 mode=0 old_us=1406.4479 prepared_us=1538.2019 speedup=0.91434541
+weight_speed TRI7 q=5 mode=1 old_us=1923.7078 prepared_us=1426.4543 speedup=1.3485941
+weight_speed TRI7 q=5 mode=2 old_us=2738.2579 prepared_us=1505.0301 speedup=1.8194041
+weight_speed TRI7 q=5 mode=3 old_us=2870.2202 prepared_us=1525.9534 speedup=1.8809357

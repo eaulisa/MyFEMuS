@@ -675,11 +675,13 @@ class CutFemLevelSetData {
     };
 
     static std::array<BernsteinRestrictionPlan,19> BuildRestrictionPlans();
-    const BernsteinRestrictionPlan& GetRestrictionPlan(unsigned axis) const {
+    static const BernsteinRestrictionPlan& GetRestrictionPlan(GeomElType geometry, const std::array<unsigned,3>& orders, unsigned axis) {
       static const std::array<BernsteinRestrictionPlan,19> plans = BuildRestrictionPlans();
-      const unsigned base = _geometry == HEX ? 0U : (_geometry == TET ? 3U : (_geometry == WEDGE ? 6U : (_geometry == QUAD ? (_bernsteinOrders[0] == 3 ? 15U : (_bernsteinOrders[1] == 3 ? 17U : 9U)) : (_bernsteinOrders[0] == 4 ? 13U : 11U))));
+      const unsigned base = geometry == HEX ? 0U : (geometry == TET ? 3U : (geometry == WEDGE ? 6U : (geometry == QUAD ? (orders[0] == 3 ? 15U : (orders[1] == 3 ? 17U : 9U)) : (orders[0] == 4 ? 13U : 11U))));
       return plans[base+axis];
     }
+
+    const BernsteinRestrictionPlan& GetRestrictionPlan(unsigned axis) const { return GetRestrictionPlan(_geometry,_bernsteinOrders,axis); }
 
     static long double EvaluateQuadratic(const long double* coefficient, unsigned stride, long double coordinate) { return (coefficient[2*stride]*coordinate+coefficient[stride])*coordinate+coefficient[0]; }
 
@@ -888,7 +890,16 @@ class CutFemLevelSetData {
     static bool SplitBernstein(GeomElType geometry, const std::array<unsigned,3>& orders, const long double* controls, unsigned count, std::array<long double,35>& left, std::array<long double,35>& right);
     void RestrictionMap(unsigned axis, long double coordinate, GeomElType& childGeometry, std::array<long double,3>& origins, std::array<long double,3>& scales) const;
     static void RestrictPower(const std::vector<long double>& input, unsigned dimension, unsigned degree, unsigned axis, long double coordinate, const std::array<long double,3>& origins, const std::array<long double,3>& scales, std::vector<long double>& output);
+    static void RestrictBernsteinValues(const BernsteinRestrictionPlan& plan, const long double* input, long double coordinate, long double* output);
     void RestrictBernstein(unsigned axis, long double coordinate, CutFemLevelSetData& child) const;
+    void EnsureBernsteinAncestor() const;
+
+    struct BernsteinAncestor {
+      GeomElType geometry = LINE;
+      std::array<unsigned,3> orders = {0,0,0};
+      std::array<long double,35> coefficients = {};
+      long double padding = 0;
+    };
 
     struct PolynomialSource {
       GeomElType geometry = LINE;
@@ -970,6 +981,10 @@ class CutFemLevelSetData {
     std::vector<double> _nodalValues;
     mutable bool _powerReady = false;
     mutable bool _bernsteinReady = false;
+    mutable std::shared_ptr<const BernsteinAncestor> _bernsteinAncestor;
+    unsigned _bernsteinRestrictionCount = 0;
+    std::array<unsigned,2> _bernsteinRestrictionAxes = {0,0};
+    std::array<long double,2> _bernsteinRestrictionCoordinates = {0,0};
     mutable bool _normalizedReady = false;
     mutable long double _normalization = 1;
     mutable std::vector<long double> _power;
@@ -1188,6 +1203,28 @@ inline void CutFemLevelSetData::ConvertToBernstein(const std::vector<long double
 inline void CutFemLevelSetData::EnsureBernstein() const {
   EnsurePower();
   if(_bernsteinReady) return;
+  if(_bernsteinAncestor && _bernsteinRestrictionCount != 0) {
+    const long double* source = _bernsteinAncestor->coefficients.data();
+    long double padding = _bernsteinAncestor->padding;
+    GeomElType geometry = _bernsteinAncestor->geometry;
+    std::array<unsigned,3> orders = _bernsteinAncestor->orders;
+    std::array<long double,35> intermediate;
+    for(unsigned step = 0; step < _bernsteinRestrictionCount; ++step) {
+      const unsigned axis = _bernsteinRestrictionAxes[step];
+      const BernsteinRestrictionPlan& plan = GetRestrictionPlan(geometry,orders,axis);
+      const bool last = step+1 == _bernsteinRestrictionCount;
+      if(last) { _bernstein.resize(plan.indices.size()); _bernsteinIndices = plan.indices; }
+      long double* output = last ? _bernstein.data() : intermediate.data();
+      RestrictBernsteinValues(plan,source,_bernsteinRestrictionCoordinates[step],output);
+      if(last) UpdateBernsteinBounds(padding);
+      else { long double norm = 0; for(unsigned n = 0; n < plan.indices.size(); ++n) norm += std::abs(output[n]); padding += 8192*std::numeric_limits<long double>::epsilon()*norm; }
+      source = output;
+      orders = plan.orders;
+      geometry = geometry == HEX ? QUAD : (geometry == TET ? TRI : (geometry == WEDGE ? (axis == 2 ? TRI : QUAD) : LINE));
+    }
+    _bernsteinReady = true;
+    return;
+  }
   ConvertToBernstein(_power, _geometry, _bernsteinOrders, _bernstein);
   _bernsteinIndices = CachedBernsteinIndices(_geometry,_bernsteinOrders);
   UpdateBernsteinBounds(0);
@@ -1498,27 +1535,44 @@ inline std::array<CutFemLevelSetData::BernsteinRestrictionPlan,19> CutFemLevelSe
   return result;
 }
 
-inline void CutFemLevelSetData::RestrictBernstein(unsigned axis, long double coordinate, CutFemLevelSetData& child) const {
-  const BernsteinRestrictionPlan& plan = GetRestrictionPlan(axis);
-  if(child._bernsteinOrders != plan.orders || child._bernsteinIndices.size() != plan.indices.size()) { child._bernsteinOrders = plan.orders; child._bernsteinIndices = plan.indices; }
-  child._bernstein.resize(plan.indices.size());
+inline void CutFemLevelSetData::RestrictBernsteinValues(const BernsteinRestrictionPlan& plan, const long double* input, long double coordinate, long double* output) {
   std::array<long double,5> weights, fixedPowers, widthPowers;
   if(plan.simplex) {
     fixedPowers[0] = widthPowers[0] = 1;
     for(unsigned k = 1; k <= plan.degree; ++k) { fixedPowers[k] = fixedPowers[k-1]*coordinate; widthPowers[k] = widthPowers[k-1]*(1-coordinate); }
   }
   else { const long double unit = coordinate; for(unsigned k = 0; k <= plan.degree; ++k) weights[k] = Bernstein(plan.degree,k,unit); }
-  for(unsigned n = 0; n < child._bernstein.size(); ++n) {
+  for(unsigned n = 0; n < plan.indices.size(); ++n) {
     long double value = 0, correction = 0;
     for(unsigned term = plan.offsets[n]; term < plan.offsets[n+1]; ++term) {
       const std::array<unsigned,3>& entry = plan.terms[term];
       const long double factor = plan.simplex ? entry[2]*fixedPowers[entry[1]]*widthPowers[plan.degree-entry[1]] : weights[entry[1]];
-      Accumulate(factor*_bernstein[entry[0]],value,correction);
+      Accumulate(factor*input[entry[0]],value,correction);
     }
-    child._bernstein[n] = value;
+    output[n] = value;
   }
+}
+
+inline void CutFemLevelSetData::RestrictBernstein(unsigned axis, long double coordinate, CutFemLevelSetData& child) const {
+  EnsureBernstein();
+  const BernsteinRestrictionPlan& plan = GetRestrictionPlan(axis);
+  child._bernsteinOrders = plan.orders;
+  child._bernsteinIndices = plan.indices;
+  child._bernstein.resize(plan.indices.size());
+  RestrictBernsteinValues(plan,_bernstein.data(),coordinate,child._bernstein.data());
   child.UpdateBernsteinBounds(_bernsteinPadding);
   child._bernsteinReady = true;
+}
+
+inline void CutFemLevelSetData::EnsureBernsteinAncestor() const {
+  if(_bernsteinAncestor) return;
+  EnsureBernstein();
+  std::shared_ptr<BernsteinAncestor> ancestor = std::make_shared<BernsteinAncestor>();
+  ancestor->geometry = _geometry;
+  ancestor->orders = _bernsteinOrders;
+  ancestor->padding = _bernsteinPadding;
+  std::copy(_bernstein.begin(),_bernstein.end(),ancestor->coefficients.begin());
+  _bernsteinAncestor = ancestor;
 }
 
 inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, CutFemLevelSetData& child, bool retainRootGradient) const {
@@ -1527,7 +1581,7 @@ inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, 
   std::array<long double,3> origins, scales;
   RestrictionMap(axis, coordinate, childGeometry, origins, scales);
   EnsurePower();
-  EnsureBernstein();
+  EnsureBernsteinAncestor();
   if(retainRootGradient) for(unsigned rootAxis = 0; rootAxis < _rootDimension; ++rootAxis) GetRootDerivative(rootAxis);
   child._initialized = true;
   child._root = false;
@@ -1583,7 +1637,14 @@ inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, 
     unsigned local = 0;
     for(unsigned parentAxis = 0; parentAxis < _dimension; ++parentAxis) if(parentAxis != axis) { child._rootMap[rootAxis][local] = _rootMap[rootAxis][parentAxis]*scales[local]; ++local; }
   }
-  RestrictBernstein(axis, coordinate, child);
+  child._bernsteinReady = false;
+  child._bernsteinOrders = GetRestrictionPlan(axis).orders;
+  child._bernsteinAncestor = _bernsteinAncestor;
+  child._bernsteinRestrictionCount = _bernsteinRestrictionCount+1;
+  child._bernsteinRestrictionAxes = _bernsteinRestrictionAxes;
+  child._bernsteinRestrictionCoordinates = _bernsteinRestrictionCoordinates;
+  child._bernsteinRestrictionAxes[_bernsteinRestrictionCount] = axis;
+  child._bernsteinRestrictionCoordinates[_bernsteinRestrictionCount] = coordinate;
   PropagateBoundaryData(axis,coordinate,child);
   ++_workCounts[3];
 }

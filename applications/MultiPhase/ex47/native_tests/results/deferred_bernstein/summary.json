@@ -1,0 +1,69 @@
+{
+  "baseline_commit": "4ec74de8922cc52d57437c1c8bc890e426b581d9",
+  "micro_samples": 5,
+  "micro_checksum_matches": true,
+  "micro_rows": 22,
+  "weight_rows": 58,
+  "weights_median_ratio": 1.003721274836367,
+  "by_element": {
+    "LINE3": {
+      "median_ratio": 0.979246296592287,
+      "minimum_ratio": 0.6952047412651451,
+      "maximum_ratio": 1.1385925794545655
+    },
+    "QUAD9": {
+      "median_ratio": 0.9576180487653996,
+      "minimum_ratio": 0.7839184789680167,
+      "maximum_ratio": 1.1076522608951114
+    },
+    "TRI7": {
+      "median_ratio": 1.0493088815672065,
+      "minimum_ratio": 0.9275126759250115,
+      "maximum_ratio": 1.0794947668725905
+    },
+    "HEX27": {
+      "median_ratio": 1.058909325426879,
+      "minimum_ratio": 1.0165008708032794,
+      "maximum_ratio": 1.1681717332163064
+    },
+    "TET15": {
+      "median_ratio": 0.9931248651730501,
+      "minimum_ratio": 0.9325865690732045,
+      "maximum_ratio": 1.1435091833335476
+    },
+    "WEDGE21": {
+      "median_ratio": 1.0003050266946838,
+      "minimum_ratio": 0.9564001381253854,
+      "maximum_ratio": 1.060568229392832
+    }
+  },
+  "binary_hashes": {
+    "eager": "9afe25f91b94a68a7cc30d802e5e1678a77b374c45cf40123975fc5187ec0da1",
+    "lazy": "e82895589d88514505fe23255a1a87aaad27b9b62af08b736c3c3254e2b52a48"
+  },
+  "micro_binary_hashes": {
+    "eager": "37bdb237ace98002ceaca2e85ed6bc2131d330034055a5c30124205efcf31f5a",
+    "lazy": "29b2d745797e233ebf8c27689f2638ca86bdf9319758999bff18cef14b418416"
+  },
+  "micro_cpu": 1,
+  "weight_cpu": 0,
+  "method": "micro: five interleaved process runs, 20000 restrictions per row after warmup; weights: existing five-batch median benchmark, two alternating retained elements, final weights cleared; each benchmark pinned to its recorded CPU",
+  "validation": {
+    "data_checks": 5902997,
+    "maximum_scaled_error": 2.3646164e-14,
+    "weight_checks": 32513,
+    "sanitizer_checks": 157059,
+    "leak_detection": false,
+    "warmed_allocations": 0
+  },
+  "source_hashes": {
+    "applications/MultiPhase/ex47/ex47.cpp": "9e9edf0e25de58b74c05576b8bb31d78f03db988928659a1bc97eee94796a15c",
+    "applications/MultiPhase/ex47/include/CutFemLevelSetData.hpp": "ef5c6b54da7d4681faec5d8dec94bbfbdfb88e7d3d2555961c5c79f963e45cfd",
+    "applications/MultiPhase/ex47/include/CutFemLevelSetDataCharts.hpp": "e2df666c171ee28077d068944ffafe39f03c3994d1d87030b0c084fb705dd7d1"
+  },
+  "compiler": "c++ (Debian 14.2.0-19) 14.2.0",
+  "flags": "-std=c++14 -O3 -DNDEBUG",
+  "micro_fixture": "radius 0.29; native FEM nodal values; fixed unit positions 0.55..0.613 for tensor elements and 0.12..0.183 for simplex/wedge; nested HEX position 0.6, other nested position 0.21; root cases intersect the level set",
+  "micro_build": "isolated driver extracts the unchanged benchmark functions from ex47.cpp and links the same six FEM basis objects; no quadrature templates in this driver",
+  "decision": "retain as an experiment; do not replace the integration branch on these measurements"
+}

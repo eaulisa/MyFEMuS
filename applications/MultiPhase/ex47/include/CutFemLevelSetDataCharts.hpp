@@ -102,6 +102,10 @@ inline void CutFemLevelSetData::PropagateBoundaryData(unsigned axis, long double
       child._zeroReady = child._identicallyZero = true;
       child._boundaryReady = true;
       child._zeroBoundaryMask = (1U<<child.GetBoundaryCount())-1;
+      EnsureBernstein();
+      child.EnsureBernstein();
+      child._bernsteinAncestor.reset();
+      child._bernsteinRestrictionCount = 0;
       std::fill(child._power.begin(),child._power.end(),0);
       std::fill(child._bernstein.begin(),child._bernstein.end(),0);
       child.UpdateBernsteinBounds(_bernsteinPadding);
@@ -148,6 +152,8 @@ inline void CutFemLevelSetData::InitializeChart(CutFemLevelSetData& chart) const
   chart._normalizedReady = false;
   chart._powerReady = true;
   chart._bernsteinReady = true;
+  chart._bernsteinAncestor.reset();
+  chart._bernsteinRestrictionCount = 0;
   chart._derivativeReady.fill(false);
   chart._secondDerivativeReady.fill(false);
   chart._derivativeBoundsReady.fill(false);

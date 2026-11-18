@@ -1775,6 +1775,77 @@ long double DataReuseSample(const CutFemLevelSetData& planar, unsigned operation
   return value;
 }
 
+void TestDeferredBernsteinRestrictions(std::mt19937& random) {
+  currentCheck = "deferred Bernstein ownership";
+  std::uniform_real_distribution<double> value(-2,2);
+  for(GeomElType geometry : {QUAD,TRI,HEX,TET,WEDGE}) for(unsigned axis = 0; axis < Dimension(geometry); ++axis) for(unsigned test = 0; test < 20; ++test) {
+    std::vector<double> nodal(MakeBasis(geometry)->_nc);
+    for(double& coefficient : nodal) coefficient = value(random);
+    CutFemLevelSetData parent(geometry,nodal), child, nested;
+    parent.Restrict(axis,0.17L,child,false);
+    Check(!child.HasBernsteinCoefficients(),"restriction defers child Bernstein coefficients");
+    CutFemLevelSetData reference = child;
+    const std::vector<long double> expected = reference.GetBernsteinCoefficients();
+    const std::array<long double,2> bounds = reference.GetBounds();
+    Check(!child.HasBernsteinCoefficients(),"materializing a copy preserves deferred child state");
+    if(child.GetDimension() == 2) {
+      child.Restrict(test%2,0.21L,nested,false);
+      Check(!child.HasBernsteinCoefficients() && !nested.HasBernsteinCoefficients(),"nested restriction defers both children");
+      CutFemLevelSetData nestedReference = nested;
+      const std::vector<long double> expectedNested = nestedReference.GetBernsteinCoefficients();
+      child.Reset(LINE,{1,-1,0.3});
+      parent.Reset(geometry,std::vector<double>(nodal.size(),4));
+      Check(nested.GetBernsteinCoefficients() == expectedNested,"nested snapshot survives ancestor reset");
+    }
+    else {
+      parent.Reset(geometry,std::vector<double>(nodal.size(),4));
+      Check(child.GetBernsteinCoefficients() == expected,"deferred snapshot survives parent reset");
+      Check(child.GetBounds() == bounds,"deferred bounds retain exact padding");
+    }
+    const std::vector<long double> survivor = reference.GetBernsteinCoefficients();
+    { CutFemLevelSetData temporary(geometry,nodal); temporary.Restrict(axis,0.17L,child,false); }
+    Check(!child.HasBernsteinCoefficients(),"temporary-parent child remains deferred");
+    Check(child.GetBernsteinCoefficients() == survivor,"deferred snapshot survives parent destruction");
+    const std::array<unsigned long long,4> before = child.GetWorkCounts();
+    child.GetBounds();
+    child.GetBernsteinCoefficients();
+    Check(child.GetWorkCounts() == before,"materialized Bernstein cache is reused");
+  }
+}
+
+long double BernsteinTrialSample(const CutFemLevelSetData& parent, unsigned operation, long double coordinate, CutFemLevelSetData& child, CutFemLevelSetData& line) {
+  if(parent.GetDimension() == 1) return parent.EvaluateLine(coordinate);
+  parent.Restrict(0,coordinate,child,false);
+  if(operation == 0) return child.GetPowerCoefficients()[0];
+  if(operation == 2) return child.GetBounds()[0];
+  const CutFemLevelSetData* fiber = &child;
+  if(parent.GetDimension() == 3) { child.Restrict(0,parent.GetGeometry() == HEX ? 0.6L : 0.21L,line,false); fiber = &line; }
+  if(operation == 3) return fiber->GetPowerCoefficients()[0];
+  if(operation == 4) return fiber->GetBounds()[0];
+  const CutFemLevelSetData::LineAnalysis& analysis = fiber->GetLineAnalysis();
+  return analysis.rootCount+analysis.positiveIntervalCount+(analysis.rootCount == 0 ? 0 : analysis.roots[0].coordinate);
+}
+
+void BenchmarkBernsteinRestriction() {
+  const std::string names[5] = {"restrict_power","restrict_roots","restrict_bounds","nested_power","nested_bounds"};
+  for(GeomElType geometry : {LINE,QUAD,TRI,HEX,TET,WEDGE}) {
+    CutFemLevelSetData parent(geometry,MakeField(geometry,2,1,0.29L)), child, line;
+    parent.GetBernsteinCoefficients();
+    const long double origin = geometry == QUAD || geometry == HEX ? 0.55L : 0.12L;
+    const unsigned operations = parent.GetDimension() == 1 ? 1U : (parent.GetDimension() == 2 ? 3U : 5U);
+    for(unsigned operation = 0; operation < operations; ++operation) {
+      volatile long double checksum = 0;
+      for(unsigned n = 0; n < 128; ++n) checksum += BernsteinTrialSample(parent,operation,origin+0.001L*(n%64),child,line);
+      const unsigned iterations = 20000;
+      const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+      for(unsigned n = 0; n < iterations; ++n) checksum += BernsteinTrialSample(parent,operation,origin+0.001L*(n%64),child,line);
+      const double nanoseconds = 1e9*std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()/iterations;
+      Check(std::isfinite(checksum),"Bernstein benchmark checksum");
+      std::cout << std::setprecision(21) << "bernstein_trial," << GeometryName(geometry) << ',' << names[operation] << ',' << nanoseconds << ',' << checksum << '\n';
+    }
+  }
+}
+
 void BenchmarkDataReuse() {
   std::cout << "data_record bytes=" << sizeof(CutFemLevelSetData) << '\n';
   const std::string names[5] = {"slice","slice_roots","slice_physical","cached_roots","cached_physical"};
@@ -2249,6 +2320,7 @@ int main(int argc, char** argv) {
     bool quadratureBenchmark = false;
     bool surfaceBenchmark = false;
     bool dataBenchmark = false;
+    bool bernsteinBenchmark = false;
     bool algebraBenchmark = false;
     bool weightTests = false;
     bool weightBenchmark = false;
@@ -2267,12 +2339,13 @@ int main(int argc, char** argv) {
       else if(option == "--benchmark-quadrature") quadratureBenchmark = true;
       else if(option == "--benchmark-surface") surfaceBenchmark = true;
       else if(option == "--benchmark-data") dataBenchmark = true;
+      else if(option == "--benchmark-bernstein") bernsteinBenchmark = true;
       else if(option == "--benchmark-algebra") algebraBenchmark = true;
       else if(option == "--test-weights") weightTests = true;
       else if(option == "--benchmark-weights") weightBenchmark = true;
       else if(option == "--weight-dimension" && i+1 < argc) { const std::string value = argv[++i]; if(value.empty() || value.find_first_not_of("0123456789") != std::string::npos) throw std::invalid_argument("Invalid weight-test dimension."); weightDimension = static_cast<unsigned>(std::stoul(value)); if(weightDimension < 1 || weightDimension > 3) throw std::invalid_argument("Weight-test dimension must be one, two, or three."); }
       else if(option == "--help") {
-        std::cout << "MultiPhase_ex47 [--cases N] [--points N] [--benchmark] [--benchmark-quadrature] [--benchmark-surface] [--benchmark-data] [--benchmark-algebra] [--test-weights] [--benchmark-weights] [--weight-dimension 1|2|3]\n";
+        std::cout << "MultiPhase_ex47 [--cases N] [--points N] [--benchmark] [--benchmark-quadrature] [--benchmark-surface] [--benchmark-data] [--benchmark-bernstein] [--benchmark-algebra] [--test-weights] [--benchmark-weights] [--weight-dimension 1|2|3]\n";
         return 0;
       }
       else throw std::invalid_argument("Unknown or incomplete argument: " + option);
@@ -2280,6 +2353,7 @@ int main(int argc, char** argv) {
     if(quadratureBenchmark) { BenchmarkQuadratureKernels(); return 0; }
     if(surfaceBenchmark) { BenchmarkSelectiveSurfaceKernels(); return 0; }
     if(dataBenchmark) { BenchmarkDataReuse(); return 0; }
+    if(bernsteinBenchmark) { BenchmarkBernsteinRestriction(); return 0; }
     if(algebraBenchmark) { BenchmarkPreparedAlgebra(); return 0; }
     if(weightTests) { if(weightDimension == 0 || weightDimension == 1) TestLineWeightIntegration(); if(weightDimension == 0 || weightDimension == 2) { TestBallWeightIntegration(2); TestElementWeightOptions(2); TestSmallPlanarWeights(); } if(weightDimension == 0 || weightDimension == 3) { TestBallWeightIntegration(3); TestElementWeightOptions(3); TestCenteredNormalWeights(); TestHighDegreePreparedMoments(); } std::cout << "weight checks passed: " << checks << '\n'; return 0; }
     if(weightBenchmark) { if(weightDimension == 0 || weightDimension == 1) BenchmarkLineWeights(); if(weightDimension == 0 || weightDimension == 2) BenchmarkElementWeights(2); if(weightDimension == 0 || weightDimension == 3) BenchmarkElementWeights(3); return 0; }
@@ -2310,6 +2384,7 @@ int main(int argc, char** argv) {
     TestExternalChartComponents(random);
     TestRootSurfaceInterfaces();
     TestLocalFiberAnalysis(cases,random);
+    TestDeferredBernsteinRestrictions(random);
     TestPreparedDataInvalidInputs();
     std::cout << std::setprecision(8) << "root accuracy: rounded-root density=" << maximumRoundedRootError << "; retained-slope density=" << maximumRootDensityError << "; last-ULP fold density=" << maximumFoldDensityError << '\n';
     std::cout << std::setprecision(8) << "ex47: " << checks << " checks passed; maximum scaled error=" << maximumScaledError << "; seconds=" << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count() << '\n';
