@@ -1,0 +1,2 @@
+chart 0.0036 original 0.0036 Bernstein 0.0036
+3D rejected: A shifted local discriminant requires a finite planar endpoint.

@@ -1,0 +1,48 @@
+{
+  "cases": 386,
+  "backends": {
+    "old": {
+      "passed": 386,
+      "failed": []
+    },
+    "prepared": {
+      "passed": 386,
+      "failed": []
+    }
+  },
+  "environment": {
+    "cpu": 0,
+    "samples": 3,
+    "target_batch_seconds": 0.01,
+    "maximum_repetitions": 10000,
+    "compiler": "c++ (Debian 14.2.0-19) 14.2.0"
+  },
+  "by_element": {
+    "0": {
+      "method_cases": 158,
+      "median_old_over_prepared": 2.8316320848731924,
+      "slower_than_old": 28
+    },
+    "1": {
+      "method_cases": 158,
+      "median_old_over_prepared": 1.0477474804667652,
+      "slower_than_old": 75
+    },
+    "2": {
+      "method_cases": 152,
+      "median_old_over_prepared": 1.5944540453842484,
+      "slower_than_old": 10
+    },
+    "3": {
+      "method_cases": 152,
+      "median_old_over_prepared": 2.141069308989442,
+      "slower_than_old": 7
+    },
+    "4": {
+      "method_cases": 152,
+      "median_old_over_prepared": 2.5286428601188335,
+      "slower_than_old": 0
+    }
+  },
+  "notes": "Interleaved original/prepared, three batches on CPU 0. Concurrent fixture jobs elsewhere and differing cold/setup costs limit small timing comparisons. Ratios compare with production, not the previous prepared commit."
+}

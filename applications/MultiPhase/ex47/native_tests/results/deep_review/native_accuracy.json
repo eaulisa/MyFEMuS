@@ -1,0 +1,14 @@
+{
+  "cases": 386,
+  "backends": {
+    "old": {
+      "flagged": 0,
+      "assertions": 36860
+    },
+    "prepared": {
+      "flagged": 0,
+      "assertions": 36860
+    }
+  },
+  "maximum_class_difference": 1.3322676295459846e-15
+}

@@ -1,0 +1,98 @@
+{
+  "case": {
+    "test": "nodal_cut_detection",
+    "arguments": [],
+    "group": "focused",
+    "timeout": 600,
+    "input": "",
+    "id": "nodal_cut_detection"
+  },
+  "results": {
+    "prepared": [
+      {
+        "exit": 1,
+        "wall_seconds": 0.003623587999754818,
+        "timing": {
+          "bernstein": {
+            "calls": 3,
+            "failures": 0,
+            "seconds": 0.00017328,
+            "evaluations": 0,
+            "panels": 0,
+            "subdivisions": 0,
+            "outer_samples": 0,
+            "integration_passes": 0,
+            "graph_cells": 0,
+            "general_surfaces": 0,
+            "line_restrictions": 0,
+            "metric_preparations": 0,
+            "coefficient_expansions": 0
+          },
+          "phase": {
+            "calls": 10,
+            "failures": 0,
+            "seconds": 1.3049e-05,
+            "evaluations": 0,
+            "panels": 0,
+            "subdivisions": 0,
+            "outer_samples": 0,
+            "integration_passes": 0,
+            "graph_cells": 0,
+            "general_surfaces": 0,
+            "line_restrictions": 0,
+            "metric_preparations": 0,
+            "coefficient_expansions": 0
+          }
+        },
+        "stdout": "",
+        "stderr": "Nodal cut-detection check 25 failed.\nEX47_NATIVE_TIMING {\"bernstein\":{\"calls\":3,\"failures\":0,\"seconds\":0.00017328,\"evaluations\":0,\"panels\":0,\"subdivisions\":0,\"outer_samples\":0,\"integration_passes\":0,\"graph_cells\":0,\"general_surfaces\":0,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0},\"phase\":{\"calls\":10,\"failures\":0,\"seconds\":1.3049e-05,\"evaluations\":0,\"panels\":0,\"subdivisions\":0,\"outer_samples\":0,\"integration_passes\":0,\"graph_cells\":0,\"general_surfaces\":0,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+        "assessment": {
+          "failures": [
+            {
+              "kind": "exit",
+              "code": 1
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "passed": {
+    "prepared": false
+  },
+  "timing": {
+    "prepared": {
+      "bernstein": {
+        "calls": 3,
+        "failures": 0,
+        "seconds": 0.00017328,
+        "evaluations": 0,
+        "panels": 0,
+        "subdivisions": 0,
+        "outer_samples": 0,
+        "integration_passes": 0,
+        "graph_cells": 0,
+        "general_surfaces": 0,
+        "line_restrictions": 0,
+        "metric_preparations": 0,
+        "coefficient_expansions": 0
+      },
+      "phase": {
+        "calls": 10,
+        "failures": 0,
+        "seconds": 1.3049e-05,
+        "evaluations": 0,
+        "panels": 0,
+        "subdivisions": 0,
+        "outer_samples": 0,
+        "integration_passes": 0,
+        "graph_cells": 0,
+        "general_surfaces": 0,
+        "line_restrictions": 0,
+        "metric_preparations": 0,
+        "coefficient_expansions": 0
+      },
+      "wall_seconds": 0.003623587999754818
+    }
+  }
+}

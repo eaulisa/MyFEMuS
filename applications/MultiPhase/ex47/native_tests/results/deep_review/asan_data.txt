@@ -1,0 +1,2 @@
+root accuracy: rounded-root density=2.1470753e-11; retained-slope density=1.0842022e-19; last-ULP fold density=1.4625887e-16
+ex47: 157427 checks passed; maximum scaled error=5.9305179e-15; seconds=1.5383227

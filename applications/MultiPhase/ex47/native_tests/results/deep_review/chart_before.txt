@@ -1,0 +1,2 @@
+chart 0.0025 original 0.0036 Bernstein 0.0036
+3D rejected: A local fiber requires a planar unit coordinate.

@@ -27,9 +27,11 @@ parser.add_argument('--group', choices=['focused','parameterized','wide','mesh',
 parser.add_argument('--samples', type=int, default=1)
 parser.add_argument('--jobs', type=int, default=1)
 parser.add_argument('--resume', action='store_true')
+parser.add_argument('--backend', choices=['both','old','prepared'], default='both')
 parser.add_argument('--tests', nargs='*')
 args = parser.parse_args()
 args.output.mkdir(parents=True, exist_ok=True)
+backends = ['old','prepared'] if args.backend == 'both' else [args.backend]
 
 
 def original_functions(filename, names, globals):
@@ -170,10 +172,13 @@ def assess(row, text):
 
 def execute(row):
     path=args.output/(row['id']+'.json')
-    if args.resume and path.exists(): return json.loads(path.read_text())
-    result=dict(case=row,results={'old':[],'prepared':[]})
+    if args.resume and path.exists():
+        previous=json.loads(path.read_text())
+        if set(previous['results'])!=set(backends): raise ValueError('Resume backend mismatch: '+row['id'])
+        return previous
+    result=dict(case=row,results={backend:[] for backend in backends})
     for sample in range(args.samples):
-        for backend in (['old','prepared'] if sample%2==0 else ['prepared','old']):
+        for backend in (backends if sample%2==0 else list(reversed(backends))):
             start=time.monotonic()
             try:
                 process=subprocess.run([str(args.build/backend/row['test']),*row['arguments']],input=row['input'],capture_output=True,text=True,timeout=row['timeout'],env=dict(os.environ,OPENBLAS_NUM_THREADS='1',**row.get('environment',{})))
@@ -186,12 +191,12 @@ def execute(row):
                 entry=dict(exit=124 if isinstance(error,subprocess.TimeoutExpired) else 1,wall_seconds=time.monotonic()-start,assessment=dict(failures=[dict(kind=type(error).__name__,message=str(error))]))
             result['results'][backend].append(entry)
     result['passed']={backend:all(not e['exit'] and not e['assessment']['failures'] for e in values) for backend,values in result['results'].items()}
-    if all(result['passed'].values()) and row['test']=='endpoint_comparison':
+    if len(backends)==2 and all(result['passed'].values()) and row['test']=='endpoint_comparison':
         old=json.loads(result['results']['old'][0]['stdout'])['moments']; prepared=json.loads(result['results']['prepared'][0]['stdout'])['moments']
         tolerance=float(row['arguments'][3]); difference=max(abs(a-b)/max(1,abs(a),abs(b)) for a,b in zip(old,prepared))
         result['paired_accuracy']=dict(maximum_scaled_difference=difference,limit=16*tolerance,checks=len(old))
         if len(old)!=len(prepared) or difference>16*tolerance: result['passed']['prepared']=False
-    if all(result['passed'].values()) and row['test']=='benchmark_quad_tri':
+    if len(backends)==2 and all(result['passed'].values()) and row['test']=='benchmark_quad_tri':
         functions=original_functions('compare_quad_tri_benchmark.py',['parse','compare_moments'],dict(Path=Path,csv=csv,math=math))
         parsed={}
         for backend in ['old','prepared']:
@@ -217,7 +222,7 @@ def execute(row):
 
 with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
     records=list(pool.map(execute,items))
-summary=dict(cases=len(records),sources=len({r['case']['test'] for r in records}),backends={backend:dict(passed=sum(r['passed'][backend] for r in records),failed=[r['case']['id'] for r in records if not r['passed'][backend]]) for backend in ['old','prepared']})
+summary=dict(cases=len(records),sources=len({r['case']['test'] for r in records}),backends={backend:dict(passed=sum(r['passed'][backend] for r in records),failed=[r['case']['id'] for r in records if not r['passed'][backend]]) for backend in backends})
 (args.output/('summary_'+args.group+'.json')).write_text(json.dumps(summary,indent=2)+'\n')
 print(json.dumps(summary),flush=True)
 raise SystemExit(any(not all(r['passed'].values()) for r in records))

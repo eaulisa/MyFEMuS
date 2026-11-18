@@ -1,0 +1,4 @@
+weight_check LINE3 q=2 old_error=1.0942609e-14 prepared_error=1.8825675e-14 old_failures=4 raw_error=8.6448241e-20 fitting_floor=1.8825675e-14
+weight_check LINE3 q=5 old_error=4.3801659e-14 prepared_error=4.3801659e-14 old_failures=4 raw_error=1.9884978e-19 fitting_floor=4.3801659e-14
+weight_check LINE3 q=10 old_error=3.6504417e-13 prepared_error=1.1849753e-11 old_failures=4 raw_error=2.5865498e-19 fitting_floor=1.1849753e-11
+weight checks passed: 3657

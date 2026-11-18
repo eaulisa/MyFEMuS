@@ -1,0 +1,25 @@
+{
+  "baseline": "4ec74de8922cc52d57437c1c8bc890e426b581d9",
+  "runtime_commit": "7e5bc40666b15edc3e80f0edb9e7c5d0890c3524",
+  "deferred_experiment_merged": false,
+  "production_source_modified": false,
+  "final_prepared_sources": 50,
+  "preliminary_full_paired_run": "Not used as final prepared validation; only unchanged old outputs used for dump pairing.",
+  "sanitizers": "ASAN and UBSAN; leak detection disabled because unsupported under ptrace.",
+  "headers_sha256": {
+    "native_tests/NativeCompatibility.hpp": "ec812b79393e27ed40dff7cca7bde958b114e8f1f849c990a8b355e3fe3c6472",
+    "native_tests/MeasuredWeights.hpp": "d2af05c2a724c85ac7cc7bd5b4f5534ee3eb70f10213eb270f225b3bc2015736",
+    "include/CutFemPreparedMoments.hpp": "d5c63bb0264466dfd5cea77ca2fe563a7150d09b773fa3eb60e569280f7b14e5",
+    "include/CutFemLevelSetDataCharts.hpp": "e965720039ee744d1730580a9262af9a5ee9362e9c1ad7ae3cda54e5e389cddf",
+    "include/CutFemLevelSetData.hpp": "0bac87967f3e255b9c82e5683b988e54b0db0b292caae39c56195e199622d41f",
+    "include/CutFemLevelSetDataAnalysis.hpp": "fa5befd8d84c3f5df134bf298f549567278ab88b982c15f33a371a67e41b25bc",
+    "include/CutFemPreparedContext.hpp": "711d88ef19adc6ebf50cec22f017fda9f3cc3887b6b0668b1e7e9e8244e26700",
+    "include/CutFemWeight_LS.hpp": "76e2c66f7236b1ddb540060fca955b851622d05efad96ce0da4934e5df0b29a8",
+    "include/prepared/LineDomainIntegration.hpp": "27ed128b65f722b3318d7c9341bcd26666d88d88c89b87b08ab4b7e6044f6cce",
+    "include/prepared/EndpointProjection.hpp": "97a79594c07c6edbc077c0d7182daf31b5a711f0d6c8e1b08e4d4ba10f052093",
+    "include/prepared/SurfaceEndpointIntegration.hpp": "6956137f9eeba2af3549da647eb1575bc208a278fd979392375c802f83f56492",
+    "include/prepared/EndpointStripQuadrature.hpp": "f792ce59a9821d25c53b0d2d83d0a090006e1d14077d8c78663699b63dfc0c14",
+    "include/prepared/LineIntegration.hpp": "d8901e8265e9798147b43b5312fa1cae3b6f8129040fb91ef1dbe6bbcda7c20e",
+    "include/prepared/PlanarEndpointIntegration.hpp": "db804919700a668938a3c6699875a8fff78ddee90a010a68d62755e17c589ec0"
+  }
+}

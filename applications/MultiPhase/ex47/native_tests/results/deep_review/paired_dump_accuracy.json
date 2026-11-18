@@ -1,0 +1,431 @@
+{
+  "provenance": "Final prepared binaries versus unchanged production binaries from the preliminary run; matching case inputs asserted.",
+  "checks": 26260,
+  "records": [
+    {
+      "case": "endpoint_comparison_4_10_5_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_4_2_2_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 1.734723475976807e-18,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_10_2_1e-12_1",
+      "checks": 572,
+      "maximum_scaled_difference": 3.65376132127615e-15,
+      "limit": 1.6e-11
+    },
+    {
+      "case": "endpoint_comparison_0_2_0_1e-10_1",
+      "checks": 6,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_10_2_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 3.65376132127615e-15,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_4_10_1_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_2_0_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 8.673617379884035e-19,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_2_5_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 1.0842021724855044e-19,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_4_2_0_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_10_3_1e-10_1",
+      "checks": 22,
+      "maximum_scaled_difference": 5.421010862427522e-20,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_4_2_4_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_4_10_0_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_10_3_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 5.551115123125783e-17,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_2_4_1e-10_1",
+      "checks": 6,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_10_0_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 1.1102230246251565e-16,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_4_10_4_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 1.6155871338926322e-27,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_10_4_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 2.371692252312041e-20,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_4_10_2_1e-8_1",
+      "checks": 572,
+      "maximum_scaled_difference": 1.734723475976807e-18,
+      "limit": 1.6e-07
+    },
+    {
+      "case": "endpoint_comparison_4_10_2_1e-12_1",
+      "checks": 572,
+      "maximum_scaled_difference": 1.734723475976807e-18,
+      "limit": 1.6e-11
+    },
+    {
+      "case": "endpoint_comparison_4_2_1_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_10_4_1e-10_1",
+      "checks": 22,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_10_2_1e-12_1",
+      "checks": 132,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-11
+    },
+    {
+      "case": "benchmark_quad_tri",
+      "checks": 14400,
+      "maximum_fraction_of_limit": 3.948802421580349e-06
+    },
+    {
+      "case": "endpoint_comparison_2_2_3_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 5.551115123125783e-17,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_10_2_1e-8_1",
+      "checks": 22,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-07
+    },
+    {
+      "case": "endpoint_comparison_3_10_0_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 1.1102230246251565e-15,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_2_4_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_10_2_1e-8_1",
+      "checks": 132,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-07
+    },
+    {
+      "case": "endpoint_comparison_1_10_1_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 5.551115123125783e-17,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_2_2_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 1.2197274440461925e-19,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_2_2_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 3.65376132127615e-15,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_2_1_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 1.959217080766716e-16,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_10_1_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 2.609024107869118e-15,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_2_3_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 1.3877787807814457e-16,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_2_3_1e-10_1",
+      "checks": 6,
+      "maximum_scaled_difference": 5.421010862427522e-20,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_2_3_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 1.1102230246251565e-16,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_10_5_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 1.848552923198692e-22,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_2_2_1e-10_1",
+      "checks": 6,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_10_4_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 2.7755575615628914e-15,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_10_0_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 1.3877787807814457e-17,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_10_0_1e-10_1",
+      "checks": 22,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_10_2_1e-12_1",
+      "checks": 132,
+      "maximum_scaled_difference": 8.131516293641283e-20,
+      "limit": 1.6e-11
+    },
+    {
+      "case": "endpoint_comparison_4_10_3_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_2_4_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 2.0328790734103208e-20,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_4_2_3_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_10_3_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 1.3322676295501878e-15,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_10_2_1e-12_1",
+      "checks": 22,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-11
+    },
+    {
+      "case": "endpoint_comparison_2_10_2_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_10_5_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_10_3_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 1.1102230246251565e-16,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_10_5_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 3.9175273869571946e-17,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_10_2_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 1.2197274440461925e-19,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_3_10_2_1e-8_1",
+      "checks": 572,
+      "maximum_scaled_difference": 1.728148874002855e-13,
+      "limit": 1.6e-07
+    },
+    {
+      "case": "endpoint_comparison_1_2_5_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 1.848552923198692e-22,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_10_2_1e-8_1",
+      "checks": 132,
+      "maximum_scaled_difference": 1.2197274440461925e-19,
+      "limit": 1.6e-07
+    },
+    {
+      "case": "endpoint_comparison_3_2_4_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 4.336808689942018e-19,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_2_0_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 2.0328790734103208e-20,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_4_10_2_1e-10_1",
+      "checks": 572,
+      "maximum_scaled_difference": 1.734723475976807e-18,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_10_1_1e-10_1",
+      "checks": 22,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_10_5_1e-10_1",
+      "checks": 22,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_2_2_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_10_2_1e-10_1",
+      "checks": 22,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_4_2_5_1e-10_1",
+      "checks": 20,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_2_0_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 1.1102230246251565e-16,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_2_5_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_1_2_1_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 5.551115123125783e-17,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_2_1_1e-10_1",
+      "checks": 6,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_2_1_1e-10_1",
+      "checks": 12,
+      "maximum_scaled_difference": 5.551115123125783e-17,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_10_1_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 5.551115123125783e-17,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_0_2_5_1e-10_1",
+      "checks": 6,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    },
+    {
+      "case": "endpoint_comparison_2_10_4_1e-10_1",
+      "checks": 132,
+      "maximum_scaled_difference": 0.0,
+      "limit": 1.6e-09
+    }
+  ]
+}
