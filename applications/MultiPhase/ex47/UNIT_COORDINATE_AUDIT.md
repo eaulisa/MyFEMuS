@@ -25,6 +25,14 @@ Freshly rerun after reconstruction:
 
 - 5,901,177 data checks passed; maximum scaled error 2.3647e-14.
 - 32,513 fitted-weight/moment checks passed across all six elements, including degree-13 HEX/TET/WEDGE moments.
-- Public native cases, curved-HEX regressions, warning contracts, and timing comparisons are being rerun before the final report.
+- All 386 public native cases pass 36,860 assertions per backend; all repeated timing calls also pass.
+- All 32 CTest commands pass for both backends at matched detection depth 12; the requested default depth 1 retains its conservative classification difference.
+- The curved HEX27 regression passes 970 checks across 48 cases; warning contracts pass 316 checks.
+- Graph and degree-13 surface benchmarks pass 59,520 paired moment comparisons.
+- Address/undefined-behavior sanitizers pass 155,239 main checks with leak detection disabled.
+- All 50 native sources were compared over 385 extended requests: prepared passes 383, original 382; only the requested default-depth detection difference is prepared-only.
+- Retained-element benchmarks cover 58 element/degree/measure rows. Full accuracy and timing results, including slower cases, are recorded separately in `native_tests/results/unit_coordinates/`.
 
 The last-ULP WEDGE discriminant comparison uses 4e-16 relative tolerance after conversion (previously 3e-16); the earlier observed error was 3.0385e-16, with retained-slope density error 1.4626e-16. Public integration tolerances are unchanged.
+
+Raw degree-13 scaled moment errors are 1.790e-17 for HEX, 2.031e-16 for TET, and 7.172e-17 for WEDGE. The smallest degree-10 LINE cuts retain a fitted-weight error floor of 1.185e-11 despite raw moment error of 2.587e-19; raw integration accuracy and fitted-weight conditioning are reported separately.

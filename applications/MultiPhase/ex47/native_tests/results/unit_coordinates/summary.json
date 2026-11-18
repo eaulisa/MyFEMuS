@@ -1,0 +1,416 @@
+{
+  "base_commit": "732d7af693017428725244919b2d9a876e0371a1",
+  "native_sources": 50,
+  "fixture_runs": 385,
+  "native_cases": 386,
+  "native_assertions": {
+    "old": 36860,
+    "prepared": 36860
+  },
+  "original_failed": [
+    "hex_tet_validation_mesh_HEX_10_4_1e-11",
+    "hex_tet_validation_mesh_HEX_6_4_1e-11",
+    "wide_unit_validation_1_2"
+  ],
+  "prepared_failed": [
+    "nodal_cut_detection",
+    "wide_unit_validation_1_2"
+  ],
+  "native_timing_passed": {
+    "old": 386,
+    "prepared": 386
+  },
+  "native_speed_by_element": {
+    "LINE3": {
+      "weights": {
+        "cases": 79,
+        "median_speedup": 1.5827865319220267,
+        "slower_over_10_percent": 11
+      },
+      "physical": {
+        "cases": 79,
+        "median_speedup": 4.829762259128001,
+        "slower_over_10_percent": 0
+      }
+    },
+    "QUAD9": {
+      "weights": {
+        "cases": 79,
+        "median_speedup": 1.004033121763891,
+        "slower_over_10_percent": 21
+      },
+      "physical": {
+        "cases": 79,
+        "median_speedup": 1.311631232666631,
+        "slower_over_10_percent": 16
+      }
+    },
+    "TRI7": {
+      "weights": {
+        "cases": 76,
+        "median_speedup": 1.1382066369917805,
+        "slower_over_10_percent": 2
+      },
+      "physical": {
+        "cases": 76,
+        "median_speedup": 2.1868423460622544,
+        "slower_over_10_percent": 0
+      }
+    },
+    "HEX27": {
+      "weights": {
+        "cases": 76,
+        "median_speedup": 2.1611371215627324,
+        "slower_over_10_percent": 0
+      },
+      "physical": {
+        "cases": 76,
+        "median_speedup": 2.154174216945445,
+        "slower_over_10_percent": 3
+      }
+    },
+    "TET15": {
+      "weights": {
+        "cases": 76,
+        "median_speedup": 1.9667222992686269,
+        "slower_over_10_percent": 0
+      },
+      "physical": {
+        "cases": 76,
+        "median_speedup": 3.0867353836872127,
+        "slower_over_10_percent": 0
+      }
+    }
+  },
+  "native_rows_slower_over_10_percent": 53,
+  "regressions_with_separated_sample_ranges": 17,
+  "retained_mode_rows": 58,
+  "certified_boundary_cases_fixed": 0,
+  "shared_failed": [
+    "wide_unit_validation_1_2"
+  ],
+  "prepared_only_failed": [
+    "nodal_cut_detection"
+  ],
+  "timing_environment": {
+    "cpu": 0,
+    "samples": 3,
+    "target_batch_seconds": 0.01,
+    "maximum_repetitions": 10000,
+    "compiler": "c++ (Debian 14.2.0-19) 14.2.0"
+  },
+  "additional_benchmark_accuracy": {
+    "passed": true,
+    "checks": 59520,
+    "records": [
+      {
+        "test": "benchmark_graph_accuracy",
+        "arguments": [
+          "2"
+        ],
+        "limit": 4e-10,
+        "backends": {
+          "old": {
+            "exit": 0,
+            "seconds": 0.14799176799988345
+          },
+          "prepared": {
+            "exit": 0,
+            "seconds": 0.04281884299984995
+          }
+        },
+        "checks": 640,
+        "maximum_scaled_difference": 1.8869590119026887e-16,
+        "failures": [],
+        "passed": true
+      },
+      {
+        "test": "benchmark_graph_accuracy",
+        "arguments": [
+          "10"
+        ],
+        "limit": 4e-10,
+        "backends": {
+          "old": {
+            "exit": 0,
+            "seconds": 0.940641825000057
+          },
+          "prepared": {
+            "exit": 0,
+            "seconds": 0.16502647600009368
+          }
+        },
+        "checks": 14080,
+        "maximum_scaled_difference": 3.941291737419306e-15,
+        "failures": [],
+        "passed": true
+      },
+      {
+        "test": "benchmark_surface_accuracy",
+        "arguments": [],
+        "limit": 1.6e-07,
+        "backends": {
+          "old": {
+            "exit": 0,
+            "seconds": 19.696797006999986
+          },
+          "prepared": {
+            "exit": 0,
+            "seconds": 18.052647252000042
+          }
+        },
+        "checks": 44800,
+        "maximum_scaled_difference": 1.7700115166539313e-12,
+        "failures": [],
+        "passed": true
+      }
+    ]
+  },
+  "source_hashes": {
+    "applications/MultiPhase/ex47/include/CutFemLevelSetData.hpp": "88cc49ed6ec8271af7e5a14d0c6d1c6ab72f4dbbd0701424e1d5cb85adc9a272",
+    "applications/MultiPhase/ex47/include/CutFemLevelSetDataAnalysis.hpp": "41325d767eb227d8a92fb7724667b9f4121f9a6f58cbfe0181c8e9401f0ff8a0",
+    "applications/MultiPhase/ex47/include/CutFemLevelSetDataCharts.hpp": "f0976d97694d3de4e8687f1945f2e82fee5d8d4b75fe6e644eda56816e66e7ff",
+    "applications/MultiPhase/ex47/include/CutFemPreparedContext.hpp": "711d88ef19adc6ebf50cec22f017fda9f3cc3887b6b0668b1e7e9e8244e26700",
+    "applications/MultiPhase/ex47/include/CutFemPreparedMoments.hpp": "3f52c5c933f2903cce3faf030c2b24fd067f057b68dcf3b3d8eb527a6895f1a8",
+    "applications/MultiPhase/ex47/include/CutFemWeight_LS.hpp": "9ce9ba1503825669f86f296ea6ff10d98550f77074ef7834c8016a9ecc8e300e",
+    "applications/MultiPhase/ex47/include/prepared/EndpointProjection.hpp": "97a79594c07c6edbc077c0d7182daf31b5a711f0d6c8e1b08e4d4ba10f052093",
+    "applications/MultiPhase/ex47/include/prepared/EndpointStripQuadrature.hpp": "f792ce59a9821d25c53b0d2d83d0a090006e1d14077d8c78663699b63dfc0c14",
+    "applications/MultiPhase/ex47/include/prepared/LineDomainIntegration.hpp": "5cdd8b5ebe7505256f20b33f415831d1b4cdfd294f09a649b891ecfae7226f88",
+    "applications/MultiPhase/ex47/include/prepared/LineIntegration.hpp": "d8901e8265e9798147b43b5312fa1cae3b6f8129040fb91ef1dbe6bbcda7c20e",
+    "applications/MultiPhase/ex47/include/prepared/PlanarEndpointIntegration.hpp": "db804919700a668938a3c6699875a8fff78ddee90a010a68d62755e17c589ec0",
+    "applications/MultiPhase/ex47/include/prepared/SurfaceEndpointIntegration.hpp": "6956137f9eeba2af3549da647eb1575bc208a278fd979392375c802f83f56492",
+    "applications/MultiPhase/ex47/native_tests/MeasuredWeights.hpp": "d2af05c2a724c85ac7cc7bd5b4f5534ee3eb70f10213eb270f225b3bc2015736",
+    "applications/MultiPhase/ex47/native_tests/NativeCompatibility.cpp": "63459a168d75f85295a1f335f4f7a07d523bf7681192dd05f7f9b924e94466e6",
+    "applications/MultiPhase/ex47/native_tests/NativeCompatibility.hpp": "ec812b79393e27ed40dff7cca7bde958b114e8f1f849c990a8b355e3fe3c6472",
+    "applications/MultiPhase/ex47/native_tests/OriginalCompatibility.cpp": "5647700ab6d0564989e446c7e168bc838bb1578a2a25f88368f12b79b96eadcf",
+    "applications/MultiPhase/ex47/native_tests/build_comparison.py": "c30e97c8ddc79c5c791ae1b0d92fb555d7de3831884a5422db8f9f4f366fcf77",
+    "applications/MultiPhase/ex47/native_tests/curved_public_regression.cpp": "660b1c5cfe555ed330ba3e3388ae134a587e2160e2f0bc51ca15a43dc592e439",
+    "applications/MultiPhase/ex47/native_tests/make_report.py": "97f426246b77b58345867ad9d7918306b556357c44c673464b9efe27e323abc0",
+    "applications/MultiPhase/ex47/native_tests/run_benchmark_accuracy.py": "3a5c71a87e33e52c6bba8e126ea39137a9138e810cf5d9a96de6c469fd38fcf3",
+    "applications/MultiPhase/ex47/native_tests/run_comparison.py": "cbf66eba74dd203696580d80be2edefada3bfb72eccbf6be0be3306aa929f051",
+    "applications/MultiPhase/ex47/native_tests/run_ctest_comparison.py": "028844deb3572ebbc419d40d5ec60796541dae44af06257e34da6c3ea62ffcc3",
+    "applications/MultiPhase/ex47/native_tests/run_native_cases.py": "05197b9aadc7844861f13a124d12997b882e20385498052cb011efdd37ad5c3b",
+    "applications/MultiPhase/ex47/native_tests/time_native_cases.py": "ed2809f2c3cf2e43c518465fd9bfb9c4b07c01c392f834c9dfbaa30cfb11a35d",
+    "unittests/testCutFemWeightLSNative/benchmark_graph_dimensions.cpp": "b5a5961a909b17e1316c58a98d042c2189f681d4b57ad497baedf8c74970aa86",
+    "unittests/testCutFemWeightLSNative/benchmark_quad_tri.cpp": "9f3863778f612a35452e3f39b15fcffc1550f9cbf1421588e7a170b0441e0bc2",
+    "unittests/testCutFemWeightLSNative/benchmark_surface_reuse.cpp": "94fa2d9d36940fb74f467847d44912bef4f900780860d8fc3b3f73fc5ad3d978",
+    "unittests/testCutFemWeightLSNative/direct_parent_moments.cpp": "1e75cbe09cd5efa190c1810b783a56103f06d73cbdc7788b1139dc01fe322c86",
+    "unittests/testCutFemWeightLSNative/endpoint_comparison.cpp": "d86b52781858efd4c05462221fe4d09d68b84205262ab8e1236a875552539294",
+    "unittests/testCutFemWeightLSNative/endpoint_coordinate_resolution.cpp": "2fd8892b505d8ffbdcecfdc5e2f87061c63b79ec1897924e2122e17ff1544979",
+    "unittests/testCutFemWeightLSNative/endpoint_exponents.cpp": "b8d81233d4f0cb1421f7b9ae3ca4a03aa98ed7f24de4e87929fce9c911b56075",
+    "unittests/testCutFemWeightLSNative/endpoint_line_comparison.cpp": "c4b98afd4d0186b84f32f6ae1efbd0be6bfb2e5efda9e002875f654a0a6e2984",
+    "unittests/testCutFemWeightLSNative/endpoint_nested_contacts.cpp": "fdc102408d60cb787dbdcd7116e348849ca3be49d2cdeff3ecddd9119e67a2f7",
+    "unittests/testCutFemWeightLSNative/endpoint_surface_regressions.cpp": "9c4bb01c9fa9cd7b77401aed139e9768d07e6db669d97d82d2ab52380cf2bfea",
+    "unittests/testCutFemWeightLSNative/enriched_3d.cpp": "176561673b05f80cd5b95f5fbda2926fa7361da001ea43c57fd815580a646122",
+    "unittests/testCutFemWeightLSNative/hex_curved_endpoint_regressions.cpp": "175b6ff51187e98a3b5dc0fcd556b2c9efb51801bb8b2a0efa71ddf51a4cdd41",
+    "unittests/testCutFemWeightLSNative/hex_sphere_boundary_tangencies.cpp": "4c247d854a3575d46927c53c719de189edfa36c7ff8e5fb008530baaa932cb13",
+    "unittests/testCutFemWeightLSNative/hex_tet_validation.cpp": "cba63fb91aa5d4e4bd32daf129b56fb7875fdc184e15bf634d119194881f0591",
+    "unittests/testCutFemWeightLSNative/line_integration.cpp": "1db2f71431b3c0accc43ca6496e9ed141dc7d6866b1408383d24e06bdee2c20d",
+    "unittests/testCutFemWeightLSNative/line_mesh_refinement.cpp": "927c61fdf9dc5d82ceec59bfac5841e2f47bf04e3fb561e7afb0efb95aa0e429",
+    "unittests/testCutFemWeightLSNative/mesh_refinement.cpp": "c01489233cfa878120c99ad8fe52009a9a98423398829f989f3248c82081ec03",
+    "unittests/testCutFemWeightLSNative/native_suite.cpp": "58470c1e6e4fd391e9fb4bcf4e97cf5b9921d579eb1c2e514fd9ff40d1eedf85",
+    "unittests/testCutFemWeightLSNative/nodal_cut_detection.cpp": "0df61d5cad81a4983fddae156104d7fef181be0b6560ec2d224810b491fb51f2",
+    "unittests/testCutFemWeightLSNative/normal_surface.cpp": "7db7dcabbc71d56ea47f96b9efe19d46469baaa13e171c0b6c754c52259e912a",
+    "unittests/testCutFemWeightLSNative/outer_interval_benchmark.cpp": "86ff5a2aaad1be2f99735194b32b7edeea977ecf9b811af359de33ea20102e1a",
+    "unittests/testCutFemWeightLSNative/outer_interval_contract.cpp": "a40d8141c5704093e723f051511a317b2ddb444fafd5c1efa3e867d40dd3f4e0",
+    "unittests/testCutFemWeightLSNative/planar_suite.cpp": "6dce4c86b493dc816829c106f215e36341da961ea9ee04ca39c2a378145816ec",
+    "unittests/testCutFemWeightLSNative/quad_curved_endpoint_regressions.cpp": "06278cf8e7b2f979b8c41358d07df9f28ef4f8984e348504b5ddbbfa458bfdcf",
+    "unittests/testCutFemWeightLSNative/quad_native_quadrants.cpp": "cfa0e402b6ea28ef792e4ad083f5320ad2d236aab74bd215296113c43f07788d",
+    "unittests/testCutFemWeightLSNative/quad_scaled_plane.cpp": "929f84c01977d8ccb7c4b126646e5984ef0c534c2370017507e010c821e775c7",
+    "unittests/testCutFemWeightLSNative/quad_tri_standard_moments.cpp": "b4d335502006f99e0f18244ea2fc9f691cbddd01226570826aed7859a57d0e2b",
+    "unittests/testCutFemWeightLSNative/quadrature_rule_selection.cpp": "056af77b75bf03dc35d9b2702139eff49e22a7d04b4a3d019bd373bb8b95782a",
+    "unittests/testCutFemWeightLSNative/review_regressions.cpp": "d7e16ce816b845480704c2d5035fb83a8a01e6f2097de5dddf7f6c3399c8bfbb",
+    "unittests/testCutFemWeightLSNative/simplex_high_degree.cpp": "283319b23cb89ab0ca4bd990cdf2403530f59a562fcfb6e286608f188ce43ed3",
+    "unittests/testCutFemWeightLSNative/single_graph_root.cpp": "dc7e31d34744d0d44f2f927b15e0d848c73bf905793ee303510139de32d3521a",
+    "unittests/testCutFemWeightLSNative/surface_rule_reuse.cpp": "20432e0ab153f82e947cfe548ffd89c7539fa86e281d391996f5e32afa5d4002",
+    "unittests/testCutFemWeightLSNative/tangential_surface.cpp": "1f198898e5d1e9780949445035ac673e3f135d47ef71d0ebe523d04e3017f769",
+    "unittests/testCutFemWeightLSNative/test_contract.cpp": "ba29df12f5d9c14fe3d81d2962735e1c280e67941e34019f678bfc26d4ad1ca7",
+    "unittests/testCutFemWeightLSNative/test_hex_native.cpp": "3c42c70df0af24bc82eacf735c4f4c039dedefd78095b24f023f8bfd25005e23",
+    "unittests/testCutFemWeightLSNative/test_ls_multiprecision.cpp": "beffdb258521c9fe2a6196dc56622a9a4aeca79a190282240773b8c842aaa2b2",
+    "unittests/testCutFemWeightLSNative/test_ls_output_range.cpp": "21851a71bbbdc6f4568ff5b32141aeebfa33b5087b22a4cbad2b8d99a154f7ce",
+    "unittests/testCutFemWeightLSNative/test_order_ls_first.cpp": "9ad2ecb5c31cc60f9dd09ef4f7e29fa1449804cb7018bcd2b8f5d658d06cc0ca",
+    "unittests/testCutFemWeightLSNative/test_order_planar_first.cpp": "617cd6d11ec60f4d5c01461abfcba146a9dbd10098626cc97a63b52a663761d9",
+    "unittests/testCutFemWeightLSNative/test_reference_coefficients.cpp": "f7669b6059b963dce9732fa4d1611fe4677b60773c7423f44f769c909e241664",
+    "unittests/testCutFemWeightLSNative/test_root_candidate_regression.cpp": "c2f4dbb946f59589038c57caf051e7efc3e0d233cae2b78f0cba5a22ad084036",
+    "unittests/testCutFemWeightLSNative/test_tet_slice_regression.cpp": "9bdecc595a4ff37382e5f250f858b2c6129bbd7b2722f4cd84b665ce7fafad57",
+    "unittests/testCutFemWeightLSNative/tet_standard_moments.cpp": "772bba78e0582a7ca9a1a8f90fa82c0cd9c4d855724ff786afc5cba4da1d1103",
+    "unittests/testCutFemWeightLSNative/tolerance_warnings.cpp": "560e17e6e3efd1ed77bfd431c0b0d6c5cda293139c93f555ccc76f6721bae697",
+    "unittests/testCutFemWeightLSNative/tri_circle_probe.cpp": "8985bdc3a39cc1e47d24e21b60f144af07bc6f3dc8582309996c58f0c93c30dd",
+    "unittests/testCutFemWeightLSNative/tri_endpoint_regressions.cpp": "8c0b6df7a9f70c0a0b616212ee6eb22428126f496957bd8309c7609218cd221b",
+    "unittests/testCutFemWeightLSNative/unit_element_moments.cpp": "51af1123cfa0b85a0400d34aaec2ee21c79bc3cfa49dfc29a27facf6c8d5cd43",
+    "unittests/testCutFemWeightLSNative/wedge21_moments.cpp": "1ab5ae3a44826529afdb58119cb97542c0ab3bdad699a26220054f54dc4a18e7",
+    "unittests/testCutFemWeightLSNative/wide_unit_mesh.cpp": "8adaee85aa8e63b89875aa8d4a81fcf5278bbd065d2f7207e9b2233f18dafe1d",
+    "unittests/testCutFemWeightLSNative/wide_unit_validation.cpp": "e88bdc9215267f5d249b3ffc8164f07032e390d65fc9c6925aa91baa3e0ab509"
+  },
+  "binary_hashes": {
+    "old/benchmark_graph_accuracy": "83f8b00f6caacb90895c9be8dc30ced7d08149e4fae7d84a9fb3e91f4931945f",
+    "old/benchmark_graph_dimensions": "a919a363e56f68c6b0757135f4763fc5787dea1e06b85a60f42750191b29a5a6",
+    "old/benchmark_quad_tri": "b061ae9507186118dc9f685b11b9501e15d9b93101a1aa4a1ca456d41ea5da12",
+    "old/benchmark_surface_accuracy": "da2cbf9c20a177c8c06ad4bce3437ea1290acc491c851dca523a8d64649f280d",
+    "old/benchmark_surface_reuse": "2bda7520243274dcd51f0e651a7451974cefa19db057c2ee6e22aa588d179009",
+    "old/curved_public_regression": "0115394f0f89bd54b8f4e6b2fee4cfca5d74923b716e3b5d2cf85f075d41697a",
+    "old/direct_parent_moments": "c166b6a12eb03cccb6d38ece0c689f99a6b47e03681ead9a23f9e281a5eea702",
+    "old/endpoint_comparison": "a07b558ec276465c3be78755493ada86a72f4cb269e3928f4b65685172beb85a",
+    "old/endpoint_coordinate_resolution": "d863f999ca398ec9aabcfde406f5f41f5cac892628ee230d859b2edfe2206b6f",
+    "old/endpoint_exponents": "d42f1ea8bca7efeffc258f2944c7d2aafdd3cd3cf39f67ac542a4a8aef45018e",
+    "old/endpoint_line_comparison": "f751cf6c882c4509168ea16528bef45b9e406d68bba6141b49304f5df17fdf9d",
+    "old/endpoint_nested_contacts": "6d17da1601e15c104cf42ee9f30f2e53e91f9ef431e211e1f6f682190fe68e87",
+    "old/endpoint_surface_regressions": "c41cb6dbeb4f655d18cc0ca7e149e50e1e40a13b6a1a71e7c87b61f3fccfa31a",
+    "old/enriched_3d": "bcc19a461b6255c33d94c82928f294adb6bfbd3a39857e78443529ec5115f367",
+    "old/hex_curved_endpoint_regressions": "2eb7a45d1592d79ceafb0a38dc9a76a16a6a16ed568e66d1fad8b78a094856bf",
+    "old/hex_sphere_boundary_tangencies": "e94d8173fbba327b39945ab67368a4df4646567579433c11b20caee207836177",
+    "old/hex_tet_validation": "cdfd64d20f1c121cb54eedee5fa6ee59cde92e88af2f045d4d4b1808ff72dacf",
+    "old/line_integration": "e84fefb2dae446ebaee7ef19a88197f75dfc0e0b31383e9201669073e6f37a5d",
+    "old/line_mesh_refinement": "d5ee13fd6962f11e89dc01fa64f8f4c9169b498d7302e36fefe2971d32a4f533",
+    "old/mesh_refinement": "269cd094a664d6d065e375e56aba28787037076af880afae5be4289e0eb4dffe",
+    "old/native_suite": "d9d53e2c16bceb5248a637a5e214fc48e07d000ef5e21d2bbe56f530b8d30fc5",
+    "old/native_suite_speed": "4765f84be9f3229f742b21693c72259fe364cdc55fcc91767f255711e07f6ea9",
+    "old/nodal_cut_detection": "0bd422261cc7456bdbf7dcd1b0f4ace04acfdbccdfcf640729a6d1d36b27394d",
+    "old/normal_surface": "8122c1890756dbc11e289e1d1527427527d861a674e581f5f7d4f47ed7d4e92c",
+    "old/outer_interval_benchmark": "9dac071c9a2fc3270736dca96428623193b6479415c622df487c2cb6e75dda81",
+    "old/outer_interval_contract": "f8267545a1710a516a38cb7e395a257474c7911b199428373900db3d0824336d",
+    "old/planar_suite": "22d6cc5f7c2c778f86d84f30ec89ca0be64a5b0608b13ef704bf99822a0b996a",
+    "old/quad_curved_endpoint_regressions": "b654062081dfca496e4903d3f8a4c6f60b000d471f36fba925c53459cc3669a8",
+    "old/quad_native_quadrants": "bea80b70fe9693f408d8aa264d1146181451c3307353e008001bcac7df2c30db",
+    "old/quad_scaled_plane": "36946a2cfc7bdac06431229cee12ec8f7b070d4391a713cedc11afc800a47092",
+    "old/quad_tri_standard_moments": "fddd5b2f72e00fd7d38224ae4fe09dcb2132df88b68cc79e1162f17107f821f0",
+    "old/quadrature_rule_selection": "3063adf070ce04eb1778b732f090e126c32b69d2f2f7e2fc4714391c8654fb7e",
+    "old/review_regressions": "0ac53f77b382fb94e34b9e26750be66bbbb8c766e1d54684277b2b25c9dcdb6c",
+    "old/simplex_high_degree": "b8551cf283a864f880caddc906f8a9a4d8107dfc068b1e03ef938886d51f7794",
+    "old/single_graph_root": "8c0b19424f013026cd41c6615e4445bc243b4f156e1089a1dc3469f478f008dd",
+    "old/surface_rule_reuse": "3acd82b0ace595e329969e98dd25cdecd3a288457e0985ecb3ba35c01ead5863",
+    "old/tangential_surface": "c07da0b1f06d0d69a0df1ebfd14df76c5ee33531a04ab55969616128feb43f11",
+    "old/test_contract": "d7c1802346bde8b14c3c6665bf9e347c8d77aae07ce6306493879e2c65a5bd2c",
+    "old/test_hex_native": "9bafb4f1645428aff3afb663d936bd37183d5d9be9c806e1a0a63bfad70a796e",
+    "old/test_ls_multiprecision": "47044404452ff10d5443ce05ae87a727a20f7592e6b80e13ad43013f5fb0bcb8",
+    "old/test_ls_output_range": "0e578117d8b3a08313e2508e82f0aa018574cfe7271b97b85dcb0e111dc49af4",
+    "old/test_order_ls_first": "82b2857c80e880994c36ec993702ce5eca2e61cd465f08ba7e907cc3074a9fd6",
+    "old/test_order_planar_first": "070b7b806dcf1b46bcdfa562f6c6239b2b6926f3102794d24866c0dc2fffc77d",
+    "old/test_reference_coefficients": "1cff22cdb6ce6a3bda5d32032cc22286a32b9624a81bc0e093e50a2feee4b351",
+    "old/test_root_candidate_regression": "b543d751563215c3b41fb16028a0fe2453620fc893585e99981649ad0c49af12",
+    "old/test_tet_slice_regression": "cfb350f346c8848e08e97d3fae4b5edce77c8413482716c38b1b16bf77a4663a",
+    "old/tet_standard_moments": "a168b2f0efa23ddabd82172af049bbaa662faa87dfcb4a7a40a3e654d8ec384a",
+    "old/tolerance_warnings": "a7e6e0e2464387bdf7462a6ab3197eb84d3d0a14762059f1e6e67d2555be6433",
+    "old/tri_circle_probe": "6f24c9a82b0357a0d825ff35905304e9f0f0b88fe230e693b85d00b1837fc285",
+    "old/tri_endpoint_regressions": "c9a3c3255212aae449ca6ff5b3d972cb7a656118d72730be779e71c8abbfd56e",
+    "old/unit_element_moments": "d9d40b419eeeee36ab7f624db64234d56991588de5471bdd43e7031a9f8ed2db",
+    "old/wedge21_moments": "70ee8d6dd657a892eac0e1ae3c136c7c644d65c8329160fcc820a9fc2e35e403",
+    "old/wide_unit_mesh": "7ccf488a9c6e57876edd98692f1927782a3225b599dba743726a14e373bf7992",
+    "old/wide_unit_validation": "ebcde12a781bb866f716fd2a12f1660f8b7e0da7efa640ffa07ecfdc7451a15f",
+    "prepared/benchmark_graph_accuracy": "75ae38ef3a2f0d9b9efbefea9d280e282e465b1cabea499e03ee94d5ddee35b8",
+    "prepared/benchmark_graph_dimensions": "f30d0604485407d8bbdb8006f1aa0f5676726f4a2ea4ba3566106efd4998ce55",
+    "prepared/benchmark_quad_tri": "09f22679b2e45744f48b41f39ea73873aa8b14fc045ec8a95ef7121abbecb140",
+    "prepared/benchmark_surface_accuracy": "361c59ed6891d803c9ade5de6a5a237b2fad6476d45828706e5372c928448373",
+    "prepared/benchmark_surface_reuse": "85484926d56e73f1a14576a87f35744a125b0191708ba22b24e5f14182959801",
+    "prepared/curved_public_regression": "c4f48a57eb3269c14adc94fe2c4e744faccc0e71e74f3268e323172e6956a37a",
+    "prepared/direct_parent_moments": "303b37b4b7e91fd42935b1a2fbbf8814e946cc613e5dbddf9ba9d0a00271f60b",
+    "prepared/endpoint_comparison": "6cadbf9ee02689ea98513096eee8f7299e8f5a913b021c7e34094f34f13b6d53",
+    "prepared/endpoint_coordinate_resolution": "8a4855adb3084434b29352141fcaf00401abddf4b03aea00ed4bf0e55ec6b2be",
+    "prepared/endpoint_exponents": "cc2813520484293807afdc8dd49578ae91973968cd5e96ca22b894e0457d235e",
+    "prepared/endpoint_line_comparison": "7af937a1b25026adff41f484c549776c782d15c8799502c931f5a19f25998051",
+    "prepared/endpoint_nested_contacts": "2bd577b1e121777d579be6dd9f94e4240fbbcb96d50f5f235b33f06ef292981a",
+    "prepared/endpoint_surface_regressions": "1ae0f992a5fb8e8795d00785fb3064cd11c335703dc2f752e2d310cb6c4ec658",
+    "prepared/enriched_3d": "c67fb253e3b5a004ff2998728caf1dd3286efc8e31376f3f2ba09e5c59e1a8b9",
+    "prepared/hex_curved_endpoint_regressions": "a0b4ce70df4ba4f44a713cd0ecc8f18a872ab0a403892d5bd348e9b4f4161191",
+    "prepared/hex_sphere_boundary_tangencies": "c6cf65563ce1e426e6c554cee1cf7dd7d6000d1829d8c03854780fc42850ca0f",
+    "prepared/hex_tet_validation": "9692485bdedcc489550b233470a1f76f8518827a953b5003ffe6627734c8370b",
+    "prepared/line_integration": "b85eb51b8548cf5102bbd2c69cc5139e1576d755b7ad2c571e02057f1942bb5b",
+    "prepared/line_mesh_refinement": "320ef04f7b19065b822410566353030578b4d4a317f65a8b57852d93a4464c92",
+    "prepared/mesh_refinement": "01983e97902707d33d784400339a0a94e77434e2877766353c654605ec90b698",
+    "prepared/native_suite": "f18fb421638006790f577e98b75a13414674358890d54b8995e1525cfacc5c59",
+    "prepared/native_suite_speed": "312eeb0c2ea42bd06e07393a5867d329f37ab60b0f43fb515001fe5749ab4ef8",
+    "prepared/nodal_cut_detection": "586c99da246ed5d2710908c557a42a0bf949012af6b792d4006ecf4728de13cb",
+    "prepared/normal_surface": "03157b1d935d34af185d47e073e9bceaf760e741547cf912cf76eb32e9ed93a8",
+    "prepared/outer_interval_benchmark": "435a612b6f81319ed95df006256c68456e86aa982a5eb4147d84ca5714c7c4df",
+    "prepared/outer_interval_contract": "2cd9263688ea70d5a5e3a5f1c9caef82d05480c3b2277f40291228087c423e90",
+    "prepared/planar_suite": "50b9a8a84b8b785930fdf9ccba44b77cdc78fb9455d3c5c99b1df5a8c3ee67d2",
+    "prepared/quad_curved_endpoint_regressions": "e2ca8591365e942a52f249dd3ca1d0a457a0fcd9e485c29af212c985da20a3f1",
+    "prepared/quad_native_quadrants": "b5ab0a4d390c37e34d17175f730e32cf12842e14d9ec83b1d089ff05ce7ed302",
+    "prepared/quad_scaled_plane": "b4cb03457cbf014963a3d69feaed6b4d4e586f6ff66c589565c002acbeccf7da",
+    "prepared/quad_tri_standard_moments": "b82064584280fff7aafb7787b4e0edd447a220b75ae8a30082486eed3e16568a",
+    "prepared/quadrature_rule_selection": "af657b7c4d3a20c03fc906c513666e6d20682d3991ec030a43989574ff83eff2",
+    "prepared/review_regressions": "c6a7c362d654d43dadfc87e4998187d0df8cdcb64741087fa28b2091f80bb9f6",
+    "prepared/simplex_high_degree": "196522cb2f4f5c7f3f33fee7b101194819b543529b86c63156baf636d0e4f07f",
+    "prepared/single_graph_root": "1fc421c591861019dedf203cdf7457cb3169d6e9a00e2bb930b4e889c6d84f1f",
+    "prepared/surface_rule_reuse": "cc862ba8de6ddbee3c31c66a5b5d2c5ba02d704d3b4555acd59abc393d60ff15",
+    "prepared/tangential_surface": "8845e8d5396dcbf4b36ce5498ae52788f99ad271098eb210d50259908e7444a6",
+    "prepared/test_contract": "63cdbc45959df9c9a04523289fd189cc69b9eb00ee7e6e198e9ff222247c48ad",
+    "prepared/test_hex_native": "98f7c4e62673271699ca6a95caf6483b6d57545fd24fdb397ffe3bca05b2d798",
+    "prepared/test_ls_multiprecision": "63465596030d9e5bbad31e16121cee3261522738353b108995111e7fbb9dad74",
+    "prepared/test_ls_output_range": "3560e30271d9c25b765f0ccabeed64a0d3ca0af013d83effd5ddfe0cb762749d",
+    "prepared/test_order_ls_first": "bcd190276e069327408c7e8fb1fbe46aaa89b020f3a7ac4351dfbc99199506fd",
+    "prepared/test_order_planar_first": "09ef794caa3803b2706d01287d44750da6795bd8cdaad9c40c015f9837a273f3",
+    "prepared/test_reference_coefficients": "8985625a9c4115af8a7d7be539455f04143a9c5f629bdd9618b6e85f9a287513",
+    "prepared/test_root_candidate_regression": "bf3d692f291be5479ba609338a0f8a9090b1f2249ac4f02d0590f2e096de4309",
+    "prepared/test_tet_slice_regression": "724a1ba13480594da99aa3970d5e8e66e6173b96fd7046264eb7e074121fe344",
+    "prepared/tet_standard_moments": "5b792de200af0756756f0074eb9cff1a71e274f1e441444de82d063e219748eb",
+    "prepared/tolerance_warnings": "dbd2d890720de87c5a668bb96ccef878fe3d68ac429251fbb83d45da56e428f6",
+    "prepared/tri_circle_probe": "073e2bedad5dea2eb88934d8f91e191b3442811e2476003795cbe978931d5f60",
+    "prepared/tri_endpoint_regressions": "591a0b9ec0af0488f9faec7a09e4dc1f132f8ca0e8980bd378eb65afd2edf731",
+    "prepared/unit_element_moments": "c31a7c86bc29f405cb381053ad549fae6a0cdbf9c9b4b51f7f729973ce193e7e",
+    "prepared/wedge21_moments": "ff84fd3de0482ecd2780c255dff6549be084d28de2f7ac3589ef93e0fce2a5a7",
+    "prepared/wide_unit_mesh": "eff41c3139014acd7f368083c61412dc1234b217693e97b29eea159265166187",
+    "prepared/wide_unit_validation": "c908e3a06a89c21f4c948cd3dab417917665dcc435c7dd326960a03be6b5827b"
+  },
+  "coordinate_contract": "unit tensor cells, standard simplices, unit-height WEDGE",
+  "validation": {
+    "data": {
+      "checks": 5901177,
+      "maximum_scaled_error": 2.3646164e-14
+    },
+    "weight_checks_by_dimension": {
+      "1": 3652,
+      "2": 3880,
+      "3": 24981
+    },
+    "weight_checks": 32513,
+    "sanitizers": {
+      "checks": 155239,
+      "address": true,
+      "undefined_behavior": true,
+      "leak_detection": false
+    },
+    "curved_hex": {
+      "cases": 48,
+      "checks": 970,
+      "maximum_volume_error": 1.0074e-15,
+      "maximum_physical_surface_error": 1.8222118e-15
+    },
+    "warnings": {
+      "checks": 316
+    },
+    "raw_degree13_scaled_errors": {
+      "HEX": 1.7896944e-17,
+      "TET": 2.0305602e-16,
+      "WEDGE": 7.1717491e-17
+    },
+    "line_degree10_fitted_tiny_cut_error": 1.1849753e-11
+  },
+  "default_depth_ctest_fixture_requests": {
+    "cases": 32,
+    "old_passed": 32,
+    "prepared_passed": 31,
+    "prepared_failed": [
+      "cutfem_nodal_cut_detection"
+    ]
+  },
+  "ctest": {
+    "commands": 32,
+    "detection_depth": 12,
+    "backends": {
+      "old": {
+        "exit": 0,
+        "tests": 32,
+        "failures": []
+      },
+      "prepared": {
+        "exit": 0,
+        "tests": 32,
+        "failures": []
+      }
+    },
+    "cases": 32,
+    "old_passed": 32,
+    "prepared_passed": 32
+  }
+}

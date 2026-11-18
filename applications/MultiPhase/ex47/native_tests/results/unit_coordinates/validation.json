@@ -1,0 +1,33 @@
+{
+  "data": {
+    "checks": 5901177,
+    "maximum_scaled_error": 2.3646164e-14
+  },
+  "weight_checks_by_dimension": {
+    "1": 3652,
+    "2": 3880,
+    "3": 24981
+  },
+  "weight_checks": 32513,
+  "sanitizers": {
+    "checks": 155239,
+    "address": true,
+    "undefined_behavior": true,
+    "leak_detection": false
+  },
+  "curved_hex": {
+    "cases": 48,
+    "checks": 970,
+    "maximum_volume_error": 1.0074e-15,
+    "maximum_physical_surface_error": 1.8222118e-15
+  },
+  "warnings": {
+    "checks": 316
+  },
+  "raw_degree13_scaled_errors": {
+    "HEX": 1.7896944e-17,
+    "TET": 2.0305602e-16,
+    "WEDGE": 7.1717491e-17
+  },
+  "line_degree10_fitted_tiny_cut_error": 1.1849753e-11
+}

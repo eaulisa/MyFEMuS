@@ -1,0 +1,100 @@
+[
+  {
+    "test": "hex_tet_validation",
+    "case": "hex_tet_validation_mesh_HEX_10_4_1e-11",
+    "backend": "old",
+    "exit": 1,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": 1
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [HEX27 moments]; 3D moments: evaluation budget exhausted before accumulated tolerance (failed checks=572, worst moment=355, estimated error=0.000381607, requested tolerance=2.5429e-12); 3D output: rounded interface moment exceeds tolerance (failed checks=286, worst moment=355, estimated error=0.00151409, requested tolerance=1.00893e-11); 3D output: rounded volume moment exceeds tolerance (failed checks=286, worst moment=165, estimated error=1.3461e-05, requested tolerance=1.07993e-11); Endpoint curve moments: accumulated non-graph error exceeds tolerance (failed checks=10434, worst moment=78, estimated error=1.13247, requested tolerance=4.26605e-22); Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=3432, worst moment=294, estimated error=0.0771932, requested tolerance=2.80866e-21); Outer quadrature: evaluation budget exhausted before tolerance (failed checks=9768, worst moment=11, estimated error=1.79334, requested tolerance=4.15428e-22); Outer quadrature: floating-point error floor prevents requested tolerance (failed checks=38392, worst moment=111, estimated error=6.26804e-18, requested tolerance=3.86903e-23); returning the best available quadrature; the reported accuracy checks were not satisfied.\nA sphere mesh-refinement reference failed.\nEX47_NATIVE_TIMING {\"spatial_kernel\":{\"calls\":64,\"failures\":0,\"seconds\":12.116901437,\"evaluations\":1659919,\"panels\":110721,\"subdivisions\":49775,\"outer_samples\":10357,\"integration_passes\":65,\"graph_cells\":31,\"general_surfaces\":4,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+    "stdout": ""
+  },
+  {
+    "test": "hex_tet_validation",
+    "case": "hex_tet_validation_mesh_HEX_6_4_1e-11",
+    "backend": "old",
+    "exit": 1,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": 1
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [HEX27 moments]; 3D moments: evaluation budget exhausted before accumulated tolerance (failed checks=168, worst moment=153, estimated error=0.000381607, requested tolerance=2.5429e-12); 3D output: rounded interface moment exceeds tolerance (failed checks=84, worst moment=153, estimated error=0.00151409, requested tolerance=1.00893e-11); 3D output: rounded volume moment exceeds tolerance (failed checks=84, worst moment=15, estimated error=1.07172e-05, requested tolerance=1.11409e-11); Endpoint curve moments: accumulated non-graph error exceeds tolerance (failed checks=4429, worst moment=36, estimated error=1.13247, requested tolerance=4.26605e-22); Outer quadrature: child quadrature accuracy or coordinate precision prevents the requested tolerance (failed checks=1008, worst moment=92, estimated error=0.0771932, requested tolerance=2.80866e-21); Outer quadrature: evaluation budget exhausted before tolerance (failed checks=3584, worst moment=7, estimated error=1.79334, requested tolerance=4.15428e-22); Outer quadrature: floating-point error floor prevents requested tolerance (failed checks=19895, worst moment=53, estimated error=6.26804e-18, requested tolerance=3.86903e-23); returning the best available quadrature; the reported accuracy checks were not satisfied.\nA sphere mesh-refinement reference failed.\nEX47_NATIVE_TIMING {\"spatial_kernel\":{\"calls\":64,\"failures\":0,\"seconds\":8.222950893,\"evaluations\":1321009,\"panels\":88119,\"subdivisions\":38733,\"outer_samples\":9907,\"integration_passes\":65,\"graph_cells\":31,\"general_surfaces\":4,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+    "stdout": ""
+  },
+  {
+    "test": "nodal_cut_detection",
+    "case": "nodal_cut_detection",
+    "backend": "prepared",
+    "exit": 1,
+    "assessment": {
+      "failures": [
+        {
+          "kind": "exit",
+          "code": 1
+        }
+      ]
+    },
+    "stderr": "Nodal cut-detection check 25 failed.\nEX47_NATIVE_TIMING {\"bernstein\":{\"calls\":3,\"failures\":0,\"seconds\":4.2975e-05,\"evaluations\":0,\"panels\":0,\"subdivisions\":0,\"outer_samples\":0,\"integration_passes\":0,\"graph_cells\":0,\"general_surfaces\":0,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0},\"phase\":{\"calls\":10,\"failures\":0,\"seconds\":1.1779e-05,\"evaluations\":0,\"panels\":0,\"subdivisions\":0,\"outer_samples\":0,\"integration_passes\":0,\"graph_cells\":0,\"general_surfaces\":0,\"line_restrictions\":0,\"metric_preparations\":0,\"coefficient_expansions\":0}}\n",
+    "stdout": ""
+  },
+  {
+    "test": "wide_unit_validation",
+    "case": "wide_unit_validation_1_2",
+    "backend": "old",
+    "exit": 0,
+    "assessment": {
+      "checks": 1053,
+      "failures": [
+        {
+          "checks": 0,
+          "failures": [
+            {
+              "kind": "exception",
+              "message": "Unsupported endpoint topology: A nearly parallel projection retains the transverse direction."
+            }
+          ],
+          "maximum_error_ratio": 0.0,
+          "maximum_absolute_error": 0.0,
+          "oracle_error": 0.0
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [TRI reference moments]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI reference moments]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI7 q=2 delta]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI7 q=2 surface]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI reference moments]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1.11111e-11); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI reference moments]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1.11111e-11); returning the best available quadrature; the reported accuracy c",
+    "stdout": "{\"field\":\"full\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,0.5,0,0,null,0.500000000000000999147,0,0,null,null],[0,1,0,0.166666666666666657415,0,0,null,0.166666666666666581466,0,0,null,null],[0,2,0,0.0833333333333333287074,0,0,null,0.0833333333333330436164,0,0,null,null],[1,0,0,0.166666666666666657415,0,0,null,0.166666666666666581439,0,0,null,null],[1,1,0,0.0416666666666666643537,0,0,null,0.0416666666666665644038,0,0,null,null],[2,0,0,0.0833333333333333287074,0,0,null,0.0833333333333330436097,0,0,null,null]],\"setup_seconds\":0.00442071599999999988173,\"seconds\":0.00456809700000000012965,\"error\":null}\n{\"field\":\"empty\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,0,0,0,null,0,0,0,null,null],[0,1,0,0,0,0,null,0,0,0,null,null],[0,2,0,0,0,0,null,0,0,0,null,null],[1,0,0,0,0,0,null,0,0,0,null,null],[1,1,0,0,0,0,null,0,0,0,null,null],[2,0,0,0,0,0,null,0,0,0,null,null]],\"setup_seconds\":0,\"seconds\":2.11520000000000000932e-05,\"error\":null}\n{\"field\":\"boundary_low\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0"
+  },
+  {
+    "test": "wide_unit_validation",
+    "case": "wide_unit_validation_1_2",
+    "backend": "prepared",
+    "exit": 0,
+    "assessment": {
+      "checks": 1053,
+      "failures": [
+        {
+          "checks": 0,
+          "failures": [
+            {
+              "kind": "exception",
+              "message": "Unsupported endpoint topology: A nearly parallel projection retains the transverse direction."
+            }
+          ],
+          "maximum_error_ratio": 0.0,
+          "maximum_absolute_error": 0.0,
+          "oracle_error": 0.0
+        }
+      ]
+    },
+    "stderr": "CutFemWeight_LS warning [Prepared planar compatibility]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [Prepared planar compatibility]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI7 q=2 delta]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [TRI7 q=2 surface]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1e-10); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [Prepared planar compatibility]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1.11111e-11); returning the best available quadrature; the reported accuracy checks were not satisfied.\nCutFemWeight_LS warning [Prepared planar compatibility]; Independent planar validation: validation unavailable: Unsupported endpoint topology: A nearly parallel projection retains the transverse direction. (failed checks=1, worst moment=0, estimated error=inf, requested tolerance=1.11111e-11); returning the best available qua",
+    "stdout": "{\"field\":\"full\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,0.5,0,0,null,0.500000000000000999147,0,0,null,null],[0,1,0,0.166666666666666657415,0,0,null,0.166666666666666590655,0,0,null,null],[0,2,0,0.0833333333333333287074,0,0,null,0.0833333333333330482175,0,0,null,null],[1,0,0,0.166666666666666657415,0,0,null,0.166666666666666590655,0,0,null,null],[1,1,0,0.0416666666666666643537,0,0,null,0.0416666666666665667044,0,0,null,null],[2,0,0,0.0833333333333333287074,0,0,null,0.0833333333333330482175,0,0,null,null]],\"setup_seconds\":0.000547004000000000023193,\"seconds\":0.0008172700000000000407,\"error\":null}\n{\"field\":\"empty\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0,0,0,0,0,null,0,0,0,null,null],[0,1,0,0,0,0,null,0,0,0,null,null],[0,2,0,0,0,0,null,0,0,0,null,null],[1,0,0,0,0,0,null,0,0,0,null,null],[1,1,0,0,0,0,null,0,0,0,null,null],[2,0,0,0,0,0,null,0,0,0,null,null]],\"setup_seconds\":0,\"seconds\":2.17830000000000013362e-05,\"error\":null}\n{\"field\":\"boundary_low\",\"scale\":1,\"tolerance\":1.00000000000000003643e-10,\"geometry\":0,\"fitting\":1,\"validation\":1,\"direction\":0,\"endpoint_strips\":0,\"general_surfaces\":0,\"quad_calls\":0,\"tri_calls\":0,\"mapped_panels\":0,\"moments\":[[0,0"
+  }
+]

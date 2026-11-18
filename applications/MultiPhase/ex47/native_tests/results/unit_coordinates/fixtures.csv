@@ -1,0 +1,386 @@
+test,case,old_accuracy,prepared_accuracy,timing_kind,old_seconds,prepared_seconds,old_over_prepared,timing_samples,old_evaluations,old_subdivisions,old_line_restrictions,prepared_evaluations,prepared_subdivisions,prepared_line_restrictions
+benchmark_graph_dimensions,benchmark_graph_dimensions,PASS,PASS,sum of benchmark case medians,0.13391554928125,0.03620545146484375,3.698767557457052,1,344925,1421,0,656250,3066,0
+benchmark_graph_dimensions,benchmark_graph_dimensions_10,PASS,PASS,sum of benchmark case medians,0.8793181519687501,0.1092276892109375,8.050322755346723,1,574665,11634,0,474075,6391,0
+benchmark_quad_tri,benchmark_quad_tri,PASS,PASS,sum of benchmark case medians,0.03095105226855469,0.04442283607470703,0.6967374216383552,1,7693800,51540,0,6929190,44917,0
+benchmark_surface_reuse,benchmark_surface_reuse,PASS,PASS,same/different element calls; setup excluded,1.8031775570000002,1.210250967,1.4899203604602451,1,24570,531,0,24570,531,0
+curved_public_regression,curved_public_regression,PASS,PASS,public API calls; construction/oracles excluded,5.052053648999999,2.792207872,1.809340092355416,1,264072,7387,0,264072,7387,0
+direct_parent_moments,direct_parent_moments,PASS,PASS,"whole fixture, including startup/setup",0.004593765999970856,0.0031657270001232973,1.4510935402174414,1,45,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_10_0_1e-10_1,PASS,PASS,internal seconds per call,2.9915e-05,3.896e-06,7.678388090349077,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_10_1_1e-10_1,PASS,PASS,internal seconds per call,5.699e-06,4.006e-06,1.4226160758861706,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_10_2_1e-10_1,PASS,PASS,internal seconds per call,4.767e-06,3.906e-06,1.2204301075268817,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_10_2_1e-12_1,PASS,PASS,internal seconds per call,5.468e-06,4.066e-06,1.3448106246925726,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_10_2_1e-8_1,PASS,PASS,internal seconds per call,4.777e-06,3.836e-06,1.2453076120959332,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_10_3_1e-10_1,PASS,PASS,internal seconds per call,4.757e-06,4.046e-06,1.175729115175482,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_10_4_1e-10_1,PASS,PASS,internal seconds per call,3.104e-06,2.754e-06,1.1270878721859114,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_10_5_1e-10_1,PASS,PASS,internal seconds per call,4.637e-06,3.776e-06,1.22801906779661,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_2_0_1e-10_1,PASS,PASS,internal seconds per call,4.847e-06,3.626e-06,1.336734693877551,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_2_1_1e-10_1,PASS,PASS,internal seconds per call,4.777e-06,3.435e-06,1.3906841339155749,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_2_2_1e-10_1,PASS,PASS,internal seconds per call,3.845e-06,3.496e-06,1.0998283752860412,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_2_3_1e-10_1,PASS,PASS,internal seconds per call,3.826e-06,3.915e-06,0.9772669220945084,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_2_4_1e-10_1,PASS,PASS,internal seconds per call,2.263e-06,2.624e-06,0.8624237804878049,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_0_2_5_1e-10_1,PASS,PASS,internal seconds per call,3.666e-06,3.565e-06,1.0283309957924263,1,0,0,0,0,0,0
+endpoint_comparison,endpoint_comparison_1_10_0_1e-10_1,PASS,PASS,internal seconds per call,9.4032e-05,0.000109876,0.8558010848592958,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_1_10_1_1e-10_1,PASS,PASS,internal seconds per call,0.000132549,0.000195184,0.679097671940323,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_1_10_2_1e-10_1,PASS,PASS,internal seconds per call,0.001408971,0.00090958,1.5490347193210052,1,180,4,0,180,4,0
+endpoint_comparison,endpoint_comparison_1_10_2_1e-12_1,PASS,PASS,internal seconds per call,0.003385828,0.002283288,1.482873820560525,1,420,12,0,420,12,0
+endpoint_comparison,endpoint_comparison_1_10_2_1e-8_1,PASS,PASS,internal seconds per call,0.001798237,0.000799394,2.249500246436676,1,180,4,0,180,4,0
+endpoint_comparison,endpoint_comparison_1_10_3_1e-10_1,PASS,PASS,internal seconds per call,0.000122955,0.000148974,0.8253453622779815,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_1_10_4_1e-10_1,PASS,PASS,internal seconds per call,7.4242e-05,8.3436e-05,0.8898077568435686,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_1_10_5_1e-10_1,PASS,PASS,internal seconds per call,0.000720154,0.000601636,1.1969928661183837,1,180,4,0,180,4,0
+endpoint_comparison,endpoint_comparison_1_2_0_1e-10_1,PASS,PASS,internal seconds per call,4.4908e-05,4.8393e-05,0.9279854524414687,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_1_2_1_1e-10_1,PASS,PASS,internal seconds per call,9.2439e-05,5.6695e-05,1.6304612399682512,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_1_2_2_1e-10_1,PASS,PASS,internal seconds per call,0.001283692,0.000721355,1.7795565290321684,1,180,4,0,180,4,0
+endpoint_comparison,endpoint_comparison_1_2_3_1e-10_1,PASS,PASS,internal seconds per call,9.2469e-05,0.000128904,0.7173477937069447,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_1_2_4_1e-10_1,PASS,PASS,internal seconds per call,2.9274e-05,2.3626e-05,1.2390586641835266,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_1_2_5_1e-10_1,PASS,PASS,internal seconds per call,0.000654395,0.000428284,1.5279464093918989,1,180,4,0,180,4,0
+endpoint_comparison,endpoint_comparison_2_10_0_1e-10_1,PASS,PASS,internal seconds per call,0.000188965,0.00016597,1.138549135385913,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_2_10_1_1e-10_1,PASS,PASS,internal seconds per call,0.000148494,0.000126881,1.1703407129515058,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_2_10_2_1e-10_1,PASS,PASS,internal seconds per call,0.001273447,0.000793264,1.6053255914802638,1,180,4,0,180,4,0
+endpoint_comparison,endpoint_comparison_2_10_2_1e-12_1,PASS,PASS,internal seconds per call,0.002273993,0.001207468,1.8832739252717259,1,300,8,0,300,8,0
+endpoint_comparison,endpoint_comparison_2_10_2_1e-8_1,PASS,PASS,internal seconds per call,0.000507354,0.000450138,1.1271076869759942,1,60,0,0,60,0,0
+endpoint_comparison,endpoint_comparison_2_10_3_1e-10_1,PASS,PASS,internal seconds per call,0.00065119,0.000326552,1.9941387589112913,1,60,0,0,60,0,0
+endpoint_comparison,endpoint_comparison_2_10_4_1e-10_1,PASS,PASS,internal seconds per call,0.00020562,0.000129545,1.587247674553244,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_2_10_5_1e-10_1,PASS,PASS,internal seconds per call,0.001276221,0.000720415,1.7715080890875399,1,180,4,0,180,4,0
+endpoint_comparison,endpoint_comparison_2_2_0_1e-10_1,PASS,PASS,internal seconds per call,0.00015955,7.314e-05,2.181432868471425,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_2_2_1_1e-10_1,PASS,PASS,internal seconds per call,0.000117727,6.9644e-05,1.690411234277181,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_2_2_2_1e-10_1,PASS,PASS,internal seconds per call,0.001124502,0.000667304,1.6851420042439431,1,180,4,0,180,4,0
+endpoint_comparison,endpoint_comparison_2_2_3_1e-10_1,PASS,PASS,internal seconds per call,0.000302084,0.000262785,1.1495481096714042,1,60,0,0,60,0,0
+endpoint_comparison,endpoint_comparison_2_2_4_1e-10_1,PASS,PASS,internal seconds per call,9.1117e-05,6.0421e-05,1.5080352857450223,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_2_2_5_1e-10_1,PASS,PASS,internal seconds per call,0.00116966,0.000592392,1.9744696079622954,1,180,4,0,180,4,0
+endpoint_comparison,endpoint_comparison_3_10_0_1e-10_1,PASS,PASS,internal seconds per call,0.000292801,0.000515887,0.5675680914618898,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_3_10_1_1e-10_1,PASS,PASS,internal seconds per call,0.003921544,0.002284028,1.7169421740889341,1,480,0,0,480,0,0
+endpoint_comparison,endpoint_comparison_3_10_2_1e-10_1,PASS,PASS,internal seconds per call,0.444063863,0.18787305,2.3636379086835495,1,31560,868,0,27240,724,0
+endpoint_comparison,endpoint_comparison_3_10_2_1e-12_1,PASS,PASS,internal seconds per call,1.427893906,0.827643243,1.7252529010256172,1,102600,2996,0,51660,1478,0
+endpoint_comparison,endpoint_comparison_3_10_2_1e-8_1,PASS,PASS,internal seconds per call,0.31033309,0.081652088,3.800675495279435,1,19800,476,0,5520,120,0
+endpoint_comparison,endpoint_comparison_3_10_3_1e-10_1,PASS,PASS,internal seconds per call,0.000306962,0.000845493,0.36305682010377377,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_3_10_4_1e-10_1,PASS,PASS,internal seconds per call,0.000197427,0.000658682,0.2997303706492663,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_3_10_5_1e-10_1,PASS,PASS,internal seconds per call,0.02670836,0.020913886,1.2770634783033628,1,5520,120,0,5520,120,0
+endpoint_comparison,endpoint_comparison_3_2_0_1e-10_1,PASS,PASS,internal seconds per call,0.000165239,4.7942e-05,3.446643861332443,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_3_2_1_1e-10_1,PASS,PASS,internal seconds per call,0.002994246,0.000784801,3.8152933036527727,1,480,0,0,480,0,0
+endpoint_comparison,endpoint_comparison_3_2_2_1e-10_1,PASS,PASS,internal seconds per call,0.143044413,0.074923831,1.90919779582547,1,9120,240,0,9120,240,0
+endpoint_comparison,endpoint_comparison_3_2_3_1e-10_1,PASS,PASS,internal seconds per call,0.000148724,0.000132379,1.1234712454392315,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_3_2_4_1e-10_1,PASS,PASS,internal seconds per call,7.8889e-05,5.1578e-05,1.5295087052619334,1,30,0,0,30,0,0
+endpoint_comparison,endpoint_comparison_3_2_5_1e-10_1,PASS,PASS,internal seconds per call,0.02304915,0.0146989,1.5680867275782542,1,5520,120,0,5520,120,0
+endpoint_comparison,endpoint_comparison_4_10_0_1e-10_1,PASS,PASS,internal seconds per call,0.006566016,0.004974889,1.319831658555598,1,510,0,0,510,0,0
+endpoint_comparison,endpoint_comparison_4_10_1_1e-10_1,PASS,PASS,internal seconds per call,0.009025358,0.003062851,2.946717943510801,1,510,0,0,510,0,0
+endpoint_comparison,endpoint_comparison_4_10_2_1e-10_1,PASS,PASS,internal seconds per call,0.150707041,0.08472212,1.778839351517644,1,9120,240,0,9120,240,0
+endpoint_comparison,endpoint_comparison_4_10_2_1e-12_1,PASS,PASS,internal seconds per call,0.193633522,0.106967713,1.8102053093347896,1,12720,360,0,12720,360,0
+endpoint_comparison,endpoint_comparison_4_10_2_1e-8_1,PASS,PASS,internal seconds per call,0.240270282,0.062802708,3.8257949322822196,1,5520,120,0,5520,120,0
+endpoint_comparison,endpoint_comparison_4_10_3_1e-10_1,PASS,PASS,internal seconds per call,0.193340216,0.108573168,1.7807366180933397,1,12240,6,0,12240,6,0
+endpoint_comparison,endpoint_comparison_4_10_4_1e-10_1,PASS,PASS,internal seconds per call,0.005773322,0.00304875,1.893668552685527,1,510,0,0,510,0,0
+endpoint_comparison,endpoint_comparison_4_10_5_1e-10_1,PASS,PASS,internal seconds per call,0.13237329,0.061809961,2.141617432827696,1,5520,120,0,5520,120,0
+endpoint_comparison,endpoint_comparison_4_2_0_1e-10_1,PASS,PASS,internal seconds per call,0.004189848,0.001679158,2.4952077172011213,1,510,0,0,510,0,0
+endpoint_comparison,endpoint_comparison_4_2_1_1e-10_1,PASS,PASS,internal seconds per call,0.004923323,0.00138175,3.5631069296182383,1,510,0,0,510,0,0
+endpoint_comparison,endpoint_comparison_4_2_2_1e-10_1,PASS,PASS,internal seconds per call,0.149780937,0.067800083,2.2091556584082648,1,9120,240,0,9120,240,0
+endpoint_comparison,endpoint_comparison_4_2_3_1e-10_1,PASS,PASS,internal seconds per call,0.11192261,0.066811916,1.6751893479600257,1,9360,0,0,9360,0,0
+endpoint_comparison,endpoint_comparison_4_2_4_1e-10_1,PASS,PASS,internal seconds per call,0.003812389,0.001157172,3.2945741860328455,1,510,0,0,510,0,0
+endpoint_comparison,endpoint_comparison_4_2_5_1e-10_1,PASS,PASS,internal seconds per call,0.0982861,0.063349904,1.5514798570176207,1,5520,120,0,5520,120,0
+endpoint_coordinate_resolution,endpoint_coordinate_resolution,PASS,PASS,"whole fixture, including startup/setup",0.006792185999984213,0.006727147999981753,1.0096679900609644,1,2048,0,0,0,0,0
+endpoint_exponents,endpoint_exponents,PASS,PASS,"whole fixture, including startup/setup",0.003121625000176209,0.004529515000058382,0.6891742272927618,1,0,0,0,0,0,0
+endpoint_line_comparison,endpoint_line_comparison_0_1000,PASS,PASS,internal seconds per call,3.8078529999999998e-06,1.864065e-06,2.042768358399519,1,0,0,0,0,0,0
+endpoint_line_comparison,endpoint_line_comparison_1_1000,PASS,PASS,internal seconds per call,5.7233855e-05,9.202393000000001e-05,0.6219453461724574,1,0,0,0,0,0,0
+endpoint_nested_contacts,endpoint_nested_contacts,PASS,PASS,"whole fixture, including startup/setup",1.5571308080000108,1.263756532999878,1.232144615944123,1,160290,3798,0,160290,3798,0
+endpoint_nested_contacts,endpoint_nested_contacts_10_1e-10,PASS,PASS,"whole fixture, including startup/setup",3.144053301999975,2.212485149000031,1.4210505789930301,1,287010,7497,0,287010,7497,0
+endpoint_surface_regressions,endpoint_surface_regressions,PASS,PASS,"whole fixture, including startup/setup",0.5245600599998852,0.31766669499984346,1.6512907026660244,1,51210,1167,0,29700,616,0
+endpoint_surface_regressions,endpoint_surface_regressions_10,PASS,PASS,"whole fixture, including startup/setup",0.8995165289998113,0.4184218339999006,2.149783916391,1,75360,1821,0,42570,940,0
+endpoint_surface_regressions,endpoint_surface_regressions_2,PASS,PASS,"whole fixture, including startup/setup",0.38851408499999707,0.22815656300008413,1.7028398389743178,1,28260,582,0,27390,554,0
+enriched_3d,enriched_3d_HEX_10_negative_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.40701089800018053,0.26653468100016653,1.5270466735243593,1,35130,960,0,19950,514,0
+enriched_3d,enriched_3d_HEX_10_negative_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.8001141259999258,0.19402308700000503,4.123808864044643,1,34410,936,0,10890,272,0
+enriched_3d,enriched_3d_HEX_10_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.20762925899998663,0.258443724000017,0.8033828633423227,1,19275,537,0,19950,514,0
+enriched_3d,enriched_3d_HEX_10_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.4547730510000747,0.17139366000014888,2.6533831589784573,1,18555,513,0,10890,272,0
+enriched_3d,enriched_3d_HEX_2_negative_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.16653275599992412,0.17304739500013966,0.9623534408003641,1,15855,423,0,15855,423,0
+enriched_3d,enriched_3d_HEX_2_negative_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.1492045180000332,0.09211651700002221,1.6197368600030462,1,6795,181,0,6795,181,0
+enriched_3d,enriched_3d_HEX_2_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.16969050099987726,0.1803827179999189,0.9407248259778055,1,15855,423,0,15855,423,0
+enriched_3d,enriched_3d_HEX_2_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.34253529099987645,0.08576550600014343,3.9938584516635816,1,15855,423,0,6795,181,0
+enriched_3d,enriched_3d_HEX_6_negative_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.35114293000015095,0.18194785500008948,1.9299096985780804,1,32970,888,0,15855,423,0
+enriched_3d,enriched_3d_HEX_6_negative_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.7305058209999515,0.09459488899983626,7.722466073206302,1,34410,936,0,6795,181,0
+enriched_3d,enriched_3d_HEX_6_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.18003311100005703,0.17451690600000802,1.0316084276674533,1,17115,465,0,15855,423,0
+enriched_3d,enriched_3d_HEX_6_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.3943021040001895,0.08770984300008422,4.4955285577219755,1,18555,513,0,6795,181,0
+enriched_3d,enriched_3d_TET_10_negative_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.2650923139999577,0.2730148220000501,0.9709813996835271,1,20640,566,0,20640,566,0
+enriched_3d,enriched_3d_TET_10_negative_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",1.19143621000012,0.5858691230000659,2.0336217821125655,1,45030,1289,0,45030,1289,0
+enriched_3d,enriched_3d_TET_10_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.2732374809997964,0.2631648179999502,1.0382751124424547,1,20610,565,0,20610,565,0
+enriched_3d,enriched_3d_TET_10_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",1.030666950000068,0.4867519449999236,2.117437763911205,1,45000,1288,0,45000,1288,0
+enriched_3d,enriched_3d_TET_2_negative_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.23101597499999116,0.22790162299997974,1.0136653348888687,1,19680,534,0,19680,534,0
+enriched_3d,enriched_3d_TET_2_negative_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.9841869100000622,0.4395824849998462,2.2389129312110936,1,44940,1286,0,44940,1286,0
+enriched_3d,enriched_3d_TET_2_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.22830729199995403,0.2207879340001,1.0340569245049895,1,19680,534,0,19680,534,0
+enriched_3d,enriched_3d_TET_2_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",1.0473606129999098,0.4247195410000586,2.466005238501059,1,44940,1286,0,44940,1286,0
+enriched_3d,enriched_3d_TET_6_negative_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.2596083770001769,0.2535695179999493,1.0238153980330902,1,20430,559,0,20430,559,0
+enriched_3d,enriched_3d_TET_6_negative_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",1.047479795000072,0.4884139480000158,2.1446557767020162,1,45030,1289,0,45030,1289,0
+enriched_3d,enriched_3d_TET_6_raw_1e-10,PASS,PASS,"whole fixture, including startup/setup",0.22669874099983645,0.2236874570000964,1.0134620154394207,1,20400,558,0,20400,558,0
+enriched_3d,enriched_3d_TET_6_surface_1e-10,PASS,PASS,"whole fixture, including startup/setup",1.0667295950001972,0.4647661070000595,2.2951966138100097,1,45000,1288,0,45000,1288,0
+hex_curved_endpoint_regressions,hex_curved_endpoint_regressions,PASS,PASS,"whole fixture, including startup/setup",8.809906820000151,4.9575565159998405,1.7770663413654233,1,345642,9911,0,345642,9911,0
+hex_sphere_boundary_tangencies,hex_sphere_boundary_tangencies,PASS,PASS,"whole fixture, including startup/setup",5.567884270999912,4.548563491999857,1.2240972959469214,1,985710,29112,0,985710,29112,0
+hex_tet_validation,hex_tet_validation_case_HEX_10_graph_1e-10,PASS,PASS,driver integration seconds,0.012944775,0.004833235,2.6782837995669566,1,8910,228,0,2070,45,0
+hex_tet_validation,hex_tet_validation_case_HEX_10_near_plane_1e-10,PASS,PASS,driver integration seconds,0.002931011,0.004443839,0.659567324558788,1,720,0,0,720,0,0
+hex_tet_validation,hex_tet_validation_case_HEX_10_plane_1e-10,PASS,PASS,driver integration seconds,0.001160637,0.000657259,1.7658746399821075,1,45,0,0,45,0,0
+hex_tet_validation,hex_tet_validation_case_HEX_10_small_sphere_1e-10,PASS,PASS,driver integration seconds,0.025616358,0.030853963,0.8302453075476883,1,13680,360,0,13680,360,0
+hex_tet_validation,hex_tet_validation_case_HEX_10_sphere_1e-10,PASS,PASS,driver integration seconds,0.211672289,0.196883579,1.0751139839854293,1,47340,1302,0,40860,1086,0
+hex_tet_validation,hex_tet_validation_case_HEX_10_tiny_1e-10,PASS,PASS,driver integration seconds,0.000220723,0.000396717,0.556373939105206,1,45,0,0,45,0,0
+hex_tet_validation,hex_tet_validation_case_HEX_2_graph_1e-10,PASS,PASS,driver integration seconds,0.002429637,0.001608761,1.5102535429439177,1,2070,45,0,2070,45,0
+hex_tet_validation,hex_tet_validation_case_HEX_2_near_plane_1e-10,PASS,PASS,driver integration seconds,0.001360027,0.000869168,1.564745825893268,1,720,0,0,720,0,0
+hex_tet_validation,hex_tet_validation_case_HEX_2_plane_1e-10,PASS,PASS,driver integration seconds,6.7182e-05,2.8163e-05,2.3854702979086033,1,45,0,0,45,0,0
+hex_tet_validation,hex_tet_validation_case_HEX_2_small_sphere_1e-10,PASS,PASS,driver integration seconds,0.021889269,0.020583955,1.06341414951597,1,13680,360,0,13680,360,0
+hex_tet_validation,hex_tet_validation_case_HEX_2_sphere_1e-10,PASS,PASS,driver integration seconds,0.069172502,0.076215384,0.9075923831860507,1,13680,360,0,13680,360,0
+hex_tet_validation,hex_tet_validation_case_HEX_2_tiny_1e-10,PASS,PASS,driver integration seconds,0.000115384,2.8132e-05,4.101521399118441,1,45,0,0,45,0,0
+hex_tet_validation,hex_tet_validation_case_HEX_6_graph_1e-10,PASS,PASS,driver integration seconds,0.006121374,0.002759114,2.218601333616516,1,4770,135,0,2070,45,0
+hex_tet_validation,hex_tet_validation_case_HEX_6_near_plane_1e-10,PASS,PASS,driver integration seconds,0.001564906,0.001361559,1.1493486510683708,1,720,0,0,720,0,0
+hex_tet_validation,hex_tet_validation_case_HEX_6_plane_1e-10,PASS,PASS,driver integration seconds,9.4042e-05,9.1508e-05,1.027691567950343,1,45,0,0,45,0,0
+hex_tet_validation,hex_tet_validation_case_HEX_6_small_sphere_1e-10,PASS,PASS,driver integration seconds,0.022123853,0.026933978,0.8214105246540262,1,13680,360,0,13680,360,0
+hex_tet_validation,hex_tet_validation_case_HEX_6_sphere_1e-10,PASS,PASS,driver integration seconds,0.18261208,0.16662851,1.0959233806987771,1,38700,1014,0,36540,942,0
+hex_tet_validation,hex_tet_validation_case_HEX_6_sphere_1e-12,PASS,PASS,driver integration seconds,0.426693235,0.191308427,2.2303943516298945,1,133020,3798,0,47520,1308,0
+hex_tet_validation,hex_tet_validation_case_HEX_6_sphere_1e-8,PASS,PASS,driver integration seconds,0.140828847,0.068463908,2.056979379558643,1,25020,558,0,8280,180,0
+hex_tet_validation,hex_tet_validation_case_HEX_6_tiny_1e-10,PASS,PASS,driver integration seconds,0.00015939,0.000103876,1.534425661365474,1,45,0,0,45,0,0
+hex_tet_validation,hex_tet_validation_case_TET_10_graph_1e-10,PASS,PASS,driver integration seconds,0.003880241,0.003408542,1.138387322204039,1,945,6,0,945,6,0
+hex_tet_validation,hex_tet_validation_case_TET_10_near_plane_1e-10,PASS,PASS,driver integration seconds,0.003442372,0.003324905,1.0353294304649305,1,765,0,0,765,0,0
+hex_tet_validation,hex_tet_validation_case_TET_10_plane_1e-10,PASS,PASS,driver integration seconds,0.003227549,0.003299898,0.9780753829360787,1,765,0,0,765,0,0
+hex_tet_validation,hex_tet_validation_case_TET_10_small_sphere_1e-10,PASS,PASS,driver integration seconds,0.075353517,0.075032805,1.0042742904253679,1,13680,360,0,13680,360,0
+hex_tet_validation,hex_tet_validation_case_TET_10_sphere_1e-10,PASS,PASS,driver integration seconds,0.076904148,0.077444486,0.9930228990092335,1,13680,360,0,13680,360,0
+hex_tet_validation,hex_tet_validation_case_TET_10_tiny_1e-10,PASS,PASS,driver integration seconds,0.002974107,0.002906575,1.0232342189690617,1,765,0,0,765,0,0
+hex_tet_validation,hex_tet_validation_case_TET_2_graph_1e-10,PASS,PASS,driver integration seconds,0.002405361,0.001630744,1.4750083397516716,1,765,0,0,765,0,0
+hex_tet_validation,hex_tet_validation_case_TET_2_near_plane_1e-10,PASS,PASS,driver integration seconds,0.002271339,0.001500639,1.5135812144026644,1,765,0,0,765,0,0
+hex_tet_validation,hex_tet_validation_case_TET_2_plane_1e-10,PASS,PASS,driver integration seconds,0.001983846,0.001496814,1.3253791052194863,1,765,0,0,765,0,0
+hex_tet_validation,hex_tet_validation_case_TET_2_small_sphere_1e-10,PASS,PASS,driver integration seconds,0.071008338,0.075120918,0.9452538639104492,1,13680,360,0,13680,360,0
+hex_tet_validation,hex_tet_validation_case_TET_2_sphere_1e-10,PASS,PASS,driver integration seconds,0.082001065,0.075946471,1.0797218609407144,1,13680,360,0,13680,360,0
+hex_tet_validation,hex_tet_validation_case_TET_2_tiny_1e-10,PASS,PASS,driver integration seconds,0.001603683,0.001051032,1.5258174822460213,1,765,0,0,765,0,0
+hex_tet_validation,hex_tet_validation_case_TET_6_graph_1e-10,PASS,PASS,driver integration seconds,0.002559503,0.002116406,1.2093629483189898,1,765,0,0,765,0,0
+hex_tet_validation,hex_tet_validation_case_TET_6_near_plane_1e-10,PASS,PASS,driver integration seconds,0.002500073,0.002434324,1.0270091409360462,1,765,0,0,765,0,0
+hex_tet_validation,hex_tet_validation_case_TET_6_plane_1e-10,PASS,PASS,driver integration seconds,0.002217218,0.002939645,0.7542468563380953,1,765,0,0,765,0,0
+hex_tet_validation,hex_tet_validation_case_TET_6_small_sphere_1e-10,PASS,PASS,driver integration seconds,0.075145181,0.069759333,1.0772061281033176,1,13680,360,0,13680,360,0
+hex_tet_validation,hex_tet_validation_case_TET_6_sphere_1e-10,PASS,PASS,driver integration seconds,0.082860806,0.072853991,1.137354383234818,1,13680,360,0,13680,360,0
+hex_tet_validation,hex_tet_validation_case_TET_6_sphere_1e-12,PASS,PASS,driver integration seconds,0.099517003,0.083322864,1.1943540850924184,1,19080,540,0,19080,540,0
+hex_tet_validation,hex_tet_validation_case_TET_6_sphere_1e-8,PASS,PASS,driver integration seconds,0.056638694,0.06735753,0.8408665519653111,1,8280,180,0,8280,180,0
+hex_tet_validation,hex_tet_validation_case_TET_6_tiny_1e-10,PASS,PASS,driver integration seconds,0.00258453,0.00221224,1.1682864427006112,1,765,0,0,765,0,0
+hex_tet_validation,hex_tet_validation_mesh_HEX_10_2_1e-11,PASS,PASS,driver integration seconds,5.164910321,3.379983787,1.5280873064732248,1,610485,18666,0,462015,13897,0
+hex_tet_validation,hex_tet_validation_mesh_HEX_10_4_1e-11,FAIL,PASS,no successful timing,,4.909943964,,1,1659919,49775,0,760650,21121,0
+hex_tet_validation,hex_tet_validation_mesh_HEX_10_8_1e-11,PASS,PASS,driver integration seconds,9.774673967,2.574376919,3.7969086402456202,1,1865445,51699,0,534870,12651,0
+hex_tet_validation,hex_tet_validation_mesh_HEX_2_2_1e-11,PASS,PASS,driver integration seconds,2.650054805,2.441901518,1.0852422939523314,1,475875,14299,0,447885,13426,0
+hex_tet_validation,hex_tet_validation_mesh_HEX_2_4_1e-11,PASS,PASS,driver integration seconds,4.312695017,2.940605758,1.4666008883602277,1,852507,23787,0,654660,17663,0
+hex_tet_validation,hex_tet_validation_mesh_HEX_2_4_1e-9,PASS,PASS,driver integration seconds,2.604121866,1.771608195,1.4699197448677415,1,501570,12833,0,387960,9253,0
+hex_tet_validation,hex_tet_validation_mesh_HEX_2_8_1e-11,PASS,PASS,driver integration seconds,2.11277297,0.646448504,3.268277298078487,1,451980,10602,0,248070,4875,0
+hex_tet_validation,hex_tet_validation_mesh_HEX_6_2_1e-11,PASS,PASS,driver integration seconds,3.611531106,3.068717996,1.176885953908943,1,529455,16025,0,455265,13672,0
+hex_tet_validation,hex_tet_validation_mesh_HEX_6_4_1e-11,FAIL,PASS,no successful timing,,4.49383648,,1,1321009,38733,0,707400,19346,0
+hex_tet_validation,hex_tet_validation_mesh_HEX_6_8_1e-11,PASS,PASS,driver integration seconds,5.467920656,1.440609978,3.7955593391010103,1,1025160,27262,0,408930,9052,0
+hex_tet_validation,hex_tet_validation_mesh_TET_10_2_1e-11,PASS,PASS,driver integration seconds,4.31773091,3.897732788,1.1077544677493165,1,556650,15909,0,556545,15909,0
+hex_tet_validation,hex_tet_validation_mesh_TET_10_4_1e-11,PASS,PASS,driver integration seconds,9.606098879,9.704828252,0.9898267779257551,1,1364895,36492,0,1364895,36492,0
+hex_tet_validation,hex_tet_validation_mesh_TET_10_8_1e-11,PASS,PASS,driver integration seconds,10.465293508,8.833734559,1.1846963974412987,1,1391175,27771,0,1391175,27771,0
+hex_tet_validation,hex_tet_validation_mesh_TET_2_2_1e-11,PASS,PASS,driver integration seconds,3.433804626,3.191010634,1.0760868639587242,1,554370,15833,0,554265,15833,0
+hex_tet_validation,hex_tet_validation_mesh_TET_2_4_1e-11,PASS,PASS,driver integration seconds,7.265987576,7.091192839,1.0246495534628064,1,1292475,34303,0,1292475,34303,0
+hex_tet_validation,hex_tet_validation_mesh_TET_2_4_1e-9,PASS,PASS,driver integration seconds,4.934367511,4.41527705,1.117566905795866,1,711180,16724,0,711180,16724,0
+hex_tet_validation,hex_tet_validation_mesh_TET_2_8_1e-11,PASS,PASS,driver integration seconds,6.15597585,4.787575303,1.2858232947568533,1,1085235,19343,0,1085235,19343,0
+hex_tet_validation,hex_tet_validation_mesh_TET_6_2_1e-11,PASS,PASS,driver integration seconds,3.754663513,3.48953474,1.0759782586374251,1,556200,15894,0,556095,15894,0
+hex_tet_validation,hex_tet_validation_mesh_TET_6_4_1e-11,PASS,PASS,driver integration seconds,8.151313611,7.975677166,1.022021508812911,1,1317315,35071,0,1317315,35071,0
+hex_tet_validation,hex_tet_validation_mesh_TET_6_8_1e-11,PASS,PASS,driver integration seconds,8.007201367,6.781083485,1.1808144501851683,1,1226505,23212,0,1226505,23212,0
+line_integration,line_integration,PASS,PASS,"whole fixture, including startup/setup",0.043319421999967744,0.018754186000023765,2.3098534908373445,1,0,0,0,0,0,0
+line_mesh_refinement,line_mesh_refinement,PASS,PASS,"whole fixture, including startup/setup",0.0031297020000238263,0.0032394180000210326,0.9661309531537783,1,0,0,0,0,0,0
+mesh_refinement,mesh_refinement,PASS,PASS,"whole fixture, including startup/setup",0.6215398070000901,0.7074446250001074,0.8785702584142127,1,60405,764,0,60405,764,0
+nodal_cut_detection,nodal_cut_detection,PASS,FAIL,"whole fixture, including startup/setup",0.007489490999887494,0.004103057999827797,,1,0,0,0,0,0,0
+nodal_cut_detection,nodal_cut_detection_depth12,PASS,PASS,"whole fixture, including startup/setup",0.010051759000134552,0.008341119000078834,1.2050851930106201,1,0,0,0,0,0,0
+normal_surface,normal_surface,PASS,PASS,public API calls; construction/oracles excluded,1.922918248,0.521668565,3.6860918541258085,1,35460,627,0,35460,627,0
+outer_interval_benchmark,outer_interval_benchmark_0_10,PASS,PASS,sum of internal case medians,0.054909502,0.025464687,2.156299898757837,1,9180,207,0,9180,207,0
+outer_interval_benchmark,outer_interval_benchmark_0_2,PASS,PASS,sum of internal case medians,0.051265168,0.021821971,2.349245537903061,1,8640,189,0,8640,189,0
+outer_interval_benchmark,outer_interval_benchmark_1_10,PASS,PASS,sum of internal case medians,0.054546398,0.028538766,1.9113089192433899,1,8460,180,0,8460,180,0
+outer_interval_benchmark,outer_interval_benchmark_1_2,PASS,PASS,sum of internal case medians,0.046546864,0.018940991,2.4574671937703787,1,8460,180,0,8460,180,0
+outer_interval_benchmark,outer_interval_benchmark_2_10,PASS,PASS,sum of internal case medians,11.963221279,3.945512361,3.032108427096118,1,737640,19497,0,737640,19497,0
+outer_interval_benchmark,outer_interval_benchmark_2_2,PASS,PASS,sum of internal case medians,11.350674254,3.33781003,3.4006351925307143,1,727650,19164,0,727650,19164,0
+outer_interval_benchmark,outer_interval_benchmark_3_10,PASS,PASS,sum of internal case medians,14.582570426,4.036141511,3.612997806508276,1,779355,19767,0,779355,19767,0
+outer_interval_benchmark,outer_interval_benchmark_3_2,PASS,PASS,sum of internal case medians,13.999944743,3.644088119,3.841823876323228,1,772515,19719,0,772515,19719,0
+outer_interval_contract,outer_interval_contract,PASS,PASS,"whole fixture, including startup/setup",0.014991109999982655,0.011795678999988013,1.2708984366222487,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_0_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0019038410000575823,0.0022612380000737176,0.8419463143620954,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_0_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0018344009999964328,0.0032724859997870226,0.5605527418958608,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_0_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002744060999930298,0.003569253000023309,0.7688054054762656,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_0_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.016903525000088848,0.030859258999953454,0.5477618565019446,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_0_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002478530999951545,0.002091909000000669,1.1848177908077036,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_1_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002977942999905281,0.002637980999907086,1.1288720426758831,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_1_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002919255000051635,0.0029656040001100337,0.9843711432623239,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_2_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0025954669999919133,0.0025225419999514997,1.028909330366676,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_2_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0023708189999069873,0.0021257599998989463,1.1152806525758743,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_2_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0022898869999607996,0.003462001999878339,0.6614343377159431,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_2_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0022563770000942895,0.003332626999963395,0.6770565683225495,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_2_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0022764269999697717,0.002141204000054131,1.063152786895701,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_3_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.003589303000126165,0.0037030700000286743,0.9692776534330627,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_3_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0028031099998315767,0.002327003000118566,1.2046009393579433,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_4_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002327253999965251,0.0033085610000398447,0.7034036851480822,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_4_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0024352309999358113,0.002910331000066435,0.8367539636832447,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_5_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0024801790000310575,0.0038196100001641753,0.649327810934743,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_5_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0021935770000709454,0.0023998320000373496,0.9140544004900367,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_5_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.00296589499998845,0.0026733649999641784,1.1094238908746807,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_5_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0029290789998412947,0.0037432200001603633,0.7825024977735239,1,0,0,0,0,0,0
+planar_suite,planar_suite_0_5_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0023984909998944204,0.002760314999932234,0.8689193081055254,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_0_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0021067409998067887,0.0021901570000864012,0.9619132325781569,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_0_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002393683999798668,0.002133286000116641,1.1220642706452812,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_0_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.006160884000109945,0.003162440000096467,1.948142573431279,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_0_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002053271000022505,0.005728332999979102,0.3584412777731315,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_0_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.00433144499993432,0.002636233999965043,1.6430426889235763,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_1_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0026886769999237004,0.005746520999991844,0.46787908717770565,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_1_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0021250089998829935,0.0023122410000269156,0.9190257416325796,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_2_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0028700300001673895,0.002727415999970617,1.0522890531544542,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_2_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0024039289999109315,0.002504725999870061,0.9597572748618577,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_2_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0033062570000765845,0.00342674800003806,0.964838091403238,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_2_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.004392102000110754,0.0031252539999968576,1.405358412505086,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_2_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.004698292000057336,0.0031815699999242497,1.476721241452867,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_3_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.003063881999878504,0.003417214000137392,0.896602319829931,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_3_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0063396040000043286,0.004454004000081113,1.4233494177124395,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_4_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.009565979999933916,0.005923286000097505,1.6149785777314225,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_4_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.003938578000088455,0.0049321050000799005,0.7985592358687923,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_5_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.008871644999999262,0.009358367000004364,0.9479907124816889,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_5_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.007955431000027602,0.012658320000127787,0.6284744737016674,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_5_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.00861222399998951,0.010094040000012683,0.8531989173788384,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_5_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.00873934600008397,0.009202782999864212,0.949641646468565,1,0,0,0,0,0,0
+planar_suite,planar_suite_1_5_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.008884363999868583,0.009360000000015134,0.949184188018613,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_0_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0023914400001103786,0.0021107580000716553,1.1329768737246027,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_0_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0028843420000157494,0.0022587199998724827,1.2769807679475926,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_0_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0023593619998791837,0.00208763200021167,1.1301618291154583,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_0_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0020951839999270305,0.0022139329998935864,0.9463628754924998,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_0_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.001965158999837513,0.002203886999950555,0.8916786567921141,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_1_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0020689039999979286,0.002303236999978253,0.898259275974406,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_1_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0023053499999150517,0.0023716499999864027,0.9720447789211177,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_2_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002760411000053864,0.0036377359999733017,0.7588266438449969,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_2_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002341333999993367,0.0033356650001223898,0.7019092144767116,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_2_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002238089000002219,0.0023988109999208973,0.9329993067715722,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_2_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0037920390000181214,0.002757801000143445,1.3750227082450406,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_2_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.004572412000015902,0.003685767999968448,1.240558819777871,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_3_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.005686489999789046,0.003176631000087582,1.7901008960852758,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_3_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.003171743999928367,0.00691634199984037,0.4585869235502772,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_4_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.007647391000091375,0.009596656999974584,0.7968807262895431,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_4_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.00777817900006994,0.006124899999804256,1.2699275090725597,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_5_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.010776852999924813,0.013607544000024063,0.7919763478189565,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_5_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0131397200000265,0.01017256299996916,1.2916823420082368,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_5_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.008790944000111267,0.008819617000199287,0.9967489517869799,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_5_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.009533319999945888,0.00959908999993786,0.9931483088509018,1,0,0,0,0,0,0
+planar_suite,planar_suite_2_5_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.011568955000029746,0.014602372000126707,0.7922654620721455,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_0_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0019307160000607837,0.002914667999903031,0.6624136951875882,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_0_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0028520830001070863,0.002735586999961015,1.0425853756973298,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_0_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0023611540000274545,0.0025850109998373227,0.9134019159593689,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_0_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.004052068999953917,0.0033504030000131024,1.2094273434981018,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_0_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0033597370002098614,0.002143506000038542,1.5674026572118065,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_1_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0023838380000142934,0.002449037000133103,0.9733776990240384,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_1_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.01213904300016111,0.0030816089999916585,3.939189884308479,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_2_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0027757579998706206,0.004608467000025485,0.6023169960542781,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_2_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.003380063000122391,0.003084463000050164,1.0958351583622237,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_2_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002586493999842787,0.0028914829999848735,0.8945216001118866,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_2_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.004661446999989494,0.003283432999978686,1.4196869557014724,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_2_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0029882189999170805,0.004085424000095372,0.7314342403254404,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_3_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.010636892000093212,0.008575629000006302,1.240362893507333,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_3_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.010231942000018535,0.007242062000159422,1.412849268591362,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_4_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.06128504899993459,0.04281631300000299,1.4313481172451796,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_4_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.06089560299983532,0.0433770120000645,1.4038680903088663,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_5_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.2711377430000539,0.25045361999991655,1.0825866401936783,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_5_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.2657691720000912,0.21649561300000641,1.2275961083797264,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_5_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.32400524099989525,0.23732625000002372,1.3652313682109032,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_5_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.2888587690001714,0.28575951299990265,1.0108456791787357,1,0,0,0,0,0,0
+planar_suite,planar_suite_3_5_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.26409771100020407,0.22224471200001972,1.188319436820529,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0019801669998287252,0.002713134000032369,0.7298448951673971,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_boundary_high_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.001922337999985757,0.002383247999887317,0.8066042644645659,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_boundary_high_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.002256371999919793,0.002062589999923148,1.0939508094210995,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0024204090000239376,0.0023899230000097305,1.0127560595107385,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_boundary_low_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.002182295000011436,0.002119295000056809,1.0297268666952635,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_boundary_low_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.0022678939999423164,0.0025544259999605856,0.8878292031075904,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002054026999985581,0.0022814540000126726,0.900314886898518,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_diagonal_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.0017778259998522117,0.002396237999846562,0.7419237988739227,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_diagonal_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.0018091340000410128,0.0021270319998620835,0.8505438564903193,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0023376090000510885,0.0025880170001073566,0.9032432939791815,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_plane_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.0018351429998801905,0.002924702999962392,0.6274630278369421,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_plane_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.0018685129998630146,0.0033368490001066675,0.5599633066414706,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0023160010000538023,0.002380007000056139,0.97310680178637,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_tiny_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.0019702920001236635,0.002163962999929936,0.9105017045982103,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_0_tiny_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.0020321540000622917,0.0024941990000115766,0.8147521509121204,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_1_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002534675999868341,0.0034821030001239706,0.7279152856127751,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_1_diagonal_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.0023127920001115854,0.0025813770000695513,0.8959528189990345,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_1_diagonal_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.0027982030001112435,0.0022823159999916243,1.2260366225016661,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_1_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0023607450000326935,0.0023585660001117503,1.0009238664174926,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_1_plane_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.002009665000059613,0.0023225669999646925,0.8652775140997713,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_1_plane_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.0019829899999876943,0.004565953999872363,0.4342991629007053,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0035013869999147573,0.003899659999888172,0.8978698142953909,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_boundary_high_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.0030726959998901293,0.0029206609999619104,1.052054997115448,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_boundary_high_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.002655959000094299,0.0028583729999809293,0.9291855891837837,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.002735807999897588,0.003842299999860188,0.7120235275738848,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_boundary_low_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.002871217999881992,0.002882599000031405,0.9960518267891965,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_boundary_low_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.0026343410002027667,0.002943054999832384,0.8951042370437523,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0031049249998886808,0.0031755909999446885,0.977747134294927,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_diagonal_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.0032346899999993184,0.0030073880000145436,1.075581202021048,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_diagonal_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.0030155700001159857,0.0030449539999608533,0.9903499363717004,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0038936119999561924,0.0031120349999582686,1.2511465970043412,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_plane_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.002942419999953927,0.0034670899999582616,0.8486713641668803,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_plane_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.0028059940000275674,0.003956496999990122,0.7092117092555795,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0026527830000304675,0.0030372779999652266,0.8734080318169225,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_tiny_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.002685682999981509,0.002948994999997012,0.9107112762090916,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_2_tiny_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.0031461969999782013,0.003013546999909522,1.0440178965427325,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_3_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.007708705999903032,0.010128251999958593,0.7611092219994672,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_3_diagonal_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.008622707000085938,0.01193255499993029,0.7226203441036989,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_3_diagonal_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.011032955000018774,0.007844185000067228,1.4065138698187534,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_3_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.008005185999991227,0.011477925000008327,0.6974419156759971,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_3_plane_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.0076085640000655985,0.011310478000041257,0.6727004818043804,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_3_plane_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.008718722000139678,0.008073575000025812,1.07990846683307,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_4_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.0456145480000032,0.06434790699995574,0.7088738410720115,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_4_diagonal_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.04061562300012156,0.048398334000012255,0.8391946507933781,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_4_diagonal_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.044116376999909335,0.04949030800003129,0.8914144765452144,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_4_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.06059861199992156,0.04489381200005482,1.3498210399207704,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_4_plane_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.04035368199993172,0.04500427500011028,0.8966633058711164,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_4_plane_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.03966753999998218,0.04120929200007595,0.9625872727905415,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_boundary_high_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.22963926099987475,0.2688752609999483,0.8540735958594529,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_boundary_high_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.23048717100004978,0.24048090700011926,0.9584427049750585,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_boundary_high_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.24911131899989414,0.26258541200013497,0.9486868181381154,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_boundary_low_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.2300381860000016,0.21835358199996335,1.0535123073915966,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_boundary_low_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.29396022800005994,0.2241278690000854,1.3115737427546232,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_boundary_low_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.25005284100006975,0.24543009000012717,1.0188353066241396,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_diagonal_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.24932773499995164,0.262148672000194,0.9510928783181749,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_diagonal_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.3214358750001338,0.28973708700004863,1.1094053520324094,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_diagonal_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.2235658339998281,0.22439206700005343,0.9963179045887343,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_plane_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.24668117500004882,0.2223792790000516,1.1092812968423715,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_plane_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.22018713900001785,0.2507615380000061,0.8780738097084589,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_plane_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.22535690699987754,0.2690484350000588,0.8376072025835358,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_tiny_1.0_0,PASS,PASS,"whole fixture, including startup/setup",0.27620681700000205,0.2322221100000661,1.1894079207183306,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_tiny_1.0_1,PASS,PASS,"whole fixture, including startup/setup",0.2237908659999448,0.23202236499992068,0.9645228208928105,1,0,0,0,0,0,0
+planar_suite,planar_suite_4_5_tiny_1.0_2,PASS,PASS,"whole fixture, including startup/setup",0.282390974000009,0.24132542999996076,1.1701666666461754,1,0,0,0,0,0,0
+quad_curved_endpoint_regressions,quad_curved_endpoint_regressions,PASS,PASS,"whole fixture, including startup/setup",0.04077855700006694,0.08307605000004514,0.49085815948212247,1,2760,80,0,2760,80,0
+quad_native_quadrants,quad_native_quadrants,PASS,PASS,"whole fixture, including startup/setup",0.0075029310000900296,0.013498733999995238,0.555824790687236,1,810,10,0,810,10,0
+quad_scaled_plane,quad_scaled_plane,PASS,PASS,"whole fixture, including startup/setup",0.004551692999939405,0.003487742000061189,1.3050543875835856,1,120,0,0,120,0,0
+quad_tri_standard_moments,quad_tri_standard_moments,PASS,PASS,"whole fixture, including startup/setup",0.007042103000003408,0.0077176990000680235,0.9124614732890385,1,900,0,0,900,0,0
+quadrature_rule_selection,quadrature_rule_selection,PASS,PASS,public API calls; construction/oracles excluded,0.000170076,0.000203937,0.8339634298827578,1,548010,66512,0,549420,66558,0
+review_regressions,review_regressions,PASS,PASS,"whole fixture, including startup/setup",0.15896346699992137,0.17660552899997128,0.9001047017047084,1,20685,494,0,20430,486,0
+review_regressions,review_regressions_independent_reference.txt,PASS,PASS,"whole fixture, including startup/setup",0.14776282399998308,0.1468642259999342,1.0061185628694171,1,21015,503,0,20760,495,0
+simplex_high_degree,simplex_high_degree,PASS,PASS,"whole fixture, including startup/setup",0.011591361999990113,0.01326956999992035,0.873529586871292,1,1050,0,0,1050,0,0
+single_graph_root,single_graph_root,PASS,PASS,"whole fixture, including startup/setup",0.002761647999932393,0.0035948519998783013,0.76822300334642,1,45,1,0,0,0,0
+single_graph_root,single_graph_root_benchmark,PASS,PASS,"whole fixture, including startup/setup",0.9251708599999802,0.7504862450000473,1.232761914243907,1,45,1,0,0,0,0
+surface_rule_reuse,surface_rule_reuse,PASS,PASS,public API calls; construction/oracles excluded,6.156993667,1.214273081,5.07051812589758,1,147910,6682,0,147910,6682,0
+tangential_surface,tangential_surface,PASS,PASS,public API calls; construction/oracles excluded,2.346304328,0.776872472,3.020192390083813,1,99658,5800,0,99728,5805,0
+test_contract,test_contract,PASS,PASS,public API calls; construction/oracles excluded,0.0005096,0.00043509699999999996,1.1712330813588696,1,0,0,0,0,0,0
+test_hex_native,test_hex_native,PASS,PASS,"whole fixture, including startup/setup",0.008870521000062581,0.010800582000001668,0.8213002780832747,1,1140,1,0,1140,1,0
+test_hex_native,test_hex_native_10_1e-12,PASS,PASS,"whole fixture, including startup/setup",0.03628762500011362,0.027129389000037918,1.3375761982720253,1,12360,277,0,5040,93,0
+test_ls_multiprecision,test_ls_multiprecision,PASS,PASS,public API calls; construction/oracles excluded,8.9004e-05,0.000103396,0.8608069944678711,1,15,0,0,15,0,0
+test_ls_output_range,test_ls_output_range,PASS,PASS,public API calls; construction/oracles excluded,0.000293261,0.000234704,1.2494929783898017,1,0,0,0,0,0,0
+test_order_ls_first,test_order_ls_first,PASS,PASS,public API calls; construction/oracles excluded,6.9514e-05,0.000269516,0.257921607622553,1,15,0,0,15,0,0
+test_order_planar_first,test_order_planar_first,PASS,PASS,public API calls; construction/oracles excluded,6.6881e-05,0.000136005,0.49175397963310175,1,15,0,0,15,0,0
+test_reference_coefficients,test_reference_coefficients,PASS,PASS,"whole fixture, including startup/setup",0.009613765000040075,0.007894425999893429,1.2177915151994403,1,0,0,0,0,0,0
+test_root_candidate_regression,test_root_candidate_regression,PASS,PASS,"whole fixture, including startup/setup",0.004063507999944704,0.0025905509999120113,1.5685883042189566,1,0,0,0,0,0,0
+test_tet_slice_regression,test_tet_slice_regression,PASS,PASS,"whole fixture, including startup/setup",0.00392476899992289,0.003527000000076441,1.112778281779934,1,30,0,0,30,0,0
+tet_standard_moments,tet_standard_moments,PASS,PASS,"whole fixture, including startup/setup",0.032757335000042076,0.023090039999942746,1.418678140017224,1,6060,0,0,6060,0,0
+tolerance_warnings,tolerance_warnings,PASS,PASS,public API calls; construction/oracles excluded,1.5262009779999999,0.454165275,3.3604528175343216,1,73150,0,0,73150,0,0
+tri_circle_probe,tri_circle_probe,PASS,PASS,"whole fixture, including startup/setup",0.01469667399987884,0.021276704999991125,0.6907401310440207,1,1920,48,0,1920,48,0
+tri_endpoint_regressions,tri_endpoint_regressions,PASS,PASS,"whole fixture, including startup/setup",0.009923079999907713,0.010506949000046006,0.9444302051779506,1,690,16,0,690,16,0
+unit_element_moments,unit_element_moments,PASS,PASS,public API calls; construction/oracles excluded,0.020153944,0.010936915,1.8427448690969985,1,600,0,0,600,0,0
+wedge21_moments,wedge21_moments,PASS,PASS,public API calls; construction/oracles excluded,0.008975743999999999,0.005649995999999999,1.5886283813298276,1,25304,510,0,25304,510,0
+wide_unit_mesh,wide_unit_mesh_0_10_64,PASS,PASS,mesh seconds; rule setup excluded,0.121071472,0.121054017,1.0001441918280167,1,6825,72,0,6825,72,0
+wide_unit_mesh,wide_unit_mesh_0_2_64,PASS,PASS,mesh seconds; rule setup excluded,0.063280235,0.054894811,1.1527544015043607,1,5775,37,0,5775,37,0
+wide_unit_mesh,wide_unit_mesh_0_5_64,PASS,PASS,mesh seconds; rule setup excluded,0.075483209,0.05571851,1.3547241123282012,1,5865,40,0,5865,40,0
+wide_unit_mesh,wide_unit_mesh_1_10_64,PASS,PASS,mesh seconds; rule setup excluded,0.213484235,0.180407769,1.1833428027148876,1,9180,43,0,9180,43,0
+wide_unit_mesh,wide_unit_mesh_1_2_64,PASS,PASS,mesh seconds; rule setup excluded,0.130960851,0.090925783,1.4403049022959746,1,8790,30,0,8790,30,0
+wide_unit_mesh,wide_unit_mesh_1_5_64,PASS,PASS,mesh seconds; rule setup excluded,0.140971032,0.11441561,1.2320961449228824,1,8820,31,0,8820,31,0
+wide_unit_mesh,wide_unit_mesh_2_10_8,PASS,PASS,mesh seconds; rule setup excluded,23.176084793,10.74296857,2.1573259422651367,1,1483230,39407,0,1483230,39407,0
+wide_unit_mesh,wide_unit_mesh_2_2_8,PASS,PASS,mesh seconds; rule setup excluded,15.460840986,6.1691733,2.506144702727025,1,1190940,31444,0,1190940,31444,0
+wide_unit_mesh,wide_unit_mesh_2_5_8,PASS,PASS,mesh seconds; rule setup excluded,18.680478412,6.816997245,2.7402795894778156,1,1272210,33607,0,1272210,33607,0
+wide_unit_mesh,wide_unit_mesh_3_10_8,PASS,PASS,mesh seconds; rule setup excluded,116.641485651,31.037298293,3.7581069250897636,1,2644080,61683,0,2643975,61683,0
+wide_unit_mesh,wide_unit_mesh_3_2_8,PASS,PASS,mesh seconds; rule setup excluded,100.01561896499999,20.551325139,4.866626277796636,1,2423190,55610,0,2423085,55610,0
+wide_unit_mesh,wide_unit_mesh_3_5_8,PASS,PASS,mesh seconds; rule setup excluded,104.435709248,23.762708054,4.394941393492407,1,2491440,57495,0,2491335,57495,0
+wide_unit_validation,wide_unit_validation_0_10,PASS,PASS,case seconds; fitting setup excluded,0.193146879,0.141919309,1.3609626509666841,1,10740,267,0,10740,267,0
+wide_unit_validation,wide_unit_validation_0_2,PASS,PASS,case seconds; fitting setup excluded,0.144041896,0.099048926,1.4542499531998965,1,10710,262,0,10710,262,0
+wide_unit_validation,wide_unit_validation_0_5,PASS,PASS,case seconds; fitting setup excluded,0.182790926,0.098302026,1.8594827943830985,1,10650,264,0,10650,264,0
+wide_unit_validation,wide_unit_validation_1_10,PASS,PASS,case seconds; fitting setup excluded,0.163887609,0.10867668300000001,1.5080291786233482,1,10830,267,0,10830,267,0
+wide_unit_validation,wide_unit_validation_1_2,FAIL,FAIL,case seconds; fitting setup excluded,0.133887993,0.078857571,,1,10770,261,0,10770,261,0
+wide_unit_validation,wide_unit_validation_1_5,PASS,PASS,case seconds; fitting setup excluded,0.139493054,0.088417614,1.5776613695999533,1,10740,264,0,10740,264,0
+wide_unit_validation,wide_unit_validation_2_10,PASS,PASS,case seconds; fitting setup excluded,24.965055539999998,10.039615717,2.486654493929172,1,697650,18950,0,697650,18950,0
+wide_unit_validation,wide_unit_validation_2_2,PASS,PASS,case seconds; fitting setup excluded,23.925366354,9.169738618,2.6091655771992257,1,685170,18570,0,685170,18570,0
+wide_unit_validation,wide_unit_validation_2_5,PASS,PASS,case seconds; fitting setup excluded,24.316344482999998,9.234200309,2.633291857368566,1,685440,18603,0,685440,18603,0
+wide_unit_validation,wide_unit_validation_3_10,PASS,PASS,case seconds; fitting setup excluded,32.826284338,10.434466539000002,3.145947539848639,1,691146,18304,0,691146,18304,0
+wide_unit_validation,wide_unit_validation_3_2,PASS,PASS,case seconds; fitting setup excluded,30.545697053999998,8.754854165,3.4890012418613487,1,685866,17916,0,685866,17916,0
+wide_unit_validation,wide_unit_validation_3_5,PASS,PASS,case seconds; fitting setup excluded,31.222153673,9.122807487,3.4224282072696997,1,679086,17962,0,679086,17962,0

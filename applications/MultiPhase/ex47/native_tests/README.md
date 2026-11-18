@@ -34,7 +34,8 @@ The timing-only graph and degree-13 surface drivers also have accuracy-only vari
 ```sh
 python applications/MultiPhase/ex47/native_tests/build_comparison.py --build /tmp/ex47-native --boost /path/to/boost --eigen /path/to/eigen3 --jobs 2 --tests benchmark_graph_accuracy benchmark_surface_accuracy
 python applications/MultiPhase/ex47/native_tests/run_benchmark_accuracy.py --build /tmp/ex47-native --output /tmp/ex47-native-results/benchmark-accuracy
-python applications/MultiPhase/ex47/native_tests/make_report.py --build /tmp/ex47-native --results /tmp/ex47-native-results --output applications/MultiPhase/ex47/native_tests/results
+python applications/MultiPhase/ex47/native_tests/run_ctest_comparison.py --build /tmp/ex47-native --output /tmp/ex47-native-results/ctest --detection-depth 12
+python applications/MultiPhase/ex47/native_tests/make_report.py --build /tmp/ex47-native --results /tmp/ex47-native-results --output applications/MultiPhase/ex47/native_tests/results/unit_coordinates --unit-coordinates
 ```
 
 The polynomial-coefficient import supports the primitive fixtures without converting their long-double inputs into nodal doubles. Public prepared-weight overloads continue to require a root record created from FEM node values.
