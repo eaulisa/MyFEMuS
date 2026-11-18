@@ -213,11 +213,11 @@ public:
   }
 
   static std::vector<EndpointProjectionEvent> BuildDirection(const std::vector<long double>& coefficient, bool triangle, unsigned outer, unsigned certifiedInner, bool graphOnly, bool wedge = false, const CutFemLevelSetData* prepared = nullptr) {
-    const long double outerLower = !triangle && (!wedge || outer == 2) ? -1 : 0;
-    const long double innerLower = !triangle && (!wedge || certifiedInner == 2) ? -1 : 0;
+    const long double outerLower = 0;
+    const long double innerLower = 0;
     std::vector<long double> events = {outerLower,1};
     const unsigned middle = 3U-outer-certifiedInner;
-    const long double middleLower = !triangle && (!wedge || middle == 2) ? -1 : 0;
+    const long double middleLower = 0;
     const bool projectedTriangle = triangle || (wedge && outer < 2 && middle < 2);
     const bool middleBoundary = triangle || (wedge && certifiedInner < 2 && middle < 2);
     const bool outerBoundary = triangle || (wedge && certifiedInner < 2 && outer < 2);

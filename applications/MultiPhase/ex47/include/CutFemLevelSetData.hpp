@@ -44,9 +44,11 @@ class CutFemLevelSetData {
       unsigned degree = 4;
       std::array<std::vector<long double>,3> coefficients;
       std::vector<long double> discriminant;
+      std::array<std::array<long double,2>,5> compensatedDiscriminant = {};
+      bool compensatedReady = false;
     };
 
-    // Nodal inputs use FEMuS ordering and reference coordinates; the default allows one sign-certification bisection.
+    // FEMuS nodal ordering is preserved; all polynomial coordinates are unit coordinates.
     CutFemLevelSetData(GeomElType geometry, const std::vector<double>& nodalValues, unsigned maximumDepth = 1) {
       Reset(geometry, nodalValues, maximumDepth);
     }
@@ -90,12 +92,12 @@ class CutFemLevelSetData {
       *this = std::move(replacement);
     }
 
-    // Imports native coefficients directly for polynomial-level integration and testing.
+    // Imports unit-coordinate coefficients directly for polynomial-level integration and testing.
     void ResetPowerCoefficients(GeomElType geometry, const std::vector<long double>& coefficient, unsigned maximumDepth = 1) {
       ValidateGeometry(geometry);
       ValidateDepth(maximumDepth);
       const unsigned dimension = Dimension(geometry);
-      if(coefficient.size() != PolynomialSize(dimension,2)) throw std::invalid_argument("Incorrect native power-coefficient count.");
+      if(coefficient.size() != PolynomialSize(dimension,2)) throw std::invalid_argument("Incorrect unit power-coefficient count.");
       long double maximum = 0;
       for(unsigned n = 0; n < coefficient.size(); ++n) { if(!std::isfinite(coefficient[n])) throw std::invalid_argument("Power coefficients must be finite."); const std::array<unsigned,3> power = PowerExponents(n,dimension,2); if(coefficient[n] != 0 && ((geometry == TET && power[0]+power[1]+power[2] > 4) || (geometry == WEDGE && power[0]+power[1] > 3))) throw std::invalid_argument("Polynomial exceeds the supported reference layout."); maximum = std::max(maximum,std::abs(coefficient[n])); }
       CutFemLevelSetData replacement;
@@ -244,8 +246,6 @@ class CutFemLevelSetData {
       ValidatePoint(point);
       std::array<long double,3> unit = {0,0,0};
       for(unsigned axis = 0; axis < _dimension; ++axis) unit[axis] = point[axis];
-      if(_geometry == LINE || _geometry == QUAD || _geometry == HEX) for(unsigned axis = 0; axis < _dimension; ++axis) unit[axis] = (unit[axis]+1)/2;
-      if(_geometry == WEDGE) unit[2] = (unit[2]+1)/2;
       const bool simplex = _geometry == TRI || _geometry == TET || _geometry == WEDGE;
       const unsigned baseDimension = _geometry == TET ? 3U : 2U;
       static const std::array<std::array<unsigned,35>,3> multipliers = BuildBernsteinMultipliers();
@@ -339,7 +339,7 @@ class CutFemLevelSetData {
         EnsureBernstein();
         const bool simplexAxis = _geometry == TRI || _geometry == TET || (_geometry == WEDGE && axis < 2);
         const unsigned degree = _bernsteinOrders[axis];
-        const long double factor = simplexAxis ? degree : degree/2.0L;
+        const long double factor = degree;
         long double minimum = std::numeric_limits<long double>::infinity(), maximum = -minimum, norm = 0;
         long double cornerMinimum = minimum, cornerMaximum = maximum;
         for(unsigned n = 0; n < _bernsteinIndices.size(); ++n) {
@@ -396,8 +396,12 @@ class CutFemLevelSetData {
     void PermuteSimplexVertices(const std::array<unsigned,4>& vertices, CutFemLevelSetData& chart) const;
     void TransformParentComponents(unsigned degree, const std::vector<std::vector<long double>>& components, unsigned& outputDegree, std::vector<std::vector<long double>>& output) const;
     const FiberProjection& GetFiberProjection(unsigned axis) const;
+    bool GetCompensatedDiscriminantRoots(unsigned axis, long double left, long double right, std::vector<long double>& roots) const;
+    void AnalyzeLocalFiber(unsigned axis, long double coordinate, LineAnalysis& analysis) const;
+    long double EvaluateLocalFiberDiscriminant(unsigned axis, long double coordinate) const;
+    void GetLocalShiftedFiberDiscriminant(unsigned axis, long double endpoint, std::array<long double,5>& coefficient) const;
     const std::vector<long double>& GetUnitPowerCoefficients() const;
-    static void ExpandNodalPolynomial(GeomElType geometry, const std::vector<long double>& nodal, std::vector<long double>& coefficient) { ValidateGeometry(geometry); if(nodal.size() != NodeCount(geometry)) throw std::invalid_argument("Incorrect nodal polynomial size."); for(long double value : nodal) if(!std::isfinite(value)) throw std::invalid_argument("Nodal polynomial values must be finite."); ExpandNative(geometry,nodal,coefficient); }
+    static void ExpandNodalPolynomial(GeomElType geometry, const std::vector<long double>& nodal, std::vector<long double>& coefficient) { ValidateGeometry(geometry); if(nodal.size() != NodeCount(geometry)) throw std::invalid_argument("Incorrect nodal polynomial size."); for(long double value : nodal) if(!std::isfinite(value)) throw std::invalid_argument("Nodal polynomial values must be finite."); ExpandUnit(geometry,nodal,coefficient); }
     long double GetUnitToReferenceMeasureScale() const;
     long double EvaluateFiberDiscriminant(unsigned axis, const std::vector<long double>& point) const;
     long double EvaluateFiberDiscriminant(unsigned axis, long double point) const;
@@ -408,6 +412,7 @@ class CutFemLevelSetData {
       RequireInitialized();
       return _parentOrigin;
     }
+    const std::vector<std::vector<long double>>& GetRootMap() const { RequireInitialized(); return _rootMap; }
     const std::vector<std::vector<long double>>& GetParentMap() const {
       RequireInitialized();
       return _parentMap;
@@ -813,7 +818,7 @@ class CutFemLevelSetData {
       long double sum = 0;
       for(unsigned axis = 0; axis < _dimension; ++axis) {
         const bool simplexAxis = _geometry == TRI || _geometry == TET || (_geometry == WEDGE && axis < 2);
-        const long double lower = simplexAxis ? 0 : -1;
+        const long double lower = 0;
         const long double padding = 64 * std::numeric_limits<long double>::epsilon();
         if(point[axis] < lower - padding || point[axis] > 1 + padding) throw std::out_of_range("Point lies outside the reference element.");
         if(simplexAxis) sum += point[axis];
@@ -826,7 +831,7 @@ class CutFemLevelSetData {
       if(_dimension != 1) throw std::logic_error("A line operation requires one-dimensional data.");
       if(!std::isfinite(coordinate)) throw std::invalid_argument("Line coordinates must be finite.");
       const long double padding = 64*std::numeric_limits<long double>::epsilon();
-      if(coordinate < -1-padding || coordinate > 1+padding) throw std::out_of_range("Point lies outside the reference line.");
+      if(coordinate < -padding || coordinate > 1+padding) throw std::out_of_range("Point lies outside the reference line.");
     }
 
     static void Differentiate(const std::vector<long double>& coefficient, unsigned dimension, unsigned degree, unsigned axis, std::vector<long double>& result) {
@@ -889,11 +894,18 @@ class CutFemLevelSetData {
       GeomElType geometry = LINE;
       unsigned dimension = 0;
       long double norm = 0;
-      std::array<long double,27> power = {};
+      mutable std::array<long double,27> power = {};
+      mutable std::array<long double,27> tail = {};
+      std::array<long double,27> nodal = {};
+      unsigned nodes = 0;
+      mutable bool compensatedReady = false;
     };
 
     void InvalidateAnalysis();
     void EnsureSource() const;
+    void EnsureCompensatedSource() const;
+    void EnsureCompensatedProjection(unsigned axis) const;
+    bool GetLocalFiberCoefficients(unsigned axis, long double coordinate, std::array<std::array<long double,2>,3>& coefficient) const;
     void MapCompensatedSourcePoint(const std::array<long double,3>& coordinate, std::array<std::array<long double,2>,3>& point, std::array<std::array<long double,2>,3>* direction = nullptr, unsigned axis = 0) const;
     void GetCompensatedFiberCoefficients(unsigned axis, const std::array<long double,3>& coordinate, std::array<std::array<long double,2>,3>& coefficient) const;
     void GetCompensatedLineCoefficients(std::array<std::array<long double,2>,3>& coefficient) const;
@@ -901,10 +913,11 @@ class CutFemLevelSetData {
     static std::array<long double,2> CompensatedAdd(const std::array<long double,2>& first, const std::array<long double,2>& second);
     static std::array<long double,2> CompensatedMultiply(const std::array<long double,2>& first, const std::array<long double,2>& second);
     static std::array<long double,2> CompensatedEvaluate(const long double* coefficient, unsigned dimension, unsigned degree, const std::array<std::array<long double,2>,3>& point);
+    static void CompensatedPolynomialRoots(const std::array<std::array<long double,2>,5>& coefficient, unsigned degree, long double left, long double right, std::vector<long double>& roots);
     static long double QuadraticDiscriminant(const std::array<std::array<long double,2>,3>& coefficient);
     static unsigned SolveQuadratic(long double a, long double b, long double c, long double discriminant, std::array<long double,2>& roots);
     static const std::vector<std::array<long double,3>>& ReferenceNodes(GeomElType geometry);
-    static void ExpandNative(GeomElType geometry, const std::vector<long double>& nodal, std::vector<long double>& coefficient);
+    static void ExpandUnit(GeomElType geometry, const std::vector<long double>& nodal, std::vector<long double>& coefficient);
     static std::array<std::array<std::array<long double,27>,27>,6> BuildInterpolationTables();
     static void ExpandChartNodal(GeomElType geometry, const std::vector<long double>& nodal, std::vector<long double>& coefficient);
     void InitializeChart(CutFemLevelSetData& chart) const;
@@ -934,8 +947,6 @@ class CutFemLevelSetData {
     mutable std::array<int,3> _zeroFiberStatus = {0,0,0};
     mutable std::array<bool,3> _projectionReady = {false,false,false};
     mutable std::array<std::shared_ptr<FiberProjection>,3> _projections;
-    mutable bool _unitPowerReady = false;
-    mutable std::vector<long double> _unitPower;
     std::vector<long double> _chartNodal;
     mutable std::vector<long double> _componentTerm;
     mutable std::vector<long double> _componentNext;
@@ -991,7 +1002,7 @@ template<class Real> inline void CutFemLevelSetData::ExpandTensor(GeomElType geo
   const unsigned line[3][3] = {{0, 0, 0}, {2, 0, 0}, {1, 0, 0}};
   const unsigned quad[9][3] = {{0, 0, 0}, {2, 0, 0}, {2, 2, 0}, {0, 2, 0}, {1, 0, 0}, {2, 1, 0}, {1, 2, 0}, {0, 1, 0}, {1, 1, 0}};
   const unsigned hex[27][3] = {{0, 0, 0}, {2, 0, 0}, {2, 2, 0}, {0, 2, 0}, {0, 0, 2}, {2, 0, 2}, {2, 2, 2}, {0, 2, 2}, {1, 0, 0}, {2, 1, 0}, {1, 2, 0}, {0, 1, 0}, {1, 0, 2}, {2, 1, 2}, {1, 2, 2}, {0, 1, 2}, {0, 0, 1}, {2, 0, 1}, {2, 2, 1}, {0, 2, 1}, {1, 0, 1}, {2, 1, 1}, {1, 2, 1}, {0, 1, 1}, {1, 1, 0}, {1, 1, 2}, {1, 1, 1}};
-  const long double interpolation[3][3] = {{0, 1, 0}, {-0.5L, 0, 0.5L}, {0.5L, -1, 0.5L}};
+  const long double interpolation[3][3] = {{1, 0, 0}, {-3, 4, -1}, {2, -4, 2}};
   coefficient.assign(PolynomialSize(dimension, 2), 0);
   for(unsigned n = 0; n < nodal.size(); ++n) {
     const unsigned* index = dimension == 1 ? line[n] : (dimension == 2 ? quad[n] : hex[n]);
@@ -1087,7 +1098,7 @@ inline void CutFemLevelSetData::EnsurePower() const {
   else if(_geometry == TET) ExpandTetrahedron(_nodalValues, _power);
   else {
     const unsigned nodes[3][7] = {{0, 1, 2, 6, 7, 8, 18}, {12, 13, 14, 15, 16, 17, 20}, {3, 4, 5, 9, 10, 11, 19}};
-    const long double interpolation[3][3] = {{0, 1, 0}, {-0.5L, 0, 0.5L}, {0.5L, -1, 0.5L}};
+    const long double interpolation[3][3] = {{1, 0, 0}, {-3, 4, -1}, {2, -4, 2}};
     _power.assign(27, 0);
     for(unsigned plane = 0; plane < 3; ++plane) {
       std::vector<long double> nodal(7), triangle;
@@ -1148,11 +1159,7 @@ inline unsigned CutFemLevelSetData::BernsteinIndex(GeomElType geometry, const st
 
 inline void CutFemLevelSetData::ConvertToBernstein(const std::vector<long double>& power, GeomElType geometry, const std::array<unsigned, 3>& orders, std::vector<long double>& controls) {
   const unsigned dimension = Dimension(geometry);
-  std::vector<long double> unit = power, scratch;
-  for(unsigned axis = 0; axis < dimension; ++axis) if(geometry == LINE || geometry == QUAD || geometry == HEX || (geometry == WEDGE && axis == 2)) {
-      AffinePower(unit, dimension, 2, axis, -1, 2, scratch);
-      unit.swap(scratch);
-    }
+  const std::vector<long double>& unit = power;
   const std::vector<std::array<unsigned,3>>& indices = CachedBernsteinIndices(geometry,orders);
   controls.assign(indices.size(), 0);
   for(unsigned n = 0; n < indices.size(); ++n) {
@@ -1416,13 +1423,13 @@ inline void CutFemLevelSetData::RestrictionMap(unsigned axis, long double coordi
   if(axis >= _dimension) throw std::out_of_range("Slice axis exceeds the active dimension.");
   if(!std::isfinite(coordinate)) throw std::invalid_argument("Slice coordinate must be finite.");
   const bool simplexAxis = _geometry == TRI || _geometry == TET || (_geometry == WEDGE && axis < 2);
-  if(coordinate < (simplexAxis ? 0 : -1) || coordinate > 1) throw std::out_of_range("Slice coordinate lies outside the reference element.");
+  if(coordinate < 0 || coordinate > 1) throw std::out_of_range("Slice coordinate lies outside the reference element.");
   childGeometry = _geometry == HEX ? QUAD : (_geometry == TET ? TRI : (_geometry == WEDGE ? (axis == 2 ? TRI : QUAD) : LINE));
   origins.fill(0);
   scales.fill(1);
   const long double width = 1 - coordinate;
   if(_geometry == TET) std::fill(scales.begin(), scales.end(), width);
-  if(_geometry == TRI || (_geometry == WEDGE && axis < 2)) origins[0] = scales[0] = width / 2;
+  if(_geometry == TRI || (_geometry == WEDGE && axis < 2)) scales[0] = width;
 }
 
 inline void CutFemLevelSetData::RestrictPower(const std::vector<long double>& input, unsigned dimension, unsigned degree, unsigned axis, long double coordinate, const std::array<long double,3>& origins, const std::array<long double,3>& scales, std::vector<long double>& output) {
@@ -1435,7 +1442,7 @@ inline void CutFemLevelSetData::RestrictPower(const std::vector<long double>& in
     if(degree == 2) { output[n] = EvaluateQuadratic(input.data()+base,stride,coordinate); continue; }
     long double value = input[base+degree*stride];
     for(unsigned power = degree; power > 0; --power) {
-      value = value*coordinate+input[base+(power-1)*stride];
+      value = std::fma(value,coordinate,input[base+(power-1)*stride]);
     }
     output[n] = value;
   }
@@ -1500,7 +1507,7 @@ inline void CutFemLevelSetData::RestrictBernstein(unsigned axis, long double coo
     fixedPowers[0] = widthPowers[0] = 1;
     for(unsigned k = 1; k <= plan.degree; ++k) { fixedPowers[k] = fixedPowers[k-1]*coordinate; widthPowers[k] = widthPowers[k-1]*(1-coordinate); }
   }
-  else { const long double unit = (coordinate+1)/2; for(unsigned k = 0; k <= plan.degree; ++k) weights[k] = Bernstein(plan.degree,k,unit); }
+  else { const long double unit = coordinate; for(unsigned k = 0; k <= plan.degree; ++k) weights[k] = Bernstein(plan.degree,k,unit); }
   for(unsigned n = 0; n < child._bernstein.size(); ++n) {
     long double value = 0, correction = 0;
     for(unsigned term = plan.offsets[n]; term < plan.offsets[n+1]; ++term) {

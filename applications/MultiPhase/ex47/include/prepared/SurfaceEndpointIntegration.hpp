@@ -95,7 +95,7 @@ public:
 
 
   static long double Volume(const SurfaceEndpointDomain& cell) {
-    if(cell.wedge) return 1.0L;
+    if(cell.wedge) return 0.5L;
     if(!cell.tetrahedron) return (cell.vertices[1][0]-cell.vertices[0][0])*(cell.vertices[1][1]-cell.vertices[0][1])*(cell.vertices[1][2]-cell.vertices[0][2]);
 
     std::array<long double,3> edges[3];
@@ -164,7 +164,7 @@ public:
     const unsigned count = data.powers.size();
     for(unsigned n = 0; n < count; ++n) {
       if(!active[n]) continue;
-      long double value = cell.wedge ? ReferenceTriangleMoment(data.powers[n][0],data.powers[n][1])*IntegralPower(-1,1,data.powers[n][2]) : cell.tetrahedron ? TetMoment(cell,data.powers[n][0],data.powers[n][1],data.powers[n][2]) : IntegralPower(cell.vertices[0][0],cell.vertices[1][0],data.powers[n][0])*IntegralPower(cell.vertices[0][1],cell.vertices[1][1],data.powers[n][1])*IntegralPower(cell.vertices[0][2],cell.vertices[1][2],data.powers[n][2]);
+      long double value = cell.wedge ? ReferenceTriangleMoment(data.powers[n][0],data.powers[n][1])*IntegralPower(0,1,data.powers[n][2]) : cell.tetrahedron ? TetMoment(cell,data.powers[n][0],data.powers[n][1],data.powers[n][2]) : IntegralPower(cell.vertices[0][0],cell.vertices[1][0],data.powers[n][0])*IntegralPower(cell.vertices[0][1],cell.vertices[1][1],data.powers[n][1])*IntegralPower(cell.vertices[0][2],cell.vertices[1][2],data.powers[n][2]);
       value *= multiplier;
       values[n] += value;
       errors[n] += (64.0L+16.0L*data.degree)*std::numeric_limits<long double>::epsilon()*std::abs(value);
@@ -180,7 +180,7 @@ public:
       const long double minimum = certificate.bounds[0], maximum = certificate.bounds[1];
       energy[axis] = std::max(std::abs(minimum),std::abs(maximum));
       const long double lower = minimum > 0 ? minimum : (maximum < 0 ? -maximum : 0);
-      if(certificate.sign == 0 || (!certificate.strict && certificate.zeroFiber != -1) || axis == data.preferredOuter) continue;
+      if(!certificate.strict || lower == 0 || axis == data.preferredOuter) continue;
       const long double score = axis == data.preferredInner ? std::numeric_limits<long double>::infinity() : (lower > 0 ? 2+lower/std::max(energy[axis],std::numeric_limits<long double>::min()) : energy[axis]/(1+energy[axis]));
       if(score > best) {
         best = score;
@@ -202,39 +202,6 @@ public:
     }
     return true;
   }
-
-  static void Symmetry(const SurfaceEndpointData& data, std::vector<long double>& values, std::vector<long double>& errors) {
-    if(data.normalComponent >= 0) return;
-    const unsigned count = data.powers.size();
-    for(unsigned axis = 0; axis < 3; ++axis) {
-      bool even = true;
-      bool odd = true;
-      for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) {
-        const unsigned powers[3] = {i,j,k};
-        if(data.coefficient[Hex27Index(i,j,k)] == 0.0L) continue;
-        if(powers[axis]%2U != 0) even = false;
-        else odd = false;
-      }
-      bool metric = true;
-      for(unsigned n = 0; n < data.gradient.size(); ++n) {
-        const unsigned size = SurfacePolynomialCubeSize(data.gradient[n].size());
-        bool componentEven = true;
-        bool componentOdd = true;
-        for(unsigned i = 0; i < size; ++i) for(unsigned j = 0; j < size; ++j) for(unsigned k = 0; k < size; ++k) {
-          const unsigned powers[3] = {i,j,k};
-          if(data.gradient[n][size*size*i+size*j+k] == 0.0L) continue;
-          if(powers[axis]%2U != 0) componentEven = false;
-          else componentOdd = false;
-        }
-        metric = metric && (componentEven || componentOdd);
-      }
-      for(unsigned n = 0; n < count; ++n) if(data.powers[n][axis]%2U != 0) {
-        if(even) values[n] = errors[n] = 0.0L;
-        if((even || odd) && metric) values[count+n] = errors[count+n] = 0.0L;
-      }
-    }
-  }
-
 
   static void Sample(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, unsigned outer, long double coordinate, const std::vector<unsigned char>& active, std::vector<long double>& values, std::vector<long double>& errors, long double allocation) {
     ++data.evaluations;
@@ -359,7 +326,7 @@ public:
           const std::vector<long double> sourceError = errors;
           for(unsigned n = 0; n < data.powers.size(); ++n) {
             unsigned powers[3] = {data.powers[n][0],data.powers[n][1],data.powers[n][2]};
-            const long double factor = IntegralPower(-1,1,powers[outer]);
+            const long double factor = IntegralPower(0,1,powers[outer]);
             powers[outer] = 0;
             const unsigned index = HexMomentIndex(powers[0],powers[1],powers[2]);
             for(unsigned pair = 0; pair < 2; ++pair) {
@@ -422,7 +389,7 @@ public:
     SurfaceEndpointDomain cell;
     cell.tetrahedron = tetrahedron;
     cell.wedge = data.wedge;
-    cell.vertices = tetrahedron ? std::vector<std::array<long double,3>>{{0,0,0},{1,0,0},{0,1,0},{0,0,1}} : (data.wedge ? std::vector<std::array<long double,3>>{{0,0,-1},{1,1,1}} : std::vector<std::array<long double,3>>{{-1,-1,-1},{1,1,1}});
+    cell.vertices = tetrahedron ? std::vector<std::array<long double,3>>{{0,0,0},{1,0,0},{0,1,0},{0,0,1}} : (data.wedge ? std::vector<std::array<long double,3>>{{0,0,0},{1,1,1}} : std::vector<std::array<long double,3>>{{0,0,0},{1,1,1}});
     values.assign(2U*count,0.0L);
     errors.assign(2U*count,0.0L);
     long double norm = 0.0L;
@@ -440,12 +407,6 @@ public:
     data.requested.assign(2U*count,1);
     if(!data.computePositive) std::fill(data.requested.begin(),data.requested.begin()+count,0);
     if(!data.computeDelta) std::fill(data.requested.begin()+count,data.requested.end(),0);
-    if(!tetrahedron && !data.wedge) {
-      std::vector<long double> parityValues(2U*count,0);
-      std::vector<long double> parityErrors(2U*count,1);
-      Symmetry(data,parityValues,parityErrors);
-      for(unsigned n = 0; n < data.requested.size(); ++n) if(parityErrors[n] == 0) data.requested[n] = 0;
-    }
     std::vector<long double> best(2U*count,std::numeric_limits<long double>::quiet_NaN());
     std::vector<long double> bestErrors(2U*count,std::numeric_limits<long double>::infinity());
     long double budgetFactor = 1.0L;
@@ -457,7 +418,6 @@ public:
       std::vector<long double> passErrors(2U*count,0.0L);
       ++Statistics().integrationPasses;
       IntegrateParent(data,cell,passValues,passErrors);
-      if(!tetrahedron && !data.wedge) Symmetry(data,passValues,passErrors);
       KeepBestQuadrature(passValues,passErrors,data.requested,best,bestErrors);
       long double worst = 0.0L;
       bool remaining = false;

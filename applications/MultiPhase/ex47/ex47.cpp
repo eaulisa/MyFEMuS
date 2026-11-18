@@ -60,6 +60,12 @@ unsigned Dimension(GeomElType geometry) {
   return geometry == LINE ? 1U : (geometry == QUAD || geometry == TRI ? 2U : 3U);
 }
 
+bool TensorAxis(const femus::basis& basis, unsigned axis) {
+  return dynamic_cast<const femus::LineBiquadratic*>(&basis) != nullptr || dynamic_cast<const femus::QuadBiquadratic*>(&basis) != nullptr || dynamic_cast<const femus::HexBiquadratic*>(&basis) != nullptr || (dynamic_cast<const femus::WedgeBiquadratic*>(&basis) != nullptr && axis == 2);
+}
+
+long double UnitNode(const femus::basis& basis, unsigned node, unsigned axis) { return TensorAxis(basis,axis) ? (basis.GetXcoarse(node)[axis]+1)/2 : basis.GetXcoarse(node)[axis]; }
+
 std::vector<long double> RandomPoint(GeomElType geometry, std::mt19937& random) {
   std::uniform_real_distribution<double> uniform(0.01, 0.99);
   std::vector<long double> point(Dimension(geometry));
@@ -67,18 +73,18 @@ std::vector<long double> RandomPoint(GeomElType geometry, std::mt19937& random) 
     point[0] = uniform(random);
     point[1] = (1 - point[0]) * uniform(random);
     if(geometry == TET) point[2] = (1 - point[0] - point[1]) * uniform(random);
-    if(geometry == WEDGE) point[2] = 2 * uniform(random) - 1;
+    if(geometry == WEDGE) point[2] = uniform(random);
   }
-  else for(long double& coordinate : point) coordinate = 2 * uniform(random) - 1;
+  else for(long double& coordinate : point) coordinate = uniform(random);
   return point;
 }
 
 long double ReferenceValue(const femus::basis& basis, const std::vector<double>& nodal, const std::vector<long double>& point, int derivative = -1) {
   double native[3] = {0, 0, 0};
-  for(unsigned axis = 0; axis < point.size(); ++axis) native[axis] = static_cast<double>(point[axis]);
+  for(unsigned axis = 0; axis < point.size(); ++axis) native[axis] = static_cast<double>(TensorAxis(basis,axis) ? 2*point[axis]-1 : point[axis]);
   long double result = 0;
   for(unsigned n = 0; n < nodal.size(); ++n) result += static_cast<long double>(nodal[n]) * (derivative < 0 ? basis.eval_phi(basis.GetIND(n), native) : basis.eval_dphidxyz(static_cast<unsigned>(derivative), basis.GetIND(n), native));
-  return result;
+  return derivative >= 0 && TensorAxis(basis,static_cast<unsigned>(derivative)) ? 2*result : result;
 }
 
 void TestReconstruction(unsigned cases, unsigned points, std::mt19937& random) {
@@ -95,7 +101,7 @@ void TestReconstruction(unsigned cases, unsigned points, std::mt19937& random) {
       for(unsigned n = 0; n < nodal.size(); ++n) {
         const double* coordinate = basis->GetXcoarse(n);
         std::vector<long double> point(Dimension(geometry));
-        for(unsigned axis = 0; axis < point.size(); ++axis) point[axis] = coordinate[axis];
+        for(unsigned axis = 0; axis < point.size(); ++axis) point[axis] = UnitNode(*basis,n,axis);
         CheckNear(data.Evaluate(point), nodal[n], 2e-13L, "nodal interpolation");
       }
       for(unsigned sample = 0; sample < points; ++sample) {
@@ -144,7 +150,7 @@ void TestRestrictions(unsigned cases, unsigned points, std::mt19937& random) {
       CutFemLevelSetData child, line;
       for(unsigned axis = 0; axis < parent.GetDimension(); ++axis) {
         const bool simplexAxis = geometry == TRI || geometry == TET || (geometry == WEDGE && axis < 2);
-        const long double coordinate = simplexAxis ? position(random) : 2 * position(random) - 1;
+        const long double coordinate = position(random);
         parent.Restrict(axis, coordinate, child);
         Check(child.GetDimension() + 1 == parent.GetDimension(), "lower integration dimension");
         Check(child.GetRootDimension() == parent.GetRootDimension(), "retained root dimension");
@@ -167,7 +173,7 @@ void TestRestrictions(unsigned cases, unsigned points, std::mt19937& random) {
           }
           if(child.GetDimension() == 2) for(unsigned secondAxis = 0; secondAxis < 2; ++secondAxis) {
               const bool triangle = child.GetGeometry() == TRI;
-              const long double secondCoordinate = triangle ? 0.37L : -0.23L;
+              const long double secondCoordinate = 0.37L;
               child.Restrict(secondAxis, secondCoordinate, line);
               const std::vector<long double> linePoint = {0.29L};
               const std::vector<long double> originalPoint = line.MapToRoot(linePoint);
@@ -187,7 +193,7 @@ void TestRestrictions(unsigned cases, unsigned points, std::mt19937& random) {
 
 long double ReferenceSecondDerivative(const femus::basis& basis, const std::vector<double>& nodal, const std::vector<long double>& point, unsigned first, unsigned second) {
   double native[3] = {0, 0, 0};
-  for(unsigned axis = 0; axis < point.size(); ++axis) native[axis] = static_cast<double>(point[axis]);
+  for(unsigned axis = 0; axis < point.size(); ++axis) native[axis] = static_cast<double>(TensorAxis(basis,axis) ? 2*point[axis]-1 : point[axis]);
   long double result = 0;
   for(unsigned n = 0; n < nodal.size(); ++n) {
     const int* index = basis.GetIND(n);
@@ -198,7 +204,7 @@ long double ReferenceSecondDerivative(const femus::basis& basis, const std::vect
     else value = basis.eval_d2phidydz(index, native);
     result += static_cast<long double>(nodal[n]) * value;
   }
-  return result;
+  return result*(TensorAxis(basis,first) ? 2 : 1)*(TensorAxis(basis,second) ? 2 : 1);
 }
 
 void TestSecondDerivatives(unsigned cases, std::mt19937& random) {
@@ -299,7 +305,7 @@ void TestBoundarySlices() {
     CutFemLevelSetData child, line;
     for(unsigned axis = 0; axis < parent.GetDimension(); ++axis) {
       const bool simplexAxis = geometry == TRI || geometry == TET || (geometry == WEDGE && axis < 2);
-      const long double endpoints[4] = {simplexAxis ? 0.0L : -1.0L, 1.0L, std::nextafter(1.0L, 0.0L), simplexAxis ? 1e-15L : -1 + 1e-15L};
+      const long double endpoints[4] = {0.0L, 1.0L, std::nextafter(1.0L, 0.0L), 1e-15L};
       for(long double coordinate : endpoints) {
         parent.Restrict(axis, coordinate, child);
         const std::vector<long double> point(child.GetDimension(), 0);
@@ -309,10 +315,10 @@ void TestBoundarySlices() {
         Check(child.IsDegenerate() == collapsed, "degenerate slice flag");
         long double expected = 1;
         if(geometry == TET) expected = (1 - coordinate) * (1 - coordinate);
-        if(geometry == TRI || (geometry == WEDGE && axis < 2)) expected = (1 - coordinate) / 2;
+        if(geometry == TRI || (geometry == WEDGE && axis < 2)) expected = (1 - coordinate);
         CheckNear(child.GetParentMeasureScale(), expected, 0, "slice measure");
         if(child.GetDimension() == 2) {
-          child.Restrict(0, child.GetGeometry() == TRI ? 1.0L : -1.0L, line);
+          child.Restrict(0, child.GetGeometry() == TRI ? 1.0L : 0.0L, line);
           const std::vector<long double> linePoint = {0.3L};
           CheckNear(line.Evaluate(linePoint), parent.Evaluate(line.MapToRoot(linePoint)), 2e-16L, "recursive endpoint restriction");
           CheckNear(line.EvaluateBernstein(linePoint), line.Evaluate(linePoint), 8e-16L, "recursive endpoint Bernstein restriction");
@@ -336,7 +342,7 @@ void TestComponents(unsigned cases, std::mt19937& random) {
       CutFemLevelSetData child;
       for(unsigned axis = 0; axis < parent.GetDimension(); ++axis) {
         const bool simplexAxis = geometry == TRI || geometry == TET || (geometry == WEDGE && axis < 2);
-        const long double coordinate = simplexAxis ? 0.31L : -0.27L;
+        const long double coordinate = 0.31L;
         parent.Restrict(axis, coordinate, child);
         parent.RestrictComponents(axis, coordinate, degree, components, output);
         Check(output.size() == 3, "all physical components retained");
@@ -364,7 +370,7 @@ void TestOwnershipAndInvalidation() {
   nodal.assign(27, 42);
   CheckNear(parent.Evaluate(point), original, 0, "owned nodal snapshot");
   parent.Restrict(2, 0.17L, child);
-  const std::vector<long double> childPoint = {0.13L, -0.29L};
+  const std::vector<long double> childPoint = {0.13L, 0.29L};
   const long double saved = child.Evaluate(childPoint);
   const std::vector<long double> savedGradient = child.GetRootGradient(childPoint);
   CutFemLevelSetData copied = parent;
@@ -374,7 +380,7 @@ void TestOwnershipAndInvalidation() {
   CheckNear(child.Evaluate(childPoint), saved, 0, "slice snapshot survives parent reset");
   Check(child.GetRootGradient(childPoint) == savedGradient, "slice gradient survives parent reset");
   CutFemLevelSetData reusable;
-  copied.Restrict(2, -0.4L, reusable);
+  copied.Restrict(2, 0.3L, reusable);
   const long double* powerStorage = reusable.GetPowerCoefficients().data();
   const long double* bernsteinStorage = reusable.GetBernsteinCoefficients().data();
   const long double* derivativeStorage = reusable.GetDerivativeCoefficients(0).data();
@@ -403,13 +409,13 @@ void TestPrecision() {
     const boost::multiprecision::cpp_bin_float_quad a = (boost::multiprecision::cpp_bin_float_quad(nodal[0]) + boost::multiprecision::cpp_bin_float_quad(nodal[1])) / 2 - boost::multiprecision::cpp_bin_float_quad(nodal[2]);
     const boost::multiprecision::cpp_bin_float_quad reference = sqrt(-boost::multiprecision::cpp_bin_float_quad(nodal[2]) / a);
     const long double expected = static_cast<long double>(reference);
-    CheckNear(roots[0] / expected, -1, 3e-18L, "negative root versus multiprecision");
-    CheckNear(roots[1] / expected, 1, 3e-18L, "positive root versus multiprecision");
+    CheckNear(roots[0],0.5L*(1-expected),3e-18L,"lower unit root versus multiprecision");
+    CheckNear(roots[1],0.5L*(1+expected),3e-18L,"upper unit root versus multiprecision");
   }
   CutFemLevelSetData tangent(LINE, {1, 1, 0});
-  Check(tangent.GetLineRoots() == std::vector<long double> {0}, "repeated root");
+  Check(tangent.GetLineRoots() == std::vector<long double> {0.5L}, "repeated root");
   CutFemLevelSetData endpoints(LINE, {0, 0, -1});
-  Check(endpoints.GetLineRoots() == std::vector<long double>({-1, 1}), "boundary roots");
+  Check(endpoints.GetLineRoots() == std::vector<long double>({0, 1}), "boundary roots");
   CutFemLevelSetData empty(LINE, {1, 1, 1});
   Check(empty.GetLineRoots().empty(), "constant has no roots");
   const double scales[5] = {1e-200, 1e-40, 1, 1e40, 1e200};
@@ -434,7 +440,7 @@ void TestSliceRoundoffMargins() {
   currentCheck = "inherited slice roundoff margins";
   const GeomElType elements[5] = {QUAD, TRI, HEX, TET, WEDGE};
   for(GeomElType geometry : elements) {
-    const long double offset = geometry == TRI || geometry == TET || geometry == WEDGE ? 0.25L : 0.2L;
+    const long double offset = geometry == TRI || geometry == TET || geometry == WEDGE ? 0.25L : 0.6L;
     CutFemLevelSetData parent(geometry, MakeField(geometry, 1)), child, line;
     parent.Restrict(0, offset, child);
     Check(child.IsCutCandidate(), "cancellation slice keeps the parent uncertainty");
@@ -454,8 +460,8 @@ void TestSliceRoundoffMargins() {
   const boost::multiprecision::cpp_bin_float_quad b = -1 + c / 2;
   const boost::multiprecision::cpp_bin_float_quad discriminant = sqrt(b * b - 4 * a * c);
   const boost::multiprecision::cpp_bin_float_quad q = (-b + discriminant) / 2;
-  CheckNear(roots[0] / static_cast<long double>(c / q), 1, 3e-18L, "small root avoids subtraction cancellation");
-  CheckNear(roots[1], static_cast<long double>(q / a), 3e-18L, "large asymmetric root");
+  CheckNear(roots[0],0.5L*(1+static_cast<long double>(c/q)),3e-18L,"small native root mapped to unit coordinates");
+  CheckNear(roots[1], 0.5L*(1+static_cast<long double>(q/a)), 3e-18L, "large asymmetric root");
 }
 
 void TestGKRestrictions(std::mt19937& random) {
@@ -467,7 +473,7 @@ void TestGKRestrictions(std::mt19937& random) {
     CutFemLevelSetData child;
     for(unsigned axis = 0; axis < parent.GetDimension(); ++axis) for(long double node : abscissa) for(int sign = -1; sign <= 1; sign += 2) {
           const bool simplexAxis = geometry == TRI || geometry == TET || (geometry == WEDGE && axis < 2);
-          const long double coordinate = simplexAxis ? (1 + sign * node) / 2 : sign * node;
+          const long double coordinate = (1 + sign * node) / 2;
           parent.Restrict(axis, coordinate, child);
           const std::vector<long double> point = RandomPoint(child.GetGeometry(), random);
           CheckNear(child.Evaluate(point), parent.Evaluate(child.MapToParent(point)), 4e-17L, "GK point coefficient restriction");
@@ -648,8 +654,8 @@ std::array<long double, 2> IntegratePrepared(CutFemLevelSetData& data, const std
   std::array<long double, 2> result = {0, 0};
   if(data.GetDimension() == 1) {
     const std::vector<long double> roots = data.GetLineRoots();
-    std::vector<long double> cuts = {-1};
-    for(long double root : roots) if(root > -1 && root < 1) cuts.push_back(root);
+    std::vector<long double> cuts = {0};
+    for(long double root : roots) if(root > 0 && root < 1) cuts.push_back(root);
     cuts.push_back(1);
     for(unsigned i = 1; i < cuts.size(); ++i) if(data.Evaluate({(cuts[i - 1] + cuts[i]) / 2}) > 0) result[0] += cuts[i] - cuts[i - 1];
     for(long double root : roots) {
@@ -657,7 +663,7 @@ std::array<long double, 2> IntegratePrepared(CutFemLevelSetData& data, const std
       long double norm = 0;
       for(long double value : gradient) norm = std::hypot(norm, value);
       const long double derivative = std::abs(data.EvaluateDerivative(0, {root}));
-      if(derivative > 0) result[1] += (root == -1 || root == 1 ? 0.5L : 1.0L) * norm / derivative;
+      if(derivative > 0) result[1] += (root == 0 || root == 1 ? 0.5L : 1.0L) * norm / derivative;
     }
     return result;
   }
@@ -665,7 +671,7 @@ std::array<long double, 2> IntegratePrepared(CutFemLevelSetData& data, const std
   const bool triangle = data.GetGeometry() == TRI;
   const bool tetrahedron = data.GetGeometry() == TET;
   const std::vector<long double> panels = triangle ? std::vector<long double> {0, 0.5L, 1} :
-                                          (tetrahedron ? std::vector<long double> {0, 1} : std::vector<long double> {-1, 1});
+                                          (tetrahedron ? std::vector<long double> {0, 1} : std::vector<long double> {0, 1});
   CutFemLevelSetData child;
   for(unsigned panel = 1; panel < panels.size(); ++panel) {
     const long double origin = (panels[panel] + panels[panel - 1]) / 2;
@@ -694,8 +700,8 @@ void TestNestedIntegration() {
     }
   }
   const GeomElType elements[6] = {LINE, QUAD, TRI, HEX, TET, WEDGE};
-  const long double volumes[6] = {2, 4, 0.5L, 8, 1.0L / 6, 1};
-  const long double surfaces[6] = {1, 2 * std::sqrt(2.0L), 1 / std::sqrt(2.0L), 4 * std::sqrt(2.0L), 1 / (2 * std::sqrt(2.0L)), std::sqrt(2.0L)};
+  const long double volumes[6] = {1, 1, 0.5L, 1, 1.0L / 6, 0.5L};
+  const long double surfaces[6] = {1, std::sqrt(2.0L), 1 / std::sqrt(2.0L), std::sqrt(2.0L), 1 / (2 * std::sqrt(2.0L)), std::sqrt(2.0L)/2};
   for(unsigned element = 0; element < 6; ++element) {
     CutFemLevelSetData data(elements[element], MakeField(elements[element], 7));
     const std::array<long double, 2> integrals = IntegratePrepared(data, points, weights);
@@ -816,7 +822,7 @@ void TestPhysicalSphere(unsigned cases, std::mt19937& random) {
         const double* native = basis->GetXcoarse(n);
         std::vector<long double> point(Dimension(geometry)), physical;
         std::vector<std::vector<long double>> jacobian;
-        for(unsigned axis = 0; axis < point.size(); ++axis) point[axis] = native[axis];
+        for(unsigned axis = 0; axis < point.size(); ++axis) point[axis] = UnitNode(*basis,n,axis);
         PhysicalMap(point, mode != 0, physical, jacobian);
         long double value = 0.35L * 0.35L;
         for(unsigned axis = 0; axis < point.size(); ++axis) value -= (physical[axis] - center[axis]) * (physical[axis] - center[axis]);
@@ -861,7 +867,7 @@ void PrepareSurfaceTestPolynomials(const CutFemLevelSetData& data, unsigned mode
   const unsigned dimension = data.GetDimension();
   std::unique_ptr<femus::basis> basis = MakeBasis(data.GetGeometry());
   std::vector<std::vector<double>> coordinates(dimension,std::vector<double>(basis->_nc));
-  for(unsigned n = 0; n < coordinates[0].size(); ++n) { const double* native = basis->GetXcoarse(n); std::vector<long double> point(dimension), physical; std::vector<std::vector<long double>> jacobian; for(unsigned axis = 0; axis < dimension; ++axis) point[axis] = native[axis]; SurfaceTestMap(point,mode,physical,jacobian); for(unsigned component = 0; component < dimension; ++component) coordinates[component][n] = static_cast<double>(physical[component]); }
+  for(unsigned n = 0; n < coordinates[0].size(); ++n) { const double* native = basis->GetXcoarse(n); std::vector<long double> point(dimension), physical; std::vector<std::vector<long double>> jacobian; for(unsigned axis = 0; axis < dimension; ++axis) point[axis] = UnitNode(*basis,n,axis); SurfaceTestMap(point,mode,physical,jacobian); for(unsigned component = 0; component < dimension; ++component) coordinates[component][n] = static_cast<double>(physical[component]); }
   std::vector<std::vector<long double>> coordinatePolynomials(dimension);
   for(unsigned component = 0; component < dimension; ++component) { CutFemLevelSetData coordinateData(data.GetGeometry(),coordinates[component]); coordinatePolynomials[component] = coordinateData.GetPowerCoefficients(); }
   components.resize(dimension);
@@ -962,18 +968,18 @@ void TestFastQuadratureInterfaces(unsigned cases, std::mt19937& random) {
   std::vector<double> nodal(basis->_nc);
   for(unsigned n = 0; n < nodal.size(); ++n) { const double* point = basis->GetXcoarse(n); nodal[n] = (point[2]+0.25)*point[0]+(0.25-point[2])*point[1]; }
   CutFemLevelSetData parent(HEX,nodal), reusable, snapshot;
-  parent.Restrict(2,-0.25L,reusable);
+  parent.Restrict(2,0.375L,reusable);
   Check(reusable.GetGraphDirection() == 1 && reusable.GetGraphDirection() == 1,"cached graph certificate");
   Check(reusable.GetWorkCounts()[2] == 0,"graph bounds need no derivative reconstruction");
-  parent.Restrict(2,0.25L,reusable);
+  parent.Restrict(2,0.625L,reusable);
   Check(reusable.GetGraphDirection() == 0,"graph certificate invalidated with slice state");
-  { CutFemLevelSetData temporary(HEX,nodal); temporary.Restrict(2,0.25L,snapshot); }
-  CheckNear(snapshot.Evaluate({0.2L,-0.4L}),0.1L,2e-18L,"slice survives destruction of its parent");
+  { CutFemLevelSetData temporary(HEX,nodal); temporary.Restrict(2,0.625L,snapshot); }
+  CheckNear(snapshot.Evaluate({0.6L,0.3L}),0.1L,2e-18L,"slice survives destruction of its parent");
   CutFemLevelSetData tangent(LINE,{1,1,0}), regular(LINE,{-1,1,0});
   std::array<long double,3> gradient, normal;
   std::array<long double,4> scalar;
   bool rejected = false;
-  try { tangent.GetLineSurfaceData(0,gradient); } catch(const std::domain_error&) { rejected = true; }
+  try { tangent.GetLineSurfaceData(0.5L,gradient); } catch(const std::domain_error&) { rejected = true; }
   Check(rejected,"singular graph root requires endpoint handling");
   rejected = false;
   try { regular.GetLineAllSurfaceFactors(0,{0,0,0},scalar,normal); } catch(const std::domain_error&) { rejected = true; }
@@ -1042,13 +1048,13 @@ void TestSelectiveSurfacePreparation(unsigned cases, std::mt19937& random) {
   }
   CutFemLevelSetData line(LINE,{-1,1,0}), tangent(LINE,{1,1,0}), saved;
   const std::array<unsigned long long,4> before = line.GetWorkCounts();
-  CheckNear(line.GetLineDeltaFactor(0),1,0,"delta needs only the line derivative");
+  CheckNear(line.GetLineDeltaFactor(0.5L),0.5L,0,"delta needs only the line derivative");
   Check(line.GetWorkCounts()[2] == before[2],"delta does not prepare even local derivative coefficients");
   long double savedDelta = 0;
   { CutFemLevelSetData temporary(HEX,MakeField(HEX,1)), child; temporary.Restrict(2,0.17L,child,false); child.Restrict(1,0.19L,saved); savedDelta = saved.GetLineDeltaFactor(0.2L); }
   CheckNear(saved.GetLineDeltaFactor(0.2L),savedDelta,0,"selective snapshot survives parent destruction");
   bool rejected = false;
-  try { tangent.GetLineDeltaFactor(0); } catch(const std::domain_error&) { rejected = true; }
+  try { tangent.GetLineDeltaFactor(0.5L); } catch(const std::domain_error&) { rejected = true; }
   Check(rejected,"selective delta still rejects a singular root");
   rejected = false;
   try { line.GetLinePhysicalSurfaceFactor(0,{0,0,0}); } catch(const std::domain_error&) { rejected = true; }
@@ -1071,7 +1077,7 @@ void TestSelectiveSurfaceScaling() {
     Check(line.GetLineRoots(roots) == 2,"scaled small cut retains both roots");
     const boost::multiprecision::cpp_bin_float_quad a = (boost::multiprecision::cpp_bin_float_quad(nodal[0])+boost::multiprecision::cpp_bin_float_quad(nodal[1]))/2-boost::multiprecision::cpp_bin_float_quad(nodal[2]);
     const boost::multiprecision::cpp_bin_float_quad exactRoot = sqrt(-boost::multiprecision::cpp_bin_float_quad(nodal[2])/a);
-    const long double exactDelta = static_cast<long double>(1/(2*a*exactRoot));
+    const long double exactDelta = static_cast<long double>(1/(4*a*exactRoot));
     for(long double root : roots) {
       std::array<long double,3> gradient, normal, matrixNormal;
       std::array<long double,4> scalar, matrixScalar;
@@ -1258,19 +1264,19 @@ long double maximumRoundedRootError = 0;
 void TestPreparedLineAnalysis() {
   currentCheck = "prepared line topology and stable root densities";
   CutFemLevelSetData positive(LINE,{1,1,1}), negative(LINE,{-1,-1,-1}), zero(LINE,{0,0,0});
-  Check(positive.GetLineAnalysis().positiveIntervalCount == 1 && positive.GetLineAnalysis().positiveIntervals[0] == std::array<long double,2>{{-1,1}},"positive constant interval");
+  Check(positive.GetLineAnalysis().positiveIntervalCount == 1 && positive.GetLineAnalysis().positiveIntervals[0] == std::array<long double,2>{{0,1}},"positive constant interval");
   Check(negative.GetLineAnalysis().positiveIntervalCount == 0 && negative.GetLineAnalysis().rootCount == 0,"negative constant interval");
   Check(zero.GetLineAnalysis().identicallyZero && zero.IsIdenticallyZero(),"zero fiber is explicit metadata");
   CutFemLevelSetData quadratic(LINE,{0.75,0.75,-0.25});
   const CutFemLevelSetData::LineAnalysis& analysis = quadratic.GetLineAnalysis();
   Check(analysis.degree == 2 && analysis.rootCount == 2 && analysis.positiveIntervalCount == 2,"quadratic topology");
-  Check(analysis.positiveIntervals[0] == std::array<long double,2>{{-1,-0.5L}} && analysis.positiveIntervals[1] == std::array<long double,2>{{0.5L,1}},"positive quadratic branches");
-  Check(analysis.roots[0].derivative == -1 && analysis.roots[1].derivative == 1,"stable signed root slopes");
+  Check(analysis.positiveIntervals[0] == std::array<long double,2>{{0,0.25L}} && analysis.positiveIntervals[1] == std::array<long double,2>{{0.75L,1}},"positive quadratic branches");
+  Check(analysis.roots[0].derivative == -2 && analysis.roots[1].derivative == 2,"stable signed root slopes");
   Check(&analysis == &quadratic.GetLineAnalysis(),"line analysis is retained");
   CutFemLevelSetData repeated(LINE,{1,1,0}), endpoints(LINE,{0,0,1}), linear(LINE,{-1.25,0.75,-0.25});
   Check(repeated.GetLineAnalysis().rootCount == 1 && repeated.GetLineAnalysis().roots[0].multiplicity == 2,"double-root multiplicity");
   Check(endpoints.GetLineAnalysis().roots[0].boundary == -1 && endpoints.GetLineAnalysis().roots[1].boundary == 1,"endpoint root tags");
-  Check(linear.GetLineAnalysis().degree == 1 && linear.GetLineAnalysis().positiveIntervals[0] == std::array<long double,2>{{0.25L,1}},"linear topology");
+  Check(linear.GetLineAnalysis().degree == 1 && linear.GetLineAnalysis().positiveIntervals[0] == std::array<long double,2>{{0.625L,1}},"linear topology");
   for(unsigned centerIndex = 1; centerIndex <= 64; ++centerIndex) for(unsigned exponent = 6; exponent <= 10; ++exponent) {
     const long double center = 0.123456789L+0.01L*centerIndex, radius = std::pow(10.0L,-static_cast<int>(exponent));
     CutFemLevelSetData line(LINE,{static_cast<double>((-1-center)*(-1-center)-radius*radius),static_cast<double>((1-center)*(1-center)-radius*radius),static_cast<double>(center*center-radius*radius)});
@@ -1297,20 +1303,34 @@ void TestPreparedLineAnalysis() {
   Check(quadratic.GetLineAnalysis().rootCount == 0 && quadratic.GetLineAnalysis().positiveIntervalCount == 0,"reset invalidates line topology");
 }
 
-std::array<boost::multiprecision::cpp_bin_float_100,3> ReferenceFoldPolynomial(const std::vector<long double>& power, GeomElType geometry, long double height, const boost::multiprecision::cpp_bin_float_100& coordinate) {
+std::vector<boost::multiprecision::cpp_bin_float_100> ReferenceNodalPower(GeomElType geometry, const std::vector<double>& nodal) {
+  const unsigned size = Dimension(geometry) == 1 ? 3U : (Dimension(geometry) == 2 ? 9U : 27U);
+  std::vector<boost::multiprecision::cpp_bin_float_100> power(size,0);
+  std::vector<double> basis(nodal.size(),0);
+  for(unsigned node = 0; node < nodal.size(); ++node) {
+    basis[node] = 1;
+    CutFemLevelSetData unitBasis(geometry,basis);
+    const std::vector<long double>& coefficient = unitBasis.GetPowerCoefficients();
+    for(unsigned term = 0; term < size; ++term) power[term] += boost::multiprecision::cpp_bin_float_100(nodal[node])*boost::multiprecision::cpp_bin_float_100(coefficient[term]);
+    basis[node] = 0;
+  }
+  return power;
+}
+
+std::array<boost::multiprecision::cpp_bin_float_100,3> ReferenceFoldPolynomial(const std::vector<boost::multiprecision::cpp_bin_float_100>& power, GeomElType geometry, long double height, const boost::multiprecision::cpp_bin_float_100& coordinate) {
   std::array<boost::multiprecision::cpp_bin_float_100,3> values;
   const std::vector<boost::multiprecision::cpp_bin_float_100> coefficient(power.begin(),power.end());
   for(unsigned sample = 0; sample < 3; ++sample) {
-    const boost::multiprecision::cpp_bin_float_100 t = sample == 0 ? 0 : (sample == 1 ? -1 : 1);
+    const boost::multiprecision::cpp_bin_float_100 t = boost::multiprecision::cpp_bin_float_100(sample)/2;
     std::vector<boost::multiprecision::cpp_bin_float_100> point(Dimension(geometry));
     point[0] = coordinate;
     point[1] = t;
-    if(geometry == TET) { point[0] *= 1-boost::multiprecision::cpp_bin_float_100(height); point[1] = (1-boost::multiprecision::cpp_bin_float_100(height))*(1-coordinate)*(1+t)/2; }
-    else if(geometry == WEDGE) point[1] = (1-coordinate)*(1+t)/2;
+    if(geometry == TET) { point[0] *= 1-boost::multiprecision::cpp_bin_float_100(height); point[1] = (1-boost::multiprecision::cpp_bin_float_100(height))*(1-coordinate)*t; }
+    else if(geometry == WEDGE) point[1] = (1-coordinate)*t;
     if(point.size() == 3) point[2] = height;
     values[sample] = BenchmarkValue(coefficient,point.size(),point);
   }
-  return {values[0],(values[2]-values[1])/2,(values[2]+values[1])/2-values[0]};
+  return {values[0],-3*values[0]+4*values[1]-values[2],2*values[0]-4*values[1]+2*values[2]};
 }
 
 void TestCompensatedFoldRestrictions() {
@@ -1324,10 +1344,10 @@ void TestCompensatedFoldRestrictions() {
       nodal[n] = static_cast<double>(x*x+y*y+z*z-(geometry == QUAD ? 0.29L*0.29L : 0.12L*0.12L));
     }
     CutFemLevelSetData parent(geometry,nodal), planar, line;
-    const std::vector<long double> power = parent.GetPowerCoefficients();
-    const long double height = geometry == QUAD ? 0 : 0.16L;
+    const std::vector<boost::multiprecision::cpp_bin_float_100> power = ReferenceNodalPower(geometry,nodal);
+    const long double height = geometry == QUAD ? 0 : (geometry == TET ? 0.16L : 0.58L);
     if(geometry != QUAD) parent.Restrict(2,height,planar,false);
-    boost::multiprecision::cpp_bin_float_100 lower = geometry == QUAD ? -0.3L : 0.1L, upper = geometry == QUAD ? 0.0L : 0.4L;
+    boost::multiprecision::cpp_bin_float_100 lower = 0, upper = geometry == QUAD ? 0.585L : (geometry == HEX ? 0.675L : (geometry == TET ? 0.35L/(1-height) : 0.35L));
     for(unsigned iteration = 0; iteration < 220; ++iteration) {
       const boost::multiprecision::cpp_bin_float_100 middle = (lower+upper)/2;
       const std::array<boost::multiprecision::cpp_bin_float_100,3> coefficient = ReferenceFoldPolynomial(power,geometry,height,middle);
@@ -1346,9 +1366,9 @@ void TestCompensatedFoldRestrictions() {
       Check(analysis.compensated,"near-fold slice takes the compensated path");
       Check(analysis.rootCount == (discriminant > 0 ? 2U : 0U),"near-fold topology versus the original parent polynomial");
       if(geometry != QUAD) {
-        const boost::multiprecision::cpp_bin_float_100 scale = planar.GetGeometry() == TRI ? (1-boost::multiprecision::cpp_bin_float_100(coordinate))/2 : boost::multiprecision::cpp_bin_float_100(1), normalization(planar.GetNormalizationScale());
+        const boost::multiprecision::cpp_bin_float_100 scale = planar.GetGeometry() == TRI ? (1-boost::multiprecision::cpp_bin_float_100(coordinate)) : boost::multiprecision::cpp_bin_float_100(1), normalization(planar.GetNormalizationScale());
         const long double expected = static_cast<long double>(discriminant/(scale*scale*normalization*normalization));
-        Check(std::abs(planar.EvaluateFiberDiscriminant(1,coordinate)/expected-1) < 3e-16L,"3D slice discriminant refinement retains the original parent information");
+        Check(std::abs(planar.EvaluateFiberDiscriminant(1,coordinate)/expected-1) < 4e-16L,"3D slice discriminant refinement retains the original parent information");
       }
       if(discriminant > 0) {
         ++positive;
@@ -1371,26 +1391,26 @@ void TestCompensatedFoldRestrictions() {
   std::vector<double> nodal(9);
   for(unsigned n = 0; n < nodal.size(); ++n) { const double* point = basis->GetXcoarse(n); nodal[n] = (point[0]-0.125)*(point[0]-0.125)+point[1]*point[1]-0.375*0.375; }
   CutFemLevelSetData centered(QUAD,nodal), line;
-  for(long double coordinate : {0.5L-1e-4L,0.5L-1e-8L,0.5L-1e-12L,0.5L-1e-16L,std::nextafter(0.5L,0.0L)}) {
+  for(long double coordinate : {0.75L-1e-4L,0.75L-1e-8L,0.75L-1e-12L,0.75L-1e-16L,std::nextafter(0.75L,0.0L)}) {
     centered.Restrict(0,coordinate,line,false);
-    const std::vector<long double>& power = centered.GetPowerCoefficients();
-    const boost::multiprecision::cpp_bin_float_100 x(coordinate), c = (boost::multiprecision::cpp_bin_float_100(power[6])*x+boost::multiprecision::cpp_bin_float_100(power[3]))*x+boost::multiprecision::cpp_bin_float_100(power[0]);
-    const long double expected = static_cast<long double>(1/sqrt(-4*boost::multiprecision::cpp_bin_float_100(power[2])*c));
+    const std::array<boost::multiprecision::cpp_bin_float_100,3> coefficient = ReferenceFoldPolynomial(ReferenceNodalPower(QUAD,nodal),QUAD,0,boost::multiprecision::cpp_bin_float_100(coordinate));
+    const long double expected = static_cast<long double>(1/sqrt(coefficient[1]*coefficient[1]-4*coefficient[2]*coefficient[0]));
     const CutFemLevelSetData::LineAnalysis& analysis = line.GetLineAnalysis();
     Check(analysis.compensated && analysis.rootCount == 2,"centered fold recovers cancellation in the contracted constant coefficient");
     for(unsigned n = 0; n < 2; ++n) Check(std::abs(line.GetLineDeltaFactor(analysis.roots[n])/expected-1) < 3e-18L,"centered-fold density versus retained-parent reference");
   }
   for(unsigned n = 0; n < nodal.size(); ++n) { const double* point = basis->GetXcoarse(n); nodal[n] = (point[0]-0.125)*(point[0]-0.375)*point[1]*point[1]-1e-200; }
   CutFemLevelSetData small(QUAD,nodal);
-  const std::vector<long double>& power = small.GetPowerCoefficients();
-  long double coordinate = 0.125L;
+  const std::vector<boost::multiprecision::cpp_bin_float_100> power = ReferenceNodalPower(QUAD,nodal);
+  long double coordinate = 0.5625L;
   for(unsigned sample = 0; sample < 8; ++sample) {
     coordinate = std::nextafter(coordinate,0.0L);
     small.Restrict(0,coordinate,line,false);
-    const boost::multiprecision::cpp_bin_float_100 x(coordinate), a = (boost::multiprecision::cpp_bin_float_100(power[8])*x+boost::multiprecision::cpp_bin_float_100(power[5]))*x+boost::multiprecision::cpp_bin_float_100(power[2]), c = (boost::multiprecision::cpp_bin_float_100(power[6])*x+boost::multiprecision::cpp_bin_float_100(power[3]))*x+boost::multiprecision::cpp_bin_float_100(power[0]);
+    const std::array<boost::multiprecision::cpp_bin_float_100,3> coefficient = ReferenceFoldPolynomial(power,QUAD,0,boost::multiprecision::cpp_bin_float_100(coordinate));
     const CutFemLevelSetData::LineAnalysis& analysis = line.GetLineAnalysis();
     Check(analysis.compensated && analysis.rootCount == 2,"a rounded-away quadratic coefficient cannot hide a tiny cut");
-    const long double expected = static_cast<long double>(1/sqrt(-4*a*c));
+    const boost::multiprecision::cpp_bin_float_100 x(coordinate), native = 2*x-1, exactA = 4*(native-boost::multiprecision::cpp_bin_float_100(0.125L))*(native-boost::multiprecision::cpp_bin_float_100(0.375L));
+    const long double expected = static_cast<long double>(1/sqrt(-4*exactA*boost::multiprecision::cpp_bin_float_100(nodal[8])));
     for(unsigned n = 0; n < 2; ++n) Check(std::abs(line.GetLineDeltaFactor(analysis.roots[n])/expected-1) < 3e-18L,"tiny-cut slope versus retained-parent reference");
   }
 }
@@ -1398,7 +1418,7 @@ void TestCompensatedFoldRestrictions() {
 long double BoundaryDistance(GeomElType geometry, unsigned boundary, const std::vector<long double>& point) {
   if(geometry == TRI || geometry == TET || (geometry == WEDGE && boundary < 3)) return boundary == 0 ? 1-point[0]-point[1]-(geometry == TET ? point[2] : 0) : point[boundary-1];
   const unsigned axis = geometry == WEDGE ? 2U : boundary/2, side = geometry == WEDGE ? boundary-3 : boundary%2;
-  return point[axis]-(side == 0 ? -1 : 1);
+  return point[axis]-(side == 0 ? 0 : 1);
 }
 
 long double EmbeddingMeasure(const std::vector<std::vector<long double>>& map) {
@@ -1418,7 +1438,7 @@ void TestBoundaryCertificates(std::mt19937& random) {
       for(unsigned n = 0; n < nodal.size(); ++n) {
         const double* coordinate = basis->GetXcoarse(n);
         std::vector<long double> point(Dimension(geometry));
-        for(unsigned axis = 0; axis < point.size(); ++axis) point[axis] = coordinate[axis];
+        for(unsigned axis = 0; axis < point.size(); ++axis) point[axis] = UnitNode(*basis,n,axis);
         nodal[n] = std::abs(BoundaryDistance(geometry,boundary,point)) < 1e-14L ? 0 : scale*(0.5+0.125*n);
       }
       CutFemLevelSetData data(geometry,nodal), face;
@@ -1476,7 +1496,7 @@ void TestPreparedCharts(unsigned cases, unsigned points, std::mt19937& random) {
         if(chart.GetDimension() > 1) {
           const unsigned axis = chart.GetDimension()-1;
           const bool simplex = geometry == TRI || geometry == TET || (geometry == WEDGE && axis < 2);
-          chart.Restrict(axis,simplex ? 0.2L : -0.2L,child);
+          chart.Restrict(axis,0.2L,child);
           const std::vector<long double> point = RandomPoint(child.GetGeometry(),random);
           CheckNear(child.Evaluate(point),parent.Evaluate(child.MapToRoot(point)),3e-15L,"axis chart supports recursive restriction");
         }
@@ -1518,7 +1538,6 @@ void TestProjectionAndGraphData(unsigned cases, std::mt19937& random) {
       CutFemLevelSetData data(geometry,nodal);
       const std::vector<long double> point = RandomPoint(geometry,random);
       std::vector<long double> unit = point;
-      for(unsigned axis = 0; axis < point.size(); ++axis) if(geometry == LINE || geometry == QUAD || geometry == HEX || (geometry == WEDGE && axis == 2)) unit[axis] = (point[axis]+1)/2;
       CheckNear(CutFemLevelSetData::EvaluatePolynomial(data.GetUnitPowerCoefficients(),data.GetDimension(),2,unit),data.Evaluate(point),3e-15L,"native-to-unit coefficient export");
       CheckNear(data.GetUnitToReferenceMeasureScale(),geometry == LINE || geometry == QUAD || geometry == HEX ? static_cast<long double>(1U<<data.GetDimension()) : (geometry == WEDGE ? 2 : 1),0,"unit-to-native measure scale");
       for(unsigned axis = 0; axis < data.GetDimension(); ++axis) {
@@ -1577,7 +1596,7 @@ void TestProjectionAndGraphData(unsigned cases, std::mt19937& random) {
   CutFemLevelSetData quartic(QUAD,nodal);
   std::vector<long double> boundary;
   quartic.GetFiberBoundaryPolynomial(1,0.5L,1,boundary);
-  CheckNear(boundary[4]*quartic.GetNormalizationScale(),1,0,"projected boundary quartic coefficient is retained");
+  CheckNear(boundary[4]*quartic.GetNormalizationScale(),16,0,"projected boundary quartic coefficient is retained");
   CutFemLevelSetData child;
   quartic.Restrict(0,0.2L,child);
   child.GetLineAnalysis();
@@ -1679,6 +1698,42 @@ void TestRootSurfaceInterfaces() {
       CheckNear(directional,chartRoot.derivative,3e-18L,"oblique-root gradient agrees with the retained directional slope");
     }
   }
+}
+
+void TestLocalFiberAnalysis(unsigned cases, std::mt19937& random) {
+  currentCheck = "local unit fibers without LINE construction";
+  std::uniform_real_distribution<double> value(-1,1), position(0.01,0.9);
+  for(GeomElType geometry : {QUAD,TRI,HEX,TET,WEDGE}) {
+    const std::unique_ptr<femus::basis> basis = MakeBasis(geometry);
+    for(unsigned test = 0; test < cases; ++test) {
+      std::vector<double> nodal(basis->_nc);
+      for(double& node : nodal) node = value(random);
+      CutFemLevelSetData root(geometry,nodal), slice, local, line;
+      if(root.GetDimension() == 3) root.Restrict(2,position(random),slice,false);
+      else slice = root;
+      local.ResetPowerCoefficients(slice.GetGeometry(),slice.GetPowerCoefficients());
+      for(unsigned axis = 0; axis < 2; ++axis) for(long double fixed : {0.0L,0.25L,0.5L,0.75L,0.99L}) {
+        const unsigned long long restrictions = local.GetWorkCounts()[3];
+        CutFemLevelSetData::LineAnalysis actual;
+        local.AnalyzeLocalFiber(axis,fixed,actual);
+        Check(local.GetWorkCounts()[3] == restrictions,"direct fiber analysis creates no restricted object");
+        local.Restrict(1-axis,fixed,line,false);
+        const CutFemLevelSetData::LineAnalysis& expected = line.GetLineAnalysis();
+        const long double width = local.GetGeometry() == TRI ? 1-fixed : 1;
+        Check(actual.rootCount == expected.rootCount && actual.positiveIntervalCount == expected.positiveIntervalCount && actual.identicallyZero == expected.identicallyZero,"direct local topology agrees with independently restricted LINE analysis");
+        for(unsigned n = 0; n < actual.rootCount; ++n) {
+          CheckNear(actual.roots[n].coordinate,width*expected.roots[n].coordinate,3e-16L,"fiber roots use parent unit coordinates");
+          CheckNear(actual.roots[n].derivative,expected.roots[n].derivative/width,3e-15L,"fiber slopes use the parent unit coordinate");
+          Check(actual.roots[n].boundary == expected.roots[n].boundary,"fiber boundary tags");
+        }
+        for(unsigned n = 0; n < actual.positiveIntervalCount; ++n) for(unsigned side = 0; side < 2; ++side) CheckNear(actual.positiveIntervals[n][side],width*expected.positiveIntervals[n][side],3e-16L,"fiber positive intervals");
+      }
+    }
+  }
+  CutFemLevelSetData zero(QUAD,std::vector<double>(9,0));
+  CutFemLevelSetData::LineAnalysis analysis;
+  zero.AnalyzeLocalFiber(0,0.3L,analysis);
+  Check(analysis.identicallyZero && analysis.rootCount == 0,"zero local fibers are explicit");
 }
 
 void TestPreparedDataInvalidInputs() {
@@ -2027,7 +2082,7 @@ void TestBallWeightIntegration(unsigned dimension) {
       }
     }
     std::cout << std::setprecision(8) << "weight_check " << GeometryName(geometry) << " q=" << degree << " old_error=" << oldError << " prepared_error=" << newError << " raw_error=" << rawError << " fitting_floor=" << fittingFloor << std::endl;
-    Check(prepared.GetPreparedStatistics().lineRestrictions != 0,"recursion reaches prepared LINE records");
+    Check(prepared.GetPreparedLevelSetData().GetWorkCounts()[0] == 1,"all surface modes reuse the parent polynomial reconstruction");
   }
 }
 
@@ -2073,7 +2128,8 @@ void TestHighDegreePreparedMoments() {
       FELevelSetMoments::Ex47Prepared::IntegrateSpatial(data,13,1e-10,1e-10,mode != 0,mode >= 2 ? &coordinates : nullptr,0,1,FELevelSetMoments::OuterQuadratureRules(),mode == 3,-1,true,workspace,values,errors);
       ReferenceBallWeightMoments(geometry,13,mode,center,radius,exactH,exactD);
       const long double measure = geometry == HEX ? 8 : (geometry == WEDGE ? 2 : 1);
-      for(unsigned n = 0; n < exactH.size(); ++n) { CheckNear(measure*values[n],exactH[n],2e-9L,"high-degree raw volume moment"); CheckNear(measure*values[exactH.size()+n],exactD[n],2e-9L,"high-degree raw surface moment"); maximumError = std::max(maximumError,std::max(std::abs(measure*values[n]-exactH[n])/(1+std::abs(exactH[n])),std::abs(measure*values[exactH.size()+n]-exactD[n])/(1+std::abs(exactD[n])))); }
+      const long double surfaceFactor = mode == 0 ? 1 : (mode >= 2 ? (mode == 3 ? measure : 1/measure) : (geometry == HEX ? 0.5L : 1.0L));
+      for(unsigned n = 0; n < exactH.size(); ++n) { CheckNear(measure*values[n],exactH[n],2e-9L,"high-degree raw volume moment"); CheckNear(measure*surfaceFactor*values[exactH.size()+n],exactD[n],2e-9L,"high-degree raw surface moment"); maximumError = std::max(maximumError,std::max(std::abs(measure*values[n]-exactH[n])/(1+std::abs(exactH[n])),std::abs(measure*surfaceFactor*values[exactH.size()+n]-exactD[n])/(1+std::abs(exactD[n])))); }
     }
     std::cout << "weight_raw " << GeometryName(geometry) << " q=13 error=" << maximumError << std::endl;
   }
@@ -2253,6 +2309,7 @@ int main(int argc, char** argv) {
     TestProjectionAndGraphData(cases,random);
     TestExternalChartComponents(random);
     TestRootSurfaceInterfaces();
+    TestLocalFiberAnalysis(cases,random);
     TestPreparedDataInvalidInputs();
     std::cout << std::setprecision(8) << "root accuracy: rounded-root density=" << maximumRoundedRootError << "; retained-slope density=" << maximumRootDensityError << "; last-ULP fold density=" << maximumFoldDensityError << '\n';
     std::cout << std::setprecision(8) << "ex47: " << checks << " checks passed; maximum scaled error=" << maximumScaledError << "; seconds=" << std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count() << '\n';

@@ -1,6 +1,7 @@
 #ifndef FEMUS_EX47_PREPARED_PLANAR_ENDPOINT_INTEGRATION_HPP
 #define FEMUS_EX47_PREPARED_PLANAR_ENDPOINT_INTEGRATION_HPP
 
+#include "../../../../../src/quadrature/cutfem_ls/PlanarEndpointIntegration.hpp"
 #include "EndpointStripQuadrature.hpp"
 
 namespace FELevelSetMoments {
@@ -22,7 +23,7 @@ public:
       const long double score = certificate.strict ? 1+lower/magnitude : magnitude/(1+magnitude);
       if(score > best) { best = score; selected = order; strict = certificate.strict; }
     }
-    return selected;
+    return selected == 0 ? ::FELevelSetMoments::PlanarEndpointIntegration::GraphOrder(coefficient,triangle,requested,strict) : selected;
   }
 
   static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned direction = 0, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1, const PreparedPlane* prepared = nullptr) {
@@ -37,26 +38,8 @@ public:
     if(requested != nullptr && requested->size() != 2U*count) throw std::invalid_argument("Invalid selective moment mask.");
     std::vector<unsigned char> needed = requested == nullptr ? std::vector<unsigned char>(2U*count,1) : *requested;
     if(!triangle && coordinates != nullptr) {
-      std::vector<std::vector<long double>> centered;
-      centered = coefficient;
-      for(unsigned axis = 0; axis < 2; ++axis) if((*coordinates)[2U*axis] == 0) {
-        bool even = true;
-        for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if((axis == 0 ? i : j)%2U != 0 && centered[i][j] != 0) even = false;
-        if(!even) continue;
-        bool metric = true;
-        if(gradient != nullptr) for(unsigned component = 0; component < gradient->size(); ++component) {
-          std::vector<std::vector<long double>> field;
-          field = (*gradient)[component];
-          bool componentEven = true;
-          bool componentOdd = true;
-          for(unsigned i = 0; i < field.size(); ++i) for(unsigned j = 0; j < field[i].size(); ++j) if(field[i][j] != 0) { if((axis == 0 ? i : j)%2U != 0) componentEven = false; else componentOdd = false; }
-          metric = metric && (componentEven || componentOdd);
-        }
-        for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) if((axis == 0 ? i : j)%2U != 0) {
-          const unsigned n = ReferenceMomentIndex2D(degree,i,j);
-          needed[n] = 0;
-          if(metric && normalComponent < 0) needed[count+n] = 0;
-        }
+      for(unsigned axis = 0; axis < 2; ++axis) if(std::fma(0.5L,(*coordinates)[2U*axis+1],(*coordinates)[2U*axis]) == 0 && prepared != nullptr && prepared->data->GetReflectionParity(axis) == 1 && gradient == nullptr) {
+        for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) if((axis == 0 ? i : j)%2U != 0) { const unsigned n = ReferenceMomentIndex2D(degree,i,j); needed[n] = 0; needed[count+n] = 0; }
       }
     }
     requested = &needed;
@@ -68,7 +51,7 @@ public:
     const std::array<long double,2> bounds = prepared->data->GetBounds();
     minimum = bounds[0]/prepared->normalization;
     maximum = bounds[1]/prepared->normalization;
-    const LineIntegrationStrip full = {triangle ? 0.0L : -1.0L,1,triangle ? 0.0L : -1.0L,0,1,triangle ? -1.0L : 0.0L};
+    const LineIntegrationStrip full = {0.0L,1,0.0L,0,1,triangle ? -1.0L : 0.0L};
     if(minimum == 0 && maximum == 0) {
       if(computeDelta) throw std::domain_error("The delta of an identically zero planar field is undefined.");
       LineIntegration::FullStripMoments(degree,full,full.left,full.right,values,errors,coordinates,requested);
@@ -136,6 +119,11 @@ public:
     CheckQuadratureTolerance("Planar moments","accumulated error exceeds requested tolerance",values,errors,absoluteH,absoluteD,relative,requested);
   }
   static unsigned Compare(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned selected, const std::vector<std::vector<std::vector<long double>>>* gradient, const std::array<long double,5>* coordinates, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1, const PreparedPlane* prepared = nullptr) {
+    bool depends[2] = {false,false}, constantMetric = true;
+    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if(coefficient[i][j] != 0) { depends[0] = depends[0] || i != 0; depends[1] = depends[1] || j != 0; }
+    if(gradient != nullptr) for(const std::vector<std::vector<long double>>& component : *gradient) for(unsigned i = 0; i < component.size(); ++i) for(unsigned j = 0; j < component[i].size(); ++j) if(i+j != 0 && component[i][j] != 0) constantMetric = false;
+    if(!triangle && depends[0] != depends[1] && constantMetric) return ::FELevelSetMoments::PlanarEndpointIntegration::Compare(coefficient,degree,triangle,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,gradient,coordinates,fullBoundaryDelta,zeroBoundary,rules,inverseSurface,normalComponent);
+
     QuadratureWarningScope warningScope("Independent planar validation");
     std::vector<long double> second;
     std::vector<long double> secondErrors;

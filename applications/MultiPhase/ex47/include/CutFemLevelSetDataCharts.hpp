@@ -2,17 +2,17 @@
 #define FEMUS_EX47_CUT_FEM_LEVEL_SET_DATA_CHARTS_HPP
 
 inline const std::vector<std::array<long double,3>>& CutFemLevelSetData::ReferenceNodes(GeomElType geometry) {
-  static const std::array<std::vector<std::array<long double,3>>,6> nodes = {{{{{-1,-1,-1},{1,-1,-1},{1,1,-1},{-1,1,-1},{-1,-1,1},{1,-1,1},{1,1,1},{-1,1,1},{0,-1,-1},{1,0,-1},{0,1,-1},{-1,0,-1},{0,-1,1},{1,0,1},{0,1,1},{-1,0,1},{-1,-1,0},{1,-1,0},{1,1,0},{-1,1,0},{0,-1,0},{1,0,0},{0,1,0},{-1,0,0},{0,0,-1},{0,0,1},{0,0,0}}},{{{0,0,0},{1,0,0},{0,1,0},{0,0,1},{0.5L,0,0},{0.5L,0.5L,0},{0,0.5L,0},{0,0,0.5L},{0.5L,0,0.5L},{0,0.5L,0.5L},{1.0L/3,1.0L/3,0},{1.0L/3,0,1.0L/3},{1.0L/3,1.0L/3,1.0L/3},{0,1.0L/3,1.0L/3},{0.25L,0.25L,0.25L}}},{{{0,0,-1},{1,0,-1},{0,1,-1},{0,0,1},{1,0,1},{0,1,1},{0.5L,0,-1},{0.5L,0.5L,-1},{0,0.5L,-1},{0.5L,0,1},{0.5L,0.5L,1},{0,0.5L,1},{0,0,0},{1,0,0},{0,1,0},{0.5L,0,0},{0.5L,0.5L,0},{0,0.5L,0},{1.0L/3,1.0L/3,-1},{1.0L/3,1.0L/3,1},{1.0L/3,1.0L/3,0}}},{{{-1,-1,0},{1,-1,0},{1,1,0},{-1,1,0},{0,-1,0},{1,0,0},{0,1,0},{-1,0,0},{0,0,0}}},{{{0,0,0},{1,0,0},{0,1,0},{0.5L,0,0},{0.5L,0.5L,0},{0,0.5L,0},{1.0L/3,1.0L/3,0}}},{{{-1,0,0},{1,0,0},{0,0,0}}}}};
+  static const std::array<std::vector<std::array<long double,3>>,6> nodes = {{{{{0,0,0},{1,0,0},{1,1,0},{0,1,0},{0,0,1},{1,0,1},{1,1,1},{0,1,1},{0.5L,0,0},{1,0.5L,0},{0.5L,1,0},{0,0.5L,0},{0.5L,0,1},{1,0.5L,1},{0.5L,1,1},{0,0.5L,1},{0,0,0.5L},{1,0,0.5L},{1,1,0.5L},{0,1,0.5L},{0.5L,0,0.5L},{1,0.5L,0.5L},{0.5L,1,0.5L},{0,0.5L,0.5L},{0.5L,0.5L,0},{0.5L,0.5L,1},{0.5L,0.5L,0.5L}}},{{{0,0,0},{1,0,0},{0,1,0},{0,0,1},{0.5L,0,0},{0.5L,0.5L,0},{0,0.5L,0},{0,0,0.5L},{0.5L,0,0.5L},{0,0.5L,0.5L},{1.0L/3,1.0L/3,0},{1.0L/3,0,1.0L/3},{1.0L/3,1.0L/3,1.0L/3},{0,1.0L/3,1.0L/3},{0.25L,0.25L,0.25L}}},{{{0,0,0},{1,0,0},{0,1,0},{0,0,1},{1,0,1},{0,1,1},{0.5L,0,0},{0.5L,0.5L,0},{0,0.5L,0},{0.5L,0,1},{0.5L,0.5L,1},{0,0.5L,1},{0,0,0.5L},{1,0,0.5L},{0,1,0.5L},{0.5L,0,0.5L},{0.5L,0.5L,0.5L},{0,0.5L,0.5L},{1.0L/3,1.0L/3,0},{1.0L/3,1.0L/3,1},{1.0L/3,1.0L/3,0.5L}}},{{{0,0,0},{1,0,0},{1,1,0},{0,1,0},{0.5L,0,0},{1,0.5L,0},{0.5L,1,0},{0,0.5L,0},{0.5L,0.5L,0}}},{{{0,0,0},{1,0,0},{0,1,0},{0.5L,0,0},{0.5L,0.5L,0},{0,0.5L,0},{1.0L/3,1.0L/3,0}}},{{{0,0,0},{1,0,0},{0.5L,0,0}}}}};
   return nodes[static_cast<unsigned>(geometry)];
 }
 
-inline void CutFemLevelSetData::ExpandNative(GeomElType geometry, const std::vector<long double>& nodal, std::vector<long double>& coefficient) {
+inline void CutFemLevelSetData::ExpandUnit(GeomElType geometry, const std::vector<long double>& nodal, std::vector<long double>& coefficient) {
   if(geometry == LINE || geometry == QUAD || geometry == HEX) ExpandTensor(geometry,nodal,coefficient);
   else if(geometry == TRI) ExpandTriangle(nodal,coefficient);
   else if(geometry == TET) ExpandTetrahedron(nodal,coefficient);
   else {
     const unsigned nodes[3][7] = {{0,1,2,6,7,8,18},{12,13,14,15,16,17,20},{3,4,5,9,10,11,19}};
-    const long double interpolation[3][3] = {{0,1,0},{-0.5L,0,0.5L},{0.5L,-1,0.5L}};
+    const long double interpolation[3][3] = {{1,0,0},{-3,4,-1},{2,-4,2}};
     coefficient.assign(27,0);
     for(unsigned plane = 0; plane < 3; ++plane) {
       std::vector<long double> values(7), triangle;
@@ -32,7 +32,7 @@ inline std::array<std::array<std::array<long double,27>,27>,6> CutFemLevelSetDat
   std::array<std::array<std::array<long double,27>,27>,6> tables = {};
   for(GeomElType geometry : {HEX,TET,WEDGE,QUAD,TRI,LINE}) {
     std::vector<long double> nodal(NodeCount(geometry),0), coefficient;
-    for(unsigned node = 0; node < nodal.size(); ++node) { nodal[node] = 1; ExpandNative(geometry,nodal,coefficient); std::copy(coefficient.begin(),coefficient.end(),tables[static_cast<unsigned>(geometry)][node].begin()); nodal[node] = 0; }
+    for(unsigned node = 0; node < nodal.size(); ++node) { nodal[node] = 1; ExpandUnit(geometry,nodal,coefficient); std::copy(coefficient.begin(),coefficient.end(),tables[static_cast<unsigned>(geometry)][node].begin()); nodal[node] = 0; }
   }
   return tables;
 }
@@ -57,7 +57,7 @@ inline void CutFemLevelSetData::EnsureBoundaryData() const {
         if(_geometry == TRI || _geometry == TET || (_geometry == WEDGE && boundary < 3)) {
           distance = boundary == 0 ? 1-nodes[n][0]-nodes[n][1]-(_geometry == TET ? nodes[n][2] : 0) : nodes[n][boundary-1];
         }
-        else { const unsigned axis = _geometry == WEDGE ? 2U : boundary/2; const unsigned side = _geometry == WEDGE ? boundary-3 : boundary%2; distance = nodes[n][axis]-(side == 0 ? -1 : 1); }
+        else { const unsigned axis = _geometry == WEDGE ? 2U : boundary/2; const unsigned side = _geometry == WEDGE ? boundary-3 : boundary%2; distance = nodes[n][axis]-(side == 0 ? 0 : 1); }
         if(std::abs(distance) <= 64*std::numeric_limits<long double>::epsilon() && _nodalValues[n] != 0) { zero = false; break; }
       }
       if(zero) _zeroBoundaryMask |= 1U<<boundary;
@@ -77,7 +77,7 @@ inline void CutFemLevelSetData::EnsureBoundaryData() const {
       if(zero && _source && (_zeroBoundaryMask&(1U<<boundary)) == 0) for(const std::array<long double,3>& point : ReferenceNodes(_geometry)) {
         long double distance;
         if(_geometry == TRI || _geometry == TET || (_geometry == WEDGE && boundary < 3)) distance = boundary == 0 ? 1-point[0]-point[1]-(_geometry == TET ? point[2] : 0) : point[boundary-1];
-        else { const unsigned axis = _geometry == WEDGE ? 2U : boundary/2, side = _geometry == WEDGE ? boundary-3 : boundary%2; distance = point[axis]-(side == 0 ? -1 : 1); }
+        else { const unsigned axis = _geometry == WEDGE ? 2U : boundary/2, side = _geometry == WEDGE ? boundary-3 : boundary%2; distance = point[axis]-(side == 0 ? 0 : 1); }
         if(std::abs(distance) <= 64*std::numeric_limits<long double>::epsilon()) { const std::array<long double,2> value = CompensatedSourceValue(point); if(value[0] != 0 || value[1] != 0) { zero = false; break; } }
       }
       if(zero) _zeroBoundaryMask |= 1U<<boundary;
@@ -96,7 +96,7 @@ inline bool CutFemLevelSetData::IsZeroOnBoundary(unsigned boundary) const {
 
 inline void CutFemLevelSetData::PropagateBoundaryData(unsigned axis, long double coordinate, CutFemLevelSetData& child) const {
   const bool simplex = _geometry == TRI || _geometry == TET || (_geometry == WEDGE && axis < 2);
-  if(simplex ? coordinate == 0 : (coordinate == -1 || coordinate == 1)) {
+  if(simplex ? coordinate == 0 : (coordinate == 0 || coordinate == 1)) {
     const unsigned boundary = simplex ? axis+1 : (_geometry == WEDGE ? 3U+(coordinate == 1) : 2*axis+(coordinate == 1));
     if(IsZeroOnBoundary(boundary)) {
       child._zeroReady = child._identicallyZero = true;
@@ -284,16 +284,12 @@ inline void CutFemLevelSetData::RestrictBoundary(unsigned boundary, CutFemLevelS
     if(child._dimension == 1) { long double square = 0; for(unsigned row = 0; row < _dimension; ++row) square += child._parentMap[row][0]*child._parentMap[row][0]; child._parentMeasure = std::sqrt(square); }
     else { std::array<long double,3> normal; for(unsigned row = 0; row < 3; ++row) normal[row] = child._parentMap[(row+1)%3][0]*child._parentMap[(row+2)%3][1]-child._parentMap[(row+2)%3][0]*child._parentMap[(row+1)%3][1]; child._parentMeasure = std::sqrt(normal[0]*normal[0]+normal[1]*normal[1]+normal[2]*normal[2]); }
   }
-  else { const unsigned axis = _geometry == WEDGE ? 2U : boundary/2; const unsigned side = _geometry == WEDGE ? boundary-3 : boundary%2; Restrict(axis,side == 0 ? -1 : 1,child); }
+  else { const unsigned axis = _geometry == WEDGE ? 2U : boundary/2; const unsigned side = _geometry == WEDGE ? boundary-3 : boundary%2; Restrict(axis,side == 0 ? 0 : 1,child); }
 }
 
 inline const std::vector<long double>& CutFemLevelSetData::GetUnitPowerCoefficients() const {
   EnsurePower();
-  if(_unitPowerReady) return _unitPower;
-  _unitPower = _power;
-  for(unsigned axis = 0; axis < _dimension; ++axis) if(_geometry == LINE || _geometry == QUAD || _geometry == HEX || (_geometry == WEDGE && axis == 2)) AffinePower(_unitPower,_dimension,2,axis,-1,2,_unitPower);
-  _unitPowerReady = true;
-  return _unitPower;
+  return _power;
 }
 
 inline void CutFemLevelSetData::TransformParentComponents(unsigned degree, const std::vector<std::vector<long double>>& components, unsigned& outputDegree, std::vector<std::vector<long double>>& output) const {

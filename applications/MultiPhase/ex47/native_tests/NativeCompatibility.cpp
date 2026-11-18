@@ -31,6 +31,34 @@ void Validate(unsigned degree, long double absolute, long double relative, unsig
 
 void ResetPolynomial(CompatibilityWork& work, GeomElType geometry, const std::vector<long double>& coefficient) { if(!work.data.IsInitialized() || !work.data.GetNodalValues().empty() || work.data.GetGeometry() != geometry || work.data.GetPowerCoefficients() != coefficient) work.data.ResetPowerCoefficients(geometry,coefficient); }
 
+std::vector<long double> AffinePolynomial(const std::vector<long double>& input, unsigned dimension, unsigned degree, unsigned axes, long double origin, long double scale) {
+  std::vector<long double> output = input;
+  const unsigned side = degree+1;
+  for(unsigned axis = 0; axis < dimension; ++axis) if((axes&(1U<<axis)) != 0) {
+    unsigned stride = 1;
+    for(unsigned next = axis+1; next < dimension; ++next) stride *= side;
+    std::vector<long double> transformed(output.size(),0);
+    for(unsigned n = 0; n < output.size(); ++n) if(output[n] != 0) { const unsigned exponent = (n/stride)%side, base = n-exponent*stride; for(unsigned power = 0; power <= exponent; ++power) transformed[base+power*stride] += output[n]*FELevelSetMoments::ReferenceBinomial(exponent,power)*FELevelSetMoments::ReferencePower(origin,exponent-power)*FELevelSetMoments::ReferencePower(scale,power); }
+    output.swap(transformed);
+  }
+  return output;
+}
+
+void ReferenceOutput(unsigned dimension, unsigned degree, const std::vector<long double>& input, const std::vector<long double>& inputErrors, std::vector<long double>& output, std::vector<long double>& errors) {
+  const unsigned count = input.size()/2;
+  output.assign(input.size(),0);
+  errors.assign(input.size(),0);
+  for(unsigned pair = 0; pair < 2; ++pair) for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= (dimension > 1 ? degree-i : 0U); ++j) for(unsigned k = 0; k <= (dimension > 2 ? degree-i-j : 0U); ++k) {
+    const unsigned target = pair*count+(dimension == 2 ? FELevelSetMoments::ReferenceMomentIndex2D(degree,i,j) : FELevelSetMoments::UnitMomentIndex(dimension,i,j,k));
+    for(unsigned a = 0; a <= i; ++a) for(unsigned b = 0; b <= j; ++b) for(unsigned c = 0; c <= k; ++c) {
+      const unsigned source = pair*count+(dimension == 2 ? FELevelSetMoments::ReferenceMomentIndex2D(degree,a,b) : FELevelSetMoments::UnitMomentIndex(dimension,a,b,c));
+      const long double factor = (1U<<dimension)*FELevelSetMoments::ReferenceBinomial(i,a)*FELevelSetMoments::ReferenceBinomial(j,b)*FELevelSetMoments::ReferenceBinomial(k,c)*FELevelSetMoments::ReferencePower(2,a+b+c)*((i+j+k-a-b-c)%2U == 0 ? 1 : -1);
+      output[target] += factor*input[source];
+      errors[target] += std::abs(factor)*inputErrors[source];
+    }
+  }
+}
+
 void Metric(const CutFemLevelSetData& data, bool surface, const std::vector<std::vector<double>>* inverse, const std::vector<std::vector<double>>* geometry, CompatibilityWork& work, std::vector<std::vector<long double>>& metric, unsigned& degree) {
   degree = 2;
   metric.clear();
@@ -41,8 +69,6 @@ void Metric(const CutFemLevelSetData& data, bool surface, const std::vector<std:
 }
 
 void FlattenMetric(const std::vector<std::vector<std::vector<long double>>>& input, std::vector<std::vector<long double>>& output, unsigned& degree) { degree = 0; for(const std::vector<std::vector<long double>>& component : input) { degree = std::max(degree,static_cast<unsigned>(component.size()-1)); for(const std::vector<long double>& row : component) degree = std::max(degree,static_cast<unsigned>(row.size()-1)); } output.assign(input.size(),std::vector<long double>((degree+1)*(degree+1),0)); for(unsigned c = 0; c < input.size(); ++c) for(unsigned i = 0; i < input[c].size(); ++i) for(unsigned j = 0; j < input[c][i].size(); ++j) output[c][(degree+1)*i+j] = input[c][i][j]; }
-
-void UnitOutput(GeomElType geometry, unsigned degree, const std::vector<long double>& native, const std::vector<long double>& nativeErrors, std::vector<long double>& values, std::vector<long double>& errors) { const unsigned count = native.size()/2; const std::vector<long double> h(native.begin(),native.begin()+count), d(native.begin()+count,native.end()), eh(nativeErrors.begin(),nativeErrors.begin()+count), ed(nativeErrors.begin()+count,nativeErrors.end()); FELevelSetMoments::Ex47Prepared::NativeToUnitMoments(geometry,degree,h,d,values); FELevelSetMoments::Ex47Prepared::NativeToUnitMoments(geometry,degree,eh,ed,errors); }
 
 void PlanarData(const CutFemLevelSetData& source, unsigned degree, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned depth, unsigned budget, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<long double>>* metric, unsigned metricDegree, const std::array<long double,5>* parent, const std::vector<unsigned char>* requested, unsigned direction, bool fullBoundary, const FELevelSetMoments::OuterQuadratureRules& rules, bool inverseSurface, int normalComponent, CompatibilityWork& work, unsigned validation = 0) {
   rules.Validate();
@@ -127,15 +153,16 @@ void SelectPlanar(const CutFemLevelSetData& source, unsigned degree, bool comput
   std::vector<std::vector<long double>> metric;
   unsigned metricDegree = 2;
   Metric(source,surface,inverse,geometry,work,metric,metricDegree);
-  if(gradient != nullptr) FlattenMetric(*gradient,metric,metricDegree);
+  if(gradient != nullptr) { FlattenMetric(*gradient,metric,metricDegree); if(source.GetGeometry() == QUAD) for(std::vector<long double>& component : metric) component = AffinePolynomial(component,2,metricDegree,3,-1,2); }
   else if(surface && metric.empty()) { metric.resize(source.GetRootDimension()); for(unsigned c = 0; c < metric.size(); ++c) metric[c] = source.GetRootDerivativeCoefficients(c); }
+  if(source.GetGeometry() == QUAD && gradient == nullptr) for(std::vector<long double>& component : metric) for(long double& value : component) value /= geometry != nullptr ? 4 : 2;
   const CutFemLevelSetData* field = &source;
   const bool barycentric = source.GetGeometry() == TRI && direction == 3;
   if(barycentric) { source.PermuteSimplexVertices({1,0,2,3},work.workspace.chart); field = &work.workspace.chart; if(!metric.empty()) { unsigned transformedDegree = 0; field->TransformParentComponents(metricDegree,metric,transformedDegree,work.flatMetric); metric = work.flatMetric; metricDegree = transformedDegree; } }
   const long double amplification = barycentric ? FELevelSetMoments::ReferencePower(3,degree) : 1;
   std::vector<long double> values, errors;
   unsigned evaluations = 0, accepted = 0, selected = 0;
-  const std::array<long double,5> parent = {0,1,0,1,1};
+  const std::array<long double,5> parent = source.GetGeometry() == QUAD ? std::array<long double,5>{{-1,2,-1,2,4}} : std::array<long double,5>{{0,1,0,1,1}};
   PlanarData(*field,degree,computeDelta,absolute/amplification,absolute/amplification,relative/amplification,depth,budget,values,errors,evaluations,accepted,selected,metric.empty() ? nullptr : &metric,metricDegree,&parent,nullptr,barycentric ? 1U : direction,fullBoundary,rules,inverseSurface,normalComponent,work,validation);
   if(barycentric) { std::vector<long double> original, originalErrors; FELevelSetMoments::EndpointSimplexChart::RestoreTriangle(degree,values,errors,original,originalErrors); values.swap(original); errors.swap(originalErrors); }
   OutputPlanar(degree,values,errors,absolute,relative,positive,delta,estimate,evaluations,accepted,selected);
@@ -149,6 +176,7 @@ void SelectSpatial(const CutFemLevelSetData& source, unsigned degree, bool compu
   unsigned metricDegree = 2;
   Metric(source,surface,inverse,geometry,work,metric,metricDegree);
   if(surface && metric.empty()) { metric.resize(3); for(unsigned c = 0; c < 3; ++c) metric[c] = source.GetRootDerivativeCoefficients(c); }
+  if(source.GetGeometry() == HEX) for(std::vector<long double>& component : metric) for(long double& value : component) value /= geometry != nullptr ? 8 : 2;
   const CutFemLevelSetData* field = &source;
   const bool barycentric = source.GetGeometry() == TET && direction == 1;
   if(barycentric) { source.PermuteSimplexVertices({1,0,2,3},work.workspace.chart); field = &work.workspace.chart; if(!metric.empty()) { unsigned transformedDegree = 0; field->TransformParentComponents(metricDegree,metric,transformedDegree,work.flatMetric); metric = work.flatMetric; metricDegree = transformedDegree; } }
@@ -158,6 +186,7 @@ void SelectSpatial(const CutFemLevelSetData& source, unsigned degree, bool compu
   std::vector<long double> values, errors;
   SpatialData(*field,degree,computeDelta,absolute/amplification,absolute/amplification,relative/amplification,depth,budget,values,errors,metric.empty() ? nullptr : &metric,metricDegree,inner,outer,computePositive,rules,inverseSurface,normalComponent,work,validation);
   if(barycentric) { std::vector<long double> original, originalErrors; FELevelSetMoments::EndpointSimplexChart::RestoreTetrahedron(degree,values,errors,original,originalErrors); values.swap(original); errors.swap(originalErrors); }
+  if(source.GetGeometry() == HEX) { std::vector<long double> native, nativeErrors; ReferenceOutput(3,degree,values,errors,native,nativeErrors); values.swap(native); errors.swap(nativeErrors); }
   OutputSpatial(degree,computeDelta,values,errors,absolute,relative,positive,delta,estimate,work);
 }
 
@@ -170,7 +199,7 @@ void IntegrateTri7NodalSelected(const std::vector<double>& nodalValues, unsigned
 }
 
 void IntegrateQuad9ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance, double relativeTolerance, bool computeDelta, bool fullBoundaryDelta, unsigned maximumDepth, unsigned integrationOrder, unsigned maximumEvaluations, std::vector<double>* estimatedError, unsigned validationMode, const std::vector<unsigned>* zeroBoundary, bool referenceSurface, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<std::vector<double>>* inverseJacobian, const std::vector<std::vector<double>>* geometryCoordinates, const FELevelSetMoments::OuterQuadratureRules& rules) {
-  CompatibilityWork& work = Work(QUAD); ResetPolynomial(work,QUAD,Flatten(coefficient)); SelectPlanar(work.data,degree,computeDelta,fullBoundaryDelta,integrationOrder,validationMode,maximumDepth,maximumEvaluations,absoluteTolerance,relativeTolerance,referenceSurface,inverseJacobian,geometryCoordinates,surfaceGradient,rules,positive,delta,estimatedError,work);
+  CompatibilityWork& work = Work(QUAD); ResetPolynomial(work,QUAD,AffinePolynomial(Flatten(coefficient),2,2,3,-1,2)); SelectPlanar(work.data,degree,computeDelta,fullBoundaryDelta,integrationOrder,validationMode,maximumDepth,maximumEvaluations,absoluteTolerance,relativeTolerance,referenceSurface,inverseJacobian,geometryCoordinates,surfaceGradient,rules,positive,delta,estimatedError,work);
 }
 
 void IntegrateTri7ReferenceSelected(const std::vector<std::vector<double>>& coefficient, unsigned degree, std::vector<std::vector<double>>& positive, std::vector<std::vector<double>>& delta, double absoluteTolerance, double relativeTolerance, bool computeDelta, bool fullBoundaryDelta, unsigned maximumDepth, unsigned integrationDirection, unsigned maximumEvaluations, std::vector<double>* estimatedError, unsigned validationMode, const std::vector<unsigned>* zeroBoundary, bool referenceSurface, const std::vector<std::vector<double>>* inverseJacobian, const std::vector<std::vector<double>>* geometryCoordinates, const FELevelSetMoments::OuterQuadratureRules& rules, bool inverseSurface, int normalComponent) {
@@ -183,7 +212,7 @@ void IntegrateHex27NodalSelected(const std::vector<double>& nodalValues, unsigne
 }
 
 void IntegrateHex27ReferenceSelected(const std::vector<std::vector<std::vector<double>>>& coefficient, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance, double relativeTolerance, bool computeDelta, unsigned maximumDepth, unsigned integrationOrder, unsigned maximumEvaluations, std::vector<double>* estimatedError, unsigned validationMode, const std::vector<unsigned>* zeroFaces, std::vector<double>* directionInfo, bool referenceSurface, const std::vector<std::vector<double>>* inverseJacobian, const std::vector<std::vector<double>>* geometryCoordinates, const FELevelSetMoments::OuterQuadratureRules& rules) {
-  CompatibilityWork& work = Work(HEX); ResetPolynomial(work,HEX,Flatten(coefficient)); SelectSpatial(work.data,degree,computeDelta,integrationOrder,validationMode,maximumDepth,maximumEvaluations,absoluteTolerance,relativeTolerance,referenceSurface,inverseJacobian,geometryCoordinates,rules,positive,delta,estimatedError,work); if(directionInfo != nullptr) *directionInfo = {1,1,0};
+  CompatibilityWork& work = Work(HEX); ResetPolynomial(work,HEX,AffinePolynomial(Flatten(coefficient),3,2,7,-1,2)); SelectSpatial(work.data,degree,computeDelta,integrationOrder,validationMode,maximumDepth,maximumEvaluations,absoluteTolerance,relativeTolerance,referenceSurface,inverseJacobian,geometryCoordinates,rules,positive,delta,estimatedError,work); if(directionInfo != nullptr) *directionInfo = {1,1,0};
 }
 
 void IntegrateTet15NodalByTriangleSlices(const std::vector<double>& nodalValues, unsigned degree, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, double absoluteTolerance, double relativeTolerance, bool computeDelta, unsigned maximumDepth, unsigned integrationAxis, unsigned maximumEvaluations, std::vector<double>* estimatedError, unsigned directionValidation, std::vector<double>* directionInfo, bool referenceSurface, const std::vector<std::vector<double>>* inverseJacobian, const std::vector<std::vector<double>>* geometryCoordinates, const FELevelSetMoments::OuterQuadratureRules& rules, bool inverseSurface, int normalComponent, bool computePositive, std::vector<std::vector<long double>>* gradientCache) {
@@ -200,14 +229,12 @@ void IntegrateUnitTensorNodalMoments(const std::vector<double>& nodal, unsigned 
   if(dimension == 1) FELevelSetMoments::Ex47Prepared::IntegrateLine(work.data,degree,surface,inverseSurface,values,errors,computePositive);
   else if(dimension == 2) FELevelSetMoments::Ex47Prepared::IntegratePlanar(work.data,degree,absolute,relative,surface,geometry,direction,validation,rules,inverseSurface,normalComponent,computePositive,work.workspace,values,errors);
   else FELevelSetMoments::Ex47Prepared::IntegrateSpatial(work.data,degree,absolute,relative,surface,geometry,direction,validation,rules,inverseSurface,normalComponent,computePositive,work.workspace,values,errors);
-  const long double factor = normalComponent >= 0 || !surface ? 1 : (geometry != nullptr ? (inverseSurface ? 1.0L/(1U<<dimension) : static_cast<long double>(1U<<dimension)) : 2.0L);
-  const unsigned count = values.size()/2;
-  for(unsigned n = count; n < values.size(); ++n) { values[n] *= factor; errors[n] *= factor; }
+
 }
 
 void IntegrateWedge21NodalMoments(const std::vector<double>& nodal, unsigned degree, std::vector<long double>& values, std::vector<long double>& errors, long double absolute, long double relative, bool referenceSurface, const std::vector<std::vector<double>>* geometry, unsigned direction, unsigned validation, const FELevelSetMoments::OuterQuadratureRules& rules, bool inverseSurface, int normalComponent, bool computePositive, std::vector<std::vector<long double>>* gradientCache) {
   OperationTimer timer("wedge_kernel");
-  CompatibilityWork& work = Work(WEDGE); work.data.Reset(WEDGE,nodal); FELevelSetMoments::Ex47Prepared::IntegrateSpatial(work.data,degree,absolute,relative,referenceSurface,geometry,direction,validation,rules,inverseSurface,normalComponent,computePositive,work.workspace,values,errors); const long double factor = geometry != nullptr && normalComponent < 0 ? (inverseSurface ? 0.5L : 2.0L) : 1.0L; for(unsigned n = values.size()/2; n < values.size(); ++n) { values[n] *= factor; errors[n] *= factor; }
+  CompatibilityWork& work = Work(WEDGE); work.data.Reset(WEDGE,nodal); FELevelSetMoments::Ex47Prepared::IntegrateSpatial(work.data,degree,absolute,relative,referenceSurface,geometry,direction,validation,rules,inverseSurface,normalComponent,computePositive,work.workspace,values,errors);
 }
 
 int NodalLevelSetPhase(GeomElType geometry, const std::vector<double>& nodal) {
@@ -221,11 +248,11 @@ void NodalLevelSetBernsteinControls(GeomElType geometry, const std::vector<doubl
 }
 
 void Line3ReferenceCoefficientsFromNodalValues(const std::vector<double>& nodalValues, double& a, double& b, double& c) {
-  CutFemLevelSetData data(LINE,nodalValues); const std::vector<long double>& power = data.GetPowerCoefficients(); a = power[2]; b = power[1]; c = power[0];
+  CutFemLevelSetData data(LINE,nodalValues); const std::vector<long double> power = AffinePolynomial(data.GetPowerCoefficients(),1,2,1,0.5L,0.5L); a = power[2]; b = power[1]; c = power[0];
 }
 
 void Quad9ReferenceCoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<std::vector<double>>& coefficient) {
-  CutFemLevelSetData data(QUAD,nodalValues); const std::vector<long double>& power = data.GetPowerCoefficients(); coefficient.assign(3,std::vector<double>(3)); for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) coefficient[i][j] = power[3*i+j];
+  CutFemLevelSetData data(QUAD,nodalValues); const std::vector<long double> power = AffinePolynomial(data.GetPowerCoefficients(),2,2,3,0.5L,0.5L); coefficient.assign(3,std::vector<double>(3)); for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) coefficient[i][j] = power[3*i+j];
 }
 
 void Tri7ReferenceCoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<std::vector<double>>& coefficient) {
@@ -233,7 +260,7 @@ void Tri7ReferenceCoefficientsFromNodalValues(const std::vector<double>& nodalVa
 }
 
 void Hex27ReferenceCoefficientsFromNodalValues(const std::vector<double>& nodalValues, std::vector<std::vector<std::vector<double>>>& coefficient) {
-  CutFemLevelSetData data(HEX,nodalValues); const std::vector<long double>& power = data.GetPowerCoefficients(); coefficient.assign(3,std::vector<std::vector<double>>(3,std::vector<double>(3))); for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) coefficient[i][j][k] = power[9*i+3*j+k];
+  CutFemLevelSetData data(HEX,nodalValues); const std::vector<long double> power = AffinePolynomial(data.GetPowerCoefficients(),3,2,7,0.5L,0.5L); coefficient.assign(3,std::vector<std::vector<double>>(3,std::vector<double>(3))); for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) coefficient[i][j][k] = power[9*i+3*j+k];
 }
 
 void Wedge21UnitPolynomialFromNodalValues(const std::vector<double>& nodal, std::vector<long double>& coefficient) {
@@ -250,7 +277,7 @@ void Tet15PolynomialFromNodalValues(const std::vector<double>& nodalValues, bool
 
 void Integrate1DInternal(long double a, long double b, long double c, unsigned degree, long double left, long double right, bool computeDelta, bool fullBoundaryDelta, std::vector<long double>& positive, std::vector<long double>& delta) {
   if(&positive == &delta || degree > 64 || !(right > left)) throw std::invalid_argument("Invalid LINE integration request.");
-  const long double origin = left+(right-left)/2, scale = (right-left)/2;
+  const long double origin = left, scale = right-left;
   CompatibilityWork& work = Work(LINE);
   ResetPolynomial(work,LINE,{std::fma(std::fma(a,origin,b),origin,c),scale*std::fma(2*a,origin,b),a*scale*scale});
   const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
@@ -280,7 +307,7 @@ struct StripWork {
 StripWork& PrepareStrip(const std::vector<std::vector<long double>>& coefficient, const FELevelSetMoments::LineIntegrationStrip& strip, const std::vector<std::vector<std::vector<long double>>>* gradient, bool inverse, int component) {
   static thread_local StripWork cache;
   const long double lower = std::min(strip.lowerConstant+strip.lowerSlope*strip.left,strip.lowerConstant+strip.lowerSlope*strip.right), upper = std::max(strip.upperConstant+strip.upperSlope*strip.left,strip.upperConstant+strip.upperSlope*strip.right);
-  const std::array<long double,4> bounds = {strip.left+(strip.right-strip.left)/2,(strip.right-strip.left)/2,lower+(upper-lower)/2,(upper-lower)/2};
+  const std::array<long double,4> bounds = {strip.left,strip.right-strip.left,lower,upper-lower};
   if(!(bounds[1] > 0) || !(bounds[3] > 0)) throw std::invalid_argument("Invalid strip bounds.");
   const std::vector<std::vector<std::vector<long double>>> empty;
   if(!cache.work.data.IsInitialized() || cache.original != coefficient || cache.bounds != bounds || cache.originalMetric != (gradient == nullptr ? empty : *gradient) || cache.inverse != inverse || cache.component != component) {
@@ -297,7 +324,7 @@ StripWork& PrepareStrip(const std::vector<std::vector<long double>>& coefficient
     cache.normalized = FELevelSetMoments::Ex47Prepared::PlanarCoefficients(cache.work.data,cache.normalization);
     cache.work.workspace.plane.Bind(cache.work.data,cache.normalization,gradient != nullptr,inverse,component,gradient == nullptr ? nullptr : &cache.work.flatMetric,cache.work.metricDegree,&cache.work.workspace.statistics);
   }
-  cache.strip.left = -1;
+  cache.strip.left = 0;
   cache.strip.right = 1;
   cache.strip.lowerConstant = (strip.lowerConstant+strip.lowerSlope*bounds[0]-bounds[2])/bounds[3];
   cache.strip.lowerSlope = strip.lowerSlope*bounds[1]/bounds[3];
@@ -328,7 +355,7 @@ void PlanarEndpointIntegration::Integrate(const std::vector<std::vector<long dou
   std::vector<std::vector<long double>> chart = coefficient;
   std::array<long double,5> parent = coordinates == nullptr ? std::array<long double,5>{0,1,0,1,1} : *coordinates;
   std::vector<std::vector<std::vector<long double>>> chartGradient;
-  if(!triangle) { FELevelSetMoments::ReferencePolynomialAffine2D(coefficient,0.5L,0.5L,0.5L,0.5L,chart); parent = {parent[0]+0.5L*parent[1],0.5L*parent[1],parent[2]+0.5L*parent[3],0.5L*parent[3],0.25L*parent[4]}; if(gradient != nullptr) { chartGradient.resize(gradient->size()); for(unsigned c = 0; c < gradient->size(); ++c) FELevelSetMoments::ReferencePolynomialAffine2D((*gradient)[c],0.5L,0.5L,0.5L,0.5L,chartGradient[c]); gradient = &chartGradient; } }
+
   ResetPolynomial(work,triangle ? TRI : QUAD,Flatten(chart));
   std::vector<std::vector<long double>> metric;
   unsigned metricDegree = 2;
@@ -338,6 +365,11 @@ void PlanarEndpointIntegration::Integrate(const std::vector<std::vector<long dou
 }
 
 unsigned PlanarEndpointIntegration::Compare(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, const std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned selected, const std::vector<std::vector<std::vector<long double>>>* gradient, const std::array<long double,5>* coordinates, bool fullBoundaryDelta, const std::vector<unsigned>* zeroBoundary, const FELevelSetMoments::OuterQuadratureRules& rules, bool inverseSurface, int normalComponent) {
+    bool depends[2] = {false,false}, constantMetric = true;
+    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if(coefficient[i][j] != 0) { depends[0] = depends[0] || i != 0; depends[1] = depends[1] || j != 0; }
+    if(gradient != nullptr) for(const std::vector<std::vector<long double>>& component : *gradient) for(unsigned i = 0; i < component.size(); ++i) for(unsigned j = 0; j < component[i].size(); ++j) if(i+j != 0 && component[i][j] != 0) constantMetric = false;
+    if(!triangle && depends[0] != depends[1] && constantMetric) return ::FELevelSetMoments::PlanarEndpointIntegration::Compare(coefficient,degree,triangle,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,gradient,coordinates,fullBoundaryDelta,zeroBoundary,rules,inverseSurface,normalComponent);
+
   std::vector<long double> second, secondErrors; unsigned independent = 0; try { Integrate(coefficient,degree,triangle,computeDelta,0.1L*absoluteH,0.1L*absoluteD,0.1L*relative,maximumDepth,maximumEvaluations,second,secondErrors,evaluations,accepted,independent,gradient,coordinates,nullptr,selected == 0 ? 0 : 3-selected,fullBoundaryDelta,zeroBoundary,rules,inverseSurface,normalComponent); } catch(const std::runtime_error& error) { FELevelSetMoments::WarnQuadrature("Independent planar validation",std::string("validation unavailable: ")+error.what(),0,std::numeric_limits<long double>::infinity(),absoluteD); return 0; } const unsigned count = values.size()/2; for(unsigned n = 0; n < values.size(); ++n) { errors[n] += secondErrors[n]+std::abs(values[n]-second[n]); if(errors[n] > (n < count ? absoluteH : absoluteD)+relative*std::abs(values[n])) FELevelSetMoments::WarnQuadrature("Independent planar validation","endpoint projections disagree",n,errors[n],(n < count ? absoluteH : absoluteD)+relative*std::abs(values[n])); } return independent != selected;
 }
 
@@ -349,30 +381,17 @@ void IntegrateCanonicalGraphInterval(const std::vector<std::vector<long double>>
   const unsigned count = (degree+1)*(degree+2)/2; FELevelSetMoments::LineIntegrationStrip strip = {left,right,0,0,1,triangle ? -1.0L : 0.0L}; std::vector<std::vector<long double>> field = coefficient; std::vector<std::vector<std::vector<long double>>> transposed; if(order == 2) { for(unsigned i = 0; i < 3; ++i) for(unsigned j = i+1; j < 3; ++j) std::swap(field[i][j],field[j][i]); if(surfaceGradient != nullptr) { FELevelSetMoments::SurfaceGradientTranspose(*surfaceGradient,transposed); surfaceGradient = &transposed; } } unsigned evaluations = 0; std::vector<long double> values(2*count,0), errors(2*count,0); LineIntegration::IntegrateStrip(field,degree,strip,true,false,computeDelta,absoluteH,absoluteDelta,relativeTolerance,maximumDepth,200000,evaluations,accepted,values,errors,surfaceGradient,nullptr,active); if(order == 2) for(unsigned i = 0; i <= degree; ++i) for(unsigned j = i+1; j <= degree-i; ++j) for(unsigned pair = 0; pair < 2; ++pair) { std::swap(values[pair*count+FELevelSetMoments::ReferenceMomentIndex2D(degree,i,j)],values[pair*count+FELevelSetMoments::ReferenceMomentIndex2D(degree,j,i)]); std::swap(errors[pair*count+FELevelSetMoments::ReferenceMomentIndex2D(degree,i,j)],errors[pair*count+FELevelSetMoments::ReferenceMomentIndex2D(degree,j,i)]); } for(unsigned n = 0; n < total.size(); ++n) { total[n] += values[n]; totalError[n] += errors[n]; }
 }
 
-std::vector<long double> FromUnitPolynomial(const std::vector<long double>& input, unsigned dimension, unsigned degree, unsigned axes) {
-  std::vector<long double> output = input;
-  const unsigned side = degree+1;
-  for(unsigned axis = 0; axis < dimension; ++axis) if((axes&(1U<<axis)) != 0) {
-    unsigned stride = 1;
-    for(unsigned next = axis+1; next < dimension; ++next) stride *= side;
-    std::vector<long double> transformed(output.size(),0);
-    for(unsigned n = 0; n < output.size(); ++n) if(output[n] != 0) { const unsigned exponent = (n/stride)%side, base = n-exponent*stride; for(unsigned power = 0; power <= exponent; ++power) transformed[base+power*stride] += output[n]*FELevelSetMoments::ReferenceBinomial(exponent,power)*std::ldexp(1.0L,-static_cast<int>(exponent)); }
-    output.swap(transformed);
-  }
-  return output;
-}
-
 void SurfaceEndpointIntegration::Integrate(FELevelSetMoments::SurfaceEndpointData& data, bool tetrahedron, std::vector<long double>& values, std::vector<long double>& errors) {
   const GeomElType geometry = tetrahedron ? TET : (data.wedge ? WEDGE : HEX);
   CompatibilityWork& work = Work(geometry);
-  const unsigned axes = tetrahedron ? 0U : (data.wedge ? 4U : (data.unitCube ? 7U : 0U));
-  const long double measure = axes == 7 ? 8 : (axes == 4 ? 2 : 1);
-  ResetPolynomial(work,geometry,FromUnitPolynomial(data.coefficient,3,2,axes));
+  const unsigned axes = !tetrahedron && !data.wedge && !data.unitCube ? 7U : 0U;
+  const long double measure = axes == 7 ? 8 : 1;
+  ResetPolynomial(work,geometry,AffinePolynomial(data.coefficient,3,2,axes,-1,2));
   std::vector<std::vector<long double>> metric = data.gradient;
   unsigned metricDegree = metric.empty() ? 2U : FELevelSetMoments::SurfacePolynomialCubeSize(metric[0].size())-1;
-  for(std::vector<long double>& component : metric) component = FromUnitPolynomial(component,3,metricDegree,axes);
-  SpatialData(work.data,data.degree,data.computeDelta,measure*data.absoluteH,measure*data.absoluteD,data.relative,data.maximumDepth,data.maximumEvaluations,values,errors,metric.empty() ? nullptr : &metric,metricDegree,data.preferredInner,data.preferredOuter,data.computePositive,data.quadratureRules,data.inverseSurface,data.normalComponent,work);
-  if(axes != 0) { std::vector<long double> unit, unitErrors; UnitOutput(geometry,data.degree,values,errors,unit,unitErrors); values.swap(unit); errors.swap(unitErrors); }
+  for(std::vector<long double>& component : metric) component = AffinePolynomial(component,3,metricDegree,axes,-1,2);
+  SpatialData(work.data,data.degree,data.computeDelta,data.absoluteH/measure,data.absoluteD/measure,data.relative,data.maximumDepth,data.maximumEvaluations,values,errors,metric.empty() ? nullptr : &metric,metricDegree,data.preferredInner,data.preferredOuter,data.computePositive,data.quadratureRules,data.inverseSurface,data.normalComponent,work);
+  if(axes != 0) { std::vector<long double> native, nativeErrors; ReferenceOutput(3,data.degree,values,errors,native,nativeErrors); values.swap(native); errors.swap(nativeErrors); }
   data.powers = work.workspace.surface.powers;
   data.evaluations += work.workspace.surface.evaluations;
   data.accepted += work.workspace.surface.accepted;
@@ -383,15 +402,15 @@ void SurfaceEndpointIntegration::Integrate(FELevelSetMoments::SurfaceEndpointDat
 
 void SurfaceEndpointIntegration::Adaptive(FELevelSetMoments::SurfaceEndpointData& data, const FELevelSetMoments::SurfaceEndpointDomain& cell, unsigned outer, long double left, long double right, int mapping, long double endpoint, long double delta, unsigned exponent, long double budget, unsigned depth, const std::vector<unsigned char>& requested, std::vector<long double>& total, std::vector<long double>& totalErrors) {
   const GeomElType geometry = cell.tetrahedron ? TET : (cell.wedge ? WEDGE : HEX);
-  const unsigned axes = cell.tetrahedron ? 0U : (cell.wedge ? 4U : (data.unitCube ? 7U : 0U));
-  const long double measure = axes == 7 ? 8 : (axes == 4 ? 2 : 1);
+  const unsigned axes = !cell.tetrahedron && !cell.wedge && !data.unitCube ? 7U : 0U;
+  const long double measure = axes == 7 ? 8 : 1;
   const FELevelSetMoments::OuterInterval legacyInterval = {mapping == 0 ? left : (mapping > 0 ? endpoint : endpoint-delta),mapping == 0 ? right : (mapping > 0 ? endpoint+delta : endpoint),endpoint,delta,mapping,exponent,true};
   if(mapping != 0 && !FELevelSetMoments::OuterIntervalQuadrature::Resolved(FELevelSetMoments::GaussKronrodRules::Get(3),legacyInterval,left,right)) throw FELevelSetMoments::OuterQuadratureResolutionError("The requested coordinate chart has no resolved endpoint rule.");
   CompatibilityWork& work = Work(geometry);
-  ResetPolynomial(work,geometry,FromUnitPolynomial(data.coefficient,3,2,axes));
+  ResetPolynomial(work,geometry,AffinePolynomial(data.coefficient,3,2,axes,-1,2));
   std::vector<std::vector<long double>> metric = data.gradient;
   const unsigned metricDegree = metric.empty() ? 2U : FELevelSetMoments::SurfacePolynomialCubeSize(metric[0].size())-1;
-  for(std::vector<long double>& component : metric) component = FromUnitPolynomial(component,3,metricDegree,axes);
+  for(std::vector<long double>& component : metric) component = AffinePolynomial(component,3,metricDegree,axes,-1,2);
   FELevelSetMoments::Ex47Prepared::SurfaceEndpointData& prepared = work.workspace.surface;
   prepared.prepared = &work.data;
   prepared.normalization = work.data.GetNormalizationScale();
@@ -414,25 +433,25 @@ void SurfaceEndpointIntegration::Adaptive(FELevelSetMoments::SurfaceEndpointData
   prepared.computeDelta = data.computeDelta;
   prepared.inverseSurface = data.inverseSurface;
   prepared.normalComponent = data.normalComponent;
-  prepared.absoluteH = measure*data.absoluteH;
-  prepared.absoluteD = measure*data.absoluteD*prepared.normalization;
+  prepared.absoluteH = data.absoluteH/measure;
+  prepared.absoluteD = data.absoluteD*prepared.normalization/measure;
   prepared.relative = data.relative;
   prepared.quadratureRules = data.quadratureRules;
   prepared.powers = data.powers;
-  prepared.domainVolume = measure*data.domainVolume;
+  prepared.domainVolume = data.domainVolume/measure;
   FELevelSetMoments::Ex47Prepared::SurfaceEndpointDomain domain;
   domain.tetrahedron = cell.tetrahedron;
   domain.wedge = cell.wedge;
   domain.vertices = cell.vertices;
-  for(std::array<long double,3>& vertex : domain.vertices) for(unsigned axis = 0; axis < 3; ++axis) if((axes&(1U<<axis)) != 0) vertex[axis] = 2*vertex[axis]-1;
+  for(std::array<long double,3>& vertex : domain.vertices) for(unsigned axis = 0; axis < 3; ++axis) if((axes&(1U<<axis)) != 0) vertex[axis] = (vertex[axis]+1)/2;
   std::vector<unsigned char> active = requested;
   const unsigned count = data.powers.size();
   if(axes != 0) for(unsigned n = 0; n < count; ++n) for(unsigned pair = 0; pair < 2; ++pair) if(requested[pair*count+n]) { const std::array<unsigned,3>& power = data.powers[n]; for(unsigned i = (axes&1U) != 0 ? 0U : power[0]; i <= power[0]; ++i) for(unsigned j = (axes&2U) != 0 ? 0U : power[1]; j <= power[1]; ++j) for(unsigned k = (axes&4U) != 0 ? 0U : power[2]; k <= power[2]; ++k) active[pair*count+FELevelSetMoments::HexMomentIndex(i,j,k)] = 1; }
   std::vector<long double> values(total.size(),0), errors(totalErrors.size(),0);
   const bool transformedOuter = (axes&(1U<<outer)) != 0;
-  FELevelSetMoments::Ex47Prepared::SurfaceEndpointIntegration::Adaptive(prepared,domain,outer,mapping == 0 && transformedOuter ? 2*left-1 : left,mapping == 0 && transformedOuter ? 2*right-1 : right,mapping,transformedOuter ? 2*endpoint-1 : endpoint,transformedOuter ? 2*delta : delta,exponent,budget,depth,active,values,errors);
+  FELevelSetMoments::Ex47Prepared::SurfaceEndpointIntegration::Adaptive(prepared,domain,outer,mapping == 0 && transformedOuter ? (left+1)/2 : left,mapping == 0 && transformedOuter ? (right+1)/2 : right,mapping,transformedOuter ? (endpoint+1)/2 : endpoint,transformedOuter ? delta/2 : delta,exponent,budget,depth,active,values,errors);
   for(unsigned n = count; n < values.size(); ++n) { values[n] /= prepared.normalization; errors[n] /= prepared.normalization; }
-  if(axes != 0) { std::vector<long double> unit, unitErrors; UnitOutput(geometry,data.degree,values,errors,unit,unitErrors); values.swap(unit); errors.swap(unitErrors); }
+  if(axes != 0) { std::vector<long double> native, nativeErrors; ReferenceOutput(3,data.degree,values,errors,native,nativeErrors); values.swap(native); errors.swap(nativeErrors); }
   for(unsigned n = 0; n < requested.size(); ++n) if(requested[n]) { total[n] += values[n]; totalErrors[n] += errors[n]; }
   data.evaluations = prepared.evaluations;
   data.accepted = prepared.accepted;

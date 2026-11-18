@@ -99,10 +99,8 @@ public:
     bool preparedPositive = false;
     if(prepared != nullptr && mappedDerivative < 0) {
       if(derivativeSign != 0) ++Statistics().singleRootSamples;
-      const CutFemLevelSetData& fiber = prepared->Fiber(preparedOrder,x);
-      const CutFemLevelSetData::LineAnalysis& analysis = fiber.GetLineAnalysis();
+      const CutFemLevelSetData::LineAnalysis& analysis = prepared->Analyze(preparedOrder,x);
       if(analysis.identicallyZero) throw std::runtime_error("A graph projection reached an entire zero fiber.");
-      if(prepared->statistics != nullptr) ++prepared->statistics->rootAnalyses;
       preparedPositive = analysis.positiveIntervalCount != 0;
       for(unsigned n = 0; n < analysis.rootCount; ++n) { const long double candidate = prepared->RootCoordinate(preparedOrder,analysis.roots[n]); if(candidate >= lower-tolerance && candidate <= upper+tolerance) { root = std::max(lower,std::min(upper,candidate)); signedDerivative = prepared->WorkingDerivative(preparedOrder,analysis.roots[n]); derivative = std::abs(signedDerivative); ++number; } }
       if(number > 1) throw std::runtime_error("A graph projection contains multiple roots.");
@@ -338,8 +336,7 @@ public:
       unsigned number = 0;
       long double middleRoot = 0, preparedDerivative = 0;
       if(prepared != nullptr) {
-        const CutFemLevelSetData& line = prepared->Fiber(preparedOrder,middle);
-        const CutFemLevelSetData::LineAnalysis& analysis = line.GetLineAnalysis();
+        const CutFemLevelSetData::LineAnalysis& analysis = prepared->Analyze(preparedOrder,middle);
         for(unsigned n = 0; n < analysis.rootCount; ++n) { const long double root = prepared->RootCoordinate(preparedOrder,analysis.roots[n]); if(root >= lower && root <= upper) { middleRoot = root; preparedDerivative = prepared->WorkingDerivative(preparedOrder,analysis.roots[n]); ++number; } }
       }
       else { const std::vector<long double> roots = LineSliceUtilities::QuadraticRoots(polynomial[2],polynomial[1],polynomial[0]); for(unsigned n = 0; n < roots.size(); ++n) if(roots[n] >= lower && roots[n] <= upper) { middleRoot = roots[n]; ++number; } }
@@ -558,7 +555,7 @@ public:
     }
     const std::vector<long double> discriminant = prepared == nullptr ? LineSliceUtilities::PolynomialSum(LineSliceUtilities::PolynomialProduct(b,b),LineSliceUtilities::PolynomialProduct(a,c),-4.0L) : prepared->DiscriminantPolynomial(preparedOrder);
     std::vector<long double> discriminantEvents;
-    if(!certifiedGraph) LineSliceUtilities::PolynomialRoots(discriminant,strip.left,strip.right,discriminantEvents);
+    if(!certifiedGraph && (prepared == nullptr || prepared->data->GetNodalValues().empty() || !prepared->data->GetCompensatedDiscriminantRoots(PreparedPlane::InnerAxis(preparedOrder),strip.left,strip.right,discriminantEvents))) LineSliceUtilities::PolynomialRoots(discriminant,strip.left,strip.right,discriminantEvents);
     for(unsigned k = 0; k < discriminantEvents.size(); ++k) {
       const long double event = RefineDiscriminantEvent(coefficient,discriminantEvents[k],strip.left,strip.right,prepared,preparedOrder);
       discriminantEvents[k] = event;

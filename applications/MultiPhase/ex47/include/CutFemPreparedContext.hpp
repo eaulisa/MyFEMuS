@@ -24,10 +24,10 @@ struct PreparedPlane {
   bool inverseSurface = false;
   int normalComponent = -1;
   PreparedStatistics* statistics = nullptr;
-  mutable std::array<CutFemLevelSetData,2> lines;
-  mutable std::array<std::vector<std::vector<long double>>,2> lineMetric;
-  mutable std::array<bool,2> lineReady = {false,false};
-  mutable std::array<long double,2> lineCoordinate = {0,0};
+  mutable std::vector<long double> point;
+  mutable std::array<CutFemLevelSetData::LineAnalysis,2> localAnalysis;
+  mutable std::array<long double,2> analysisCoordinate = {0,0};
+  mutable std::array<bool,2> analysisReady = {false,false};
 
   void Bind(const CutFemLevelSetData& field, long double scale, bool surface, bool inverse, int component, const std::vector<std::vector<long double>>* physicalMetric, unsigned physicalDegree, PreparedStatistics* counts) {
     data = &field;
@@ -38,65 +38,70 @@ struct PreparedPlane {
     normalComponent = component;
     metricDegree = physicalDegree;
     statistics = counts;
-    lineReady.fill(false);
+    if(surface && physicalMetric == nullptr) point.resize(2);
+    analysisReady.fill(false);
   }
 
   static unsigned InnerAxis(unsigned order) { if(order < 1 || order > 2) throw std::invalid_argument("Invalid planar direction."); return order == 1 ? 1U : 0U; }
 
-  const CutFemLevelSetData& Fiber(unsigned order, long double coordinate) const {
+  const CutFemLevelSetData::LineAnalysis& Analyze(unsigned order, long double coordinate) const {
     const unsigned index = order-1;
-    if(!lineReady[index] || lineCoordinate[index] != coordinate) {
-      const unsigned fixed = 1-InnerAxis(order);
-      data->Restrict(fixed,coordinate,lines[index],referenceSurface && metric == nullptr);
-      if(statistics != nullptr) ++statistics->lineRestrictions;
-      if(metric != nullptr) { data->RestrictComponents(fixed,coordinate,metricDegree,*metric,lineMetric[index]); if(statistics != nullptr) ++statistics->metricRestrictions; }
-      lineReady[index] = true;
-      lineCoordinate[index] = coordinate;
-    }
-    return lines[index];
+    if(!analysisReady[index] || analysisCoordinate[index] != coordinate) { data->AnalyzeLocalFiber(InnerAxis(order),coordinate,localAnalysis[index]); analysisCoordinate[index] = coordinate; analysisReady[index] = true; if(statistics != nullptr) ++statistics->rootAnalyses; }
+    return localAnalysis[index];
   }
 
-  long double RootCoordinate(unsigned order, const CutFemLevelSetData::LineRoot& root) const { const CutFemLevelSetData& line = lines[order-1]; return line.GetParentOrigin()[InnerAxis(order)]+line.GetParentMap()[InnerAxis(order)][0]*root.coordinate; }
+  long double RootCoordinate(unsigned order, const CutFemLevelSetData::LineRoot& root) const { return root.coordinate; }
 
-  long double WorkingDerivative(unsigned order, const CutFemLevelSetData::LineRoot& root) const { return root.derivative/(normalization*lines[order-1].GetParentMap()[InnerAxis(order)][0]); }
+  long double WorkingDerivative(unsigned order, const CutFemLevelSetData::LineRoot& root) const { return root.derivative/normalization; }
 
   long double Density(unsigned order, long double x, long double y, long double signedDerivative) const {
     if(!referenceSurface) { CutFemLevelSetData::LineRoot root; root.coordinate = y; root.derivative = signedDerivative; root.multiplicity = 1; return CutFemLevelSetData::GetRegularRootDeltaFactor(root); }
-    const CutFemLevelSetData& line = Fiber(order,x);
-    const long double origin = line.GetParentOrigin()[InnerAxis(order)], scale = line.GetParentMap()[InnerAxis(order)][0];
-    CutFemLevelSetData::LineRoot root;
-    root.coordinate = scale == 0 ? 0 : (y-origin)/scale;
-    root.derivative = signedDerivative*normalization*(scale == 0 ? 1 : scale);
-    root.multiplicity = 1;
-    long double density;
-    if(!referenceSurface) density = line.GetLineDeltaFactor(root);
-    else if(metric == nullptr) density = line.GetLineReferenceSurfaceFactor(root);
-    else {
+    if(metric != nullptr) {
+      const long double first = InnerAxis(order) == 0 ? y : x, second = InnerAxis(order) == 0 ? x : y;
       std::array<long double,3> h = {0,0,0};
-      const std::vector<std::vector<long double>>& polynomial = lineMetric[order-1];
-      for(unsigned component = 0; component < polynomial.size(); ++component) { long double value = polynomial[component][metricDegree]; for(unsigned power = metricDegree; power > 0; --power) value = value*root.coordinate+polynomial[component][power-1]; h[component] = value; }
-      if(normalComponent >= 0) density = line.GetLineNormalSurfaceFactor(root,h,static_cast<unsigned>(normalComponent));
-      else if(inverseSurface) density = line.GetLineTangentialSurfaceFactor(root,h);
-      else density = line.GetLinePhysicalSurfaceFactor(root,h);
+      long double norm = 0;
+      for(unsigned component = 0; component < metric->size(); ++component) {
+        const std::vector<long double>& polynomial = (*metric)[component];
+        long double value = 0;
+        for(unsigned row = metricDegree+1; row > 0; --row) { long double line = polynomial[(metricDegree+1)*(row-1)+metricDegree]; for(unsigned power = metricDegree; power > 0; --power) line = line*second+polynomial[(metricDegree+1)*(row-1)+power-1]; value = value*first+line; }
+        h[component] = value;
+        norm = std::hypot(norm,value);
+      }
+      if(!(norm > 0) || !std::isfinite(norm)) throw std::domain_error("A local fiber has no regular surface metric.");
+      return (normalComponent >= 0 ? h[normalComponent]/norm : (inverseSurface ? 1/norm : norm))/std::abs(signedDerivative);
     }
-    return normalization*(scale == 0 ? 1 : scale)*density;
+    const unsigned inner = InnerAxis(order);
+    point[inner] = y;
+    point[1-inner] = x;
+    std::array<long double,3> gradient;
+    data->GetRootGradient(point,gradient);
+    const std::vector<std::vector<long double>>& map = data->GetRootMap();
+    unsigned selected = 0;
+    for(unsigned component = 1; component < data->GetRootDimension(); ++component) if(std::abs(map[component][inner]) > std::abs(map[selected][inner])) selected = component;
+    if(map[selected][inner] == 0) throw std::domain_error("A collapsed local fiber has no surface density.");
+    long double remainder = signedDerivative*normalization;
+    for(unsigned component = 0; component < data->GetRootDimension(); ++component) if(component != selected) remainder -= map[component][inner]*gradient[component];
+    gradient[selected] = remainder/map[selected][inner];
+    long double norm = 0;
+    for(unsigned component = 0; component < data->GetRootDimension(); ++component) norm = std::hypot(norm,gradient[component]);
+    return norm/std::abs(signedDerivative);
   }
 
-  long double Discriminant(unsigned order, long double x) const { const long double factor = data->GetNormalizationScale()/normalization; return factor*factor*data->EvaluateFiberDiscriminant(InnerAxis(order),x); }
+  long double Discriminant(unsigned order, long double x) const { const long double factor = data->GetNormalizationScale()/normalization; return factor*factor*data->EvaluateLocalFiberDiscriminant(InnerAxis(order),x); }
 
-  long double DiscriminantDerivative(unsigned order, long double x) const { const std::vector<long double>& coefficient = data->GetFiberProjection(InnerAxis(order)).discriminant; long double value = 0; for(unsigned power = coefficient.size()-1; power > 0; --power) value = value*x+power*coefficient[power]; const long double factor = data->GetNormalizationScale()/normalization; return factor*factor*value; }
+  long double DiscriminantDerivative(unsigned order, long double x) const { std::array<long double,5> shifted; ShiftedDiscriminant(order,x,shifted); return shifted[1]; }
 
   std::vector<long double> BoundaryPolynomial(unsigned order, long double constant, long double slope) const { std::vector<long double> result; data->GetFiberBoundaryPolynomial(InnerAxis(order),constant,slope,result); const long double factor = data->GetNormalizationScale()/normalization; for(long double& value : result) value *= factor; return result; }
 
   std::vector<long double> DiscriminantPolynomial(unsigned order) const { std::vector<long double> result = data->GetFiberProjection(InnerAxis(order)).discriminant; const long double factor = data->GetNormalizationScale()/normalization; for(long double& value : result) value *= factor*factor; return result; }
 
-  void ShiftedDiscriminant(unsigned order, long double endpoint, std::array<long double,5>& output) const { data->GetShiftedFiberDiscriminant(InnerAxis(order),endpoint,output); const long double factor = data->GetNormalizationScale()/normalization; for(long double& value : output) value *= factor*factor; }
+  void ShiftedDiscriminant(unsigned order, long double endpoint, std::array<long double,5>& output) const { data->GetLocalShiftedFiberDiscriminant(InnerAxis(order),endpoint,output); const long double factor = data->GetNormalizationScale()/normalization; for(long double& value : output) value *= factor*factor; }
 
   bool ZeroBoundary(unsigned order, bool upper) const { const unsigned inner = InnerAxis(order); return data->IsZeroOnBoundary(data->GetGeometry() == TRI ? (upper ? 0U : inner+1) : 2*inner+static_cast<unsigned>(upper)); }
 
   bool ZeroBoundary(unsigned order, long double constant, long double slope) const {
     const bool triangle = data->GetGeometry() == TRI;
-    if(slope == 0 && constant == (triangle ? 0.0L : -1.0L)) return ZeroBoundary(order,false);
+    if(slope == 0 && constant == 0.0L) return ZeroBoundary(order,false);
     if(constant == 1 && slope == (triangle ? -1.0L : 0.0L)) return ZeroBoundary(order,true);
     const std::vector<long double> coefficient = BoundaryPolynomial(order,constant,slope);
     for(long double value : coefficient) if(value != 0) return false;

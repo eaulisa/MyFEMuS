@@ -181,14 +181,13 @@ private:
 
   static void Classify(const EndpointStripDirection& data, long double x, EndpointStripInterval& interval) {
     if(data.prepared == nullptr) throw std::logic_error("Curve classification requires prepared data.");
-    const CutFemLevelSetData& line = data.prepared->Fiber(data.order,x);
-    const CutFemLevelSetData::LineAnalysis& analysis = line.GetLineAnalysis();
+    const CutFemLevelSetData::LineAnalysis& analysis = data.prepared->Analyze(data.order,x);
     if(analysis.identicallyZero) throw std::runtime_error("A projection contains an entire zero fiber.");
     interval.signs.clear();
     interval.boundary.clear();
-    std::vector<long double> cuts(1,-1);
+    std::vector<long double> cuts(1,0);
     for(unsigned n = 0; n < analysis.rootCount; ++n) { interval.signs.push_back(analysis.roots[n].derivative > 0 ? 1 : -1); interval.boundary.push_back(analysis.roots[n].boundary); if(analysis.roots[n].boundary == 0) cuts.push_back(analysis.roots[n].coordinate); }
-    cuts.push_back(1);
+    cuts.push_back(data.triangle ? 1-x : 1);
     interval.positive.assign(cuts.size()-1,0);
     for(unsigned n = 1; n < cuts.size(); ++n) { const long double middle = cuts[n-1]+(cuts[n]-cuts[n-1])/2; for(unsigned part = 0; part < analysis.positiveIntervalCount; ++part) if(middle >= analysis.positiveIntervals[part][0] && middle <= analysis.positiveIntervals[part][1]) interval.positive[n-1] = 1; }
     interval.phase = analysis.positiveIntervalCount == 0 ? 0 : 1;
@@ -200,7 +199,7 @@ private:
     if(a == 0) return false;
     const long double y = -b/(2*a);
     const long double padding = 4096*std::numeric_limits<long double>::epsilon();
-    if(y < (data.triangle ? 0.0L : -1.0L)-padding || y > (data.triangle ? 1-x : 1)+padding) return false;
+    if(y < (0.0L)-padding || y > (data.triangle ? 1-x : 1)+padding) return false;
     const long double derivative = Derivative(data.coefficient,x,y,1,0);
     const long double norm = LineSliceUtilities::PolynomialNorm(data.field[0])+LineSliceUtilities::PolynomialNorm(data.field[1])+LineSliceUtilities::PolynomialNorm(data.field[2]);
     if(std::abs(derivative) <= padding*norm) throw std::runtime_error("A tangency strip requires a regular simple fold.");
@@ -218,7 +217,7 @@ private:
     const long double fieldNorm = std::max(LineSliceUtilities::PolynomialNorm(data.field[0]),std::max(LineSliceUtilities::PolynomialNorm(data.field[1]),LineSliceUtilities::PolynomialNorm(data.field[2])));
     if(LineSliceUtilities::PolynomialNorm(data.field[0])+LineSliceUtilities::PolynomialNorm(data.field[1]) <= 64*std::sqrt(std::numeric_limits<long double>::epsilon())*fieldNorm) throw std::runtime_error("A nearly parallel projection retains the transverse direction.");
     if(gradient != nullptr) { if(order == 1) data.gradient = *gradient; else SurfaceGradientTranspose(*gradient,data.gradient); }
-    const LineIntegrationStrip strip = {triangle ? 0.0L : -1.0L,1,triangle ? 0.0L : -1.0L,0,1,triangle ? -1.0L : 0.0L};
+    const LineIntegrationStrip strip = {0.0L,1,0.0L,0,1,triangle ? -1.0L : 0.0L};
     data.lowerZero = prepared == nullptr ? LineIntegration::BoundaryIsZero(data.coefficient,strip.lowerConstant,0) : prepared->ZeroBoundary(order,false);
     data.upperZero = prepared == nullptr ? LineIntegration::BoundaryIsZero(data.coefficient,1,strip.upperSlope) : prepared->ZeroBoundary(order,true);
     std::vector<long double> events;
@@ -267,12 +266,12 @@ private:
     long double derivative = interval.mapping == 0 ? (a == 0 ? std::abs(b) : std::sqrt(std::max(0.0L,discriminant))) : parameter*regularDerivative;
     const CutFemLevelSetData::LineAnalysis* analysis = nullptr;
     if(interval.mapping == 0 && data.prepared != nullptr) {
-      analysis = &data.prepared->Fiber(data.order,x).GetLineAnalysis();
+      analysis = &data.prepared->Analyze(data.order,x);
       if(analysis->identicallyZero || analysis->rootCount != interval.signs.size()) throw std::runtime_error("Prepared root topology changed within an interval.");
       if(analysis->rootCount != 0) derivative = std::abs(data.prepared->WorkingDerivative(data.order,analysis->roots[0]));
     }
     const long double surfaceRatio = interval.mapping == 0 ? 1.0L/derivative : (2*interval.delta/regularDerivative)*(jacobian/(2*interval.delta*parameter));
-    const long double lower = data.triangle ? 0.0L : -1.0L;
+    const long double lower = 0.0L;
     const long double upper = data.triangle ? 1-x : 1;
     const long double parentX = std::fma(data.parent[1],x,data.parent[0]);
     std::vector<long double> roots;
@@ -331,7 +330,7 @@ private:
     values.assign(2U*count,0);
     errors.assign(values.size(),0);
     const long double intervalBudget = 1.0L/std::max(1U,static_cast<unsigned>(data.intervals.size()));
-    const LineIntegrationStrip strip = {data.triangle ? 0.0L : -1.0L,1,data.triangle ? 0.0L : -1.0L,0,1,data.triangle ? -1.0L : 0.0L};
+    const LineIntegrationStrip strip = {0.0L,1,0.0L,0,1,data.triangle ? -1.0L : 0.0L};
     for(unsigned k = 0; k < data.intervals.size(); ++k) {
       const EndpointStripInterval& interval = data.intervals[k];
       if(interval.signs.empty()) { if(interval.phase > 0) LineIntegration::FullStripMoments(degree,strip,interval.left,interval.right,values,errors,&data.parent,&data.requested); ++accepted; continue; }

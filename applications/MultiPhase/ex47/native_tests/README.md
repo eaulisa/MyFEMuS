@@ -27,7 +27,7 @@ python applications/MultiPhase/ex47/native_tests/run_comparison.py --build /tmp/
 
 The original detector uses depth 12. The fixture runner records the new default depth 1 separately and repeats detection with `EX47_NATIVE_DETECTION_DEPTH=12`; conservative uncertified cells are not interpreted as incorrect cut integrals.
 
-The additional `curved_public_regression` reuses the perturbed curved HEX27 fixture at degree 2 through the actual public weight APIs. Its original backend passes and its prepared backend currently rejects an endpoint at coordinate resolution. Known failing fixtures intentionally retain their original assertions and produce a nonzero runner status.
+The additional `curved_public_regression` reuses the perturbed curved HEX27 fixture at degree 2 through the actual public weight APIs. The unit-coordinate correction resolves that failure; both backends are retested through the same public API. Known failing fixtures intentionally retain their original assertions and produce a nonzero runner status.
 
 The timing-only graph and degree-13 surface drivers also have accuracy-only variants that expose every moment without adding work to the timed executables:
 
@@ -38,3 +38,5 @@ python applications/MultiPhase/ex47/native_tests/make_report.py --build /tmp/ex4
 ```
 
 The polynomial-coefficient import supports the primitive fixtures without converting their long-double inputs into nodal doubles. Public prepared-weight overloads continue to require a root record created from FEM node values.
+
+Unit-coordinate validation is recorded separately under `results/unit_coordinates/`; the other result tables are the historical baseline before this correction.
