@@ -1,0 +1,168 @@
+{
+  "rows": 16,
+  "changed_rows": [],
+  "baseline": {
+    "weight_check LINE3 q=2": {
+      "prepared_error": "1.8825675e-14",
+      "raw_error": "8.6448241e-20",
+      "fitting_floor": "1.8825675e-14"
+    },
+    "weight_check LINE3 q=5": {
+      "prepared_error": "4.3801659e-14",
+      "raw_error": "1.9884978e-19",
+      "fitting_floor": "4.3801659e-14"
+    },
+    "weight_check LINE3 q=10": {
+      "prepared_error": "1.1849753e-11",
+      "raw_error": "2.5865498e-19",
+      "fitting_floor": "1.1849753e-11"
+    },
+    "weight_check QUAD9 q=2": {
+      "prepared_error": "2.558626e-14",
+      "raw_error": "9.5530979e-18",
+      "fitting_floor": "2.5579781e-14"
+    },
+    "weight_check QUAD9 q=5": {
+      "prepared_error": "1.686467e-14",
+      "raw_error": "1.0914061e-17",
+      "fitting_floor": "1.6868662e-14"
+    },
+    "weight_check QUAD9 q=10": {
+      "prepared_error": "1.0113521e-13",
+      "raw_error": "1.4494291e-17",
+      "fitting_floor": "1.0113431e-13"
+    },
+    "weight_check TRI7 q=2": {
+      "prepared_error": "1.9939738e-14",
+      "raw_error": "1.4780041e-16",
+      "fitting_floor": "1.9895698e-14"
+    },
+    "weight_check TRI7 q=5": {
+      "prepared_error": "1.4835273e-14",
+      "raw_error": "1.4780041e-16",
+      "fitting_floor": "1.4832553e-14"
+    },
+    "weight_check TRI7 q=10": {
+      "prepared_error": "2.5582455e-14",
+      "raw_error": "1.4780041e-16",
+      "fitting_floor": "2.5435042e-14"
+    },
+    "weight_check HEX27 q=2": {
+      "prepared_error": "2.1760703e-16",
+      "raw_error": "1.7896944e-17",
+      "fitting_floor": "2.240095e-16"
+    },
+    "weight_check HEX27 q=5": {
+      "prepared_error": "1.9347214e-16",
+      "raw_error": "1.7896944e-17",
+      "fitting_floor": "1.7588376e-16"
+    },
+    "weight_check HEX27 q=10": {
+      "prepared_error": "1.6238419e-16",
+      "raw_error": "1.7896944e-17",
+      "fitting_floor": "1.6260368e-16"
+    },
+    "weight_check TET15 q=2": {
+      "prepared_error": "2.7811055e-14",
+      "raw_error": "2.0305602e-16",
+      "fitting_floor": "2.8014111e-14"
+    },
+    "weight_check TET15 q=5": {
+      "prepared_error": "1.0778273e-14",
+      "raw_error": "2.0305602e-16",
+      "fitting_floor": "1.0981489e-14"
+    },
+    "weight_check WEDGE21 q=2": {
+      "prepared_error": "2.2162656e-14",
+      "raw_error": "7.1717491e-17",
+      "fitting_floor": "2.2091259e-14"
+    },
+    "weight_check WEDGE21 q=5": {
+      "prepared_error": "5.8129019e-15",
+      "raw_error": "7.1717491e-17",
+      "fitting_floor": "5.8084575e-15"
+    }
+  },
+  "migrated": {
+    "weight_check LINE3 q=2": {
+      "prepared_error": "1.8825675e-14",
+      "raw_error": "8.6448241e-20",
+      "fitting_floor": "1.8825675e-14"
+    },
+    "weight_check LINE3 q=5": {
+      "prepared_error": "4.3801659e-14",
+      "raw_error": "1.9884978e-19",
+      "fitting_floor": "4.3801659e-14"
+    },
+    "weight_check LINE3 q=10": {
+      "prepared_error": "1.1849753e-11",
+      "raw_error": "2.5865498e-19",
+      "fitting_floor": "1.1849753e-11"
+    },
+    "weight_check QUAD9 q=2": {
+      "prepared_error": "2.558626e-14",
+      "raw_error": "9.5530979e-18",
+      "fitting_floor": "2.5579781e-14"
+    },
+    "weight_check QUAD9 q=5": {
+      "prepared_error": "1.686467e-14",
+      "raw_error": "1.0914061e-17",
+      "fitting_floor": "1.6868662e-14"
+    },
+    "weight_check QUAD9 q=10": {
+      "prepared_error": "1.0113521e-13",
+      "raw_error": "1.4494291e-17",
+      "fitting_floor": "1.0113431e-13"
+    },
+    "weight_check TRI7 q=2": {
+      "prepared_error": "1.9939738e-14",
+      "raw_error": "1.4780041e-16",
+      "fitting_floor": "1.9895698e-14"
+    },
+    "weight_check TRI7 q=5": {
+      "prepared_error": "1.4835273e-14",
+      "raw_error": "1.4780041e-16",
+      "fitting_floor": "1.4832553e-14"
+    },
+    "weight_check TRI7 q=10": {
+      "prepared_error": "2.5582455e-14",
+      "raw_error": "1.4780041e-16",
+      "fitting_floor": "2.5435042e-14"
+    },
+    "weight_check HEX27 q=2": {
+      "prepared_error": "2.1760703e-16",
+      "raw_error": "1.7896944e-17",
+      "fitting_floor": "2.240095e-16"
+    },
+    "weight_check HEX27 q=5": {
+      "prepared_error": "1.9347214e-16",
+      "raw_error": "1.7896944e-17",
+      "fitting_floor": "1.7588376e-16"
+    },
+    "weight_check HEX27 q=10": {
+      "prepared_error": "1.6238419e-16",
+      "raw_error": "1.7896944e-17",
+      "fitting_floor": "1.6260368e-16"
+    },
+    "weight_check TET15 q=2": {
+      "prepared_error": "2.7811055e-14",
+      "raw_error": "2.0305602e-16",
+      "fitting_floor": "2.8014111e-14"
+    },
+    "weight_check TET15 q=5": {
+      "prepared_error": "1.0778273e-14",
+      "raw_error": "2.0305602e-16",
+      "fitting_floor": "1.0981489e-14"
+    },
+    "weight_check WEDGE21 q=2": {
+      "prepared_error": "2.2162656e-14",
+      "raw_error": "7.1717491e-17",
+      "fitting_floor": "2.2091259e-14"
+    },
+    "weight_check WEDGE21 q=5": {
+      "prepared_error": "5.8129019e-15",
+      "raw_error": "7.1717491e-17",
+      "fitting_floor": "5.8084575e-15"
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "baseline": "e7f9724713afcb6bab24d5ec388d84b244e14b3b",
+  "native_archived_original_files": 29,
+  "active_native_headers": 23,
+  "active_native_lines": 7055,
+  "data_checks": 5021366,
+  "maximum_scaled_data_error": 1.4422057e-14,
+  "ctest_groups": 4,
+  "independent_weight_summary_rows": 16,
+  "changed_weight_accuracy_rows": [],
+  "duffy_random_checks": 20000,
+  "duffy_maximum_absolute_error": 9.71011e-16,
+  "weight_timing_cases": 54,
+  "weight_timing_checksum_changes": 0,
+  "weight_timing_median_before_over_after": 1.002197349529916,
+  "largest_case_median_slowdown": 0.09818868243700263,
+  "sustained_regressions_over_10_percent": [],
+  "kernel_timing_cases": 133,
+  "kernel_median_before_over_after": 1.004249334715428,
+  "mpi_velocity_norms": {
+    "1": {
+      "one_rank": [
+        5e-06,
+        3.051484113561887e-07,
+        0.000336532037495225,
+        0.0010478500005063921
+      ],
+      "two_ranks": [
+        5e-06,
+        3.051484113561903e-07,
+        0.00033653203749513586,
+        0.0010478500005059006
+      ],
+      "relative_differences": [
+        0.0,
+        5.20463720929542e-15,
+        2.6482298458604554e-13,
+        4.691294219281045e-13
+      ]
+    },
+    "3": {
+      "one_rank": [
+        5e-06,
+        8.458102405006516e-07,
+        0.001395924465359636,
+        0.0038707806106140726
+      ],
+      "two_ranks": [
+        5e-06,
+        8.458102405006506e-07,
+        0.0013959244653598511,
+        0.003870780610614711
+      ],
+      "relative_differences": [
+        0.0,
+        1.2518070051281908e-15,
+        1.5409552333168158e-13,
+        1.6492235116835655e-13
+      ]
+    }
+  },
+  "compiler_dependency_audit": {
+    "dependency_files": 167,
+    "archived_or_prototype_inclusions": []
+  }
+}
