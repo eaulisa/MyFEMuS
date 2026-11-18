@@ -35,7 +35,6 @@ SURFACE_GK2="7/15"
 SURFACE_GK2t="7/15"
 SURFACE_GK3="15/31"
 SURFACE_GK3t="15/31"
-SURFACE_EXTENDED_BUDGET=1
 SURFACE_PRESSURE_DIAGNOSTIC=0
 
 MULTIGRID_TYPE="mg"               # mg | hmg
@@ -102,12 +101,6 @@ EOF
 EOF
   done
 }
-
-if [[ "$SURFACE_EXTENDED_BUDGET" == 1 ]]; then
-  export FEMUS_CUTFEM_UNLIMITED=1
-else
-  unset FEMUS_CUTFEM_UNLIMITED || true
-fi
 
 if [[ "$SURFACE_PRESSURE_DIAGNOSTIC" == 1 ]]; then
   [[ -f "$SOURCE_SCRIPT_DIR/diagnostic/solve_surface_pressure_range.py" ]] || {

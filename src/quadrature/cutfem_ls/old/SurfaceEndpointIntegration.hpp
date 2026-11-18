@@ -1,14 +1,15 @@
-#ifndef FEMUS_EX47_PREPARED_SURFACE_ENDPOINT_INTEGRATION_HPP
-#define FEMUS_EX47_PREPARED_SURFACE_ENDPOINT_INTEGRATION_HPP
+#ifndef FEMUS_SURFACE_ENDPOINT_INTEGRATION_HPP
+#define FEMUS_SURFACE_ENDPOINT_INTEGRATION_HPP
 
 #include "Quad9DirectionSelection.hpp"
-#include "PlanarEndpointIntegration.hpp"
+#include "TriangleIntegration.hpp"
 #include "Hex27LevelSetMoments.hpp"
 #include <array>
+#include <map>
+#include <set>
 #include "EndpointProjection.hpp"
 
 namespace FELevelSetMoments {
-namespace Ex47Prepared {
 
 struct SurfaceEndpointStatistics {
   unsigned long long endpointStrips = 0;
@@ -35,16 +36,6 @@ struct SurfaceEndpointDomain {
 };
 
 struct SurfaceEndpointData {
-  const CutFemLevelSetData* prepared = nullptr;
-  const std::vector<std::vector<long double>>* physicalMetric = nullptr;
-  unsigned metricDegree = 0;
-  bool referenceSurface = false;
-  long double normalization = 1;
-  CutFemLevelSetData slice;
-  PreparedPlane plane;
-  PreparedStatistics* statistics = nullptr;
-  std::vector<std::vector<long double>> sliceMetric;
-  std::vector<std::vector<std::vector<long double>>> slicePolicy;
   std::vector<long double> coefficient;
   std::vector<std::vector<long double>> gradient;
   std::vector<std::array<unsigned,3>> powers;
@@ -56,6 +47,7 @@ struct SurfaceEndpointData {
   unsigned graphAxis = 0;
   unsigned preferredInner = 3;
   unsigned preferredOuter = 3;
+  bool unitCube = false;
   bool wedge = false;
   std::vector<unsigned> zeroFaces;
   long double domainVolume = 1.0L;
@@ -111,9 +103,117 @@ public:
     }
   }
 
+  static long double Value(const std::vector<long double>& coefficient, const std::array<long double,3>& point) {
+    long double value = 0.0L;
+    for(unsigned i = 3; i > 0; --i) {
+      long double row = 0.0L;
+      for(unsigned j = 3; j > 0; --j) {
+        long double line = 0.0L;
+        for(unsigned k = 3; k > 0; --k) line = std::fma(line,point[2],coefficient[Hex27Index(i-1U,j-1U,k-1U)]);
+        row = std::fma(row,point[1],line);
+      }
+      value = std::fma(value,point[0],row);
+    }
+    return value;
+  }
+
+  static std::vector<long double> Derivative(const std::vector<long double>& coefficient, unsigned axis) {
+    std::vector<long double> result(27,0.0L);
+    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) {
+      unsigned powers[3] = {i,j,k};
+      if(powers[axis] == 0) continue;
+      const long double value = powers[axis]*coefficient[Hex27Index(i,j,k)];
+      --powers[axis];
+      result[Hex27Index(powers[0],powers[1],powers[2])] = value;
+    }
+    return result;
+  }
+
+  static std::vector<long double> BoxPolynomial(const std::vector<long double>& coefficient, const std::array<long double,3>& lower, const std::array<long double,3>& upper) {
+    std::vector<long double> result = coefficient;
+    for(unsigned axis = 0; axis < 3; ++axis) {
+      std::vector<long double> next(27,0.0L);
+      for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) {
+        const unsigned powers[3] = {i,j,k};
+        unsigned target[3] = {i,j,k};
+        for(unsigned a = 0; a <= powers[axis]; ++a) {
+          target[axis] = a;
+          const long double multiplier = ReferenceBinomial(powers[axis],a)*ReferencePower(lower[axis],powers[axis]-a)*ReferencePower(upper[axis]-lower[axis],a);
+          next[Hex27Index(target[0],target[1],target[2])] = std::fma(multiplier,result[Hex27Index(i,j,k)],next[Hex27Index(target[0],target[1],target[2])]);
+        }
+      }
+      result.swap(next);
+    }
+    return result;
+  }
+
+  static unsigned Index(unsigned i, unsigned j, unsigned k) {
+    return 25U*i+5U*j+k;
+  }
+
+  static std::vector<long double> SimplexPolynomial(const std::vector<long double>& coefficient, const SurfaceEndpointDomain& cell) {
+    std::vector<long double> result(125,0.0L);
+    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) {
+      const long double multiplier = coefficient[Hex27Index(i,j,k)];
+      if(multiplier == 0.0L) continue;
+      if(i+j+k > 4) throw std::logic_error("The tetrahedral parent polynomial exceeds total degree four.");
+      const unsigned powers[3] = {i,j,k};
+      std::vector<long double> product(125,0.0L);
+      product[0] = multiplier;
+      unsigned degree = 0;
+      for(unsigned axis = 0; axis < 3; ++axis) for(unsigned repetition = 0; repetition < powers[axis]; ++repetition) {
+        std::vector<long double> next(125,0.0L);
+        for(unsigned a = 0; a <= degree; ++a) for(unsigned b = 0; b <= degree-a; ++b) for(unsigned c = 0; c <= degree-a-b; ++c) {
+          const long double value = product[Index(a,b,c)];
+          next[Index(a,b,c)] = std::fma(cell.vertices[0][axis],value,next[Index(a,b,c)]);
+          next[Index(a+1U,b,c)] = std::fma(cell.vertices[1][axis]-cell.vertices[0][axis],value,next[Index(a+1U,b,c)]);
+          next[Index(a,b+1U,c)] = std::fma(cell.vertices[2][axis]-cell.vertices[0][axis],value,next[Index(a,b+1U,c)]);
+          next[Index(a,b,c+1U)] = std::fma(cell.vertices[3][axis]-cell.vertices[0][axis],value,next[Index(a,b,c+1U)]);
+        }
+        product.swap(next);
+        ++degree;
+      }
+      for(unsigned n = 0; n < 125; ++n) result[n] += product[n];
+    }
+    return result;
+  }
+
+  static void Range(const std::vector<long double>& coefficient, const SurfaceEndpointDomain& cell, unsigned degree, long double& minimum, long double& maximum, long double& padding) {
+    std::vector<long double> controls;
+    long double norm = 0.0L;
+    if(cell.tetrahedron) {
+      const std::vector<long double> power = SimplexPolynomial(coefficient,cell);
+      for(unsigned n = 0; n < power.size(); ++n) norm += std::abs(power[n]);
+      for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) for(unsigned k = 0; k <= degree-i-j; ++k) {
+        long double value = 0.0L;
+        for(unsigned a = 0; a <= i; ++a) for(unsigned b = 0; b <= j; ++b) for(unsigned c = 0; c <= k; ++c) value += power[Index(a,b,c)]*ReferenceBinomial(i,a)*ReferenceBinomial(j,b)*ReferenceBinomial(k,c)/(ReferenceBinomial(degree,a+b+c)*ReferenceBinomial(a+b+c,a)*ReferenceBinomial(b+c,b));
+        controls.push_back(value);
+      }
+    }
+    else {
+      std::array<long double,3> lower;
+      std::array<long double,3> upper;
+      Bounds(cell,lower,upper);
+      const std::vector<long double> power = BoxPolynomial(coefficient,lower,upper);
+      for(unsigned n = 0; n < power.size(); ++n) norm += std::abs(power[n]);
+      controls = Hex27Bernstein(power);
+    }
+    minimum = *std::min_element(controls.begin(),controls.end());
+    maximum = *std::max_element(controls.begin(),controls.end());
+    long double parentNorm = 0.0L;
+    for(unsigned n = 0; n < coefficient.size(); ++n) parentNorm += std::abs(coefficient[n]);
+    padding = 512.0L*std::numeric_limits<long double>::epsilon()*std::max(norm,parentNorm);
+  }
+
   static int Phase(const SurfaceEndpointData& data, const SurfaceEndpointDomain& cell) {
     if(data.computeDelta) for(unsigned n = 0; n < data.zeroFaces.size(); ++n) if(data.zeroFaces[n] != 0) return 0;
-    return data.prepared->GetPhase();
+    long double minimum;
+    long double maximum;
+    long double padding;
+    Range(data.coefficient,cell,4,minimum,maximum,padding);
+    if(minimum > padding || (!data.computeDelta && minimum >= 0.0L && maximum > 0.0L)) return 1;
+    if(maximum < -padding || (!data.computeDelta && maximum <= 0.0L && minimum < 0.0L)) return -1;
+    return 0;
   }
 
   static long double IntegralPower(long double left, long double right, unsigned degree) {
@@ -164,11 +264,29 @@ public:
     const unsigned count = data.powers.size();
     for(unsigned n = 0; n < count; ++n) {
       if(!active[n]) continue;
-      long double value = cell.wedge ? ReferenceTriangleMoment(data.powers[n][0],data.powers[n][1])*IntegralPower(0,1,data.powers[n][2]) : cell.tetrahedron ? TetMoment(cell,data.powers[n][0],data.powers[n][1],data.powers[n][2]) : IntegralPower(cell.vertices[0][0],cell.vertices[1][0],data.powers[n][0])*IntegralPower(cell.vertices[0][1],cell.vertices[1][1],data.powers[n][1])*IntegralPower(cell.vertices[0][2],cell.vertices[1][2],data.powers[n][2]);
+      long double value = cell.wedge ? ReferenceTriangleMoment(data.powers[n][0],data.powers[n][1])/(data.powers[n][2]+1U) : cell.tetrahedron ? TetMoment(cell,data.powers[n][0],data.powers[n][1],data.powers[n][2]) : IntegralPower(cell.vertices[0][0],cell.vertices[1][0],data.powers[n][0])*IntegralPower(cell.vertices[0][1],cell.vertices[1][1],data.powers[n][1])*IntegralPower(cell.vertices[0][2],cell.vertices[1][2],data.powers[n][2]);
       value *= multiplier;
       values[n] += value;
       errors[n] += (64.0L+16.0L*data.degree)*std::numeric_limits<long double>::epsilon()*std::abs(value);
     }
+  }
+
+  static std::vector<std::vector<long double>> SlicePolynomial(const std::vector<long double>& coefficient, unsigned axis, long double coordinate) {
+    const unsigned size = SurfacePolynomialCubeSize(coefficient.size());
+    unsigned first;
+    unsigned second;
+    Hex27OtherAxes(axis,first,second);
+    std::vector<std::vector<long double>> result(size,std::vector<long double>(size,0.0L));
+    for(unsigned i = 0; i < size; ++i) for(unsigned j = 0; j < size; ++j) {
+      unsigned powers[3] = {0,0,0};
+      powers[first] = i;
+      powers[second] = j;
+      for(unsigned k = size; k > 0; --k) {
+        powers[axis] = k-1U;
+        result[i][j] = std::fma(result[i][j],coordinate,coefficient[size*size*powers[0]+size*powers[1]+powers[2]]);
+      }
+    }
+    return result;
   }
 
   static unsigned Direction(const SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, bool& weak, long double* energy) {
@@ -176,12 +294,16 @@ public:
     long double best = -1.0L;
     weak = false;
     for(unsigned axis = 0; axis < 3; ++axis) {
-      const CutFemLevelSetData::GraphCertificate& certificate = data.prepared->GetGraphCertificate(axis);
-      const long double minimum = certificate.bounds[0], maximum = certificate.bounds[1];
+      long double minimum;
+      long double maximum;
+      long double padding;
+      Range(Derivative(data.coefficient,axis),cell,3,minimum,maximum,padding);
       energy[axis] = std::max(std::abs(minimum),std::abs(maximum));
-      const long double lower = minimum > 0 ? minimum : (maximum < 0 ? -maximum : 0);
-      if(!certificate.strict || lower == 0 || axis == data.preferredOuter) continue;
-      const long double score = axis == data.preferredInner ? std::numeric_limits<long double>::infinity() : (lower > 0 ? 2+lower/std::max(energy[axis],std::numeric_limits<long double>::min()) : energy[axis]/(1+energy[axis]));
+      const long double lower = minimum > padding ? minimum-padding : (maximum < -padding ? -maximum-padding : 0.0L);
+      if(lower == 0.0L || axis == data.preferredOuter) continue;
+      const bool monotone = (minimum >= -padding && maximum > padding) || (maximum <= padding && minimum < -padding);
+      if(!monotone) continue;
+      const long double score = axis == data.preferredInner ? std::numeric_limits<long double>::infinity() : (lower > 0.0L ? 2.0L+lower/std::max(energy[axis],std::numeric_limits<long double>::min()) : energy[axis]/(1.0L+energy[axis]));
       if(score > best) {
         best = score;
         selected = axis;
@@ -192,7 +314,10 @@ public:
   }
 
   static bool Independent(const SurfaceEndpointData& data, unsigned axis) {
-    if(data.prepared->DependsOn(axis)) return false;
+    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) {
+      const unsigned powers[3] = {i,j,k};
+      if(powers[axis] != 0 && data.coefficient[Hex27Index(i,j,k)] != 0.0L) return false;
+    }
     for(unsigned n = 0; n < data.gradient.size(); ++n) {
       const unsigned size = SurfacePolynomialCubeSize(data.gradient[n].size());
       for(unsigned i = 0; i < size; ++i) for(unsigned j = 0; j < size; ++j) for(unsigned k = 0; k < size; ++k) {
@@ -202,6 +327,38 @@ public:
     }
     return true;
   }
+
+  static void Symmetry(const SurfaceEndpointData& data, std::vector<long double>& values, std::vector<long double>& errors) {
+    const unsigned count = data.powers.size();
+    for(unsigned axis = 0; axis < 3; ++axis) {
+      bool even = true;
+      bool odd = true;
+      for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) {
+        const unsigned powers[3] = {i,j,k};
+        if(data.coefficient[Hex27Index(i,j,k)] == 0.0L) continue;
+        if(powers[axis]%2U != 0) even = false;
+        else odd = false;
+      }
+      bool metric = true;
+      for(unsigned n = 0; n < data.gradient.size(); ++n) {
+        const unsigned size = SurfacePolynomialCubeSize(data.gradient[n].size());
+        bool componentEven = true;
+        bool componentOdd = true;
+        for(unsigned i = 0; i < size; ++i) for(unsigned j = 0; j < size; ++j) for(unsigned k = 0; k < size; ++k) {
+          const unsigned powers[3] = {i,j,k};
+          if(data.gradient[n][size*size*i+size*j+k] == 0.0L) continue;
+          if(powers[axis]%2U != 0) componentEven = false;
+          else componentOdd = false;
+        }
+        metric = metric && (componentEven || componentOdd);
+      }
+      for(unsigned n = 0; n < count; ++n) if(data.powers[n][axis]%2U != 0) {
+        if(even) values[n] = errors[n] = 0.0L;
+        if((even || odd) && metric) values[count+n] = errors[count+n] = 0.0L;
+      }
+    }
+  }
+
 
   static void Sample(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, unsigned outer, long double coordinate, const std::vector<unsigned char>& active, std::vector<long double>& values, std::vector<long double>& errors, long double allocation) {
     ++data.evaluations;
@@ -217,34 +374,37 @@ public:
     const unsigned requestedDirection = preferred < 3 && preferred != outer ? (preferred == first ? 2U : 1U) : 0;
     std::vector<unsigned char> required(2U*sliceCount,0);
     for(unsigned n = 0; n < count; ++n) for(unsigned pair = 0; pair < 2; ++pair) if(active[pair*count+n]) required[pair*sliceCount+ReferenceMomentIndex2D(degree,data.powers[n][first],data.powers[n][second])] = 1;
-    data.prepared->Restrict(outer,coordinate,data.slice,data.referenceSurface && data.physicalMetric == nullptr);
-    if(data.statistics != nullptr) ++data.statistics->surfaceRestrictions;
-    const bool triangleSlice = data.slice.GetGeometry() == TRI;
-    if(!(data.slice.GetParentMeasureScale() > 0)) throw OuterQuadratureResolutionError("A prepared 3D slice reached coordinate resolution.");
-    if(data.physicalMetric != nullptr) { data.prepared->RestrictComponents(outer,coordinate,data.metricDegree,*data.physicalMetric,data.sliceMetric); if(data.statistics != nullptr) ++data.statistics->metricRestrictions; }
-    data.plane.Bind(data.slice,data.normalization,data.referenceSurface,data.inverseSurface,data.normalComponent,data.physicalMetric == nullptr ? nullptr : &data.sliceMetric,data.metricDegree,data.statistics);
-    const std::vector<std::vector<long double>> chart = PlanarCoefficients(data.slice,data.normalization);
-    if(data.referenceSurface) {
-      const unsigned components = data.physicalMetric == nullptr ? data.slice.GetRootDimension() : data.sliceMetric.size(), size = data.physicalMetric == nullptr ? 3U : data.metricDegree+1;
-      data.slicePolicy.resize(components);
-      for(unsigned component = 0; component < components; ++component) {
-        const std::vector<long double>& field = data.physicalMetric == nullptr ? data.slice.GetRootDerivativeCoefficients(component) : data.sliceMetric[component];
-        data.slicePolicy[component].resize(size);
-        for(unsigned i = 0; i < size; ++i) { data.slicePolicy[component][i].resize(size); for(unsigned j = 0; j < size; ++j) data.slicePolicy[component][i][j] = field[size*i+j]; }
-      }
+    const long double origin = cell.tetrahedron || data.unitCube || cell.wedge ? 0 : -1;
+    const bool triangleSlice = cell.tetrahedron || (cell.wedge && outer == 2);
+    const long double width = cell.tetrahedron || (cell.wedge && outer < 2) ? 1-coordinate : (data.unitCube || cell.wedge ? 1 : 2);
+    const long double secondWidth = cell.wedge ? 1 : width;
+    if(!(width > 0)) throw std::runtime_error("A tetrahedral endpoint slice reached coordinate resolution.");
+    const std::vector<std::vector<long double>> slice = SlicePolynomial(data.coefficient,outer,coordinate);
+    std::vector<std::vector<long double>> chart;
+    ReferencePolynomialAffine2D(slice,origin,width,origin,secondWidth,chart);
+    std::vector<std::vector<std::vector<long double>>> gradient(data.gradient.size());
+    for(unsigned component = 0; component < data.gradient.size(); ++component) ReferencePolynomialAffine2D(SlicePolynomial(data.gradient[component],outer,coordinate),origin,width,origin,secondWidth,gradient[component]);
+    std::vector<unsigned> boundary;
+    if(!data.zeroFaces.empty()) {
+      if(cell.wedge) boundary = outer == 2 ? std::vector<unsigned>{data.zeroFaces[0],data.zeroFaces[1],data.zeroFaces[2]} : std::vector<unsigned>{data.zeroFaces[first],data.zeroFaces[2],data.zeroFaces[3],data.zeroFaces[4]};
+      else if(cell.tetrahedron) boundary = {data.zeroFaces[first+1U],data.zeroFaces[second+1U],data.zeroFaces[0]};
+      else boundary = {data.zeroFaces[2U*first],data.zeroFaces[2U*first+1U],data.zeroFaces[2U*second],data.zeroFaces[2U*second+1U]};
     }
-    const std::vector<unsigned> boundary = data.plane.Boundaries();
-    const std::vector<long double>& origin = data.slice.GetParentOrigin();
-    const std::vector<std::vector<long double>>& map = data.slice.GetParentMap();
-    const std::array<long double,5> parent = {origin[first],map[first][0],origin[second],map[second][1],data.slice.GetParentMeasureScale()};
+    const std::array<long double,5> parent = {origin,width,origin,secondWidth,width*secondWidth};
     std::vector<long double> moments;
     std::vector<long double> momentErrors;
     unsigned evaluations = 0;
     unsigned accepted = 0;
     unsigned selected = 0;
     try {
-      if(triangleSlice) ++Statistics().triCalls; else ++Statistics().quadCalls;
-      PlanarEndpointIntegration::Integrate(chart,degree,triangleSlice,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,selected,data.referenceSurface ? &data.slicePolicy : nullptr,&parent,&required,requestedDirection,false,&boundary,data.quadratureRules,data.inverseSurface,data.normalComponent,&data.plane);
+      if(triangleSlice) {
+        ++Statistics().triCalls;
+        TriangleIntegration::Integrate(chart,degree,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,selected,gradient.empty() ? nullptr : &gradient,&parent,&required,requestedDirection,false,boundary.empty() ? nullptr : &boundary,data.quadratureRules,data.inverseSurface,data.normalComponent);
+      }
+      else {
+        ++Statistics().quadCalls;
+        Quad9SelectedDirect(chart,degree,requestedDirection,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,gradient.empty() ? nullptr : &gradient,parent,&required,boundary.empty() ? nullptr : &boundary,data.quadratureRules,data.inverseSurface,data.normalComponent);
+      }
     }
     catch(...) { data.evaluations += evaluations; throw; }
     data.evaluations += evaluations;
@@ -283,7 +443,7 @@ public:
       long double axial = 0;
       long double transverse = 0;
       for(unsigned axis = 0; axis < 3; ++axis) {
-        const std::vector<long double>& derivative = data.prepared->GetDerivativeCoefficients(axis);
+        const std::vector<long double> derivative = Derivative(data.coefficient,axis);
         long double norm = 0;
         for(unsigned n = 0; n < derivative.size(); ++n) norm += std::abs(derivative[n]);
         if(axis == data.preferredOuter) axial = norm; else transverse += norm;
@@ -321,12 +481,12 @@ public:
             powers[outer] = 0;
             for(unsigned pair = 0; pair < 2; ++pair) if(active[pair*data.powers.size()+n]) dependencies[pair*data.powers.size()+HexMomentIndex(powers[0],powers[1],powers[2])] = 1;
           }
-          Sample(data,cell,outer,0,dependencies,values,errors,data.domainVolume/2);
+          Sample(data,cell,outer,0,dependencies,values,errors,data.domainVolume/(data.unitCube || cell.wedge ? 1 : 2));
           const std::vector<long double> source = values;
           const std::vector<long double> sourceError = errors;
           for(unsigned n = 0; n < data.powers.size(); ++n) {
             unsigned powers[3] = {data.powers[n][0],data.powers[n][1],data.powers[n][2]};
-            const long double factor = IntegralPower(0,1,powers[outer]);
+            const long double factor = IntegralPower(data.unitCube || cell.wedge ? 0 : -1,1,powers[outer]);
             powers[outer] = 0;
             const unsigned index = HexMomentIndex(powers[0],powers[1],powers[2]);
             for(unsigned pair = 0; pair < 2; ++pair) {
@@ -337,12 +497,16 @@ public:
           ++data.accepted;
         }
         else {
+          std::vector<long double> chart = data.coefficient;
+          if(!cell.tetrahedron && !data.unitCube && !cell.wedge) ReferenceCubePolynomialToChart(data.coefficient,chart);
           ++Statistics().eventBuilds;
-          const std::vector<EndpointProjectionEvent> events = EndpointProjection::Build(data.coefficient,cell.tetrahedron,outer,inner < 3 ? inner : data.preferredInner,inner < 3,cell.wedge,data.prepared);
+          const std::vector<EndpointProjectionEvent> events = EndpointProjection::Build(chart,cell.tetrahedron,outer,inner < 3 ? inner : data.preferredInner,inner < 3,cell.wedge);
+          const long double origin = cell.tetrahedron || data.unitCube || cell.wedge ? 0 : -1;
+          const long double scale = cell.tetrahedron || data.unitCube || cell.wedge ? 1 : 2;
           const long double budget = data.domainVolume/(events.size()-1U);
           for(unsigned n = 1; n < events.size(); ++n) {
-            const long double left = events[n-1U].point;
-            const long double right = events[n].point;
+            const long double left = std::fma(scale,events[n-1U].point,origin);
+            const long double right = std::fma(scale,events[n].point,origin);
             if(!(right > left)) continue;
             const std::vector<OuterInterval> plan = OuterIntervalQuadrature::Plan(left,right,events[n-1U].exponent,events[n].exponent,3);
             for(unsigned part = 0; part < plan.size(); ++part) {
@@ -389,7 +553,7 @@ public:
     SurfaceEndpointDomain cell;
     cell.tetrahedron = tetrahedron;
     cell.wedge = data.wedge;
-    cell.vertices = tetrahedron ? std::vector<std::array<long double,3>>{{0,0,0},{1,0,0},{0,1,0},{0,0,1}} : (data.wedge ? std::vector<std::array<long double,3>>{{0,0,0},{1,1,1}} : std::vector<std::array<long double,3>>{{0,0,0},{1,1,1}});
+    cell.vertices = tetrahedron ? std::vector<std::array<long double,3>>{{0,0,0},{1,0,0},{0,1,0},{0,0,1}} : (data.unitCube || data.wedge ? std::vector<std::array<long double,3>>{{0,0,0},{1,1,1}} : std::vector<std::array<long double,3>>{{-1,-1,-1},{1,1,1}});
     values.assign(2U*count,0.0L);
     errors.assign(2U*count,0.0L);
     long double norm = 0.0L;
@@ -407,6 +571,12 @@ public:
     data.requested.assign(2U*count,1);
     if(!data.computePositive) std::fill(data.requested.begin(),data.requested.begin()+count,0);
     if(!data.computeDelta) std::fill(data.requested.begin()+count,data.requested.end(),0);
+    if(!tetrahedron && !data.unitCube && !data.wedge) {
+      std::vector<long double> parityValues(2U*count,0);
+      std::vector<long double> parityErrors(2U*count,1);
+      Symmetry(data,parityValues,parityErrors);
+      for(unsigned n = 0; n < data.requested.size(); ++n) if(parityErrors[n] == 0) data.requested[n] = 0;
+    }
     std::vector<long double> best(2U*count,std::numeric_limits<long double>::quiet_NaN());
     std::vector<long double> bestErrors(2U*count,std::numeric_limits<long double>::infinity());
     long double budgetFactor = 1.0L;
@@ -418,6 +588,7 @@ public:
       std::vector<long double> passErrors(2U*count,0.0L);
       ++Statistics().integrationPasses;
       IntegrateParent(data,cell,passValues,passErrors);
+      if(!tetrahedron && !data.unitCube && !data.wedge) Symmetry(data,passValues,passErrors);
       KeepBestQuadrature(passValues,passErrors,data.requested,best,bestErrors);
       long double worst = 0.0L;
       bool remaining = false;
@@ -472,10 +643,44 @@ public:
     data.evaluations += independent.evaluations;
   }
 
-
+  static void Output(const SurfaceEndpointData& data, long double scale, const std::vector<long double>& values, const std::vector<long double>& errors, std::vector<std::vector<std::vector<double>>>& positive, std::vector<std::vector<std::vector<double>>>& delta, std::vector<double>* estimate) {
+    QuadratureWarningScope warningScope("3D moment output");
+    const unsigned count = data.powers.size();
+    std::vector<std::vector<std::vector<double>>> outputH(data.degree+1U);
+    std::vector<std::vector<std::vector<double>>> outputD(data.degree+1U);
+    long double errorH = 0.0L;
+    long double errorD = 0.0L;
+    for(unsigned i = 0; i <= data.degree; ++i) {
+      outputH[i].resize(data.degree-i+1U);
+      outputD[i].resize(data.degree-i+1U);
+      for(unsigned j = 0; j <= data.degree-i; ++j) {
+        outputH[i][j].resize(data.degree-i-j+1U);
+        outputD[i][j].resize(data.degree-i-j+1U);
+        for(unsigned k = 0; k <= data.degree-i-j; ++k) {
+          const unsigned n = HexMomentIndex(i,j,k);
+          const long double h = values[n];
+          const long double d = data.computeDelta ? values[count+n]/scale : 0.0L;
+          outputH[i][j][k] = static_cast<double>(h);
+          outputD[i][j][k] = static_cast<double>(d);
+          if(!std::isfinite(outputH[i][j][k]) || !std::isfinite(outputD[i][j][k])) throw std::overflow_error("A 3D graph moment exceeds double precision range.");
+          const long double hError = errors[n]+std::abs(h-static_cast<long double>(outputH[i][j][k]));
+          const long double dError = data.computeDelta ? errors[count+n]/scale+std::abs(d-static_cast<long double>(outputD[i][j][k])) : 0.0L;
+          if(!std::isfinite(hError) || hError < 0 || hError > data.absoluteH+data.relative*std::abs(h)) WarnQuadrature("3D output","rounded volume moment exceeds tolerance",n,hError,data.absoluteH+data.relative*std::abs(h));
+          if(!std::isfinite(dError) || dError < 0 || dError > data.absoluteD/scale+data.relative*std::abs(d)) WarnQuadrature("3D output","rounded interface moment exceeds tolerance",count+n,dError,data.absoluteD/scale+data.relative*std::abs(d));
+          errorH = std::max(errorH,std::isfinite(hError) && hError >= 0 ? hError : std::numeric_limits<long double>::infinity());
+          errorD = std::max(errorD,std::isfinite(dError) && dError >= 0 ? dError : std::numeric_limits<long double>::infinity());
+        }
+      }
+    }
+    positive.swap(outputH);
+    delta.swap(outputD);
+    if(estimate != nullptr) {
+      unsigned selected = 0;
+      for(unsigned axis = 1; axis < 3; ++axis) if(data.outerCounts[axis] > data.outerCounts[selected]) selected = axis;
+      *estimate = {static_cast<double>(errorH),static_cast<double>(errorD),static_cast<double>(data.accepted),static_cast<double>(data.evaluations),data.evaluations == 0 ? 0.0 : static_cast<double>(selected+1U)};
+    }
+  }
 };
-
-}
 
 }
 

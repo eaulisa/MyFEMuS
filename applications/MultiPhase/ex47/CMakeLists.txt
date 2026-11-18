@@ -10,7 +10,7 @@ target_include_directories(MultiPhase_ex47 PRIVATE "${EX47_REPOSITORY_ROOT}/src/
 target_include_directories(MultiPhase_ex47 PRIVATE "${EX47_REPOSITORY_ROOT}/src/quadrature")
 find_path(EX47_EIGEN_INCLUDE_DIR Eigen/Dense HINTS "${EIGEN3_INCLUDE_DIR}" ENV EIGEN3_INCLUDE_DIR PATH_SUFFIXES eigen3)
 if(NOT EX47_EIGEN_INCLUDE_DIR)
-  message(FATAL_ERROR "ex47 weight comparisons need Eigen headers; set EX47_EIGEN_INCLUDE_DIR.")
+  message(FATAL_ERROR "ex47 weight tests need Eigen headers; set EX47_EIGEN_INCLUDE_DIR.")
 endif()
 target_include_directories(MultiPhase_ex47 SYSTEM PRIVATE "${EX47_EIGEN_INCLUDE_DIR}")
 file(GLOB EX47_QUADRATURE_SOURCES "${EX47_REPOSITORY_ROOT}/src/quadrature/*Gauss*Points.cpp")

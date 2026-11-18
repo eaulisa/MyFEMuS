@@ -1,5 +1,5 @@
-#ifndef FEMUS_EX47_CUT_FEM_LEVEL_SET_DATA_HPP
-#define FEMUS_EX47_CUT_FEM_LEVEL_SET_DATA_HPP
+#ifndef FEMUS_CUT_FEM_LEVEL_SET_DATA_HPP
+#define FEMUS_CUT_FEM_LEVEL_SET_DATA_HPP
 
 #include "GeomElTypeEnum.hpp"
 #include <algorithm>

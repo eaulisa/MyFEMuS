@@ -1491,12 +1491,14 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           if(cfwLS[ielGeom]->GetGaussQuadraturePointNumber() != femV->GetGaussPointNumber()) throw std::runtime_error("LS and assembly Gauss rules do not match.");
           cfwLS[ielGeom]->SetIntegrationDirection(0);
           cfwLS[ielGeom]->SetDirectionValidation(0);
+          cfwLS[ielGeom]->SetOuterQuadratureRules(outerQuadratureRules);
+          const CutFemLevelSetData levelSet(static_cast<GeomElType>(ielGeom),psi);
 
           if(geometrySurfaceWeights) {
-            cfwLS[ielGeom]->GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCF, 1.E-8, 1.E-8, outerQuadratureRules);
+            cfwLS[ielGeom]->GetPhysicalSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCF,1.E-8,1.E-8);
           }
           else {
-            cfwLS[ielGeom]->GetWeightsFromNodalValues(psi, weightCFInt, weightCF, 1.E-5, 1.E-5, referenceSurfaceWeights, outerQuadratureRules);
+            cfwLS[ielGeom]->GetWeightsFromLevelSetData(levelSet,weightCFInt,weightCF,1.E-5,1.E-5,referenceSurfaceWeights);
           }
 
 

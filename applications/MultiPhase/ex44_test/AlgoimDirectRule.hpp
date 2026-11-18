@@ -7,9 +7,7 @@
 // |det(Dx/Dxi)| * |grad_x Psi_h| at each returned point.
 // This header deliberately does not reconstruct FEMuS moment-fitting weights.
 
-#include "FELevelSetMoments.hpp"
-#include "Hex27LevelSetMoments.hpp"
-#include "Tet15LevelSet.hpp"
+#include "CutFemLevelSetData.hpp"
 #include "algoim/quadrature_multipoly.hpp"
 #include <algorithm>
 #include <cmath>
@@ -36,6 +34,22 @@ inline long double Binomial(unsigned n, unsigned k) {
   long double value = 1.0L;
   for(unsigned i = 1; i <= k; ++i) value *= static_cast<long double>(n+1U-i)/i;
   return value;
+}
+
+inline std::vector<long double> TriangleDuffyPower(const std::vector<double>& nodal) {
+  const CutFemLevelSetData field(TRI,nodal);
+  const std::vector<long double>& coefficient = field.GetPowerCoefficients();
+  std::vector<long double> result(12,0);
+  for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if(coefficient[3*i+j] != 0) for(unsigned a = 0; a <= i; ++a) result[3*(a+j)+j] += (a%2 == 0 ? 1 : -1)*Binomial(i,a)*coefficient[3*i+j];
+  return result;
+}
+
+inline std::vector<long double> TetrahedronDuffyPower(const std::vector<double>& nodal) {
+  const CutFemLevelSetData field(TET,nodal);
+  const std::vector<long double>& coefficient = field.GetPowerCoefficients();
+  std::vector<long double> result(125,0);
+  for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) if(coefficient[9*i+3*j+k] != 0) for(unsigned a = 0; a <= i; ++a) for(unsigned b = 0; b <= j; ++b) result[25*(i+j+k)+5*(j+k+a)+k+b] += ((a+b)%2 == 0 ? 1 : -1)*Binomial(i,a)*Binomial(j,b)*coefficient[9*i+3*j+k];
+  return result;
 }
 
 inline std::vector<double> ToReference(const algoim::uvector<double,2>& canonical, unsigned simplexDimension) {
@@ -183,12 +197,8 @@ inline Rule GetNodalQuadrature(const std::vector<double>& nodalPsi, unsigned ord
   if(order == 0 || order > 100 || subdivisions > 32) throw std::invalid_argument("AlgoimDirect: invalid order/subdivisions");
   Rule rule;
   if(nodalPsi.size() == 9) {
-    std::vector<std::vector<double>> coefficient;
-    FELevelSetMoments::Quad9ReferenceCoefficientsFromNodalValues(nodalPsi,coefficient);
-    std::vector<std::vector<long double>> chart;
-    FELevelSetMoments::ReferencePolynomialAffine2D(coefficient,-1.0L,2.0L,-1.0L,2.0L,chart);
-    std::vector<long double> data(9);
-    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) data[3U*i+j] = chart[i][j];
+    const CutFemLevelSetData field(QUAD,nodalPsi);
+    const std::vector<long double>& data = field.GetPowerCoefficients();
     detail::BuildTensor<2>(data,algoim::uvector<int,2>(3,3),0,0,0,order,subdivisions,rule);
   }
   else if(nodalPsi.size() == 7) {
@@ -198,12 +208,7 @@ inline Rule GetNodalQuadrature(const std::vector<double>& nodalPsi, unsigned ord
     const bool zero02 = nodalPsi[0] == 0.0 && nodalPsi[2] == 0.0 && nodalPsi[5] == 0.0;
     const bool zero12 = nodalPsi[1] == 0.0 && nodalPsi[2] == 0.0 && nodalPsi[4] == 0.0;
     if(zero01 || zero02 || zero12) throw std::domain_error("AlgoimDirect: exact zero TRI7 edges need boundary quadrature");
-    std::vector<std::vector<double>> coefficient;
-    FELevelSetMoments::Tri7ReferenceCoefficientsFromNodalValues(nodalPsi,coefficient);
-    std::vector<std::vector<long double>> chart;
-    FELevelSetMoments::ReferencePolynomialAffine2D(coefficient,1.0L,-1.0L,0.0L,1.0L,chart);
-    std::vector<long double> data(12,0.0L);
-    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) if(i+j < 4) data[3U*(i+j)+j] += chart[i][j];
+    std::vector<long double> data = detail::TriangleDuffyPower(nodalPsi);
     unsigned removed = 0;
     unsigned rows = 4;
     while(rows > 1 && data[0] == 0.0L && data[1] == 0.0L && data[2] == 0.0L) {
@@ -215,11 +220,8 @@ inline Rule GetNodalQuadrature(const std::vector<double>& nodalPsi, unsigned ord
     detail::BuildTensor<2>(data,algoim::uvector<int,2>(static_cast<int>(rows),3),2,removed,0,order,subdivisions,rule);
   }
   else if(nodalPsi.size() == 27) {
-    std::vector<std::vector<std::vector<double>>> coefficient;
-    FELevelSetMoments::Hex27ReferenceCoefficientsFromNodalValues(nodalPsi,coefficient);
-    std::vector<long double> polynomial(27), data;
-    for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) for(unsigned k = 0; k < 3; ++k) polynomial[9U*i+3U*j+k] = coefficient[i][j][k];
-    FELevelSetMoments::ReferenceCubePolynomialToChart(polynomial,data);
+    const CutFemLevelSetData field(HEX,nodalPsi);
+    const std::vector<long double>& data = field.GetPowerCoefficients();
     detail::BuildTensor<3>(data,algoim::uvector<int,3>(3,3,3),0,0,0,order,subdivisions,rule);
   }
   else if(nodalPsi.size() == 15) {
@@ -229,8 +231,7 @@ inline Rule GetNodalQuadrature(const std::vector<double>& nodalPsi, unsigned ord
       for(unsigned n = 0; n < 7; ++n) zero = zero && nodalPsi[faces[face][n]] == 0.0;
       if(zero) throw std::domain_error("AlgoimDirect: exact zero TET15 faces need boundary quadrature");
     }
-    std::vector<long double> polynomial;
-    FELevelSetMoments::Tet15PolynomialFromNodalValues(nodalPsi,true,polynomial);
+    std::vector<long double> polynomial = detail::TetrahedronDuffyPower(nodalPsi);
     unsigned removed[2] = {0,0};
     for(unsigned axis = 0; axis < 2; ++axis) {
       const unsigned stride = (axis == 0) ? 25U : 5U;
@@ -247,14 +248,14 @@ inline Rule GetNodalQuadrature(const std::vector<double>& nodalPsi, unsigned ord
     }
     if(removed[0] > 1 || removed[1] > 1) throw std::domain_error("AlgoimDirect: critical TET15 collapsed vertex");
     unsigned maximum[3] = {1,1,1};
-    for(unsigned i = 0; i < 5; ++i) for(unsigned j = 0; j < 5; ++j) for(unsigned k = 0; k < 5; ++k) if(polynomial[FELevelSetMoments::Tet15Index(i,j,k)] != 0.0L) {
+    for(unsigned i = 0; i < 5; ++i) for(unsigned j = 0; j < 5; ++j) for(unsigned k = 0; k < 5; ++k) if(polynomial[25U*i+5U*j+k] != 0.0L) {
       maximum[0] = std::max(maximum[0],i);
       maximum[1] = std::max(maximum[1],j);
       maximum[2] = std::max(maximum[2],k);
     }
     std::vector<long double> data((maximum[0]+1U)*(maximum[1]+1U)*(maximum[2]+1U));
     unsigned index = 0;
-    for(unsigned i = 0; i <= maximum[0]; ++i) for(unsigned j = 0; j <= maximum[1]; ++j) for(unsigned k = 0; k <= maximum[2]; ++k) data[index++] = polynomial[FELevelSetMoments::Tet15Index(i,j,k)];
+    for(unsigned i = 0; i <= maximum[0]; ++i) for(unsigned j = 0; j <= maximum[1]; ++j) for(unsigned k = 0; k <= maximum[2]; ++k) data[index++] = polynomial[25U*i+5U*j+k];
     detail::BuildTensor<3>(data,algoim::uvector<int,3>(static_cast<int>(maximum[0]+1U),static_cast<int>(maximum[1]+1U),static_cast<int>(maximum[2]+1U)),3,removed[0],removed[1],order,subdivisions,rule);
   }
   else throw std::invalid_argument("AlgoimDirect: requires QUAD9, TRI7, HEX27, or TET15 nodal Psi");

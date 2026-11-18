@@ -1,11 +1,41 @@
-#ifndef FEMUS_EX47_CUT_FEM_WEIGHT_LS_HPP
-#define FEMUS_EX47_CUT_FEM_WEIGHT_LS_HPP
+#ifndef FEMUS_CUT_FEM_WEIGHT_LS_HPP
+#define FEMUS_CUT_FEM_WEIGHT_LS_HPP
 
-#include "../../../../src/quadrature/cutfem_ls/CutFemWeight_LS.hpp"
-#include "CutFemLevelSetData.hpp"
-#include "CutFemPreparedMoments.hpp"
+#include "GeomElTypeEnum.hpp"
+#include "GaussPoints.hpp"
+#include "gram_smithLS.hpp"
+#include "FELevelSetMoments.hpp"
+#include "Hex27LevelSetMoments.hpp"
+#include "Hex27DirectionSelection.hpp"
+#include "LineSliceUtilities.hpp"
+#include "Quad9DirectionSelection.hpp"
+#include "Tri7DirectionSelection.hpp"
+#include "Tet15LevelSet.hpp"
+#include "Tet15LevelSetMoments.hpp"
+#include "UnitElementMoments.hpp"
+#include "Wedge21LevelSetMoments.hpp"
+#include "NodalCutDetection.hpp"
+#include <Eigen/Dense>
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <stdexcept>
+#include <string>
+#include <vector>
+#include <boost/multiprecision/cpp_bin_float.hpp>
 
-namespace Ex47 {
+namespace boost {
+  namespace multiprecision {
+    typedef number < backends::cpp_bin_float < 24, backends::digit_base_2, void, boost::int16_t, -126, 127 >, et_off >         cpp_bin_float_single;
+    typedef number < backends::cpp_bin_float < 53, backends::digit_base_2, void, boost::int16_t, -1022, 1023 >, et_off >       cpp_bin_float_double;
+    typedef number < backends::cpp_bin_float < 64, backends::digit_base_2, void, boost::int16_t, -16382, 16383 >, et_off >     cpp_bin_float_double_extended;
+    typedef number < backends::cpp_bin_float < 113, backends::digit_base_2, void, boost::int16_t, -16382, 16383 >, et_off >    cpp_bin_float_quad;
+    typedef number < backends::cpp_bin_float < 237, backends::digit_base_2, void, boost::int32_t, -262142, 262143 >, et_off >  cpp_bin_float_oct;
+  }
+} // namespaces
+
+using boost::multiprecision::cpp_bin_float_oct;
+using boost::multiprecision::cpp_bin_float_quad;
 
 template <class TypeIO, class TypeA>
 class CutFemWeight_LS {
@@ -16,8 +46,6 @@ class CutFemWeight_LS {
         _L /= d + 1U;
       }
       _fPair.resize(_L, 2);
-      FELevelSetMoments::Ex47Prepared::LineDomainIntegration::FullStripRules();
-      FELevelSetMoments::GaussKronrodRules::All();
       BuildMomentToWeight();
     }
 
@@ -52,6 +80,7 @@ class CutFemWeight_LS {
       _nodalValues.clear();
       _nodalGeometryCoordinates.clear();
       _nodalPositiveWeight.clear();
+      _nodalSurfaceGradient.clear();
       for(unsigned mode = 0; mode < _nodalDeltaWeightCache.size(); ++mode) _nodalDeltaWeightCache[mode].clear();
     }
 
@@ -82,24 +111,36 @@ class CutFemWeight_LS {
     }
 
 
-    void GetWeightsFromExternalMoments(const std::vector<long double>& positiveMoments, const std::vector<long double>& surfaceMoments, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& surfaceWeight) {
+    void GetWeightsFromExternalMoments(
+        const std::vector<long double>& positiveMoments,
+        const std::vector<long double>& surfaceMoments,
+        std::vector<TypeIO>& positiveWeight,
+        std::vector<TypeIO>& surfaceWeight) {
 
-      if(positiveMoments.size() != _L || surfaceMoments.size() != _L) throw std::invalid_argument("Invalid external moment size.");
+      if(positiveMoments.size() != _L ||
+         surfaceMoments.size() != _L)
+        throw std::invalid_argument("Invalid external moment size.");
 
-      if(&positiveWeight == &surfaceWeight) throw std::invalid_argument("Weight outputs must be distinct.");
+      if(&positiveWeight == &surfaceWeight)
+        throw std::invalid_argument("Weight outputs must be distinct.");
 
-      for(unsigned n = 0; n < _L; ++n) if(!std::isfinite(positiveMoments[n]) || !std::isfinite(surfaceMoments[n])) throw std::invalid_argument("Nonfinite external moment.");
       ClearCache();
-      _haveIntegratedMoments = false;
-      for(unsigned n = 0; n < _L; ++n) { _fPair(n,0) = static_cast<TypeA>(positiveMoments[n]); _fPair(n,1) = static_cast<TypeA>(surfaceMoments[n]); }
+
+      for(unsigned n = 0; n < _L; ++n) {
+        if(!std::isfinite(positiveMoments[n]) ||
+           !std::isfinite(surfaceMoments[n]))
+          throw std::invalid_argument("Nonfinite external moment.");
+
+        _fPair(n,0) = static_cast<TypeA>(positiveMoments[n]);
+        _fPair(n,1) = static_cast<TypeA>(surfaceMoments[n]);
+      }
 
       EvaluateMomentWeightPair(positiveWeight,surfaceWeight);
     }
 
     // Returns -1 or +1 only for a certified phase; zero retains every possible cut.
     int GetLevelSetPhaseFromNodalValues(const std::vector<double>& nodalValues) const {
-      _preparedData.Reset(_geomElemType,nodalValues,_maximumCertificationDepth);
-      return _preparedData.GetPhase();
+      return FELevelSetMoments::NodalLevelSetPhase(_geomElemType,nodalValues);
     }
 
     // Fits the three signed measures delta(G) (cof(J) grad_ref G)_a / |cof(J) grad_ref G|.
@@ -116,31 +157,6 @@ class CutFemWeight_LS {
       positiveWeight.swap(positive);
       normalWeight.swap(result);
     }
-
-    void GetWeightsFromLevelSetData(const CutFemLevelSetData& data, std::vector<TypeIO>& positive, std::vector<TypeIO>& delta, double absolute = 1e-12, double relative = 1e-12, bool referenceSurface = false) { GetPreparedWeightPair(data,positive,delta,absolute,relative,referenceSurface,_outerQuadratureRules); }
-    void GetPhysicalSurfaceWeightsFromLevelSetData(const CutFemLevelSetData& data, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positive, std::vector<TypeIO>& surface, double absolute = 1e-12, double relative = 1e-12) { GetPreparedWeightPair(data,positive,surface,absolute,relative,true,_outerQuadratureRules,&coordinates); }
-    void GetTangentialSurfaceWeightsFromLevelSetData(const CutFemLevelSetData& data, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positive, std::vector<TypeIO>& surface, double absolute = 1e-12, double relative = 1e-12) { GetPreparedWeightPair(data,positive,surface,absolute,relative,true,_outerQuadratureRules,&coordinates,true); }
-    void GetNormalSurfaceWeightsFromLevelSetData(const CutFemLevelSetData& data, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positive, std::vector<std::vector<TypeIO>>& surface, double absolute = 1e-12, double relative = 1e-12) {
-      if(_dim != 3) throw std::invalid_argument("Three normal surface weights require a three-dimensional element.");
-      for(unsigned component = 0; component < surface.size(); ++component) if(&positive == &surface[component]) throw std::invalid_argument("Volume and normal weights require distinct output vectors.");
-      std::vector<TypeIO> resultPositive;
-      std::vector<std::vector<TypeIO>> result(3);
-      for(unsigned component = 0; component < 3; ++component) GetPreparedWeightPair(data,resultPositive,result[component],absolute,relative,true,_outerQuadratureRules,&coordinates,false,static_cast<int>(component));
-      positive.swap(resultPositive);
-      surface.swap(result);
-    }
-
-    // Returns the last actually integrated pair; cached weight returns do not replace it.
-    void GetLastIntegratedMoments(std::vector<long double>& positive, std::vector<long double>& surface) const {
-      if(!_haveIntegratedMoments || &positive == &surface) throw std::logic_error("Distinct outputs and a completed integration are required.");
-      positive.resize(_L);
-      surface.resize(_L);
-      for(unsigned n = 0; n < _L; ++n) { positive[n] = static_cast<long double>(_fPair(n,0)); surface[n] = static_cast<long double>(_fPair(n,1)); }
-    }
-
-    const FELevelSetMoments::Ex47Prepared::PreparedStatistics& GetPreparedStatistics() const { return _preparedWorkspace.statistics; }
-    const CutFemLevelSetData& GetPreparedLevelSetData() const { if(!_preparedData.IsInitialized()) throw std::logic_error("No level-set record has been prepared."); return _preparedData; }
-    void SetMaximumCertificationDepth(unsigned depth) { if(depth > 32) throw std::invalid_argument("Invalid certification depth."); _maximumCertificationDepth = depth; if(_preparedData.IsInitialized()) _preparedData.SetMaximumDepth(depth); }
 
     unsigned GetCutFEMQuadratureOrder() const {
       return _qM;
@@ -167,15 +183,6 @@ class CutFemWeight_LS {
     }
 
   private:
-    void GetPreparedWeightPair(const CutFemLevelSetData& data, std::vector<TypeIO>& positive, std::vector<TypeIO>& surface, double absolute, double relative, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* coordinates = nullptr, bool inverseSurface = false, int normalComponent = -1) {
-      if(data.GetGeometry() != _geomElemType || data.GetDimension() != _dim || data.GetRootDimension() != _dim || data.GetNodalValues().empty()) throw std::invalid_argument("Prepared weights require the matching native nodal element record.");
-      const CutFemLevelSetData* previous = _activePreparedData;
-      _activePreparedData = &data;
-      try { GetNodalWeightPair(data.GetNodalValues(),positive,surface,absolute,relative,referenceSurface,rules,coordinates,inverseSurface,normalComponent); }
-      catch(...) { _activePreparedData = previous; throw; }
-      _activePreparedData = previous;
-    }
-
     static GeomElType ValidateGeometry(const GeomElType geomElemType) {
       if(geomElemType != LINE && geomElemType != QUAD && geomElemType != TRI && geomElemType != HEX && geomElemType != TET && geomElemType != WEDGE) throw std::invalid_argument("Unsupported level-set geometry.");
       return geomElemType;
@@ -266,7 +273,10 @@ class CutFemWeight_LS {
         return;
       }
       const bool reusePositive = sameInput && _dim == 3;
-      if(!sameInput) for(unsigned cachedMode = 0; cachedMode < _nodalDeltaWeightCache.size(); ++cachedMode) _nodalDeltaWeightCache[cachedMode].clear();
+      if(!sameInput) {
+        _nodalSurfaceGradient.clear();
+        for(unsigned cachedMode = 0; cachedMode < _nodalDeltaWeightCache.size(); ++cachedMode) _nodalDeltaWeightCache[cachedMode].clear();
+      }
       _nodalWeightCacheValid = false;
       IntegrateNodalMomentPair(nodalValues,absoluteTolerance,relativeTolerance,referenceSurface,rules,geometryCoordinates,inverseSurface,normalComponent,!reusePositive);
       _cachedOuterQuadratureRules = rules;
@@ -275,46 +285,70 @@ class CutFemWeight_LS {
       else _nodalGeometryCoordinates = *geometryCoordinates;
       _nodalAbsoluteTolerance = absoluteTolerance;
       _nodalRelativeTolerance = relativeTolerance;
-      EvaluateMomentWeightPair(positiveWeight,deltaWeight,reusePositive,absoluteTolerance,relativeTolerance);
+      EvaluateMomentWeightPair(positiveWeight,deltaWeight,reusePositive);
       _nodalPositiveWeight = positiveWeight;
       _nodalDeltaWeightCache[mode] = deltaWeight;
       _nodalWeightCacheValid = true;
     }
 
-    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, bool inverseSurface = false, int normalComponent = -1, bool computePositive = true) {
-      if(_activePreparedData == nullptr) _preparedData.Reset(_geomElemType,nodalValues,_maximumCertificationDepth);
-      const CutFemLevelSetData& data = _activePreparedData == nullptr ? _preparedData : *_activePreparedData;
-      const bool tensor = _geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX;
-      const long double measureScale = data.GetUnitToReferenceMeasureScale();
-      const long double surfaceFactor = normalComponent >= 0 ? 1.0L : (geometryCoordinates != nullptr ? (inverseSurface ? measureScale : 1/measureScale) : (referenceSurface && tensor ? 0.5L : 1.0L));
-      if(inverseSurface) absoluteTolerance /= measureScale*measureScale;
-      if(_geomElemType == LINE) {
-        std::vector<long double> values, errors;
-        FELevelSetMoments::Ex47Prepared::IntegrateLine(data,_qM,referenceSurface,inverseSurface,values,errors,computePositive);
-        FELevelSetMoments::CheckQuadratureTolerance("Prepared LINE moments","moment error exceeds requested tolerance",values,errors,absoluteTolerance,absoluteTolerance,relativeTolerance);
-        for(unsigned n = 0; n < _L; ++n) { _fPair(n,0) = static_cast<TypeA>(values[n]); _fPair(n,1) = static_cast<TypeA>(surfaceFactor*values[_L+n]); }
-        _haveIntegratedMoments = true;
-        return;
+    void StoreNodalMomentPair(const std::vector<std::vector<std::vector<double>>>& positive, const std::vector<std::vector<std::vector<double>>>& delta) {
+      unsigned count = 0;
+      for(unsigned q = 0; q <= _qM; ++q) {
+        for(int ii = q; ii >= 0; --ii) {
+          for(int jj = q-static_cast<unsigned>(ii); jj >= 0; --jj) {
+            unsigned i = static_cast<unsigned>(ii), j = static_cast<unsigned>(jj), k = q-i-j;
+            _fPair(count,0) = static_cast<TypeA>(positive[i][j][k]);
+            _fPair(count,1) = static_cast<TypeA>(delta[i][j][k]);
+            ++count;
+          }
+        }
       }
-      if(_dim == 2) {
-        std::vector<long double> values, errors;
-        FELevelSetMoments::Ex47Prepared::IntegratePlanar(data,_qM,absoluteTolerance,relativeTolerance,referenceSurface,geometryCoordinates,_integrationDirection,_directionValidation,rules,inverseSurface,normalComponent,computePositive,_preparedWorkspace,values,errors);
-        for(unsigned n = 0; n < _L; ++n) { if(computePositive) _fPair(n,0) = static_cast<TypeA>(values[n]); _fPair(n,1) = static_cast<TypeA>(surfaceFactor*values[_L+n]); }
-        _haveIntegratedMoments = true;
-        return;
-      }
-      std::vector<long double> values, errors;
-      FELevelSetMoments::Ex47Prepared::IntegrateSpatial(data,_qM,absoluteTolerance,relativeTolerance,referenceSurface,geometryCoordinates,_integrationDirection,_directionValidation,rules,inverseSurface,normalComponent,computePositive,_preparedWorkspace,values,errors);
-      for(unsigned n = 0; n < _L; ++n) { if(computePositive) _fPair(n,0) = static_cast<TypeA>(values[n]); _fPair(n,1) = static_cast<TypeA>(surfaceFactor*values[_L+n]); }
-      _haveIntegratedMoments = true;
     }
 
-    void EvaluateMomentWeightPair(std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, bool reusePositive = false, double absoluteTolerance = 0, double relativeTolerance = 0) {
+    void StoreNodalMomentPair(const std::vector<std::vector<double>>& positive, const std::vector<std::vector<double>>& delta) {
+      unsigned count = 0;
+      for(unsigned q = 0; q <= _qM; ++q) {
+        for(unsigned j = 0; j <= q; ++j) {
+          unsigned i = q - j;
+          _fPair(count, 0) = static_cast<TypeA>(positive[i][j]);
+          _fPair(count, 1) = static_cast<TypeA>(delta[i][j]);
+          ++count;
+        }
+      }
+    }
+
+    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, bool inverseSurface = false, int normalComponent = -1, bool computePositive = true) {
+      std::vector<std::vector<long double>>* gradientCache = _dim == 3 && referenceSurface && geometryCoordinates != nullptr ? &_nodalSurfaceGradient : nullptr;
+      if(_geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX) {
+        const double momentTolerance = inverseSurface ? absoluteTolerance/(1U<<(2U*_dim)) : absoluteTolerance;
+        std::vector<long double> values;
+        std::vector<long double> errors;
+        FELevelSetMoments::IntegrateUnitTensorNodalMoments(nodalValues,_dim,_qM,values,errors,momentTolerance,relativeTolerance,referenceSurface,geometryCoordinates,_integrationDirection,_directionValidation,rules,inverseSurface,normalComponent,computePositive,gradientCache);
+        const long double surfaceFactor = normalComponent >= 0 ? 1.0L : (geometryCoordinates != nullptr ? (inverseSurface ? static_cast<long double>(1U<<_dim) : 1.0L/(1U<<_dim)) : (referenceSurface ? 0.5L : 1.0L));
+        for(unsigned n = 0; n < _L; ++n) { _fPair(n,0) = static_cast<TypeA>(values[n]); _fPair(n,1) = static_cast<TypeA>(surfaceFactor*values[_L+n]); }
+      }
+      else if(_geomElemType == WEDGE) {
+        const double momentTolerance = inverseSurface ? 0.25*absoluteTolerance : absoluteTolerance;
+        std::vector<long double> values, errors;
+        FELevelSetMoments::IntegrateWedge21NodalMoments(nodalValues,_qM,values,errors,momentTolerance,relativeTolerance,referenceSurface,geometryCoordinates,_integrationDirection,_directionValidation,rules,inverseSurface,normalComponent,computePositive,gradientCache);
+        const long double surfaceFactor = normalComponent >= 0 ? 1.0L : (geometryCoordinates != nullptr ? (inverseSurface ? 2.0L : 0.5L) : 1.0L);
+        for(unsigned n = 0; n < _L; ++n) { _fPair(n,0) = static_cast<TypeA>(values[n]); _fPair(n,1) = static_cast<TypeA>(surfaceFactor*values[_L+n]); }
+      }
+      else if(_geomElemType == TET) {
+        std::vector<std::vector<std::vector<double>>> positive, delta;
+        FELevelSetMoments::IntegrateTet15NodalByTriangleSlices(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,24,_integrationDirection,200000,nullptr,_directionValidation,nullptr,referenceSurface,nullptr,geometryCoordinates,rules,inverseSurface,normalComponent,computePositive,gradientCache);
+        StoreNodalMomentPair(positive,delta);
+      }
+      else if(_geomElemType == TRI) {
+        std::vector<std::vector<double>> positive, delta;
+        FELevelSetMoments::IntegrateTri7NodalSelected(nodalValues,_qM,positive,delta,absoluteTolerance,relativeTolerance,true,false,_directionValidation,_integrationDirection,nullptr,referenceSurface,nullptr,geometryCoordinates,rules,inverseSurface);
+        StoreNodalMomentPair(positive,delta);
+      }
+    }
+
+    void EvaluateMomentWeightPair(std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, bool reusePositive = false) {
       std::vector<TypeIO> positiveResult = reusePositive ? _nodalPositiveWeight : std::vector<TypeIO>(_gn);
       std::vector<TypeIO> deltaResult(_gn);
-      const bool checkRounding = absoluteTolerance > 0 && absoluteTolerance+relativeTolerance < 8*static_cast<long double>(std::numeric_limits<TypeIO>::epsilon());
-      long double positiveRounding = 0, deltaRounding = 0;
-      const long double measureScale = _geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX ? static_cast<long double>(1U<<_dim) : (_geomElemType == WEDGE ? 2 : 1);
       for(unsigned ig = 0; ig < _gn; ++ig) {
         const TypeA* basisRow = _momentToWeight.data()+ig*_L;
         TypeA positive = 0.;
@@ -336,27 +370,10 @@ class CutFemWeight_LS {
         if(!reusePositive) positiveResult[ig] = static_cast<TypeIO>(positive);
         deltaResult[ig] = static_cast<TypeIO>(delta);
         if(!Eigen::numext::isfinite(positiveResult[ig]) || !Eigen::numext::isfinite(deltaResult[ig])) throw std::overflow_error("A level-set quadrature correction exceeds the output range.");
-        if(checkRounding) {
-          const long double weight = std::abs(GetGaussWeightPointer()[ig])/measureScale;
-          deltaRounding += weight*std::abs(static_cast<long double>(delta-static_cast<TypeA>(deltaResult[ig])));
-          if(!reusePositive) positiveRounding += weight*std::abs(static_cast<long double>(positive-static_cast<TypeA>(positiveResult[ig])));
-        }
-      }
-      if(checkRounding) {
-        long double positiveTolerance = std::numeric_limits<long double>::infinity(), deltaTolerance = positiveTolerance;
-        for(unsigned moment = 0; moment < _L; ++moment) { positiveTolerance = std::min(positiveTolerance,absoluteTolerance+relativeTolerance*std::abs(static_cast<long double>(_fPair(moment,0)))); deltaTolerance = std::min(deltaTolerance,absoluteTolerance+relativeTolerance*std::abs(static_cast<long double>(_fPair(moment,1)))); }
-        if(positiveRounding > positiveTolerance) FELevelSetMoments::WarnQuadrature("FEM output","rounded positive weights exceed the requested moment error bound",0,positiveRounding,positiveTolerance);
-        if(deltaRounding > deltaTolerance) FELevelSetMoments::WarnQuadrature("FEM output","rounded surface weights exceed the requested moment error bound",_L,deltaRounding,deltaTolerance);
       }
       positiveWeight.swap(positiveResult);
       deltaWeight.swap(deltaResult);
     }
-
-    mutable CutFemLevelSetData _preparedData;
-    const CutFemLevelSetData* _activePreparedData = nullptr;
-    bool _haveIntegratedMoments = false;
-    FELevelSetMoments::Ex47Prepared::PreparedMomentWorkspace _preparedWorkspace;
-    unsigned _maximumCertificationDepth = 1;
 
     const GeomElType _geomElemType;
     const unsigned _qM;
@@ -377,9 +394,7 @@ class CutFemWeight_LS {
     std::vector<std::vector<double>> _nodalGeometryCoordinates;
     std::vector<TypeIO> _nodalPositiveWeight;
     std::array<std::vector<TypeIO>,6> _nodalDeltaWeightCache;
+    std::vector<std::vector<long double>> _nodalSurfaceGradient;
 };
-
-
-}
 
 #endif

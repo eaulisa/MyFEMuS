@@ -1,5 +1,7 @@
 # ex47 validation
 
+Historical record from before promotion into the native library; see [MIGRATION.md](MIGRATION.md) for the current layout and validation.
+
 The prepared-topology/chart revision starts from `2b2dc6cc95ba8787d7c1ffa43c3d5fc460a55ce6` on `barbi-ex47-levelset-data`, after the selective-measure revision and the user formatting commit `26cbb141a881550597e0106ba9d0691eddbfad04`. The original prototype derives from `barbi` commit `ffa844b5c0742a15962dd0cb06ccb30d2946e13b`. All executable checks are in `ex47.cpp` and run from its main. The production CutFEM implementation is unchanged.
 
 Environment: GCC 14.2.0, Boost 1.86.0, Release builds plus a Debug AddressSanitizer/UndefinedBehaviorSanitizer build; the class and main pass explicit C++14 syntax checks. Leak detection was disabled for the sanitizer run because of the execution environment.

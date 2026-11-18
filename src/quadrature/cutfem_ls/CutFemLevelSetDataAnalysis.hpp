@@ -1,5 +1,5 @@
-#ifndef FEMUS_EX47_CUT_FEM_LEVEL_SET_DATA_ANALYSIS_HPP
-#define FEMUS_EX47_CUT_FEM_LEVEL_SET_DATA_ANALYSIS_HPP
+#ifndef FEMUS_CUT_FEM_LEVEL_SET_DATA_ANALYSIS_HPP
+#define FEMUS_CUT_FEM_LEVEL_SET_DATA_ANALYSIS_HPP
 
 inline void CutFemLevelSetData::InvalidateAnalysis() {
   _lineAnalysisReady = false;

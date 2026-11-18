@@ -1,5 +1,7 @@
 # Prepared quadrature kernel timings
 
+Historical record from before promotion into the native library; see [MIGRATION.md](MIGRATION.md) for the current layout and validation.
+
 The first comparison below records commit `67f00f5ed`. The latest selective-measure revision is documented in the final section.
 
 Baseline: the exact class from the user formatting commit `26cbb141a881550597e0106ba9d0691eddbfad04`. Both executables use the same added benchmark driver and deterministic inputs; the baseline has no functional class changes. GCC 14.2.0, `-O3 -DNDEBUG`, Boost 1.86.0; double has 53 significand bits and long double has 64 on this runtime. No fast-math flags or precision downgrades are used.

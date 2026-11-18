@@ -11,7 +11,7 @@
 #include "NonLinearImplicitSystem.hpp"
 #include "adept.h"
 #include "PolynomialBases.hpp"
-#include "TangentialSurfaceIntegration.hpp"
+#include "../includeLS/TangentialSurfaceFactors.hpp"
 #include <memory>
 #include <algorithm>
 #include <cmath>
@@ -1231,10 +1231,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           femXi = integrationFem.GetFiniteElement(ielGeom,solXiType);
           femPsi = integrationFem.GetFiniteElement(ielGeom,psiType);
           // if(tangentialSurfaceWeights) {
-          //   elementSurfaceRule = surfaceRules->GetRule(static_cast<GeomElType>(ielGeom));
+          //   elementSurfaceRule = surfaceRules.at(ielGeom).get();
           // }
           if(tangentialSurfaceWeights) {
-            elementSurfaceQuadRule = surfaceRules->GetRule(static_cast<GeomElType>(ielGeom));
+            elementSurfaceQuadRule = surfaceRules.at(ielGeom).get();
             elementSurfaceGaussWeights = elementSurfaceQuadRule->GetGaussWeightPointer();
           }
 
@@ -1299,6 +1299,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
           else {
 
             const double tol = surfaceMomentTolerance;
+            const CutFemLevelSetData levelSet(static_cast<GeomElType>(ielGeom),psi);
 
             if(tangentialSurfaceWeights) {
               auto* rule = elementSurfaceQuadRule;
@@ -1314,9 +1315,7 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                 //   psi, coordX, weightCFInt, weightCFNormal, tol, tol
                 // );
                 try {
-                  rule->GetNormalSurfaceWeightsFromNodalGeometry(
-                    psi, coordX, weightCFInt, weightCFNormal, tol, tol
-                  );
+                  rule->GetNormalSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCFNormal,tol,tol);
                 }
                 catch(const std::exception& e) {
                   std::cerr
@@ -1334,21 +1333,17 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
                 // the positive-volume weights from the normal calculation.
                 std::vector<TypeIO> unusedPositive;
 
-                rule->GetTangentialSurfaceWeightsFromNodalGeometry(
-                  psi, coordX, unusedPositive, weightCF, tol, tol
-                );
+                rule->GetTangentialSurfaceWeightsFromLevelSetData(levelSet,coordX,unusedPositive,weightCF,tol,tol);
               }
               else {
 
-                rule->GetTangentialSurfaceWeightsFromNodalGeometry(
-                  psi, coordX, weightCFInt, weightCF, tol, tol
-                );
+                rule->GetTangentialSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCF,tol,tol);
               }
             }
             else {
               auto* rule = elementSurfaceRule;
               if(rule->GetGaussQuadraturePointNumber() != nGauss) throw std::runtime_error("Quadratic CutFEM Gauss rule mismatch");
-              rule->GetPhysicalSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCF, tol, tol);
+              rule->GetPhysicalSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCF,tol,tol);
             }
           }
 

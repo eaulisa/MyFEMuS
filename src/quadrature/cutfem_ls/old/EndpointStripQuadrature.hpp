@@ -1,11 +1,10 @@
-#ifndef FEMUS_EX47_PREPARED_ENDPOINT_STRIP_QUADRATURE_HPP
-#define FEMUS_EX47_PREPARED_ENDPOINT_STRIP_QUADRATURE_HPP
+#ifndef FEMUS_ENDPOINT_STRIP_QUADRATURE_HPP
+#define FEMUS_ENDPOINT_STRIP_QUADRATURE_HPP
 
 #include "LineIntegration.hpp"
 #include <boost/math/quadrature/gauss_kronrod.hpp>
 
 namespace FELevelSetMoments {
-namespace Ex47Prepared {
 
 struct EndpointStripStatistics {
   unsigned long long stripSamples = 0;
@@ -38,7 +37,6 @@ struct EndpointStripInterval {
 };
 
 struct EndpointStripDirection {
-  const PreparedPlane* prepared = nullptr;
   std::vector<std::vector<long double>> coefficient;
   std::vector<std::vector<long double>> field;
   std::vector<std::vector<std::vector<long double>>> gradient;
@@ -98,29 +96,26 @@ public:
     return false;
   }
 
-  static bool Try(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, long double metricScale = 1, const std::vector<std::vector<std::vector<long double>>>* coordinates = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::array<long double,5>* parent = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned requestedDirection = 0, bool fullBoundaryDelta = false, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1, const PreparedPlane* prepared = nullptr) {
+  static bool Try(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, long double metricScale = 1, const std::vector<std::vector<std::vector<long double>>>* coordinates = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::array<long double,5>* parent = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned requestedDirection = 0, bool fullBoundaryDelta = false, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1) {
     QuadratureWarningScope warningScope("Endpoint curve integration");
     rules.Validate();
     if(requestedDirection > 2) throw std::invalid_argument("Invalid endpoint direction.");
     ++Statistics().attempts;
     static thread_local std::vector<std::vector<long double>> cachedCoefficient;
     static thread_local bool cachedTriangle = false;
-    static thread_local std::vector<double> cachedNodes;
     static thread_local std::array<EndpointStripDirection,2> cachedDirections;
-    if(cachedCoefficient != coefficient || cachedTriangle != triangle || prepared == nullptr || cachedNodes != prepared->data->GetNodalValues() || prepared->data->GetNodalValues().empty()) {
+    if(cachedCoefficient != coefficient || cachedTriangle != triangle) {
       for(unsigned d = 0; d < 2; ++d) {
         cachedDirections[d] = EndpointStripDirection();
-        try { BuildDirection(coefficient,triangle,d+1U,nullptr,cachedDirections[d],prepared); cachedDirections[d].prepared = nullptr; }
+        try { BuildDirection(coefficient,triangle,d+1U,nullptr,cachedDirections[d]); }
         catch(const std::runtime_error& error) { cachedDirections[d].score = std::numeric_limits<long double>::infinity(); Statistics().failure = error.what(); }
       }
       cachedCoefficient = coefficient;
       cachedTriangle = triangle;
-      cachedNodes = prepared == nullptr ? std::vector<double>() : prepared->data->GetNodalValues();
       ++Statistics().geometryBuilds;
     }
     else ++Statistics().geometryHits;
     std::array<EndpointStripDirection,2> directions = cachedDirections;
-    for(EndpointStripDirection& direction : directions) direction.prepared = prepared;
     if(gradient != nullptr) { directions[0].gradient = *gradient; SurfaceGradientTranspose(*gradient,directions[1].gradient); }
     for(unsigned d = 0; d < 2; ++d) { directions[d].metricScale = metricScale; if(inverseJacobian != nullptr) directions[d].inverseJacobian = *inverseJacobian; }
     if(coordinates != nullptr) { directions[0].coordinates = *coordinates; SurfaceGradientTranspose(*coordinates,directions[1].coordinates); }
@@ -180,17 +175,9 @@ private:
   }
 
   static void Classify(const EndpointStripDirection& data, long double x, EndpointStripInterval& interval) {
-    if(data.prepared == nullptr) throw std::logic_error("Curve classification requires prepared data.");
-    const CutFemLevelSetData::LineAnalysis& analysis = data.prepared->Analyze(data.order,x);
-    if(analysis.identicallyZero) throw std::runtime_error("A projection contains an entire zero fiber.");
-    interval.signs.clear();
-    interval.boundary.clear();
-    std::vector<long double> cuts(1,0);
-    for(unsigned n = 0; n < analysis.rootCount; ++n) { interval.signs.push_back(analysis.roots[n].derivative > 0 ? 1 : -1); interval.boundary.push_back(analysis.roots[n].boundary); if(analysis.roots[n].boundary == 0) cuts.push_back(analysis.roots[n].coordinate); }
-    cuts.push_back(data.triangle ? 1-x : 1);
-    interval.positive.assign(cuts.size()-1,0);
-    for(unsigned n = 1; n < cuts.size(); ++n) { const long double middle = cuts[n-1]+(cuts[n]-cuts[n-1])/2; for(unsigned part = 0; part < analysis.positiveIntervalCount; ++part) if(middle >= analysis.positiveIntervals[part][0] && middle <= analysis.positiveIntervals[part][1]) interval.positive[n-1] = 1; }
-    interval.phase = analysis.positiveIntervalCount == 0 ? 0 : 1;
+    const std::vector<long double> domain = {0,1,0,1};
+    IntervalBranches(data.field,x,data.triangle,domain,data.lowerZero,data.upperZero,true,interval.signs,interval.boundary,interval.positive,interval.phase);
+    ++Statistics().classifications;
   }
 
   static bool Tangent(const EndpointStripDirection& data, long double x) {
@@ -199,31 +186,30 @@ private:
     if(a == 0) return false;
     const long double y = -b/(2*a);
     const long double padding = 4096*std::numeric_limits<long double>::epsilon();
-    if(y < (0.0L)-padding || y > (data.triangle ? 1-x : 1)+padding) return false;
+    if(y < -padding || y > (data.triangle ? 1-x : 1)+padding) return false;
     const long double derivative = Derivative(data.coefficient,x,y,1,0);
     const long double norm = LineSliceUtilities::PolynomialNorm(data.field[0])+LineSliceUtilities::PolynomialNorm(data.field[1])+LineSliceUtilities::PolynomialNorm(data.field[2]);
     if(std::abs(derivative) <= padding*norm) throw std::runtime_error("A tangency strip requires a regular simple fold.");
     return true;
   }
 
-  static void BuildDirection(const std::vector<std::vector<long double>>& coefficient, bool triangle, unsigned order, const std::vector<std::vector<std::vector<long double>>>* gradient, EndpointStripDirection& data, const PreparedPlane* prepared = nullptr) {
-    data.prepared = prepared;
+  static void BuildDirection(const std::vector<std::vector<long double>>& coefficient, bool triangle, unsigned order, const std::vector<std::vector<std::vector<long double>>>* gradient, EndpointStripDirection& data) {
     data.coefficient = coefficient;
     data.triangle = triangle ? 1U : 0U;
     data.order = order;
     if(order == 2) for(unsigned i = 0; i < 3; ++i) for(unsigned j = i+1U; j < 3; ++j) std::swap(data.coefficient[i][j],data.coefficient[j][i]);
-    if(prepared != nullptr ? prepared->data->GetZeroFiberStatus(PreparedPlane::InnerAxis(order)) == 1 : LineIntegration::HasVerticalFiber(data.coefficient,1)) throw std::runtime_error("A projection contains an entire zero fiber.");
+    if(LineIntegration::HasVerticalFiber(data.coefficient,1)) throw std::runtime_error("A projection contains an entire zero fiber.");
     data.field = Field(data.coefficient);
     const long double fieldNorm = std::max(LineSliceUtilities::PolynomialNorm(data.field[0]),std::max(LineSliceUtilities::PolynomialNorm(data.field[1]),LineSliceUtilities::PolynomialNorm(data.field[2])));
     if(LineSliceUtilities::PolynomialNorm(data.field[0])+LineSliceUtilities::PolynomialNorm(data.field[1]) <= 64*std::sqrt(std::numeric_limits<long double>::epsilon())*fieldNorm) throw std::runtime_error("A nearly parallel projection retains the transverse direction.");
     if(gradient != nullptr) { if(order == 1) data.gradient = *gradient; else SurfaceGradientTranspose(*gradient,data.gradient); }
-    const LineIntegrationStrip strip = {0.0L,1,0.0L,0,1,triangle ? -1.0L : 0.0L};
-    data.lowerZero = prepared == nullptr ? LineIntegration::BoundaryIsZero(data.coefficient,strip.lowerConstant,0) : prepared->ZeroBoundary(order,false);
-    data.upperZero = prepared == nullptr ? LineIntegration::BoundaryIsZero(data.coefficient,1,strip.upperSlope) : prepared->ZeroBoundary(order,true);
+    const LineIntegrationStrip strip = {0,1,0,0,1,triangle ? -1.0L : 0.0L};
+    data.lowerZero = LineIntegration::BoundaryIsZero(data.coefficient,0,0);
+    data.upperZero = LineIntegration::BoundaryIsZero(data.coefficient,1,strip.upperSlope);
     std::vector<long double> events;
     std::vector<long double> candidates;
-    LineIntegration::CollectEvents(data.coefficient,strip,events,&candidates,false,prepared,order);
-    LineSliceUtilities::PolynomialRoots(data.field[0],strip.left,strip.right,events);
+    LineIntegration::CollectEvents(data.coefficient,strip,events,&candidates,false);
+    LineSliceUtilities::PolynomialRoots(data.field[0],0,1,events);
     LineSliceUtilities::SortDistinct(events);
     std::vector<long double> tangencies;
     for(unsigned n = 0; n < candidates.size(); ++n) if(Tangent(data,candidates[n])) tangencies.push_back(candidates[n]);
@@ -240,7 +226,7 @@ private:
       if(!interval.signs.empty()) {
         data.score += 1+2*(interval.leftTangent+interval.rightTangent);
         const std::vector<long double> roots = QuadraticRoots(PolynomialValue(data.field[0],middle),PolynomialValue(data.field[1],middle),PolynomialValue(data.field[2],middle));
-        for(unsigned r = 0; r < roots.size(); ++r) if(roots[r] > strip.lowerConstant && roots[r] < (triangle ? 1-middle : 1)) {
+        for(unsigned r = 0; r < roots.size(); ++r) if(roots[r] > 0 && roots[r] < (triangle ? 1-middle : 1)) {
           const long double dx = Derivative(data.coefficient,middle,roots[r],1,0);
           const long double dy = Derivative(data.coefficient,middle,roots[r],0,1);
           data.score += 0.05L*std::min(10.0L,std::abs(dx)/std::max(std::abs(dy),std::numeric_limits<long double>::min()));
@@ -263,27 +249,19 @@ private:
     const long double reduced = interval.mapping == 0 ? 0 : interval.discriminantConstant/(parameter*parameter)+interval.mapping*interval.delta*PolynomialValue(interval.reducedDiscriminant,offset);
     if(interval.mapping != 0 && !(reduced > 0)) throw std::runtime_error("An endpoint map requires a positive simple-fold discriminant.");
     const long double regularDerivative = interval.mapping == 0 ? 0 : std::sqrt(reduced);
-    long double derivative = interval.mapping == 0 ? (a == 0 ? std::abs(b) : std::sqrt(std::max(0.0L,discriminant))) : parameter*regularDerivative;
-    const CutFemLevelSetData::LineAnalysis* analysis = nullptr;
-    if(interval.mapping == 0 && data.prepared != nullptr) {
-      analysis = &data.prepared->Analyze(data.order,x);
-      if(analysis->identicallyZero || analysis->rootCount != interval.signs.size()) throw std::runtime_error("Prepared root topology changed within an interval.");
-      if(analysis->rootCount != 0) derivative = std::abs(data.prepared->WorkingDerivative(data.order,analysis->roots[0]));
-    }
+    const long double derivative = interval.mapping == 0 ? (a == 0 ? std::abs(b) : std::sqrt(std::max(0.0L,discriminant))) : parameter*regularDerivative;
     const long double surfaceRatio = interval.mapping == 0 ? 1.0L/derivative : (2*interval.delta/regularDerivative)*(jacobian/(2*interval.delta*parameter));
-    const long double lower = 0.0L;
     const long double upper = data.triangle ? 1-x : 1;
     const long double parentX = std::fma(data.parent[1],x,data.parent[0]);
     std::vector<long double> roots;
-    std::vector<long double> cuts(1,lower);
+    std::vector<long double> cuts(1,0);
     for(unsigned r = 0; r < interval.signs.size(); ++r) {
-      long double root = interval.boundary[r] < 0 ? lower : upper;
-      if(analysis != nullptr) root = data.prepared->RootCoordinate(data.order,analysis->roots[r]);
-      else if(interval.boundary[r] == 0) {
+      long double root = interval.boundary[r] < 0 ? 0 : upper;
+      if(interval.boundary[r] == 0) {
         const long double denominator = b+interval.signs[r]*derivative;
         root = a == 0 ? -c/b : (interval.signs[r]*b >= 0 && denominator != 0 ? -2*c/denominator : (-b+interval.signs[r]*derivative)/(2*a));
       }
-      if(!std::isfinite(root) || root < lower-1e-12L || root > upper+1e-12L) throw std::runtime_error("Cached root topology is inconsistent with a quadrature node.");
+      if(!std::isfinite(root) || root < -1e-12L || root > upper+1e-12L) throw std::runtime_error("Cached root topology is inconsistent with a quadrature node.");
       roots.push_back(root);
       if(interval.boundary[r] == 0) cuts.push_back(root);
     }
@@ -300,8 +278,7 @@ private:
     for(unsigned r = 0; r < roots.size(); ++r) {
       if(!(derivative > 0)) throw std::runtime_error("A bulk node reached a singular fiber.");
       long double weight = (interval.boundary[r] == 0 || data.fullBoundaryDelta ? 1.0L : 0.5L)*surfaceRatio;
-      if(data.prepared != nullptr) { weight *= derivative*data.prepared->Density(data.order,x,roots[r],interval.signs[r]*derivative); if(data.prepared->statistics != nullptr && interval.mapping != 0) ++data.prepared->statistics->endpointSamples; }
-      else if(!data.gradient.empty()) weight *= SurfaceGradientFactor(data.gradient,x,roots[r],data.inverseSurface,data.normalComponent);
+      if(!data.gradient.empty()) weight *= SurfaceGradientFactor(data.gradient,x,roots[r],data.inverseSurface,data.normalComponent);
       const long double parentRoot = std::fma(data.parent[3],roots[r],data.parent[2]);
       long double power = 1;
       for(unsigned j = 0; j <= degree; ++j) { d[j] += weight*power; power *= parentRoot; }
@@ -330,14 +307,14 @@ private:
     values.assign(2U*count,0);
     errors.assign(values.size(),0);
     const long double intervalBudget = 1.0L/std::max(1U,static_cast<unsigned>(data.intervals.size()));
-    const LineIntegrationStrip strip = {0.0L,1,0.0L,0,1,data.triangle ? -1.0L : 0.0L};
+    const LineIntegrationStrip strip = {0,1,0,0,1,data.triangle ? -1.0L : 0.0L};
     for(unsigned k = 0; k < data.intervals.size(); ++k) {
       const EndpointStripInterval& interval = data.intervals[k];
       if(interval.signs.empty()) { if(interval.phase > 0) LineIntegration::FullStripMoments(degree,strip,interval.left,interval.right,values,errors,&data.parent,&data.requested); ++accepted; continue; }
       std::vector<unsigned char> active = data.requested;
       if(!computeDelta) std::fill(active.begin()+count,active.end(),0);
-      const unsigned leftExponent = interval.leftTangent || LineIntegration::NearEndpoint(data.coefficient,interval.left,1,interval.right-interval.left,data.prepared,data.order) ? 2U : 1U;
-      const unsigned rightExponent = interval.rightTangent || LineIntegration::NearEndpoint(data.coefficient,interval.right,-1,interval.right-interval.left,data.prepared,data.order) ? 2U : 1U;
+      const unsigned leftExponent = interval.leftTangent || LineIntegration::NearEndpoint(data.coefficient,interval.left,1,interval.right-interval.left) ? 2U : 1U;
+      const unsigned rightExponent = interval.rightTangent || LineIntegration::NearEndpoint(data.coefficient,interval.right,-1,interval.right-interval.left) ? 2U : 1U;
       const std::vector<OuterInterval> plan = OuterIntervalQuadrature::Plan(interval.left,interval.right,leftExponent,rightExponent,2,interval.leftTangent,interval.rightTangent);
       for(unsigned part = 0; part < plan.size(); ++part) {
         EndpointCurveContext context;
@@ -348,7 +325,7 @@ private:
         context.interval.mapping = plan[part].mapping;
         context.interval.endpoint = plan[part].endpoint;
         context.interval.delta = plan[part].delta;
-        const LineIntegrationDiscriminant discriminant = LineIntegration::EndpointDiscriminant(data.coefficient,plan[part],data.prepared,data.order);
+        const LineIntegrationDiscriminant discriminant = LineIntegration::EndpointDiscriminant(data.coefficient,plan[part]);
         context.interval.discriminantConstant = discriminant.constant;
         context.interval.reducedDiscriminant = discriminant.coefficient;
         OuterIntervalQuadrature::Adaptive(context,CurveSample,plan[part],plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,intervalBudget*absoluteH/plan.size(),intervalBudget*absoluteD/plan.size(),relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,2,active,values,errors,rules);
@@ -357,8 +334,6 @@ private:
     CheckQuadratureTolerance("Endpoint curve moments","accumulated non-graph error exceeds tolerance",values,errors,absoluteH,absoluteD,relative,&data.requested);
   }
 };
-
-}
 
 }
 

@@ -26,7 +26,6 @@ CutFemWeight <TypeIO, TypeA> line = CutFemWeight<TypeIO, TypeA >(LINE, 5, "legen
 const std::vector< CutFemWeight <TypeIO, TypeA> *> cfw = {&hex, &tet, &wedge, &quad, &tri, &line};
 
 #include "CutFemWeight_LS.hpp"
-#include "CutFemWeightRules_LS.hpp"
 
 enum class CutFemIntegration {
   Linear,
@@ -59,25 +58,26 @@ unsigned surfaceMomentOrder = 13;
 unsigned surfaceWeightCount = 3;
 FELevelSetMoments::OuterQuadratureRules surfaceQuadratureRules;
 std::unique_ptr<Fem> surfaceFem;
-// std::unique_ptr<CutFemWeightRules_LS<TypeIO,TypeA>> surfaceRules;
 using SurfaceFitPrecision = cpp_bin_float_quad;
 
-std::unique_ptr<CutFemWeightRules_LS<TypeIO, SurfaceFitPrecision>> surfaceRules;
+std::vector<std::unique_ptr<CutFemWeight_LS<TypeIO, SurfaceFitPrecision>>> surfaceRules;
+unsigned initializedSurfaceOrder = 0;
+FELevelSetMoments::OuterQuadratureRules initializedSurfaceRules;
 
 // Initializes only mesh element types, before any assembly, and keeps the selected profile fixed.
 void InitializeSurfaceQuadrature(Mesh& mesh) {
-  if(surfaceRules) {
-    if(surfaceRules->GetOrder() != surfaceMomentOrder || !surfaceRules->GetOuterRules().SameAs(surfaceQuadratureRules)) throw std::logic_error("The initialized surface quadrature profile cannot change during assembly.");
+  if(!surfaceRules.empty()) {
+    if(initializedSurfaceOrder != surfaceMomentOrder || !initializedSurfaceRules.SameAs(surfaceQuadratureRules)) throw std::logic_error("The initialized surface quadrature profile cannot change during assembly.");
     return;
   }
   int localGeometry[6] = {}, globalGeometry[6] = {};
   const unsigned processor = mesh.processor_id();
   for(unsigned element = mesh._elementOffset[processor]; element < mesh._elementOffset[processor+1U]; ++element) localGeometry[mesh.GetElementType(element)] = 1;
   MPI_Allreduce(localGeometry,globalGeometry,6,MPI_INT,MPI_MAX,MPI_COMM_WORLD);
-  std::vector<GeomElType> geometries;
-  for(unsigned geometry = 0; geometry < 6; ++geometry) if(globalGeometry[geometry]) geometries.push_back(static_cast<GeomElType>(geometry));
-  // surfaceRules.reset(new CutFemWeightRules_LS<TypeIO,TypeA>(surfaceMomentOrder,geometries,surfaceQuadratureRules));
-  surfaceRules.reset(new CutFemWeightRules_LS<TypeIO, SurfaceFitPrecision>(surfaceMomentOrder,geometries,surfaceQuadratureRules));
+  surfaceRules.resize(6);
+  for(unsigned geometry = 0; geometry < 6; ++geometry) if(globalGeometry[geometry]) { surfaceRules[geometry].reset(new CutFemWeight_LS<TypeIO,SurfaceFitPrecision>(static_cast<GeomElType>(geometry),surfaceMomentOrder,"legendre")); surfaceRules[geometry]->SetDirectionValidation(0); surfaceRules[geometry]->SetOuterQuadratureRules(surfaceQuadratureRules); }
+  initializedSurfaceOrder = surfaceMomentOrder;
+  initializedSurfaceRules = surfaceQuadratureRules;
   surfaceFem.reset(new Fem(2U*surfaceMomentOrder,mesh.GetDimension()));
 }
 
@@ -774,7 +774,7 @@ void FlagFinestMeshLevel(MultiLevelMesh& mlMsh, const PsiType& psi) {
       for(unsigned k = 0; k < dim; ++k) x[k] = (*xv[k])(xDof);
       nodalValues[i] = psi(x);
     }
-    if(FELevelSetMoments::NodalLevelSetPhase(static_cast<GeomElType>(msh.GetElementType(iel)),nodalValues) == 0) amrFlag->set(iel,2);
+    if(CutFemLevelSetData(static_cast<GeomElType>(msh.GetElementType(iel)),nodalValues,12).GetPhase() == 0) amrFlag->set(iel,2);
   }
 
   amrFlag->close();
@@ -1045,7 +1045,7 @@ void UpdateColorFunction(MultiLevelSolution & mlSol, const std::string & psiName
     const unsigned nDof = msh.GetElementDofNumber(iel, psiType);
     std::vector<double> nodalValues(nDof);
     for(unsigned i = 0; i < nDof; ++i) nodalValues[i] = (*psiVec)(msh.GetSolutionDof(i,iel,psiType));
-    const int phase = FELevelSetMoments::NodalLevelSetPhase(static_cast<GeomElType>(msh.GetElementType(iel)),nodalValues);
+    const int phase = CutFemLevelSetData(static_cast<GeomElType>(msh.GetElementType(iel)),nodalValues,12).GetPhase();
     cVec->set(iel,phase == 0 ? 0.5 : (phase > 0 ? 1. : 0.));
   }
   cVec->close();

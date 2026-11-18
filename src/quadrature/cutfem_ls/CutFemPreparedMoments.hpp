@@ -1,13 +1,13 @@
-#ifndef FEMUS_EX47_PREPARED_MOMENTS_HPP
-#define FEMUS_EX47_PREPARED_MOMENTS_HPP
+#ifndef FEMUS_PREPARED_MOMENTS_HPP
+#define FEMUS_PREPARED_MOMENTS_HPP
 
 #include "CutFemLevelSetData.hpp"
 #include "UnitElementMoments.hpp"
+#include "Hex27DirectionSelection.hpp"
 #include "EndpointSimplexChart.hpp"
-#include "prepared/SurfaceEndpointIntegration.hpp"
+#include "SurfaceEndpointIntegration.hpp"
 
 namespace FELevelSetMoments {
-namespace Ex47Prepared {
 
 inline void IntegrateLine(const CutFemLevelSetData& data, unsigned degree, bool referenceSurface, bool inverseSurface, std::vector<long double>& values, std::vector<long double>& errors, bool computePositive = true) {
   const CutFemLevelSetData::LineAnalysis& analysis = data.GetLineAnalysis();
@@ -209,6 +209,6 @@ inline void IntegrateSpatial(const CutFemLevelSetData& source, unsigned degree, 
 }
 
 }
-}
+
 
 #endif

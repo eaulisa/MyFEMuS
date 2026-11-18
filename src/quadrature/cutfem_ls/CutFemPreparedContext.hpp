@@ -1,10 +1,9 @@
-#ifndef FEMUS_EX47_PREPARED_CONTEXT_HPP
-#define FEMUS_EX47_PREPARED_CONTEXT_HPP
+#ifndef FEMUS_PREPARED_CONTEXT_HPP
+#define FEMUS_PREPARED_CONTEXT_HPP
 
 #include "CutFemLevelSetData.hpp"
 
 namespace FELevelSetMoments {
-namespace Ex47Prepared {
 
 struct PreparedStatistics {
   unsigned long long lineRestrictions = 0;
@@ -122,6 +121,6 @@ inline std::vector<std::vector<long double>> PlanarCoefficients(const CutFemLeve
 }
 
 }
-}
+
 
 #endif

@@ -1,5 +1,7 @@
 # CutFemLevelSetData: local ex47 status
 
+Historical record from before promotion into the native library; see [MIGRATION.md](MIGRATION.md) for the current layout and validation.
+
 Implemented and exercised only in ex47:
 
 - [x] Check nodal signs before constructing Bernstein coefficients; retain conservative contact and uncertified classifications.

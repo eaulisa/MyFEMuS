@@ -321,15 +321,9 @@ IntegrationResult Integrate(femus::MultiLevelSolution& mlSol, const std::string&
       }
       else {
 
-        rule.GetPhysicalSurfaceWeightsFromNodalGeometry(
-            psi,
-            coordX,
-            weightOmega,
-            weightGamma,
-            options.absoluteTolerance,
-            options.relativeTolerance,
-            options.outerQuadratureRules
-        );
+        rule.SetOuterQuadratureRules(options.outerQuadratureRules);
+        const CutFemLevelSetData levelSet(static_cast<GeomElType>(geom),psi);
+        rule.GetPhysicalSurfaceWeightsFromLevelSetData(levelSet,coordX,weightOmega,weightGamma,options.absoluteTolerance,options.relativeTolerance);
       }
     }
 

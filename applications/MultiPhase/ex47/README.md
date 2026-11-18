@@ -1,6 +1,6 @@
 # ex47: prepared element level-set data
 
-`include/CutFemLevelSetData.hpp` is a local, header-only prototype for LINE3, QUAD9, TRI7, HEX27, TET15, and WEDGE21. All checks are functions called by `ex47.cpp` main. The class needs only standard C++14 and the FEMuS element enum; the test main additionally uses the actual FEMuS bases, Boost multiprecision/Gauss-Kronrod headers, and Eigen. The local `include/CutFemWeight_LS.hpp` duplicate is `Ex47::CutFemWeight_LS`; the production `::CutFemWeight_LS` remains available for comparisons. Production integration is unchanged.
+`CutFemLevelSetData.hpp` and `CutFemWeight_LS.hpp` now belong to `src/quadrature/cutfem_ls`. The global `CutFemWeight_LS` and its `FELevelSetMoments` integration routines are the native implementation for LINE3, QUAD9, TRI7, HEX27, TET15, and WEDGE21. All checks are functions called by `ex47.cpp` main. The test main uses the actual FEMuS bases, Boost multiprecision/Gauss-Kronrod headers, and Eigen. The previous native implementation and obsolete comparison harness are retained in `old/` directories and excluded from the active build.
 
 Build independently of MPI/PETSc:
 
@@ -36,7 +36,7 @@ const std::vector<long double>& bernstein = parent.GetBernsteinCoefficients();
 CutFemLevelSetData quad;
 CutFemLevelSetData line;
 parent.Restrict(2, 0.3L, quad);
-quad.Restrict(1, -0.2L, line);
+quad.Restrict(1, 0.2L, line);
 long double value = line.Evaluate({0.1L});
 ```
 

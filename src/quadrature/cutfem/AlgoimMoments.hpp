@@ -11,7 +11,7 @@
 // Requires the existing FEMUS polynomial/geometry routines, Algoim 2022,
 // C++17, and LAPACKE (as provided by FemusAlgoim.cmake).
 
-#include "UnitElementMoments.hpp"
+#include "CutFemPreparedMoments.hpp"
 #include "algoim/quadrature_multipoly.hpp"
 
 #include <algorithm>
@@ -109,7 +109,7 @@ inline std::vector<double> BuildBernstein(
     for(unsigned j = 0; j < 3; ++j)
       for(unsigned k = 0; k < (Dim == 2 ? 1U : 3U); ++k) {
         const unsigned n = Dim == 2 ? 3U*i+j : 9U*i+3U*j+k;
-        a[n] = original[Hex27Index(i,j,k)];
+        a[n] = original[9U*i+3U*j+k];
       }
 
   long double scale = 0.0L;
@@ -147,6 +147,15 @@ inline std::vector<double> BuildBernstein(
   return bernstein;
 }
 
+inline std::vector<long double> PlanarCube(const std::vector<long double>& coefficients) {
+  unsigned side = 1;
+  while(side*side < coefficients.size()) ++side;
+  if(side*side != coefficients.size()) throw std::invalid_argument("Invalid planar polynomial coefficient count.");
+  std::vector<long double> result(side*side*side,0);
+  for(unsigned i = 0; i < side; ++i) for(unsigned j = 0; j < side; ++j) result[(i*side+j)*side] = coefficients[i*side+j];
+  return result;
+}
+
 template<int Dim>
 inline AlgoimMomentResult Integrate(
     const std::vector<double>& nodalValues,
@@ -161,8 +170,8 @@ inline AlgoimMomentResult Integrate(
   if(geometry != nullptr)
     ValidateSurfaceGeometryCoordinates(*geometry, Dim, Dim == 2 ? 9U : 27U);
 
-  std::vector<long double> original;
-  UnitTensorPolynomialFromNodalValues(nodalValues, Dim, original);
+  const CutFemLevelSetData field(Dim == 2 ? QUAD : HEX,nodalValues);
+  const std::vector<long double> original = Dim == 2 ? PlanarCube(field.GetPowerCoefficients()) : field.GetPowerCoefficients();
   std::vector<double> control = BuildBernstein<Dim>(original);
   const algoim::uvector<int,Dim> extent(3);
   algoim::xarray<double,Dim> polynomial(control.data(), extent);
@@ -172,10 +181,13 @@ inline AlgoimMomentResult Integrate(
   // positive normalization used to construct its Bernstein polynomial.
   std::vector<std::vector<long double>> gradG;
   std::vector<std::vector<long double>> cofGradG;
-  if(mode != AlgoimSurfaceMode::ReferenceSurface)
-    UnitTensorGradient(original, Dim, nullptr, gradG);
-  if(usesGeometry)
-    UnitTensorGradient(original, Dim, geometry, cofGradG);
+  if(mode != AlgoimSurfaceMode::ReferenceSurface) for(unsigned axis = 0; axis < Dim; ++axis) gradG.push_back(Dim == 2 ? PlanarCube(field.GetDerivativeCoefficients(axis)) : field.GetDerivativeCoefficients(axis));
+  if(usesGeometry) {
+    PreparedMomentWorkspace workspace;
+    PrepareMetric(field,*geometry,workspace);
+    cofGradG = workspace.metric;
+    if(Dim == 2) for(std::vector<long double>& component : cofGradG) component = PlanarCube(component);
+  }
 
   const unsigned count = Dim == 2 ?
       (degree+1U)*(degree+2U)/2U :

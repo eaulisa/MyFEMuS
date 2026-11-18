@@ -1,5 +1,7 @@
 # Unit-coordinate correction
 
+Historical record from before promotion into the native library; see [MIGRATION.md](MIGRATION.md) for the current layout and validation.
+
 Recovered from the interrupted working session on top of commit `4314f8d46`. Production files under `src/` remain unchanged.
 
 | Component | Coordinate contract | Implementation |

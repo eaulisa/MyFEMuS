@@ -1,5 +1,7 @@
 # Review of the prepared level-set and weight classes
 
+Historical record from before promotion into the native library; see [MIGRATION.md](MIGRATION.md) for the current layout and validation.
+
 Baseline: `4ec74de89` on `barbi-ex47-levelset-data`. The deferred-Bernstein experiment is excluded. This review covers `CutFemLevelSetData`, its analysis/chart implementation, the local `CutFemWeight_LS`, prepared contexts/moments, and the recursive endpoint integration adapters. Production `src/` is unchanged.
 
 ## Findings and changes
