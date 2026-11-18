@@ -73,3 +73,29 @@ The new references use `cpp_bin_float_100` and the retained parent polynomial, n
 The tests also cover centered folds, vanished quadratic coefficients with a retained negative constant of order 1e-200, ancestor-based refinement of 3D slice discriminants, zero/repeated/endpoint roots, and translated LINE reference/physical measures whose exact gradient-to-slope ratio is one. Root-surface gradients preserve the directional chain rule, including oblique barycentric charts. These targeted regressions supplement the prior broad accuracy tests, which did not expose the rounded-root loss.
 
 All executable tests remain in ex47 main. Allocation-tracking builds pass 27 data-reuse, 45 prepared-algebra, 61 existing-quadrature, and 130 selected-surface timing rows. Fixed-output warmed paths allocate zero C++ heap objects; the existing vector-returning wrappers retain their expected allocations. First preparation, copied-cache detachment after a state change, and the sloping-boundary convenience constructor are outside that steady-state claim. LeakSanitizer cannot run under this execution environment's tracing; AddressSanitizer and UndefinedBehaviorSanitizer run with leak detection disabled.
+
+
+## Local weight integration
+
+The production class remains unchanged. `Ex47::CutFemWeight_LS` and its local recursive drivers use prepared data from LINE through QUAD/TRI to HEX/TET/WEDGE. Run `--test-weights` to execute those stages in order; `--weight-dimension 1|2|3` selects a stage.
+
+The completed Release suite passes 32,513 weight checks. The original data suite passes 4,939,941 checks with `--cases 256 --points 64`. The direct compensated contraction preserves the translated-root density error of 1.085e-19 and gives a maximum last-ULP fold density error of 1.920e-17. No source polynomial is approximated or truncated by this optimization.
+
+Errors in the following table are `abs(actual-expected)/(1+abs(expected))`, maximized over the analytic volume and four scalar surface measures and every tested moment. LINE uses a 100-digit reference built from the supplied nodal doubles; ball cases use closed-form volume moments and independent angular surface integration for an explicit non-affine geometry.
+
+| Element | Fitted degrees compared with production | Maximum prepared raw-moment error | Raw degree-13 error |
+| --- | --- | ---: | ---: |
+| LINE3 | 2, 5, 10 | 2.587e-19 | — |
+| QUAD9 | 2, 5, 10 | 9.616e-18 | — |
+| TRI7 | 2, 5, 10 | 1.478e-16 | — |
+| HEX27 | 2, 5, 10 | 1.821e-17 | 1.821e-17 |
+| TET15 | 2, 5 | 2.029e-16 | 2.029e-16 |
+| WEDGE21 | 2, 5 | 7.062e-17 | 7.062e-17 |
+
+Every direction number is exercised with enriched nodal fields and every scalar surface mode. Additional checks cover GK 3/7 and 15/31 rules, validation modes 0/1/2, geometry-cache invalidation, all three signed normals, the TET barycentric normal orientation, centered-sphere parity, and QUAD circles down to radius 1e-12. The preceding sensitive-root/data tests cover further cancellation, scale, chart, and boundary cases.
+
+The fixed fitting operator and supplied Gauss tables impose a separate residual floor. Feeding independent exact moments through the production fitter reproduces the measured residual: for example, the largest LINE degree-10 residual is 1.185e-11, while its raw integration error is 2.587e-19. Other fitted ball cases have residuals between about 6e-15 and 1.1e-13. Four requests per LINE degree fail in the original class on a tiny two-root cut that the prepared path retains; those failures are counted separately and excluded from the old error maximum.
+
+High-order simplex fitting is deliberately excluded from the default timed validation loop because constructing its unchanged multiprecision fitting matrix is expensive. Raw degree-13 integration is checked independently for every 3D element. All executable checks remain in the ex47 main; none changes production assembly.
+
+The final AddressSanitizer/UndefinedBehaviorSanitizer build passes all 32,513 weight checks and 2,551,441 data checks (`--cases 128 --points 64`) with leak detection disabled for the tracing environment. The Release comparison uses GCC with `-O2 -DNDEBUG`; sanitizers use `-O1 -g0 -DNDEBUG`.

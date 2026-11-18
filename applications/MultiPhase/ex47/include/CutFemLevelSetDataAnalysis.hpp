@@ -71,37 +71,69 @@ inline void CutFemLevelSetData::EnsureSource() const {
   _source = source;
 }
 
-inline std::array<long double,2> CutFemLevelSetData::CompensatedSourceValue(const std::array<long double,3>& coordinate) const {
-  std::array<std::array<long double,2>,3> point = {{{coordinate[0],0},{coordinate[1],0},{coordinate[2],0}}};
-  if(!_source || _restrictionSteps == 0) return CompensatedEvaluate(_power.data(),_dimension,2,point);
+inline void CutFemLevelSetData::MapCompensatedSourcePoint(const std::array<long double,3>& coordinate, std::array<std::array<long double,2>,3>& point, std::array<std::array<long double,2>,3>* direction, unsigned axis) const {
+  point = {{{coordinate[0],0},{coordinate[1],0},{coordinate[2],0}}};
+  if(direction != nullptr) { *direction = {}; (*direction)[axis] = {1,0}; }
+  if(!_source || _restrictionSteps == 0) return;
   std::array<GeomElType,3> geometries = {_source->geometry,LINE,LINE};
   for(unsigned step = 0; step < _restrictionSteps; ++step) geometries[step+1] = geometries[step] == HEX ? QUAD : (geometries[step] == TET ? TRI : (geometries[step] == WEDGE ? (_restrictionAxes[step] == 2 ? TRI : QUAD) : LINE));
   for(unsigned step = _restrictionSteps; step > 0; --step) {
-    const unsigned axis = _restrictionAxes[step-1];
+    const unsigned fixedAxis = _restrictionAxes[step-1];
     const long double fixed = _restrictionCoordinates[step-1];
     const GeomElType geometry = geometries[step-1];
     const std::array<long double,2> width = CompensatedAdd({1,0},{-fixed,0});
-    std::array<std::array<long double,2>,3> parent = {};
-    parent[axis] = {fixed,0};
+    std::array<std::array<long double,2>,3> parent = {}, parentDirection = {};
+    parent[fixedAxis] = {fixed,0};
     unsigned next = 0;
-    for(unsigned parentAxis = 0; parentAxis < Dimension(geometry); ++parentAxis) if(parentAxis != axis) {
+    for(unsigned parentAxis = 0; parentAxis < Dimension(geometry); ++parentAxis) if(parentAxis != fixedAxis) {
       parent[parentAxis] = point[next];
-      if(geometry == TET) parent[parentAxis] = CompensatedMultiply(width,point[next]);
-      else if((geometry == TRI || (geometry == WEDGE && axis < 2)) && next == 0) parent[parentAxis] = CompensatedMultiply(CompensatedMultiply(width,{0.5L,0}),CompensatedAdd({1,0},point[next]));
+      if(direction != nullptr) parentDirection[parentAxis] = (*direction)[next];
+      if(geometry == TET) { parent[parentAxis] = CompensatedMultiply(width,point[next]); if(direction != nullptr) parentDirection[parentAxis] = CompensatedMultiply(width,(*direction)[next]); }
+      else if((geometry == TRI || (geometry == WEDGE && fixedAxis < 2)) && next == 0) { const std::array<long double,2> scale = CompensatedMultiply(width,{0.5L,0}); parent[parentAxis] = CompensatedMultiply(scale,CompensatedAdd({1,0},point[next])); if(direction != nullptr) parentDirection[parentAxis] = CompensatedMultiply(scale,(*direction)[next]); }
       ++next;
     }
     point = parent;
+    if(direction != nullptr) *direction = parentDirection;
   }
-  return CompensatedEvaluate(_source->power.data(),_source->dimension,2,point);
+}
+
+inline std::array<long double,2> CutFemLevelSetData::CompensatedSourceValue(const std::array<long double,3>& coordinate) const {
+  std::array<std::array<long double,2>,3> point;
+  MapCompensatedSourcePoint(coordinate,point);
+  return _source && _restrictionSteps != 0 ? CompensatedEvaluate(_source->power.data(),_source->dimension,2,point) : CompensatedEvaluate(_power.data(),_dimension,2,point);
+}
+
+inline void CutFemLevelSetData::GetCompensatedFiberCoefficients(unsigned axis, const std::array<long double,3>& coordinate, std::array<std::array<long double,2>,3>& coefficient) const {
+  std::array<long double,3> origin = coordinate;
+  origin[axis] = 0;
+  std::array<std::array<long double,2>,3> point, direction;
+  MapCompensatedSourcePoint(origin,point,&direction,axis);
+  const bool ancestor = _source && _restrictionSteps != 0;
+  const unsigned dimension = ancestor ? _source->dimension : _dimension;
+  const long double* power = ancestor ? _source->power.data() : _power.data();
+  unsigned freeAxis = dimension;
+  for(unsigned sourceAxis = 0; sourceAxis < dimension; ++sourceAxis) if(direction[sourceAxis][0] != 0 || direction[sourceAxis][1] != 0) { if(freeAxis != dimension) throw std::logic_error("A compensated fiber requires one free source coordinate."); freeAxis = sourceAxis; }
+  coefficient = {};
+  if(freeAxis == dimension) { coefficient[0] = CompensatedSourceValue(origin); coefficient[0][0] /= _normalization; coefficient[0][1] /= _normalization; return; }
+  std::array<std::array<std::array<long double,2>,3>,3> powers;
+  for(unsigned sourceAxis = 0; sourceAxis < dimension; ++sourceAxis) if(sourceAxis != freeAxis) { powers[sourceAxis][0] = {1,0}; powers[sourceAxis][1] = point[sourceAxis]; powers[sourceAxis][2] = CompensatedMultiply(point[sourceAxis],point[sourceAxis]); }
+  const unsigned count = dimension == 1 ? 3U : (dimension == 2 ? 9U : 27U);
+  for(unsigned n = 0; n < count; ++n) if(power[n] != 0) {
+    const std::array<unsigned,3> exponent = PowerExponents(n,dimension,2);
+    std::array<long double,2> term = {power[n],0};
+    for(unsigned sourceAxis = 0; sourceAxis < dimension; ++sourceAxis) if(sourceAxis != freeAxis && exponent[sourceAxis] != 0) term = CompensatedMultiply(term,powers[sourceAxis][exponent[sourceAxis]]);
+    coefficient[exponent[freeAxis]] = CompensatedAdd(coefficient[exponent[freeAxis]],term);
+  }
+  const std::array<long double,2> a = coefficient[2], b = coefficient[1], c = coefficient[0], scale = direction[freeAxis];
+  coefficient[0] = CompensatedAdd(CompensatedMultiply(CompensatedAdd(CompensatedMultiply(a,point[freeAxis]),b),point[freeAxis]),c);
+  coefficient[1] = CompensatedMultiply(scale,CompensatedAdd(CompensatedMultiply(CompensatedMultiply({2,0},a),point[freeAxis]),b));
+  coefficient[2] = CompensatedMultiply(a,CompensatedMultiply(scale,scale));
+  for(std::array<long double,2>& value : coefficient) { value[0] /= _normalization; value[1] /= _normalization; }
 }
 
 inline void CutFemLevelSetData::GetCompensatedLineCoefficients(std::array<std::array<long double,2>,3>& coefficient) const {
   if(!_source || _restrictionSteps == 0) { for(unsigned n = 0; n < 3; ++n) coefficient[n] = {_power[n]/_normalization,0}; return; }
-  std::array<std::array<long double,2>,3> values;
-  for(unsigned sample = 0; sample < 3; ++sample) { values[sample] = CompensatedSourceValue({sample == 0 ? 0.0L : (sample == 1 ? -1.0L : 1.0L),0,0}); values[sample][0] /= _normalization; values[sample][1] /= _normalization; }
-  coefficient[0] = values[0];
-  coefficient[1] = CompensatedMultiply(CompensatedAdd(values[2],{-values[1][0],-values[1][1]}),{0.5L,0});
-  coefficient[2] = CompensatedAdd(CompensatedMultiply(CompensatedAdd(values[2],values[1]),{0.5L,0}),{-values[0][0],-values[0][1]});
+  GetCompensatedFiberCoefficients(0,{0,0,0},coefficient);
 }
 
 inline bool CutFemLevelSetData::IsIdenticallyZero() const {
@@ -238,18 +270,10 @@ inline long double CutFemLevelSetData::EvaluateFiberDiscriminant(unsigned axis, 
   if(axis >= 2) throw std::out_of_range("Discriminant axis exceeds the planar dimension.");
   if(_zeroReady && _identicallyZero) return 0;
   if(_source && _restrictionSteps != 0) {
-    std::array<std::array<long double,2>,3> values, coefficient;
-    for(unsigned sample = 0; sample < 3; ++sample) {
-      std::array<long double,3> coordinate = {0,0,0};
-      coordinate[1-axis] = point;
-      coordinate[axis] = sample == 0 ? 0 : (sample == 1 ? -1 : 1);
-      values[sample] = CompensatedSourceValue(coordinate);
-      values[sample][0] /= _normalization;
-      values[sample][1] /= _normalization;
-    }
-    coefficient[0] = values[0];
-    coefficient[1] = CompensatedMultiply(CompensatedAdd(values[2],{-values[1][0],-values[1][1]}),{0.5L,0});
-    coefficient[2] = CompensatedAdd(CompensatedMultiply(CompensatedAdd(values[2],values[1]),{0.5L,0}),{-values[0][0],-values[0][1]});
+    std::array<long double,3> coordinate = {0,0,0};
+    coordinate[1-axis] = point;
+    std::array<std::array<long double,2>,3> coefficient;
+    GetCompensatedFiberCoefficients(axis,coordinate,coefficient);
     return QuadraticDiscriminant(coefficient);
   }
   const FiberProjection& projection = GetFiberProjection(axis);

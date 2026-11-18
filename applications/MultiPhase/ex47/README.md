@@ -1,6 +1,6 @@
 # ex47: prepared element level-set data
 
-`include/CutFemLevelSetData.hpp` is a local, header-only prototype for LINE3, QUAD9, TRI7, HEX27, TET15, and WEDGE21. All checks are functions called by `ex47.cpp` main. The class needs only standard C++14 and the FEMuS element enum; the test main additionally uses the actual FEMuS bases and Boost multiprecision/Gauss-Kronrod headers. Existing CutFEM integration is unchanged.
+`include/CutFemLevelSetData.hpp` is a local, header-only prototype for LINE3, QUAD9, TRI7, HEX27, TET15, and WEDGE21. All checks are functions called by `ex47.cpp` main. The class needs only standard C++14 and the FEMuS element enum; the test main additionally uses the actual FEMuS bases, Boost multiprecision/Gauss-Kronrod headers, and Eigen. The local `include/CutFemWeight_LS.hpp` duplicate is `Ex47::CutFemWeight_LS`; the production `::CutFemWeight_LS` remains available for comparisons. Production integration is unchanged.
 
 Build independently of MPI/PETSc:
 
@@ -13,9 +13,15 @@ cmake --build build-ex47 --parallel 2
 ./build-ex47/MultiPhase_ex47 --benchmark-surface
 ./build-ex47/MultiPhase_ex47 --benchmark-data
 ./build-ex47/MultiPhase_ex47 --benchmark-algebra
+./build-ex47/MultiPhase_ex47 --test-weights --weight-dimension 1
+./build-ex47/MultiPhase_ex47 --test-weights --weight-dimension 2
+./build-ex47/MultiPhase_ex47 --test-weights --weight-dimension 3
+./build-ex47/MultiPhase_ex47 --benchmark-weights
 ```
 
-If Boost is outside the compiler's search path, add `-DEX47_BOOST_INCLUDE_DIR=/path/to/boost`. The normal FEMuS build also exposes `MultiPhase_ex47`. `run_ex47.sh` offers the standalone build and accepts the main's arguments; `EX47_BUILD_DIR`, `EX47_JOBS`, `EX47_BOOST_INCLUDE_DIR`, and `CMAKE` override its defaults.
+Weight integration details and comparison methodology are in [INTEGRATION.md](INTEGRATION.md).
+
+If Eigen is outside the compiler search path, set `-DEX47_EIGEN_INCLUDE_DIR=/path/to/eigen3`. If Boost is outside the compiler's search path, add `-DEX47_BOOST_INCLUDE_DIR=/path/to/boost`. The normal FEMuS build also exposes `MultiPhase_ex47`. `run_ex47.sh` offers the standalone build and accepts the main's arguments; `EX47_BUILD_DIR`, `EX47_JOBS`, `EX47_BOOST_INCLUDE_DIR`, and `CMAKE` override its defaults.
 
 For sanitizers, configure another build with `-DEX47_SANITIZE=ON -DCMAKE_BUILD_TYPE=Debug` and run its main. The main defaults to 64 random cases and 32 points per case; `--benchmark` additionally prints six arithmetic timing/reference-error rows. `--benchmark-quadrature` benchmarks prepared quadrature kernels; `--benchmark-surface` compares each requested measure with computing all measures and compares slicing with/without original-gradient context. Configure another Release build with `-DEX47_TRACK_ALLOCATIONS=ON` to assert zero heap allocations in both warmed benchmark paths.
 
@@ -48,14 +54,16 @@ long double value = line.Evaluate({0.1L});
 | Graph certification | `GetDerivativeBounds(axis)`, `GetGraphDirection()`; direction is an active axis or -1 if none is certified |
 | Slice metadata | `GetDimension()`, `GetRootDimension()`, `GetGeometry()`, `IsDegenerate()`, `GetRevision()` |
 | Coordinate maps | `MapToParent(point)`, `MapToRoot(point)`, `GetParentOrigin()`, `GetParentMap()`, `GetParentMeasureScale()` |
-| Original gradient components | `GetRootGradient(point)` |
+| Original gradient components | `GetRootGradient(point)`, `GetRootDerivativeCoefficients(axis)` |
 | Optional original-gradient context | `Restrict(axis, coordinate, child, retainRootGradient)`, `HasRootGradientContext()` |
 | Allocation-free gradients | `GetGradient(point, std::array<long double,3>&)`, `GetRootGradient(point, std::array<long double,3>&)` |
 | External geometry polynomials | `RestrictComponents(axis, coordinate, degree, components, output)` |
+| Nodal polynomial expansion without classification | `static ExpandNodalPolynomial(geometry, longDoubleNodalValues, coefficients)` |
 | One-dimensional roots | `GetLineRoots()`; repeated roots appear once, endpoint roots are retained |
 | Allocation-free roots | `GetLineRoots(std::array<long double,2>&)` returns the root count |
 | Shared regular-root data | `GetLineSurfaceData(coordinate, rootGradient)` returns `1/abs(dG/dt)` and all original reference-gradient components |
 | Delta only | `GetLineDeltaFactor(coordinate)` |
+| Known regular-root slope | `static GetRegularRootDeltaFactor(root)` |
 | Reference surface only | `GetLineReferenceSurfaceFactor(coordinate)` |
 | Physical surface only | `GetLinePhysicalSurfaceFactor(coordinate, cofactorGradient)` |
 | Inverse-metric tangential only | `GetLineTangentialSurfaceFactor(coordinate, cofactorGradient)` |
@@ -82,7 +90,7 @@ Bernstein indices are explicit. Tensor coordinates and the wedge height are mapp
 
 Nodal sign changes or zero nodal values are handled before coefficient construction. Otherwise the class builds and retains power/Bernstein coefficients. Strict sign certification uses a scaled long-double roundoff margin; slices inherit their parent's margin and include their own contraction error allowance. Derivative bounds include the corresponding control-net uncertainty. Ambiguous cases can receive the requested number of Bernstein bisections. Phase +1/-1 means certified positive/negative; phase 0 includes crossings, contacts, and uncertified elements. A single zero Bernstein coefficient is not treated as proof of a crossing.
 
-The class owns its nodal snapshot. Coefficients, normalization, derivatives, and Hessians are prepared once per state. Changing depth reuses polynomial data. A reset with identical nodal data preserves preparation; changed nodal data invalidates it. Context metadata does not alter the polynomial. Slices own their restricted state and remain valid if the parent is reset or destroyed. Reusing a child retains its coefficient/derivative storage and invalidates slice-dependent caches.
+The class owns its nodal snapshot. Coefficients, normalization, derivatives, and Hessians are prepared once per state. Changing depth reuses polynomial data. A reset with identical nodal data preserves preparation; changed nodal data invalidates it. Context metadata does not alter the polynomial. Slice sign certification is evaluated lazily on the first classification query; value/root-only traversals avoid unused certification. Slices own their restricted state and remain valid if the parent is reset or destroyed. Reusing a child retains its coefficient/derivative storage and invalidates slice-dependent caches.
 
 The three-argument `Restrict()` inherits the parent's original-gradient availability; a nodal parent starts with it available. Passing `false` as the fourth argument skips preparing and contracting every original-gradient polynomial. Descendants inherit this choice. Values, roots, classification, maps, local derivatives, and graph certification remain available. Original-gradient/reference-surface/matrix-input requests on such a slice throw a clear error; restore that context by restricting again from an ancestor that retained it. `HasRootGradientContext()` makes the dependency explicit.
 

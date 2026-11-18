@@ -1,4 +1,5 @@
 #include "include/CutFemLevelSetData.hpp"
+#include "include/CutFemWeight_LS.hpp"
 #include "Basis.hpp"
 #include "ReferenceSurfaceMoments.hpp"
 #include <boost/math/quadrature/gauss_kronrod.hpp>
@@ -1802,6 +1803,389 @@ void BenchmarkPreparedAlgebra() {
   }
 }
 
+template<class Weight> void GetWeightPair(Weight& quadrature, unsigned mode, const std::vector<double>& nodal, const std::vector<std::vector<double>>& coordinates, std::vector<long double>& positive, std::vector<long double>& surface, double tolerance = 1e-10) {
+  if(mode == 0 || mode == 1) quadrature.GetWeightsFromNodalValues(nodal,positive,surface,tolerance,tolerance,mode == 1);
+  else if(mode == 2) quadrature.GetPhysicalSurfaceWeightsFromNodalGeometry(nodal,coordinates,positive,surface,tolerance,tolerance);
+  else if(mode == 3) quadrature.GetTangentialSurfaceWeightsFromNodalGeometry(nodal,coordinates,positive,surface,tolerance,tolerance);
+  else { std::vector<std::vector<long double>> normal; quadrature.GetNormalSurfaceWeightsFromNodalGeometry(nodal,coordinates,positive,normal,tolerance,tolerance); surface = normal[0]; }
+}
+
+void ReferenceLineWeightMoments(const std::vector<double>& nodal, unsigned degree, unsigned mode, std::vector<long double>& positive, std::vector<long double>& surface) {
+  const boost::multiprecision::cpp_bin_float_100 a = (boost::multiprecision::cpp_bin_float_100(nodal[0])+boost::multiprecision::cpp_bin_float_100(nodal[1]))/2-boost::multiprecision::cpp_bin_float_100(nodal[2]), b = (boost::multiprecision::cpp_bin_float_100(nodal[1])-boost::multiprecision::cpp_bin_float_100(nodal[0]))/2, c(nodal[2]);
+  std::vector<boost::multiprecision::cpp_bin_float_100> roots, cuts(1,-1);
+  const boost::multiprecision::cpp_bin_float_100 discriminant = b*b-4*a*c;
+  if(a == 0 && b != 0) roots.push_back(-c/b);
+  else if(a != 0 && discriminant > 0) { roots.push_back((-b-sqrt(discriminant))/(2*a)); roots.push_back((-b+sqrt(discriminant))/(2*a)); }
+  std::sort(roots.begin(),roots.end());
+  for(const boost::multiprecision::cpp_bin_float_100& root : roots) if(root > -1 && root < 1) cuts.push_back(root);
+  cuts.push_back(1);
+  positive.assign(degree+1,0);
+  surface.assign(degree+1,0);
+  for(unsigned power = 0; power <= degree; ++power) {
+    boost::multiprecision::cpp_bin_float_100 h = 0, d = 0;
+    for(unsigned interval = 1; interval < cuts.size(); ++interval) { const boost::multiprecision::cpp_bin_float_100 middle = (cuts[interval-1]+cuts[interval])/2; if((a*middle+b)*middle+c > 0) h += (pow((cuts[interval]+1)/2,power+1)-pow((cuts[interval-1]+1)/2,power+1))/(power+1); }
+    for(const boost::multiprecision::cpp_bin_float_100& root : roots) if(root >= -1 && root <= 1) {
+      const boost::multiprecision::cpp_bin_float_100 derivative = abs(2*a*root+b), factor = root == -1 || root == 1 ? 0.25 : 0.5;
+      d += factor*pow((root+1)/2,power)*(mode == 0 ? 1/derivative : (mode == 3 ? 1/(derivative*derivative) : boost::multiprecision::cpp_bin_float_100(1)));
+    }
+    positive[power] = static_cast<long double>(2*h);
+    surface[power] = static_cast<long double>(2*d);
+  }
+}
+
+template<class Weight> std::vector<long double> FittedLineMoments(const Weight& quadrature, const std::vector<long double>& weights, unsigned degree) {
+  std::vector<long double> result(degree+1,0);
+  for(unsigned point = 0; point < quadrature.GetGaussQuadraturePointNumber(); ++point) {
+    const long double x = (static_cast<long double>(quadrature.GetGaussCoordinatePointer(0)[point])+1)/2, weight = quadrature.GetGaussWeightPointer()[point]*weights[point];
+    long double power = 1;
+    for(unsigned i = 0; i <= degree; ++i) { result[i] += weight*power; power *= x; }
+  }
+  return result;
+}
+
+void TestLineWeightIntegration() {
+  currentCheck = "1D original/prepared fitted-weight integration";
+  const std::vector<std::vector<double>> fields = {{1,1,1},{-1,-1,-1},{-1,1,0},{0,1,0.5},{-1,0,-0.5},{0,0,-1},{0.75,0.75,-0.25},{-0.75,-0.75,0.25},{1,1,-1e-24},{1e-100,1e-100,-2.5e-101},{1e100,1e100,-2.5e99}};
+  const std::vector<std::vector<double>> coordinates = {{-0.85,1.35,0.2}};
+  for(unsigned degree : {2U,5U,10U}) {
+    CutFemWeight_LS<long double,boost::multiprecision::cpp_bin_float_quad> original(LINE,degree,"legendre");
+    Ex47::CutFemWeight_LS<long double,boost::multiprecision::cpp_bin_float_quad> prepared(LINE,degree,"legendre");
+    long double oldError = 0, newError = 0, fittingFloor = 0, rawError = 0;
+    unsigned oldFailures = 0;
+    for(const std::vector<double>& nodal : fields) for(unsigned mode = 0; mode < 4; ++mode) {
+      std::vector<long double> oldH, oldD, newH, newD, expectedH, expectedD;
+      bool oldSuccess = true;
+      try { GetWeightPair(original,mode,nodal,coordinates,oldH,oldD); } catch(const std::domain_error&) { oldSuccess = false; ++oldFailures; }
+      GetWeightPair(prepared,mode,nodal,coordinates,newH,newD);
+      ReferenceLineWeightMoments(nodal,degree,mode,expectedH,expectedD);
+      std::vector<long double> rawH, rawD, exactH = expectedH, exactD = expectedD, floorH, floorD;
+      prepared.GetLastIntegratedMoments(rawH,rawD);
+      for(unsigned n = 0; n <= degree; ++n) { exactH[n] /= 2; exactD[n] /= 2; rawError = std::max(rawError,std::max(std::abs(2*rawH[n]-expectedH[n])/(1+std::abs(expectedH[n])),std::abs(2*rawD[n]-expectedD[n])/(1+std::abs(expectedD[n])))); CheckNear(2*rawH[n],expectedH[n],3e-17L,"LINE raw volume moments versus multiprecision"); CheckNear(2*rawD[n],expectedD[n],3e-17L,"LINE raw surface moments versus multiprecision"); }
+      original.GetWeightsFromExternalMoments(exactH,exactD,floorH,floorD);
+      const std::vector<long double> floorHMoments = FittedLineMoments(original,floorH,degree), floorDMoments = FittedLineMoments(original,floorD,degree);
+      const std::vector<long double> oldHMoments = (oldSuccess ? FittedLineMoments(original,oldH,degree) : expectedH), oldDMoments = (oldSuccess ? FittedLineMoments(original,oldD,degree) : expectedD), newHMoments = FittedLineMoments(prepared,newH,degree), newDMoments = FittedLineMoments(prepared,newD,degree);
+      for(unsigned n = 0; n <= degree; ++n) {
+        oldError = std::max(oldError,std::max(std::abs(oldHMoments[n]-expectedH[n])/(1+std::abs(expectedH[n])),std::abs(oldDMoments[n]-expectedD[n])/(1+std::abs(expectedD[n]))));
+        newError = std::max(newError,std::max(std::abs(newHMoments[n]-expectedH[n])/(1+std::abs(expectedH[n])),std::abs(newDMoments[n]-expectedD[n])/(1+std::abs(expectedD[n]))));
+        const long double hFloor = std::abs(floorHMoments[n]-expectedH[n])/(1+std::abs(expectedH[n])), dFloor = std::abs(floorDMoments[n]-expectedD[n])/(1+std::abs(expectedD[n]));
+        fittingFloor = std::max(fittingFloor,std::max(hFloor,dFloor));
+        CheckNear(newHMoments[n],expectedH[n],2*hFloor+5e-14L,"prepared LINE volume residual respects the fixed fitting floor");
+        CheckNear(newDMoments[n],expectedD[n],2*dFloor+5e-14L,"prepared LINE surface residual respects the fixed fitting floor");
+      }
+      Check(prepared.GetPreparedLevelSetData().GetWorkCounts()[0] == prepared.GetPreparedLevelSetData().GetNodalVersion(),"one nodal expansion per distinct LINE state");
+    }
+    std::cout << std::setprecision(8) << "weight_check LINE3 q=" << degree << " old_error=" << oldError << " prepared_error=" << newError << " old_failures=" << oldFailures << " raw_error=" << rawError << " fitting_floor=" << fittingFloor << '\n';
+  }
+}
+
+template<class Algebra> void GetFixtureWeightPair(CutFemWeight_LS<long double,Algebra>& quadrature, unsigned mode, const CutFemLevelSetData& data, const std::vector<std::vector<double>>& coordinates, std::vector<long double>& positive, std::vector<long double>& surface) { GetWeightPair(quadrature,mode,data.GetNodalValues(),coordinates,positive,surface); }
+
+template<class Algebra> void GetFixtureWeightPair(Ex47::CutFemWeight_LS<long double,Algebra>& quadrature, unsigned mode, const CutFemLevelSetData& data, const std::vector<std::vector<double>>& coordinates, std::vector<long double>& positive, std::vector<long double>& surface) {
+  if(mode == 0 || mode == 1) quadrature.GetWeightsFromLevelSetData(data,positive,surface,1e-10,1e-10,mode == 1);
+  else if(mode == 2) quadrature.GetPhysicalSurfaceWeightsFromLevelSetData(data,coordinates,positive,surface,1e-10,1e-10);
+  else if(mode == 3) quadrature.GetTangentialSurfaceWeightsFromLevelSetData(data,coordinates,positive,surface,1e-10,1e-10);
+  else { std::vector<std::vector<long double>> normal; quadrature.GetNormalSurfaceWeightsFromLevelSetData(data,coordinates,positive,normal,1e-10,1e-10); surface = normal[0]; }
+}
+
+template<class Weight> double TimeLineWeights(Weight& quadrature, unsigned mode, const std::array<CutFemLevelSetData,2>& data, const std::vector<std::vector<double>>& coordinates, unsigned iterations, long double& checksum) {
+  std::vector<long double> positive, surface;
+  for(unsigned sample = 0; sample < (data[0].GetDimension() == 3 ? 2U : 16U); ++sample) { quadrature.ClearCache(); GetFixtureWeightPair(quadrature,mode,data[sample%2],coordinates,positive,surface); }
+  volatile long double total = 0;
+  const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+  for(unsigned sample = 0; sample < iterations; ++sample) { quadrature.ClearCache(); GetFixtureWeightPair(quadrature,mode,data[sample%2],coordinates,positive,surface); total += positive[0]+surface[0]; }
+  checksum = total;
+  return 1e6*std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()/iterations;
+}
+
+void BenchmarkLineWeights() {
+  const std::array<CutFemLevelSetData,2> data = {{CutFemLevelSetData(LINE,{0.75,0.75,-0.25}),CutFemLevelSetData(LINE,{1.5,0.5,0})}};
+  const std::vector<std::vector<double>> coordinates = {{-0.85,1.35,0.2}};
+  for(unsigned degree : {2U,5U,10U}) {
+    CutFemWeight_LS<long double,long double> original(LINE,degree,"legendre");
+    Ex47::CutFemWeight_LS<long double,long double> prepared(LINE,degree,"legendre");
+    for(unsigned mode = 0; mode < 4; ++mode) {
+      std::array<double,5> oldTime, newTime;
+      long double oldChecksum = 0, newChecksum = 0;
+      for(unsigned repeat = 0; repeat < 5; ++repeat) {
+        if(repeat%2 == 0) { oldTime[repeat] = TimeLineWeights(original,mode,data,coordinates,2000,oldChecksum); newTime[repeat] = TimeLineWeights(prepared,mode,data,coordinates,2000,newChecksum); }
+        else { newTime[repeat] = TimeLineWeights(prepared,mode,data,coordinates,2000,newChecksum); oldTime[repeat] = TimeLineWeights(original,mode,data,coordinates,2000,oldChecksum); }
+      }
+      std::sort(oldTime.begin(),oldTime.end());
+      std::sort(newTime.begin(),newTime.end());
+      CheckNear(newChecksum,oldChecksum,degree == 10 ? 2e-10L : 1e-12L,"LINE benchmark checksums");
+      std::cout << std::setprecision(8) << "weight_speed LINE3 q=" << degree << " mode=" << mode << " old_us=" << oldTime[2] << " prepared_us=" << newTime[2] << " speedup=" << oldTime[2]/newTime[2] << '\n';
+    }
+  }
+}
+
+void WeightBasisPowers(GeomElType geometry, const std::array<long double,3>& point, unsigned degree, std::array<std::vector<long double>,3>& powers) {
+  const bool tensor = geometry == LINE || geometry == QUAD || geometry == HEX;
+  for(unsigned axis = 0; axis < 3; ++axis) { const long double coordinate = tensor || (geometry == WEDGE && axis == 2) ? (point[axis]+1)/2 : point[axis]; powers[axis].resize(degree+1); powers[axis][0] = 1; for(unsigned n = 1; n <= degree; ++n) powers[axis][n] = powers[axis][n-1]*coordinate; }
+}
+
+template<class Weight> std::vector<long double> FittedWeightMoments(const Weight& quadrature, GeomElType geometry, unsigned dimension, const std::vector<long double>& weights, unsigned degree) {
+  const unsigned count = dimension == 2 ? (degree+1)*(degree+2)/2 : (degree+1)*(degree+2)*(degree+3)/6;
+  std::vector<long double> result(count,0);
+  std::array<std::vector<long double>,3> powers;
+  for(unsigned n = 0; n < quadrature.GetGaussQuadraturePointNumber(); ++n) {
+    std::array<long double,3> point = {0,0,0};
+    for(unsigned axis = 0; axis < dimension; ++axis) point[axis] = quadrature.GetGaussCoordinatePointer(axis)[n];
+    WeightBasisPowers(geometry,point,degree,powers);
+    for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) for(unsigned k = 0; k <= (dimension == 3 ? degree-i-j : 0U); ++k) result[FELevelSetMoments::UnitMomentIndex(dimension,i,j,k)] += quadrature.GetGaussWeightPointer()[n]*weights[n]*powers[0][i]*powers[1][j]*powers[2][k];
+  }
+  return result;
+}
+
+void MakeWeightBall(GeomElType geometry, std::vector<double>& nodal, std::vector<std::vector<double>>& coordinates, std::array<long double,3>& center, long double& radius) {
+  const std::unique_ptr<femus::basis> basis = MakeBasis(geometry);
+  const unsigned dimension = geometry == QUAD || geometry == TRI ? 2U : 3U;
+  center = geometry == QUAD || geometry == HEX ? std::array<long double,3>{-0.25L,-0.25L,-0.25L} : std::array<long double,3>{0.25L,0.25L,geometry == WEDGE ? 0.0L : 0.125L};
+  radius = geometry == TET ? 0.0625L : 0.125L;
+  nodal.assign(basis->_nc,0);
+  coordinates.assign(dimension,nodal);
+  for(unsigned n = 0; n < nodal.size(); ++n) {
+    const double* point = basis->GetXcoarse(n);
+    long double value = -radius*radius;
+    for(unsigned axis = 0; axis < dimension; ++axis) value += (point[axis]-center[axis])*(point[axis]-center[axis]);
+    nodal[n] = value;
+    coordinates[0][n] = point[0]+0.05*point[0]*point[1];
+    coordinates[1][n] = point[1]+0.04*point[0]*point[1];
+    if(dimension == 3) coordinates[2][n] = point[2]+0.03*point[0]*point[2]+0.02*point[1]*point[2];
+  }
+}
+
+long double CenteredBallMoment(unsigned dimension, long double radius, unsigned i, unsigned j, unsigned k) {
+  if(i%2 != 0 || j%2 != 0 || k%2 != 0) return 0;
+  long double value = std::pow(radius,dimension+i+j+k)*std::tgamma((i+1)/2.0L)*std::tgamma((j+1)/2.0L)/std::tgamma(1+(dimension+i+j+k)/2.0L);
+  if(dimension == 3) value *= std::tgamma((k+1)/2.0L);
+  return value;
+}
+
+void ReferenceBallWeightMoments(GeomElType geometry, unsigned degree, unsigned mode, const std::array<long double,3>& center, long double radius, std::vector<long double>& positive, std::vector<long double>& surface) {
+  const unsigned dimension = geometry == QUAD || geometry == TRI ? 2U : 3U, count = dimension == 2 ? (degree+1)*(degree+2)/2 : (degree+1)*(degree+2)*(degree+3)/6;
+  const long double pi = std::acos(-1.0L);
+  positive.assign(count,0);
+  surface.assign(count,0);
+  const std::array<long double,3> unitCenter = geometry == QUAD || geometry == HEX ? std::array<long double,3>{(center[0]+1)/2,(center[1]+1)/2,(center[2]+1)/2} : (geometry == WEDGE ? std::array<long double,3>{center[0],center[1],(center[2]+1)/2} : center);
+  for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) for(unsigned k = 0; k <= (dimension == 3 ? degree-i-j : 0U); ++k) {
+    long double full = geometry == QUAD ? 4.0L/((i+1)*(j+1)) : (geometry == HEX ? 8.0L/((i+1)*(j+1)*(k+1)) : (geometry == TRI ? FELevelSetMoments::ReferenceTriangleMoment(i,j) : (geometry == WEDGE ? 2*FELevelSetMoments::ReferenceTriangleMoment(i,j)/(k+1) : std::tgamma(i+1.0L)*std::tgamma(j+1.0L)*std::tgamma(k+1.0L)/std::tgamma(i+j+k+4.0L))));
+    long double ball = 0;
+    for(unsigned a = 0; a <= i; ++a) for(unsigned b = 0; b <= j; ++b) for(unsigned c = 0; c <= k; ++c) { const long double scale = std::pow(0.5L,(geometry == QUAD || geometry == HEX ? a+b+c : (geometry == WEDGE ? c : 0U))); ball += FELevelSetMoments::ReferenceBinomial(i,a)*FELevelSetMoments::ReferenceBinomial(j,b)*FELevelSetMoments::ReferenceBinomial(k,c)*std::pow(unitCenter[0],i-a)*std::pow(unitCenter[1],j-b)*std::pow(unitCenter[2],k-c)*scale*CenteredBallMoment(dimension,radius,a,b,c); }
+    positive[FELevelSetMoments::UnitMomentIndex(dimension,i,j,k)] = full-ball;
+  }
+  const unsigned angles = 128;
+  const std::vector<long double>& nodes = boost::math::quadrature::gauss<long double,60>::abscissa();
+  const std::vector<long double>& weights = boost::math::quadrature::gauss<long double,60>::weights();
+  std::array<std::vector<long double>,3> powers;
+  const unsigned latitudes = dimension == 2 ? 1U : 60U;
+  for(unsigned latitude = 0; latitude < latitudes; ++latitude) {
+    const long double z = dimension == 2 ? 0 : (latitude%2 == 0 ? nodes[latitude/2] : -nodes[latitude/2]), wz = dimension == 2 ? 1 : weights[latitude/2], radial = std::sqrt(1-z*z);
+    for(unsigned angle = 0; angle < angles; ++angle) {
+      const long double theta = 2*pi*angle/angles;
+      const std::array<long double,3> normal = {radial*std::cos(theta),radial*std::sin(theta),z}, point = {center[0]+radius*normal[0],center[1]+radius*normal[1],center[2]+radius*normal[2]};
+      const long double j00 = 1+0.05L*point[1], j01 = 0.05L*point[0], j10 = 0.04L*point[1], j11 = 1+0.04L*point[0], j20 = dimension == 3 ? 0.03L*point[2] : 0, j21 = dimension == 3 ? 0.02L*point[2] : 0, j22 = dimension == 3 ? 1+0.03L*point[0]+0.02L*point[1] : 1;
+      const std::array<long double,3> h = {j22*(j11*normal[0]-j10*normal[1])+(j10*j21-j11*j20)*normal[2],j22*(-j01*normal[0]+j00*normal[1])+(j01*j20-j00*j21)*normal[2],(j00*j11-j01*j10)*normal[2]};
+      const long double norm = std::sqrt(h[0]*h[0]+h[1]*h[1]+h[2]*h[2]);
+      const long double density = mode == 0 ? (dimension == 2 ? 0.5L : radius/2) : (mode == 1 ? std::pow(radius,dimension-1) : (mode == 2 ? std::pow(radius,dimension-1)*norm : (mode == 3 ? std::pow(radius,static_cast<int>(dimension)-3)/(4*norm) : std::pow(radius,dimension-2)*h[mode-4]/(2*norm))));
+      const long double weight = 2*pi*wz*density/angles;
+      WeightBasisPowers(geometry,point,degree,powers);
+      for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) for(unsigned k = 0; k <= (dimension == 3 ? degree-i-j : 0U); ++k) surface[FELevelSetMoments::UnitMomentIndex(dimension,i,j,k)] += weight*powers[0][i]*powers[1][j]*powers[2][k];
+    }
+  }
+}
+
+void TestBallWeightIntegration(unsigned dimension) {
+  const std::vector<GeomElType> elements = dimension == 2 ? std::vector<GeomElType>{QUAD,TRI} : std::vector<GeomElType>{HEX,TET,WEDGE};
+  for(GeomElType geometry : elements) for(unsigned degree : {2U,5U,10U}) {
+    if(dimension == 3 && geometry != HEX && degree > 5) continue;
+    currentCheck = std::string(GeometryName(geometry))+" analytic ball weights degree "+std::to_string(degree);
+    CutFemWeight_LS<long double,boost::multiprecision::cpp_bin_float_quad> original(geometry,degree,"legendre");
+    Ex47::CutFemWeight_LS<long double,boost::multiprecision::cpp_bin_float_quad> prepared(geometry,degree,"legendre");
+    std::vector<double> nodal;
+    std::vector<std::vector<double>> coordinates;
+    std::array<long double,3> center;
+    long double radius = 0, rawError = 0, oldError = 0, newError = 0, fittingFloor = 0;
+    MakeWeightBall(geometry,nodal,coordinates,center,radius);
+    for(unsigned mode = 0; mode < 4; ++mode) {
+      std::vector<long double> oldH, oldD, newH, newD, exactH, exactD, rawH, rawD, floorH, floorD;
+      ReferenceBallWeightMoments(geometry,degree,mode,center,radius,exactH,exactD);
+      GetWeightPair(original,mode,nodal,coordinates,oldH,oldD);
+      GetWeightPair(prepared,mode,nodal,coordinates,newH,newD);
+      prepared.GetLastIntegratedMoments(rawH,rawD);
+      const long double measure = geometry == QUAD ? 4 : (geometry == HEX ? 8 : (geometry == WEDGE ? 2 : 1));
+      std::vector<long double> unitH = exactH, unitD = exactD;
+      for(unsigned n = 0; n < rawH.size(); ++n) { unitH[n] /= measure; unitD[n] /= measure; rawError = std::max(rawError,std::max(std::abs(measure*rawH[n]-exactH[n])/(1+std::abs(exactH[n])),std::abs(measure*rawD[n]-exactD[n])/(1+std::abs(exactD[n])))); CheckNear(measure*rawH[n],exactH[n],2e-9L,"raw positive ball moment"); CheckNear(measure*rawD[n],exactD[n],2e-9L,"raw surface ball moment"); }
+      original.GetWeightsFromExternalMoments(unitH,unitD,floorH,floorD);
+      const std::vector<long double> oldHM = FittedWeightMoments(original,geometry,dimension,oldH,degree), oldDM = FittedWeightMoments(original,geometry,dimension,oldD,degree), newHM = FittedWeightMoments(prepared,geometry,dimension,newH,degree), newDM = FittedWeightMoments(prepared,geometry,dimension,newD,degree), floorHM = FittedWeightMoments(original,geometry,dimension,floorH,degree), floorDM = FittedWeightMoments(original,geometry,dimension,floorD,degree);
+      for(unsigned n = 0; n < rawH.size(); ++n) {
+        const long double hf = std::abs(floorHM[n]-exactH[n])/(1+std::abs(exactH[n])), df = std::abs(floorDM[n]-exactD[n])/(1+std::abs(exactD[n]));
+        fittingFloor = std::max(fittingFloor,std::max(hf,df));
+        oldError = std::max(oldError,std::max(std::abs(oldHM[n]-exactH[n])/(1+std::abs(exactH[n])),std::abs(oldDM[n]-exactD[n])/(1+std::abs(exactD[n]))));
+        newError = std::max(newError,std::max(std::abs(newHM[n]-exactH[n])/(1+std::abs(exactH[n])),std::abs(newDM[n]-exactD[n])/(1+std::abs(exactD[n]))));
+        CheckNear(newHM[n],exactH[n],2*hf+1e-8L,"fitted positive ball moment");
+        CheckNear(newDM[n],exactD[n],2*df+1e-8L,"fitted surface ball moment");
+      }
+    }
+    std::cout << std::setprecision(8) << "weight_check " << GeometryName(geometry) << " q=" << degree << " old_error=" << oldError << " prepared_error=" << newError << " raw_error=" << rawError << " fitting_floor=" << fittingFloor << std::endl;
+    Check(prepared.GetPreparedStatistics().lineRestrictions != 0,"recursion reaches prepared LINE records");
+  }
+}
+
+void BenchmarkElementWeights(unsigned dimension) {
+  const std::vector<GeomElType> elements = dimension == 2 ? std::vector<GeomElType>{QUAD,TRI} : std::vector<GeomElType>{HEX,TET,WEDGE};
+  for(GeomElType geometry : elements) for(unsigned degree : {2U,5U}) {
+    std::vector<double> nodal;
+    std::vector<std::vector<double>> coordinates;
+    std::array<long double,3> center;
+    long double radius = 0;
+    MakeWeightBall(geometry,nodal,coordinates,center,radius);
+    std::vector<double> second = nodal;
+    const std::unique_ptr<femus::basis> basis = MakeBasis(geometry);
+    for(unsigned n = 0; n < second.size(); ++n) second[n] += 0.03125L*(basis->GetXcoarse(n)[0]-center[0])+0.000244140625L;
+    std::array<CutFemLevelSetData,2> data = {{CutFemLevelSetData(geometry,nodal),CutFemLevelSetData(geometry,second)}};
+    CutFemWeight_LS<long double,long double> original(geometry,degree,"legendre");
+    Ex47::CutFemWeight_LS<long double,long double> prepared(geometry,degree,"legendre");
+    for(unsigned mode = 0; mode < (dimension == 3 ? 5U : 4U); ++mode) {
+      std::array<double,5> oldTime, newTime;
+      long double oldChecksum = 0, newChecksum = 0;
+      const unsigned iterations = dimension == 2 ? 16U : 2U;
+      for(unsigned repeat = 0; repeat < 5; ++repeat) { oldTime[repeat] = TimeLineWeights(original,mode,data,coordinates,iterations,oldChecksum); newTime[repeat] = TimeLineWeights(prepared,mode,data,coordinates,iterations,newChecksum); }
+      std::sort(oldTime.begin(),oldTime.end());
+      std::sort(newTime.begin(),newTime.end());
+      CheckNear(newChecksum,oldChecksum,2e-7L,"element benchmark checksums");
+      std::cout << std::setprecision(8) << "weight_speed " << GeometryName(geometry) << " q=" << degree << " mode=" << mode << " old_us=" << oldTime[2] << " prepared_us=" << newTime[2] << " speedup=" << oldTime[2]/newTime[2] << std::endl;
+    }
+  }
+}
+
+void TestHighDegreePreparedMoments() {
+  for(GeomElType geometry : {HEX,TET,WEDGE}) {
+    currentCheck = std::string(GeometryName(geometry))+" degree 13 prepared moments";
+    std::vector<double> nodal;
+    std::vector<std::vector<double>> coordinates;
+    std::array<long double,3> center;
+    long double radius = 0, maximumError = 0;
+    MakeWeightBall(geometry,nodal,coordinates,center,radius);
+    const CutFemLevelSetData data(geometry,nodal);
+    FELevelSetMoments::Ex47Prepared::PreparedMomentWorkspace workspace;
+    for(unsigned mode = 0; mode < 4; ++mode) {
+      std::vector<long double> values, errors, exactH, exactD;
+      FELevelSetMoments::Ex47Prepared::IntegrateSpatial(data,13,1e-10,1e-10,mode != 0,mode >= 2 ? &coordinates : nullptr,0,1,FELevelSetMoments::OuterQuadratureRules(),mode == 3,-1,true,workspace,values,errors);
+      ReferenceBallWeightMoments(geometry,13,mode,center,radius,exactH,exactD);
+      const long double measure = geometry == HEX ? 8 : (geometry == WEDGE ? 2 : 1);
+      for(unsigned n = 0; n < exactH.size(); ++n) { CheckNear(measure*values[n],exactH[n],2e-9L,"high-degree raw volume moment"); CheckNear(measure*values[exactH.size()+n],exactD[n],2e-9L,"high-degree raw surface moment"); maximumError = std::max(maximumError,std::max(std::abs(measure*values[n]-exactH[n])/(1+std::abs(exactH[n])),std::abs(measure*values[exactH.size()+n]-exactD[n])/(1+std::abs(exactD[n])))); }
+    }
+    std::cout << "weight_raw " << GeometryName(geometry) << " q=13 error=" << maximumError << std::endl;
+  }
+}
+
+void TestElementWeightOptions(unsigned dimension) {
+  const std::vector<GeomElType> elements = dimension == 2 ? std::vector<GeomElType>{QUAD,TRI} : std::vector<GeomElType>{HEX,TET,WEDGE};
+  for(GeomElType geometry : elements) {
+    currentCheck = std::string(GeometryName(geometry))+" prepared options and enriched basis";
+    CutFemWeight_LS<long double,boost::multiprecision::cpp_bin_float_quad> original(geometry,2,"legendre");
+    Ex47::CutFemWeight_LS<long double,boost::multiprecision::cpp_bin_float_quad> prepared(geometry,2,"legendre");
+    const std::unique_ptr<femus::basis> basis = MakeBasis(geometry);
+    std::vector<double> nodal;
+    std::vector<std::vector<double>> coordinates;
+    std::array<long double,3> center;
+    long double radius = 0;
+    MakeWeightBall(geometry,nodal,coordinates,center,radius);
+    for(unsigned field = 0; field < 4; ++field) {
+      for(unsigned n = 0; n < nodal.size(); ++n) { const double* x = basis->GetXcoarse(n); nodal[n] = field == 0 ? 1 : (field == 1 ? -1 : x[0]-0.25+0.02*x[0]*x[0]+0.03*x[1]+(dimension == 3 ? 0.02*x[2]*x[1] : 0)+(field == 3 ? 0.0001*std::sin(3.0*n+0.25) : 0)); }
+      CutFemLevelSetData data(geometry,nodal);
+      const unsigned directions = field < 2 ? 0 : (geometry == QUAD ? 2U : (geometry == TRI ? 3U : (geometry == TET ? 4U : 6U)));
+      for(unsigned direction = 0; direction <= directions; ++direction) {
+        original.SetIntegrationDirection(direction);
+        prepared.SetIntegrationDirection(direction);
+        for(unsigned mode = 0; mode < 4; ++mode) {
+          std::vector<long double> h, d, oldH, oldD;
+          GetWeightPair(original,mode,nodal,coordinates,oldH,oldD);
+          GetFixtureWeightPair(prepared,mode,data,coordinates,h,d);
+          const std::vector<long double> oldHM = FittedWeightMoments(original,geometry,dimension,oldH,2), oldDM = FittedWeightMoments(original,geometry,dimension,oldD,2), newHM = FittedWeightMoments(prepared,geometry,dimension,h,2), newDM = FittedWeightMoments(prepared,geometry,dimension,d,2);
+          for(unsigned n = 0; n < newHM.size(); ++n) { CheckNear(newHM[n],oldHM[n],2e-8L,"directional volume moment agreement"); CheckNear(newDM[n],oldDM[n],2e-8L,"directional surface moment agreement"); }
+        }
+      }
+    }
+    prepared.SetIntegrationDirection(0);
+    original.SetIntegrationDirection(0);
+    MakeWeightBall(geometry,nodal,coordinates,center,radius);
+    CutFemLevelSetData ball(geometry,nodal);
+    for(unsigned rule : {7U,31U}) {
+      FELevelSetMoments::OuterQuadratureRules rules;
+      rules.regular2D = rules.tangent2D = rules.regular3D = rules.tangent3D = rule;
+      prepared.SetOuterQuadratureRules(rules);
+      prepared.SetDirectionValidation(rule == 31 ? 2U : 0U);
+      std::vector<long double> h, d, exactH, exactD;
+      GetFixtureWeightPair(prepared,2,ball,coordinates,h,d);
+      ReferenceBallWeightMoments(geometry,2,2,center,radius,exactH,exactD);
+      const std::vector<long double> fitted = FittedWeightMoments(prepared,geometry,dimension,d,2);
+      for(unsigned n = 0; n < fitted.size(); ++n) CheckNear(fitted[n],exactD[n],3e-9L,"configured GK surface moments");
+    }
+    prepared.SetDirectionValidation(1);
+    const unsigned long long preparations = prepared.GetPreparedStatistics().geometryPreparations;
+    std::vector<long double> h, d;
+    prepared.ClearCache();
+    GetFixtureWeightPair(prepared,3,ball,coordinates,h,d);
+    Check(prepared.GetPreparedStatistics().geometryPreparations == preparations,"geometry preparation survives rules, measure, and final-weight cache changes");
+    coordinates[0][0] += 1e-5;
+    GetFixtureWeightPair(prepared,2,ball,coordinates,h,d);
+    Check(prepared.GetPreparedStatistics().geometryPreparations == preparations+1,"geometry change invalidates the physical metric");
+    if(dimension == 3) {
+      MakeWeightBall(geometry,nodal,coordinates,center,radius);
+      CutFemLevelSetData sphere(geometry,nodal);
+      std::vector<std::vector<long double>> normal, oldNormal;
+      original.GetNormalSurfaceWeightsFromNodalGeometry(nodal,coordinates,h,oldNormal,1e-10,1e-10);
+      prepared.GetNormalSurfaceWeightsFromLevelSetData(sphere,coordinates,h,normal,1e-10,1e-10);
+      if(geometry == TET) { prepared.SetIntegrationDirection(1); prepared.GetNormalSurfaceWeightsFromLevelSetData(sphere,coordinates,h,normal,1e-10,1e-10); }
+      for(unsigned component = 0; component < 3; ++component) {
+        std::vector<long double> exactH, exactD;
+        ReferenceBallWeightMoments(geometry,2,4+component,center,radius,exactH,exactD);
+        const std::vector<long double> fitted = FittedWeightMoments(prepared,geometry,dimension,normal[component],2), baseline = FittedWeightMoments(original,geometry,dimension,oldNormal[component],2);
+        for(unsigned n = 0; n < fitted.size(); ++n) { CheckNear(fitted[n],exactD[n],3e-9L,"analytic signed-normal moment"); CheckNear(fitted[n],baseline[n],3e-9L,"original/prepared signed-normal moment"); }
+      }
+    }
+    std::cout << "weight_options " << GeometryName(geometry) << " passed" << std::endl;
+  }
+}
+
+void TestSmallPlanarWeights() {
+  currentCheck = "native tiny planar cuts";
+  Ex47::CutFemWeight_LS<long double,boost::multiprecision::cpp_bin_float_quad> quadrature(QUAD,2,"legendre");
+  for(long double radius : {1e-4L,1e-8L,1e-12L}) {
+    std::vector<double> nodal(9);
+    const std::unique_ptr<femus::basis> basis = MakeBasis(QUAD);
+    for(unsigned n = 0; n < nodal.size(); ++n) { const double* x = basis->GetXcoarse(n); nodal[n] = x[0]*x[0]+x[1]*x[1]-radius*radius; }
+    const CutFemLevelSetData data(QUAD,nodal);
+    std::vector<long double> h, d;
+    quadrature.GetWeightsFromLevelSetData(data,h,d,1e-10,1e-10,false);
+    quadrature.GetLastIntegratedMoments(h,d);
+    CheckNear(4*d[0],std::acos(-1.0L),2e-8L,"tiny-circle delta measure");
+    CheckNear(4*h[0],4-std::acos(-1.0L)*radius*radius,2e-10L,"tiny-circle volume");
+  }
+}
+
+void TestCenteredNormalWeights() {
+  currentCheck = "centered sphere signed-normal parity";
+  Ex47::CutFemWeight_LS<long double,boost::multiprecision::cpp_bin_float_quad> quadrature(HEX,2,"legendre");
+  const std::unique_ptr<femus::basis> basis = MakeBasis(HEX);
+  const long double radius = 0.25L, expected = std::acos(-1.0L)*radius*radius/3;
+  std::vector<double> nodal(basis->_nc);
+  std::vector<std::vector<double>> coordinates(3,nodal);
+  for(unsigned n = 0; n < nodal.size(); ++n) { const double* x = basis->GetXcoarse(n); nodal[n] = x[0]*x[0]+x[1]*x[1]+x[2]*x[2]-radius*radius; for(unsigned axis = 0; axis < 3; ++axis) coordinates[axis][n] = x[axis]; }
+  for(unsigned sign = 0; sign < 2; ++sign) {
+    if(sign != 0) for(double& value : nodal) value = -value;
+    std::vector<long double> h;
+    std::vector<std::vector<long double>> normal;
+    quadrature.GetNormalSurfaceWeightsFromNodalGeometry(nodal,coordinates,h,normal,1e-10,1e-10);
+    for(unsigned component = 0; component < 3; ++component) {
+      const std::vector<long double> moments = FittedWeightMoments(quadrature,HEX,3,normal[component],2);
+      CheckNear(moments[0],0,2e-12L,"centered normal has zero mean");
+      for(unsigned axis = 0; axis < 3; ++axis) { unsigned powers[3] = {0,0,0}; powers[axis] = 1; CheckNear(moments[FELevelSetMoments::UnitMomentIndex(3,powers[0],powers[1],powers[2])],axis == component ? (sign == 0 ? expected : -expected) : 0,2e-12L,"normal parity and orientation"); }
+    }
+  }
+}
+
 int main(int argc, char** argv) {
   try {
     unsigned cases = 64, points = 32;
@@ -1810,6 +2194,9 @@ int main(int argc, char** argv) {
     bool surfaceBenchmark = false;
     bool dataBenchmark = false;
     bool algebraBenchmark = false;
+    bool weightTests = false;
+    bool weightBenchmark = false;
+    unsigned weightDimension = 0;
     for(int i = 1; i < argc; ++i) {
       const std::string option = argv[i];
       if((option == "--cases" || option == "--points") && i + 1 < argc) {
@@ -1825,8 +2212,11 @@ int main(int argc, char** argv) {
       else if(option == "--benchmark-surface") surfaceBenchmark = true;
       else if(option == "--benchmark-data") dataBenchmark = true;
       else if(option == "--benchmark-algebra") algebraBenchmark = true;
+      else if(option == "--test-weights") weightTests = true;
+      else if(option == "--benchmark-weights") weightBenchmark = true;
+      else if(option == "--weight-dimension" && i+1 < argc) { const std::string value = argv[++i]; if(value.empty() || value.find_first_not_of("0123456789") != std::string::npos) throw std::invalid_argument("Invalid weight-test dimension."); weightDimension = static_cast<unsigned>(std::stoul(value)); if(weightDimension < 1 || weightDimension > 3) throw std::invalid_argument("Weight-test dimension must be one, two, or three."); }
       else if(option == "--help") {
-        std::cout << "MultiPhase_ex47 [--cases N] [--points N] [--benchmark] [--benchmark-quadrature] [--benchmark-surface] [--benchmark-data] [--benchmark-algebra]\n";
+        std::cout << "MultiPhase_ex47 [--cases N] [--points N] [--benchmark] [--benchmark-quadrature] [--benchmark-surface] [--benchmark-data] [--benchmark-algebra] [--test-weights] [--benchmark-weights] [--weight-dimension 1|2|3]\n";
         return 0;
       }
       else throw std::invalid_argument("Unknown or incomplete argument: " + option);
@@ -1835,6 +2225,8 @@ int main(int argc, char** argv) {
     if(surfaceBenchmark) { BenchmarkSelectiveSurfaceKernels(); return 0; }
     if(dataBenchmark) { BenchmarkDataReuse(); return 0; }
     if(algebraBenchmark) { BenchmarkPreparedAlgebra(); return 0; }
+    if(weightTests) { if(weightDimension == 0 || weightDimension == 1) TestLineWeightIntegration(); if(weightDimension == 0 || weightDimension == 2) { TestBallWeightIntegration(2); TestElementWeightOptions(2); TestSmallPlanarWeights(); } if(weightDimension == 0 || weightDimension == 3) { TestBallWeightIntegration(3); TestElementWeightOptions(3); TestCenteredNormalWeights(); TestHighDegreePreparedMoments(); } std::cout << "weight checks passed: " << checks << '\n'; return 0; }
+    if(weightBenchmark) { if(weightDimension == 0 || weightDimension == 1) BenchmarkLineWeights(); if(weightDimension == 0 || weightDimension == 2) BenchmarkElementWeights(2); if(weightDimension == 0 || weightDimension == 3) BenchmarkElementWeights(3); return 0; }
     std::mt19937 random(470013);
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     TestReconstruction(cases, points, random);

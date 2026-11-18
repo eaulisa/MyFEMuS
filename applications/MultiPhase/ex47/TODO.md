@@ -36,6 +36,17 @@ Implemented and exercised only in ex47:
 - [x] Keep LINE/graph/projection caches optional and preserve copied records when reusable workspaces detach from shared prepared state.
 - [x] Exercise every chart/boundary and near-tangent/tiny-cut case in main; benchmark fresh and retained paths against the preceding class.
 
+Local weight integration in this prototype:
+
+- [x] Duplicate the weight class as `Ex47::CutFemWeight_LS` under ex47/include and preserve the production class for side-by-side tests.
+- [x] Route nodal wrappers through owned prepared data and provide overloads accepting retained root-element data.
+- [x] Use prepared classification, graphs, zero boundaries, projections, LINE topology, original gradients, and component restrictions throughout the recursive integration.
+- [x] Preserve endpoint parameter derivatives and offset information; avoid rebuilding a LINE for a delta density when its slope is already known.
+- [x] Integrate in native coordinates and transform final moments once into the unchanged fitting basis.
+- [x] Retain physical cofactor-gradient polynomials across surface-mode, tolerance, rule, and final-weight cache changes; invalidate on changed field or geometry.
+- [x] Keep Gauss points, GK objects, and the fitting matrix outside the element and quadrature-point loops.
+- [x] Exercise LINE first, then QUAD/TRI, then HEX/TET/WEDGE in main, with independent moments and original/prepared timing comparisons.
+
 Pending production integration after acceptance of this prototype:
 
 - [ ] Move the accepted class into the shared library and retain its records across actual mesh-level classification and assembly loops.

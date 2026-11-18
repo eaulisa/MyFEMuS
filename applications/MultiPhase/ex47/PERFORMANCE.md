@@ -255,3 +255,88 @@ The record itself is 1200 bytes versus 864 bytes before this revision on this AB
 Allocation tracking passes 27 data-reuse, 45 prepared-algebra, 61 quadrature, and 130 selected-surface benchmark rows. Warmed fixed-output paths allocate zero C++ heap objects; vector-returning compatibility wrappers allocate their outputs as before. First preparation and detachment after copying are not included in this steady-state claim. Sloping-boundary convenience restriction constructs a temporary chart; repeated traversal should retain that chart explicitly.
 
 Accuracy includes 4,939,947 stress checks, 100-digit retained-parent references, last-ULP folds in every 3D family, hidden tiny cuts, all supported charts/boundaries, and every selected surface mode. Delta error in the translated near-double-root test decreases from 1.318e-11 to 1.085e-19; maximum last-ULP fold density error is 1.882e-17. See [VALIDATION](VALIDATION.md) for exact scope and sanitizer results.
+
+
+## Local weight-class comparison
+
+This compares the production `::CutFemWeight_LS` with the local `Ex47::CutFemWeight_LS`. GCC Release flags are `-O2 -DNDEBUG`, and fitting arithmetic is long double. Both objects retain their Gauss points and unchanged multiprecision-built fitting operator outside the timed loops. Every timed call clears the final-weight cache. Two different prepared element records alternate; the geometry/metric must refresh when changing fields. The five interleaved runs report medians. No compilation or sanitizer process runs concurrently with these measurements.
+
+The 2D/3D fixtures contain closed reference circles/spheres strictly inside each element and an explicitly non-affine physical map. These timings describe that demanding closed-surface fixture. LINE uses two distinct quadratic nodal fields. All benchmark checksums agree with production within the stated comparison tolerances.
+
+Entries below are production time divided by prepared time, over the tested degrees: values above 1 mean faster; values below 1 mean slower.
+
+| Element | Delta | Reference surface | Physical surface | Tangential | Three normals |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| LINE3 | 5.79–11.50× | 5.56–9.14× | 5.29–7.30× | 4.92–9.19× | — |
+| QUAD9 | 0.89–0.95× | 1.28–1.29× | 1.91–2.05× | 1.91–2.04× | — |
+| TRI7 | 1.02–1.06× | 1.42–1.42× | 1.81–1.83× | 1.92–1.95× | — |
+| HEX27 | 0.84–0.94× | 1.24–1.30× | 2.98–4.55× | 3.09–3.24× | 3.61–3.92× |
+| TET15 | 0.96–0.96× | 1.26–1.84× | 4.09–4.58× | 4.36–4.73× | 5.45–7.19× |
+| WEDGE21 | 1.07–1.25× | 1.86–1.87× | 4.11–4.15× | 3.69–4.07× | 4.49–4.83× |
+
+Physical/tangential and normal-family requests improve substantially. Raw delta remains 4–19% slower in some QUAD/HEX/TET cases; TRI/WEDGE are neutral or faster. The native-coordinate path and retained sensitive-root information preserve small cuts, but they do not produce a universal runtime improvement. This prototype is therefore not an automatic production switch. A shared traversal for all three normal components remains pending; the measured normal-family method performs three selected integrations and reuses its metric/positive weights.
+
+The local integration prepares all full-strip Gauss rules and shared GK rule objects before weight integration. It reuses prepared data, derivative/projection caches, LINE topology, and native physical metric polynomials. Sensitive ancestor fibers are contracted directly in compensated arithmetic, without approximation or three repeated whole-polynomial evaluations. Full adaptive integration still uses vector workspaces and makes allocations; the zero-allocation claims in earlier kernel sections do not apply to the complete weight integration.
+
+Absolute median times in microseconds are given below. LINE includes degrees 2, 5, and 10; all other elements include degrees 2 and 5.
+
+| Element | Degree | Measure | Production µs | Prepared µs | Speed ratio |
+| --- | ---: | --- | ---: | ---: | ---: |
+| LINE3 | 2 | delta | 5.456 | 0.474 | 11.505× |
+| LINE3 | 2 | reference | 5.697 | 0.623 | 9.140× |
+| LINE3 | 2 | physical | 6.285 | 0.875 | 7.184× |
+| LINE3 | 2 | tangential | 5.629 | 0.612 | 9.193× |
+| LINE3 | 5 | delta | 5.871 | 0.613 | 9.580× |
+| LINE3 | 5 | reference | 6.185 | 0.852 | 7.259× |
+| LINE3 | 5 | physical | 6.092 | 0.834 | 7.303× |
+| LINE3 | 5 | tangential | 6.158 | 0.860 | 7.157× |
+| LINE3 | 10 | delta | 7.495 | 1.295 | 5.787× |
+| LINE3 | 10 | reference | 7.389 | 1.330 | 5.556× |
+| LINE3 | 10 | physical | 7.491 | 1.416 | 5.291× |
+| LINE3 | 10 | tangential | 7.484 | 1.520 | 4.923× |
+| QUAD9 | 2 | delta | 440.421 | 495.564 | 0.889× |
+| QUAD9 | 2 | reference | 724.346 | 565.275 | 1.281× |
+| QUAD9 | 2 | physical | 1125.108 | 549.992 | 2.046× |
+| QUAD9 | 2 | tangential | 1137.749 | 557.879 | 2.039× |
+| QUAD9 | 5 | delta | 516.450 | 542.836 | 0.951× |
+| QUAD9 | 5 | reference | 751.381 | 581.444 | 1.292× |
+| QUAD9 | 5 | physical | 1139.707 | 596.066 | 1.912× |
+| QUAD9 | 5 | tangential | 1175.590 | 614.758 | 1.912× |
+| TRI7 | 2 | delta | 1296.684 | 1266.932 | 1.023× |
+| TRI7 | 2 | reference | 1982.807 | 1400.326 | 1.416× |
+| TRI7 | 2 | physical | 5887.096 | 3216.398 | 1.830× |
+| TRI7 | 2 | tangential | 3090.777 | 1612.943 | 1.916× |
+| TRI7 | 5 | delta | 1439.914 | 1364.717 | 1.055× |
+| TRI7 | 5 | reference | 2112.825 | 1487.732 | 1.420× |
+| TRI7 | 5 | physical | 2967.841 | 1635.936 | 1.814× |
+| TRI7 | 5 | tangential | 6077.175 | 3119.516 | 1.948× |
+| HEX27 | 2 | delta | 25152.567 | 29949.017 | 0.840× |
+| HEX27 | 2 | reference | 38305.100 | 29442.036 | 1.301× |
+| HEX27 | 2 | physical | 137801.930 | 30316.367 | 4.545× |
+| HEX27 | 2 | tangential | 98213.886 | 30352.890 | 3.236× |
+| HEX27 | 2 | normal family | 346939.680 | 88607.343 | 3.915× |
+| HEX27 | 5 | delta | 27206.716 | 28801.361 | 0.945× |
+| HEX27 | 5 | reference | 41050.532 | 33102.370 | 1.240× |
+| HEX27 | 5 | physical | 100228.210 | 33668.516 | 2.977× |
+| HEX27 | 5 | tangential | 102229.120 | 33098.897 | 3.089× |
+| HEX27 | 5 | normal family | 306261.250 | 84874.187 | 3.608× |
+| TET15 | 2 | delta | 72416.759 | 75345.529 | 0.961× |
+| TET15 | 2 | reference | 146141.110 | 79315.215 | 1.843× |
+| TET15 | 2 | physical | 828222.470 | 180694.390 | 4.584× |
+| TET15 | 2 | tangential | 405096.780 | 85716.464 | 4.726× |
+| TET15 | 2 | normal family | 1698011.100 | 236297.370 | 7.186× |
+| TET15 | 5 | delta | 79188.933 | 82534.198 | 0.959× |
+| TET15 | 5 | reference | 163616.360 | 130088.920 | 1.258× |
+| TET15 | 5 | physical | 428402.470 | 104624.560 | 4.095× |
+| TET15 | 5 | tangential | 426234.700 | 97689.477 | 4.363× |
+| TET15 | 5 | normal family | 1367812.800 | 250971.640 | 5.450× |
+| WEDGE21 | 2 | delta | 86240.694 | 69027.144 | 1.249× |
+| WEDGE21 | 2 | reference | 140906.200 | 75503.012 | 1.866× |
+| WEDGE21 | 2 | physical | 323080.650 | 78603.611 | 4.110× |
+| WEDGE21 | 2 | tangential | 570376.210 | 139992.770 | 4.074× |
+| WEDGE21 | 2 | normal family | 1609862.000 | 358150.360 | 4.495× |
+| WEDGE21 | 5 | delta | 73677.757 | 68781.466 | 1.071× |
+| WEDGE21 | 5 | reference | 136847.390 | 73721.110 | 1.856× |
+| WEDGE21 | 5 | physical | 589133.510 | 141839.650 | 4.154× |
+| WEDGE21 | 5 | tangential | 367380.700 | 99666.227 | 3.686× |
+| WEDGE21 | 5 | normal family | 1050922.700 | 217566.820 | 4.830× |

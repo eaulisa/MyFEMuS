@@ -141,7 +141,7 @@ class CutFemLevelSetData {
       return _revision;
     }
     int GetPhase() const {
-      RequireInitialized();
+      Classify();
       return _phase;
     }
     bool IsCutCandidate() const {
@@ -152,7 +152,7 @@ class CutFemLevelSetData {
       return _degenerate;
     }
     std::string GetClassification() const {
-      RequireInitialized();
+      Classify();
       return _classification;
     }
     bool HasPowerCoefficients() const {
@@ -299,6 +299,7 @@ class CutFemLevelSetData {
       result.fill(0);
       for(unsigned axis = 0; axis < _rootDimension; ++axis) result[axis] = EvaluateUnchecked(GetRootDerivative(axis).data(),_dimension,2,point.data());
     }
+    const std::vector<long double>& GetRootDerivativeCoefficients(unsigned axis) const { return GetRootDerivative(axis); }
 
     std::array<long double, 2> GetDerivativeBounds(unsigned axis) const {
       RequireInitialized();
@@ -365,6 +366,7 @@ class CutFemLevelSetData {
     void TransformParentComponents(unsigned degree, const std::vector<std::vector<long double>>& components, unsigned& outputDegree, std::vector<std::vector<long double>>& output) const;
     const FiberProjection& GetFiberProjection(unsigned axis) const;
     const std::vector<long double>& GetUnitPowerCoefficients() const;
+    static void ExpandNodalPolynomial(GeomElType geometry, const std::vector<long double>& nodal, std::vector<long double>& coefficient) { ValidateGeometry(geometry); if(nodal.size() != NodeCount(geometry)) throw std::invalid_argument("Incorrect nodal polynomial size."); for(long double value : nodal) if(!std::isfinite(value)) throw std::invalid_argument("Nodal polynomial values must be finite."); ExpandNative(geometry,nodal,coefficient); }
     long double GetUnitToReferenceMeasureScale() const;
     long double EvaluateFiberDiscriminant(unsigned axis, const std::vector<long double>& point) const;
     long double EvaluateFiberDiscriminant(unsigned axis, long double point) const;
@@ -414,12 +416,16 @@ class CutFemLevelSetData {
     unsigned GetLineRoots(std::array<long double,2>& roots) const;
     const LineAnalysis& GetLineAnalysis() const;
 
-    long double GetLineDeltaFactor(const LineRoot& root) const {
-      RequireInitialized();
-      if(_dimension != 1) throw std::logic_error("A root density requires line data.");
+    static long double GetRegularRootDeltaFactor(const LineRoot& root) {
       if(!std::isfinite(root.coordinate) || !std::isfinite(root.derivative)) throw std::invalid_argument("Root data must be finite.");
       if(root.multiplicity != 1 || root.derivative == 0) throw std::domain_error("A singular line root requires endpoint handling.");
       return 1/std::abs(root.derivative);
+    }
+
+    long double GetLineDeltaFactor(const LineRoot& root) const {
+      RequireInitialized();
+      if(_dimension != 1) throw std::logic_error("A root density requires line data.");
+      return GetRegularRootDeltaFactor(root);
     }
 
     long double EvaluateLine(long double coordinate) const { EnsurePower(); ValidateLineCoordinate(coordinate); return EvaluateQuadratic(_power.data(),1,coordinate); }
@@ -815,7 +821,7 @@ class CutFemLevelSetData {
       _bernsteinExtrema = {minimum,maximum};
       _bernsteinPadding = inheritedPadding+8192*std::numeric_limits<long double>::epsilon()*norm;
     }
-    void Classify();
+    void Classify() const;
     const std::vector<long double>& GetRootDerivative(unsigned axis) const {
       if(axis >= _rootDimension) throw std::out_of_range("Root derivative axis exceeds the original dimension.");
       if(!_rootGradientAvailable) throw std::logic_error("This slice omitted original-gradient context; restrict again from a prepared ancestor.");
@@ -857,6 +863,8 @@ class CutFemLevelSetData {
 
     void InvalidateAnalysis();
     void EnsureSource() const;
+    void MapCompensatedSourcePoint(const std::array<long double,3>& coordinate, std::array<std::array<long double,2>,3>& point, std::array<std::array<long double,2>,3>* direction = nullptr, unsigned axis = 0) const;
+    void GetCompensatedFiberCoefficients(unsigned axis, const std::array<long double,3>& coordinate, std::array<std::array<long double,2>,3>& coefficient) const;
     void GetCompensatedLineCoefficients(std::array<std::array<long double,2>,3>& coefficient) const;
     std::array<long double,2> CompensatedSourceValue(const std::array<long double,3>& point) const;
     static std::array<long double,2> CompensatedAdd(const std::array<long double,2>& first, const std::array<long double,2>& second);
@@ -904,7 +912,7 @@ class CutFemLevelSetData {
     bool _initialized = false;
     bool _root = false;
     bool _rootGradientAvailable = true;
-    bool _classified = false;
+    mutable bool _classified = false;
     bool _degenerate = false;
     GeomElType _geometry = LINE;
     unsigned _dimension = 0;
@@ -915,8 +923,8 @@ class CutFemLevelSetData {
     std::uint64_t _elementId = 0;
     std::uint64_t _nodalVersion = 0;
     std::uint64_t _revision = 0;
-    int _phase = 0;
-    std::string _classification = "uninitialized";
+    mutable int _phase = 0;
+    mutable std::string _classification = "uninitialized";
     std::vector<double> _nodalValues;
     mutable bool _powerReady = false;
     mutable bool _bernsteinReady = false;
@@ -1149,7 +1157,7 @@ inline void CutFemLevelSetData::EnsureBernstein() const {
   ++_workCounts[1];
 }
 
-inline void CutFemLevelSetData::Classify() {
+inline void CutFemLevelSetData::Classify() const {
   RequireInitialized();
   if(_classified) return;
   bool positive = false;
@@ -1539,7 +1547,6 @@ inline void CutFemLevelSetData::Restrict(unsigned axis, long double coordinate, 
   }
   RestrictBernstein(axis, coordinate, child);
   PropagateBoundaryData(axis,coordinate,child);
-  child.Classify();
   ++_workCounts[3];
 }
 
