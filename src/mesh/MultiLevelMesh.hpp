@@ -140,6 +140,16 @@ namespace femus {
         double curvature,
         const char GaussOrder[]);
 
+      void EnableMetisLevelSelectivePartitioning(const unsigned levelC){
+        _metisSelectivePartitioning = true;
+        _metisLevel = levelC;
+      };
+
+      void DisableMetisLevelSelectivePartitioning(){
+        _metisSelectivePartitioning = false;
+        _metisLevel = 0;
+      };
+
     protected:
 
     private:
@@ -162,6 +172,9 @@ namespace femus {
 
       /** Domain (optional) */
       Domain* _domain;
+
+      bool _metisSelectivePartitioning = false;
+      unsigned _metisLevel = 0;
   };
 
 } //end namespace femus

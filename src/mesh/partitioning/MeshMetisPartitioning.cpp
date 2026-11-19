@@ -55,6 +55,14 @@ namespace femus {
 
     std::vector<idx_t> epart(nelem);
 
+    std::vector<int> weight (nelem, 1);
+    if(_mesh.GetMetisSelectivePartitioning()) {
+      unsigned levelC = _mesh.GetMetisLevel();
+      for(unsigned iel = 0; iel < nelem; iel++) {
+        weight[iel] = (_mesh.el->GetElementLevel(iel) <= levelC)? 1 : pow(100, _mesh.el->GetElementLevel(iel) - levelC);
+      }
+    }
+
     //========================================================================
     // Trivial cases
     //========================================================================
@@ -1079,7 +1087,7 @@ namespace femus {
                     &nnodes,
                     eptr.data(),
                     eind.data(),
-                    NULL,
+                    weight.data(),//NULL,
                     NULL,
                     &ncommon,
                     &nparts,

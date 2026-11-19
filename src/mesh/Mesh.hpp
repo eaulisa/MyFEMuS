@@ -265,8 +265,8 @@ namespace femus {
       void EnforceOneLevelAMR(std::vector<double> &localizedAmrVector, bool vectorIsInitialized = false);
 
       void BuildSingleElement(const GeomElType geometry,
-                                const std::array<double, 3>& lo,
-                                const std::array<double, 3>& hi);
+                              const std::array<double, 3>& lo,
+                              const std::array<double, 3>& hi);
 
       void CurveSingleElementAnalyticBall(
         const std::array<double, 3>& center,
@@ -284,6 +284,20 @@ namespace femus {
         const std::array<double, 3>& center,
         double curvature,
         const std::array<double, 3>& x);
+
+      void EnableMetisLevelSelectivePartitioning(const unsigned levelC) {
+        _metisSelectivePartitioning = true;
+        _metisLevel = levelC;
+      };
+
+      void DisableMetisLevelSelectivePartitioning() {
+        _metisSelectivePartitioning = false;
+        _metisLevel = 0;
+      };
+
+
+      bool GetMetisSelectivePartitioning(){return _metisSelectivePartitioning;}
+      unsigned GetMetisLevel(){return _metisLevel;}
 
     private:
       /** Coarser mesh from which this mesh is generated, it equals NULL if _level = 0 */
@@ -331,6 +345,9 @@ namespace femus {
       std::vector < std::map < unsigned, bool > > _amrSolidMark;
 
       double _cLenght;
+
+      bool _metisSelectivePartitioning = false;
+      unsigned _metisLevel = 0;
   };
 
 } //end namespace femus

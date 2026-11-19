@@ -9,7 +9,7 @@ set -euo pipefail
 # MPI
 # ------------------------------------------------------------
 
-NPROC=1
+NPROC=24
 NPRINT=1000
 NREINIT=1
 
@@ -18,7 +18,7 @@ NREINIT=1
 # ------------------------------------------------------------
 
 DIM=2
-SIMULATION="par"
+SIMULATION="rb2"
 SYMMETRIC=0
 AXISYMMETRIC=0
 ELTYPE=4
@@ -27,8 +27,8 @@ ELTYPE=4
 # Grid configurations
 # ------------------------------------------------------------
 
-UNIFORM_LEVELS=(2)
-ADAPTIVE_LEVELS=(6)
+UNIFORM_LEVELS=(6)
+ADAPTIVE_LEVELS=(2)
 LEVEL_OFFSET=2
 
 # ------------------------------------------------------------

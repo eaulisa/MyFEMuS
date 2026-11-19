@@ -329,9 +329,12 @@ int main(int argc, char **argv) {
     const unsigned levelC = levelF - levelOffset; //coarse level associated to mlmsh2, but existing also mlmsh0 and mlmsh1
     const unsigned level0 = 0;
 
+    bool enableMetisLevelPartitioning = true;
+
     for (const unsigned nSteps : nStepsList) {
 
       MultiLevelMesh mlMsh0;
+      if(enableMetisLevelPartitioning) mlMsh0.EnableMetisLevelSelectivePartitioning(levelC);
       std::string meshName = (requestedDim == 3) ? /*"./input/cube_01_unstruct.neu"*/ "./input/cube_01_struct_tet10.neu" : "./input/unstructured_RB_tri_h8.neu";
       if (elementType == TET /*|| elementType == TRI*/) {
         mlMsh0.ReadCoarseMesh(meshName.c_str(), "seventh", (requestedDim == 3) ? 0.1 : 1);
@@ -445,6 +448,7 @@ int main(int argc, char **argv) {
       std::vector<std::string> variablesToBePrinted = {"All"};
 
       MultiLevelMesh mlMsh1;
+      if(enableMetisLevelPartitioning) mlMsh1.EnableMetisLevelSelectivePartitioning(levelC);
       MultiLevelSolution mlSol1;
 
       MultiLevelMesh *mlmsh0 = &mlMsh0;
@@ -1196,7 +1200,10 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
   double A = 0.;
   double Per = 0.;
 
+
+
   for (unsigned l = levelC; l <= levelF; ++l) {
+
     Solution* sol0 = mlSol0->GetLevel(l);
 
     Mesh* msh = sol0->GetMesh();
