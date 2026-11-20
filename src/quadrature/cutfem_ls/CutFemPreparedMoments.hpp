@@ -35,6 +35,7 @@ inline void IntegrateLine(const CutFemLevelSetData& data, unsigned degree, bool 
 struct PreparedMomentWorkspace {
   PreparedPlane plane;
   SurfaceEndpointData surface;
+  EndpointProjection projection;
   PreparedStatistics statistics;
   CutFemLevelSetData chart;
   std::vector<double> chartNodes;
@@ -168,10 +169,12 @@ inline void IntegrateSpatial(const CutFemLevelSetData& source, unsigned degree, 
   data.prepared = field;
   data.physicalMetric = metric;
   data.metricDegree = metricDegree;
+  data.metricRevision = workspace.metricRevision;
   data.referenceSurface = referenceSurface;
   data.normalization = normalization;
   data.statistics = &workspace.statistics;
-  data.coefficient = field->GetNormalizedPowerCoefficients();
+  workspace.projection.Bind(*field);
+  data.projection = &workspace.projection;
   data.gradient.clear();
   if(referenceSurface) { if(metric != nullptr) data.gradient = *metric; else { data.gradient.resize(3); for(unsigned component = 0; component < 3; ++component) data.gradient[component] = field->GetRootDerivativeCoefficients(component); } }
   data.degree = degree;

@@ -2230,6 +2230,93 @@ void TestSmallPlanarWeights() {
   }
 }
 
+void TestSpatialSaddleRules() {
+  const unsigned long long warnings = FELevelSetMoments::QuadratureWarningCount();
+  const unsigned mixed = FELevelSetMoments::UnitMomentIndex(3,1,2,2);
+  // Integrate z analytically and apply independent 64-point Gauss rules over the projected footprint.
+  const long double bilinear[3][4] = {{0.71875L,1,0.05275282118055556L,0.02184244791666667L},{0.0727936870837328L,0.2943061940744292L,0.0000690061588288659L,0.000243173464099035L},{0.3802083333333333L,0.5L,0.00546861304521217L,0.00103624131944444L}};
+  const long double enriched[3][4] = {{0.7294742356497174L,0.9749556115585567L,0.0529379522813306L,0.0204537837930863L},{0.0738119799397353L,0.2966959015748630L,0.0000699223961188178L,0.000241367097110740L},{0.3832183865558992L,0.4914423207891095L,0.00547527492800621L,0.000964942754007211L}};
+  const long double normalMass[3][2] = {{-0.1185046611779847L,0.9664309260724567L},{-0.0008407399404926L,0.2917513708221700L},{-0.0202772714562160L,0.4925118499642625L}};
+  // For the two-saddle field integrate each hyperbolic slice in closed form, then integrate its area and log terms in z.
+  const long double symmetric[3][2] = {{0.7077883907627655L,3.8249258358738163L},{0.0390238504427917L,1.8992445393542718L},{0.2620746282435050L,3.2673201358615670L}};
+  for(GeomElType geometry : {HEX,TET,WEDGE}) {
+    currentCheck = GeometryName(geometry)+" logarithmic saddle quadrature";
+    const std::unique_ptr<femus::basis> basis = MakeBasis(geometry);
+    CutFemWeight_LS<long double,long double> rule(geometry,5,"legendre");
+    CutFemLevelSetData field;
+    std::vector<double> nodal(basis->_nc);
+    std::vector<std::vector<double>> coordinates(3,nodal);
+    for(unsigned n = 0; n < nodal.size(); ++n) for(unsigned d = 0; d < 3; ++d) coordinates[d][n] = UnitNode(*basis,n,d);
+    for(unsigned test = 0; test < (geometry == TET ? 4U : 3U); ++test) {
+      for(unsigned n = 0; n < nodal.size(); ++n) {
+        const double x = coordinates[0][n], y = coordinates[1][n], z = coordinates[2][n];
+        nodal[n] = z-0.25-0.5*(x-0.25)*(y-0.25);
+        if(test == 1) nodal[n] += 2*x*y*z*(geometry == TET ? 1-x-y-z : (1-z)*(geometry == WEDGE ? 1-x-y : (1-x)*(1-y)));
+        if(test == 2) nodal[n] = (x-0.25)*(y-0.25)+(x-0.25)*(z-0.25)+(y-0.25)*(z-0.25)+0.0625*0.0625;
+        if(test == 3) nodal[n] = 1-x-y-z-0.25-0.5*(y-0.25)*(z-0.25);
+      }
+      field.Reset(geometry,nodal);
+      const long double scale = field.GetUnitToReferenceMeasureScale();
+      const long double* expected = test == 1 ? enriched[geometry] : (test == 2 ? symmetric[geometry] : bilinear[geometry]);
+      std::vector<long double> automaticH, automaticD;
+      const unsigned forced = geometry == TET && test != 3 ? 4U : (geometry == WEDGE && test == 2 ? 2U : 1U);
+      for(unsigned direction : {0U,forced}) {
+        rule.SetIntegrationDirection(direction);
+        const unsigned long long logs = FELevelSetMoments::OuterIntervalQuadrature::Statistics(3).logarithmicPanels;
+        std::vector<long double> h, d;
+        rule.GetWeightsFromLevelSetData(field,h,d,1e-8,1e-8);
+        h = FittedWeightMoments(rule,geometry,3,h,5);
+        d = FittedWeightMoments(rule,geometry,3,d,5);
+        Check((FELevelSetMoments::OuterIntervalQuadrature::Statistics(3).logarithmicPanels > logs) == (direction != 0 || test == 2),"graph and saddle select the expected rule");
+        CheckNear(h[0]/scale,expected[0],1e-9L,"independent positive volume");
+        CheckNear(d[0]/scale,expected[1],1e-9L,"independent delta mass");
+        if(test < 2) {
+          CheckNear(h[mixed]/scale,expected[2],1e-9L,"independent degree-five positive moment");
+          CheckNear(d[mixed]/scale,expected[3],1e-9L,"independent degree-five delta moment");
+        }
+        if(direction == 0) { automaticH = h; automaticD = d; }
+        else for(unsigned n = 0; n < h.size(); ++n) { CheckNear(h[n]/scale,automaticH[n]/scale,1e-9L,"positive moments agree across directions"); CheckNear(d[n]/scale,automaticD[n]/scale,1e-9L,"delta moments agree across directions"); }
+      }
+      if(test == 0) {
+        const unsigned long long searches = FELevelSetMoments::SurfaceEndpointIntegration::Statistics().criticalSearches;
+        const unsigned long long plans = FELevelSetMoments::SurfaceEndpointIntegration::Statistics().eventBuilds;
+        std::vector<long double> h, tangential;
+        std::vector<std::vector<long double>> normal;
+        rule.GetTangentialSurfaceWeightsFromLevelSetData(field,coordinates,h,tangential,1e-8,1e-8);
+        rule.GetNormalSurfaceWeightsFromLevelSetData(field,coordinates,h,normal,1e-8,1e-8);
+        CheckNear(FittedWeightMoments(rule,geometry,3,tangential,5)[0]/(scale*scale),normalMass[geometry][1],1e-9L,"independent tangential mass on a saddle projection");
+        for(unsigned d = 0; d < 3; ++d) CheckNear(FittedWeightMoments(rule,geometry,3,normal[d],5)[0]/scale,normalMass[geometry][d == 2],1e-9L,"independent signed normal mass on a saddle projection");
+        Check(FELevelSetMoments::SurfaceEndpointIntegration::Statistics().criticalSearches == searches && FELevelSetMoments::SurfaceEndpointIntegration::Statistics().eventBuilds == plans,"forced projection shared across all weight components");
+      }
+    }
+  }
+  FELevelSetMoments::EndpointProjection projection;
+  CutFemLevelSetData field;
+  unsigned long long searches = 0;
+  std::vector<long double> coefficients(27);
+  coefficients[0] = -0.375L-0.375L*0.375L;
+  coefficients[1] = 1;
+  coefficients[3] = coefficients[9] = 0.375L;
+  coefficients[12] = -1;
+  for(GeomElType geometry : {HEX,TET,WEDGE}) {
+    field.ResetPowerCoefficients(geometry,coefficients);
+    projection.Bind(field);
+    const FELevelSetMoments::EndpointAxisProjection& axis = projection.CriticalPoints(field,2,searches);
+    Check(axis.critical.size() == (geometry == TET ? 0U : 1U),"only saddles inside the reference element are retained");
+  }
+  coefficients[0] = -0.125L-0.375L*0.375L;
+  field.ResetPowerCoefficients(WEDGE,coefficients);
+  projection.Bind(field);
+  CheckNear(projection.CriticalPoints(field,2,searches).critical.at(0).height,0.125L,1e-15L,"changed field refreshes saddle height");
+  coefficients[0] = -0.125L-0.625L*0.625L;
+  coefficients[3] = coefficients[9] = 0.625L;
+  field.ResetPowerCoefficients(WEDGE,coefficients);
+  projection.Bind(field);
+  Check(projection.CriticalPoints(field,2,searches).critical.empty(),"prism excludes the saddle across its sloping face");
+  Check(searches == 5,"projection cache distinguishes element shape and field");
+  Check(FELevelSetMoments::QuadratureWarningCount() == warnings,"spatial saddle rules meet the requested tolerance");
+}
+
 void TestHexSaddleProjection() {
   currentCheck = "HEX27 tangential weights with saddle points in all three projections";
   const std::vector<double> nodal = {-0.00013635390802039783,-0.00064460436066085297,-0.0011683214673039054,0.00010500267777512871,-0.00030361125340942513,0.00069214235526596853,0.0015287449843700938,1.1934081100784282e-05,-8.0977860379127177e-05,-0.00096900392774501663,-0.00063573883900853751,0.00014999234775047162,-0.00015277686883369306,0.0013024057266662083,0.0011367187800165118,-0.00038773668000858705,-0.00065389955078982878,0.00024418757758534298,-8.51184712337801e-05,0.00017688451792260501,6.7841713189283255e-05,8.7424330826183446e-05,0.00015990330642173079,-0.00016207556802104204,-0.00034120090070308828,0.00048832599574893606,0.00021377421661503265};
@@ -2239,8 +2326,10 @@ void TestHexSaddleProjection() {
   CutFemWeight_LS<long double,long double> quadrature(HEX,5,"legendre");
   std::vector<long double> positive, surface;
   const unsigned long long warnings = FELevelSetMoments::QuadratureWarningCount();
+  const unsigned long long searches = FELevelSetMoments::SurfaceEndpointIntegration::Statistics().criticalSearches;
   const unsigned long long logPanels = FELevelSetMoments::OuterIntervalQuadrature::Statistics(3).logarithmicPanels;
   quadrature.GetTangentialSurfaceWeightsFromNodalGeometry(nodal,coordinates,positive,surface,1e-8,1e-8);
+  Check(FELevelSetMoments::SurfaceEndpointIntegration::Statistics().criticalSearches == searches+3,"each of the three outer axes is analyzed once");
   Check(FELevelSetMoments::OuterIntervalQuadrature::Statistics(3).logarithmicPanels > logPanels,"interior saddles use logarithmic quadrature");
   Check(FELevelSetMoments::QuadratureWarningCount() == warnings,"saddle projection meets the requested tolerance");
   const std::vector<long double> h = FittedWeightMoments(quadrature,HEX,3,positive,5), d = FittedWeightMoments(quadrature,HEX,3,surface,5);
@@ -2258,6 +2347,12 @@ void TestHexSaddleProjection() {
   const std::array<long double,3> expectedNormal = {168.65300890836528L,271.57008413395181L,534.28540021517574L};
   for(unsigned axis = 0; axis < 3; ++axis) CheckNear(FittedWeightMoments(quadrature,HEX,3,normals[axis],5)[0]/8,expectedNormal[axis],1e-8L,"signed normal mass");
   Check(FELevelSetMoments::QuadratureWarningCount() == warnings,"signed saddle projections meet the requested tolerance");
+  const unsigned long long plans = FELevelSetMoments::SurfaceEndpointIntegration::Statistics().eventBuilds;
+  std::vector<std::vector<double>> rotated = {coordinates[2],coordinates[0],coordinates[1]};
+  quadrature.GetNormalSurfaceWeightsFromNodalGeometry(nodal,rotated,positive,normals,1e-8,1e-8);
+  for(unsigned axis = 0; axis < 3; ++axis) CheckNear(FittedWeightMoments(quadrature,HEX,3,normals[axis],5)[0]/8,expectedNormal[(axis+2)%3],1e-8L,"rotated signed normal mass");
+  Check(FELevelSetMoments::SurfaceEndpointIntegration::Statistics().criticalSearches == searches+3,"scalar and rotated signed measures reuse all critical points");
+  Check(FELevelSetMoments::SurfaceEndpointIntegration::Statistics().eventBuilds == plans,"rotating the physical map reuses reference event plans");
 
   currentCheck = "HEX27 whole-element outer direction";
   const std::vector<double> twoSaddles = {0.0011137319967982392,-0.00045001059519084603,-0.00097515682293665851,-0.00044996036212267804,0.0010944453954665851,-0.00046172092017875941,-0.00094752956408125589,-0.00046126626498387268,0.00043708252339941863,-0.00047416194807737297,-0.00047334447336950652,0.00043753463971559842,0.0004744843356212895,-0.00043373395702033028,-0.00043289383593618681,0.00047494675803111722,0.00094471009657230037,-0.00072743005977729839,-0.0009410772621390492,-0.00072732978923546558,0.00050921245406149401,-0.00045414287132016754,-0.00045327738702507608,0.00050912104630967091,0.00060012500935635962,0.00020820008447767745,0.00014636136428263074};
@@ -2455,7 +2550,7 @@ int main(int argc, char** argv) {
     if(surfaceBenchmark) { BenchmarkSelectiveSurfaceKernels(); return 0; }
     if(dataBenchmark) { BenchmarkDataReuse(); return 0; }
     if(algebraBenchmark) { BenchmarkPreparedAlgebra(); return 0; }
-    if(weightTests) { TestReviewedWeightState(); if(weightDimension == 0 || weightDimension == 1) TestLineWeightIntegration(); if(weightDimension == 0 || weightDimension == 2) { TestBallWeightIntegration(2); TestElementWeightOptions(2); TestSmallPlanarWeights(); } if(weightDimension == 0 || weightDimension == 3) { TestBallWeightIntegration(3); TestElementWeightOptions(3); TestHexSaddleProjection(); TestCenteredNormalWeights(); TestHighDegreePreparedMoments(); } std::cout << "weight checks passed: " << checks << '\n'; return 0; }
+    if(weightTests) { TestReviewedWeightState(); if(weightDimension == 0 || weightDimension == 1) TestLineWeightIntegration(); if(weightDimension == 0 || weightDimension == 2) { TestBallWeightIntegration(2); TestElementWeightOptions(2); TestSmallPlanarWeights(); } if(weightDimension == 0 || weightDimension == 3) { TestBallWeightIntegration(3); TestElementWeightOptions(3); TestHexSaddleProjection(); TestSpatialSaddleRules(); TestCenteredNormalWeights(); TestHighDegreePreparedMoments(); } std::cout << "weight checks passed: " << checks << '\n'; return 0; }
     if(weightBenchmark) { if(weightDimension == 0 || weightDimension == 1) BenchmarkLineWeights(); if(weightDimension == 0 || weightDimension == 2) BenchmarkElementWeights(2); if(weightDimension == 0 || weightDimension == 3) BenchmarkElementWeights(3); return 0; }
     std::mt19937 random(470013);
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();

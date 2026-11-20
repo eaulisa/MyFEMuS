@@ -18,6 +18,7 @@ struct SurfaceEndpointStatistics {
   unsigned long long triCalls = 0;
   unsigned long long outerSamples = 0;
   unsigned long long eventBuilds = 0;
+  unsigned long long criticalSearches = 0;
   unsigned long long integrationPasses = 0;
   unsigned long long acceptedComponents = 0;
   unsigned long long skippedComponents = 0;
@@ -37,6 +38,7 @@ struct SurfaceEndpointData {
   const CutFemLevelSetData* prepared = nullptr;
   const std::vector<std::vector<long double>>* physicalMetric = nullptr;
   unsigned metricDegree = 0;
+  unsigned long long metricRevision = 0;
   bool referenceSurface = false;
   long double normalization = 1;
   CutFemLevelSetData slice;
@@ -44,7 +46,7 @@ struct SurfaceEndpointData {
   PreparedStatistics* statistics = nullptr;
   std::vector<std::vector<long double>> sliceMetric;
   std::vector<std::vector<std::vector<long double>>> slicePolicy;
-  std::vector<long double> coefficient;
+  EndpointProjection* projection = nullptr;
   std::vector<std::vector<long double>> gradient;
   std::vector<std::array<unsigned,3>> powers;
   unsigned degree = 0;
@@ -191,15 +193,21 @@ public:
   }
 
   // A signed normal component weights the logarithm by its projection on the physical unit normal at the saddle.
-  static bool HasWeightedSaddle(const SurfaceEndpointData& data, unsigned outer, const std::vector<EndpointCriticalPoint>& criticalPoints) {
-    for(const EndpointCriticalPoint& critical : criticalPoints) if(critical.saddle) {
-      if(data.normalComponent < 0) return true;
-      if(data.physicalMetric == nullptr) return static_cast<unsigned>(data.normalComponent) == outer;
-      std::array<long double,3> normal;
-      for(unsigned d = 0; d < 3; ++d) normal[d] = std::abs(CutFemLevelSetData::EvaluatePolynomial((*data.physicalMetric)[d],3,data.metricDegree,critical.point));
-      if(normal[data.normalComponent] >= *std::max_element(normal.begin(),normal.end())) return true;
+  static bool HasWeightedSaddle(const SurfaceEndpointData& data, unsigned outer, EndpointAxisProjection& projection) {
+    if(!projection.hasSaddle || data.normalComponent < 0) return projection.hasSaddle;
+    if(data.physicalMetric == nullptr) return static_cast<unsigned>(data.normalComponent) == outer;
+    if(projection.normalMetric != data.physicalMetric || projection.metricRevision != data.metricRevision) {
+      projection.dominant.fill(false);
+      for(const EndpointCriticalPoint& critical : projection.critical) if(critical.saddle) {
+        std::array<long double,3> normal;
+        for(unsigned d = 0; d < 3; ++d) normal[d] = std::abs(CutFemLevelSetData::EvaluatePolynomial((*data.physicalMetric)[d],3,data.metricDegree,critical.point));
+        const long double largest = *std::max_element(normal.begin(),normal.end());
+        for(unsigned d = 0; d < 3; ++d) if(normal[d] >= largest) projection.dominant[d] = true;
+      }
+      projection.normalMetric = data.physicalMetric;
+      projection.metricRevision = data.metricRevision;
     }
-    return false;
+    return projection.dominant[data.normalComponent];
   }
 
   static bool Independent(const SurfaceEndpointData& data, unsigned axis) {
@@ -309,9 +317,7 @@ public:
     std::vector<unsigned> axes;
     for(unsigned axis = 0; axis < 3; ++axis) if(axis != inner) axes.push_back(axis);
     for(unsigned i = 0; i < axes.size(); ++i) for(unsigned j = i+1U; j < axes.size(); ++j) if((axes[j] == data.preferredOuter) || (axes[i] != data.preferredOuter && energy[axes[j]] < energy[axes[i]])) std::swap(axes[i],axes[j]);
-    std::array<std::vector<EndpointCriticalPoint>,3> criticalPoints;
-    const bool saddleSearch = inner == 3 && !cell.tetrahedron && !cell.wedge;
-    if(saddleSearch && data.preferredOuter < 3) EndpointProjection::HexCriticalPoints(*data.prepared,data.preferredOuter,criticalPoints[data.preferredOuter]);
+    const bool saddleSearch = inner == 3;
     unsigned unchecked = axes.size();
     if(saddleSearch && data.preferredOuter == 3 && costlyOuter < 3) {
       const std::vector<unsigned>::iterator previous = std::find(axes.begin(),axes.end(),costlyOuter);
@@ -326,8 +332,9 @@ public:
     for(unsigned attempt = 0; attempt < axes.size(); ++attempt) {
       while(saddleSearch && data.preferredOuter == 3 && attempt < unchecked) {
         const unsigned candidate = axes[attempt];
-        EndpointProjection::HexCriticalPoints(*data.prepared,candidate,criticalPoints[candidate]);
-        if(costlyOuter < 3 || !HasWeightedSaddle(data,candidate,criticalPoints[candidate])) break;
+        if(costlyOuter < 3 || !data.prepared->DependsOn(candidate)) break;
+        EndpointAxisProjection& projection = data.projection->CriticalPoints(*data.prepared,candidate,Statistics().criticalSearches);
+        if(!HasWeightedSaddle(data,candidate,projection)) break;
         std::rotate(axes.begin()+attempt,axes.begin()+attempt+1,axes.end());
         --unchecked;
       }
@@ -363,8 +370,7 @@ public:
           ++data.accepted;
         }
         else {
-          ++Statistics().eventBuilds;
-          const std::vector<EndpointProjectionEvent> events = EndpointProjection::Build(data.coefficient,cell.tetrahedron,outer,inner < 3 ? inner : data.preferredInner,inner < 3,cell.wedge,data.prepared,criticalPoints[outer]);
+          const std::vector<EndpointProjectionEvent>& events = data.projection->Events(*data.prepared,outer,inner < 3 ? inner : data.preferredInner,inner < 3,Statistics().criticalSearches,Statistics().eventBuilds);
           const long double budget = data.domainVolume/(events.size()-1U);
           for(unsigned n = 1; n < events.size(); ++n) {
             const long double left = events[n-1U].point;
@@ -419,7 +425,7 @@ public:
     values.assign(2U*count,0.0L);
     errors.assign(2U*count,0.0L);
     long double norm = 0.0L;
-    for(unsigned n = 0; n < data.coefficient.size(); ++n) norm += std::abs(data.coefficient[n]);
+    for(long double value : data.prepared->GetNormalizedPowerCoefficients()) norm += std::abs(value);
     if(norm == 0.0L) {
       if(data.computeDelta) throw std::domain_error("The delta of an identically zero 3D field is undefined.");
       const std::vector<unsigned char> active(2U*count,1);
@@ -477,7 +483,7 @@ public:
         return;
       }
       // When a signed projection costs more than the remaining budget, retry the unresolved moments on a different axis.
-      if(pass == 0 && data.normalComponent >= 0 && !cell.tetrahedron && !cell.wedge && data.graphAxis == 3 && data.preferredOuter == 3 && data.outerCounts[0]+data.outerCounts[1]+data.outerCounts[2] == 1 && data.evaluations > data.maximumEvaluations-data.evaluations) {
+      if(pass == 0 && data.normalComponent >= 0 && data.graphAxis == 3 && data.preferredOuter == 3 && data.outerCounts[0]+data.outerCounts[1]+data.outerCounts[2] == 1 && data.evaluations > data.maximumEvaluations-data.evaluations) {
         for(unsigned axis = 0; axis < 3; ++axis) if(data.outerCounts[axis] != 0) costlyOuter = axis;
       }
       else budgetFactor /= std::max(2.0L,2.0L*worst);
