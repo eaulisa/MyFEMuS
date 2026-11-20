@@ -2230,6 +2230,28 @@ void TestSmallPlanarWeights() {
   }
 }
 
+void TestHexSaddleProjection() {
+  currentCheck = "HEX27 tangential weights with saddle points in all three projections";
+  const std::vector<double> nodal = {-0.00013635390802039783,-0.00064460436066085297,-0.0011683214673039054,0.00010500267777512871,-0.00030361125340942513,0.00069214235526596853,0.0015287449843700938,1.1934081100784282e-05,-8.0977860379127177e-05,-0.00096900392774501663,-0.00063573883900853751,0.00014999234775047162,-0.00015277686883369306,0.0013024057266662083,0.0011367187800165118,-0.00038773668000858705,-0.00065389955078982878,0.00024418757758534298,-8.51184712337801e-05,0.00017688451792260501,6.7841713189283255e-05,8.7424330826183446e-05,0.00015990330642173079,-0.00016207556802104204,-0.00034120090070308828,0.00048832599574893606,0.00021377421661503265};
+  const std::unique_ptr<femus::basis> basis = MakeBasis(HEX);
+  std::vector<std::vector<double>> coordinates(3,std::vector<double>(nodal.size()));
+  for(unsigned n = 0; n < nodal.size(); ++n) for(unsigned axis = 0; axis < 3; ++axis) coordinates[axis][n] = basis->GetXcoarse(n)[axis]/1280;
+  CutFemWeight_LS<long double,long double> quadrature(HEX,5,"legendre");
+  std::vector<long double> positive, surface;
+  const unsigned long long warnings = FELevelSetMoments::QuadratureWarningCount();
+  quadrature.GetTangentialSurfaceWeightsFromNodalGeometry(nodal,coordinates,positive,surface,1e-8,1e-8);
+  Check(FELevelSetMoments::QuadratureWarningCount() == warnings,"saddle projection meets the requested tolerance");
+  const std::vector<long double> h = FittedWeightMoments(quadrature,HEX,3,positive,5), d = FittedWeightMoments(quadrature,HEX,3,surface,5);
+  const unsigned xy = FELevelSetMoments::UnitMomentIndex(3,1,1,0), z5 = FELevelSetMoments::UnitMomentIndex(3,0,0,5);
+  // Independent fixed-order graph quadrature on element 69612, in unit coordinates.
+  CheckNear(h[0]/8,0.58600081172474183L,1e-8L,"positive volume");
+  CheckNear(d[0]/8,6333983265621.4111L,1e-8L,"tangential mass");
+  CheckNear(h[xy]/8,0.15367998129365718L,1e-8L,"mixed positive moment");
+  CheckNear(d[xy]/8,677258555576.12524L,1e-8L,"mixed tangential moment");
+  CheckNear(h[z5]/8,0.12996399549813537L,1e-8L,"degree-five positive moment");
+  CheckNear(d[z5]/8,199241442653.80463L,1e-8L,"degree-five tangential moment");
+}
+
 void TestCenteredNormalWeights() {
   currentCheck = "centered sphere signed-normal parity";
   CutFemWeight_LS<long double,boost::multiprecision::cpp_bin_float_quad> quadrature(HEX,2,"legendre");
@@ -2407,7 +2429,7 @@ int main(int argc, char** argv) {
     if(surfaceBenchmark) { BenchmarkSelectiveSurfaceKernels(); return 0; }
     if(dataBenchmark) { BenchmarkDataReuse(); return 0; }
     if(algebraBenchmark) { BenchmarkPreparedAlgebra(); return 0; }
-    if(weightTests) { TestReviewedWeightState(); if(weightDimension == 0 || weightDimension == 1) TestLineWeightIntegration(); if(weightDimension == 0 || weightDimension == 2) { TestBallWeightIntegration(2); TestElementWeightOptions(2); TestSmallPlanarWeights(); } if(weightDimension == 0 || weightDimension == 3) { TestBallWeightIntegration(3); TestElementWeightOptions(3); TestCenteredNormalWeights(); TestHighDegreePreparedMoments(); } std::cout << "weight checks passed: " << checks << '\n'; return 0; }
+    if(weightTests) { TestReviewedWeightState(); if(weightDimension == 0 || weightDimension == 1) TestLineWeightIntegration(); if(weightDimension == 0 || weightDimension == 2) { TestBallWeightIntegration(2); TestElementWeightOptions(2); TestSmallPlanarWeights(); } if(weightDimension == 0 || weightDimension == 3) { TestBallWeightIntegration(3); TestElementWeightOptions(3); TestHexSaddleProjection(); TestCenteredNormalWeights(); TestHighDegreePreparedMoments(); } std::cout << "weight checks passed: " << checks << '\n'; return 0; }
     if(weightBenchmark) { if(weightDimension == 0 || weightDimension == 1) BenchmarkLineWeights(); if(weightDimension == 0 || weightDimension == 2) BenchmarkElementWeights(2); if(weightDimension == 0 || weightDimension == 3) BenchmarkElementWeights(3); return 0; }
     std::mt19937 random(470013);
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
