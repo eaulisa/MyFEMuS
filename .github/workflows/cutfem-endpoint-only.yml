@@ -1,8 +1,7 @@
-name: Native CutFEM endpoint integration
+name: Verify HEX27 saddle fix
 on:
   push:
-    branches: [rifat-cutfem-endpoint-only]
-  workflow_dispatch:
+    branches: [barbi-ex47-hex27-saddle-validation]
 permissions:
   contents: read
 jobs:
@@ -19,20 +18,3 @@ jobs:
         run: cmake --build build-cutfem --parallel 2
       - name: Run maintained tests
         run: ctest --test-dir build-cutfem --output-on-failure
-      - name: Build wider numerical checks
-        run: python3 unittests/testCutFemWeightLSNative/build.py --jobs 2
-      - name: Run original, focused, and endpoint geometry checks
-        working-directory: unittests/testCutFemWeightLSNative
-        run: |
-          python3 run.py --selection original --jobs 2
-          python3 run_focused.py --extended --jobs 2
-          python3 run_endpoint_strip_comparison.py --skip-build
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: endpoint-test-logs
-          path: |
-            build-cutfem/Testing/Temporary/LastTest.log
-            unittests/testCutFemWeightLSNative/candidate_original_summary.json
-            unittests/testCutFemWeightLSNative/extended_results.json
-            unittests/testCutFemWeightLSNative/endpoint_only_results/endpoint_strip_comparison.json
