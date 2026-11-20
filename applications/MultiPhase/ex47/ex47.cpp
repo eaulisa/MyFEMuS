@@ -1583,6 +1583,19 @@ void TestProjectionAndGraphData(unsigned cases, std::mt19937& random) {
   for(unsigned n = 0; n < 9; ++n) { const double* point = basis->GetXcoarse(n); nodal[n] = point[0]*((point[1]-0.2)*(point[1]-0.2)+0.03); }
   CutFemLevelSetData tight(QUAD,nodal);
   Check(tight.GetDerivativeBounds(0)[0] < 0 && tight.GetGraphCertificate(0).bounds[0] > 0.029L && tight.GetGraphDirection() == 0,"tight quadratic extrema certify a graph missed by Bernstein");
+  const std::unique_ptr<femus::basis> hexBasis = MakeBasis(HEX);
+  std::vector<double> hexNodes(hexBasis->_nc);
+  for(unsigned axis = 0; axis < 3; ++axis) for(double shift : {0.5,0.0,-0.03125}) for(int sign : {-1,1}) {
+    for(unsigned n = 0; n < hexNodes.size(); ++n) {
+      const double* point = hexBasis->GetXcoarse(n);
+      const double u = point[(axis+1)%3]-0.25, v = point[(axis+2)%3]+0.25;
+      hexNodes[n] = sign*(point[axis]-0.125)*(u*u+v*v+shift);
+    }
+    const CutFemLevelSetData hex(HEX,hexNodes);
+    const CutFemLevelSetData::GraphCertificate& graph = hex.GetGraphCertificate(axis);
+    Check(graph.strict == (shift > 0),"HEX strict graph requires a sign-definite derivative");
+    if(shift > 0) Check(graph.sign == sign && hex.GetGraphDirection() == static_cast<int>(axis),"HEX finds the monotone axis for either orientation");
+  }
   for(unsigned n = 0; n < 9; ++n) { const double* point = basis->GetXcoarse(n); nodal[n] = point[0]*(point[1]+1); }
   CutFemLevelSetData zeroFiber(QUAD,nodal);
   Check(zeroFiber.GetGraphCertificate(0).sign == 1 && !zeroFiber.GetGraphCertificate(0).strict && zeroFiber.GetGraphCertificate(0).zeroFiber == 1,"weak graph detects an entire zero fiber");

@@ -357,6 +357,7 @@ class CutFemLevelSetData {
           norm += std::abs(value);
         }
         const long double padding = 8192*std::numeric_limits<long double>::epsilon()*norm+2*degree*_bernsteinPadding;
+        if(_geometry == HEX && minimum != maximum && minimum <= padding && maximum >= -padding) RefineHexDerivativeBounds(axis,padding,minimum,maximum);
         _derivativeBounds[axis] = {minimum-padding,maximum+padding};
         _derivativeCornerSigns[axis] = static_cast<unsigned char>((cornerMinimum < -padding ? 1U : 0U)|(cornerMaximum > padding ? 2U : 0U));
         _derivativeBoundsReady[axis] = true;
@@ -854,6 +855,28 @@ class CutFemLevelSetData {
     }
     void EnsurePower() const;
     void EnsureBernstein() const;
+    void RefineHexDerivativeBounds(unsigned axis, long double padding, long double& minimum, long double& maximum) const {
+      const unsigned stride[3] = {9,3,1};
+      const unsigned first = stride[(axis+1)%3], second = stride[(axis+2)%3];
+      // The derivative is affine between these faces, and the shared midpoint control of each quadratic split is the mean of its neighbors.
+      static constexpr std::array<unsigned,2> pairs[] = {{0,0},{2,2},{0,1},{1,2}};
+      long double lower = std::numeric_limits<long double>::infinity(), upper = -lower;
+      for(unsigned side = 0; side < 2; ++side) {
+        long double face[3][3];
+        for(unsigned i = 0; i < 3; ++i) for(unsigned j = 0; j < 3; ++j) {
+          const unsigned index = side*stride[axis]+i*first+j*second;
+          face[i][j] = 2*(_bernstein[index+stride[axis]]-_bernstein[index]);
+        }
+        for(const std::array<unsigned,2>& row : pairs) for(const std::array<unsigned,2>& column : pairs) {
+          const long double control = 0.25L*face[row[0]][column[0]]+0.25L*face[row[0]][column[1]]+0.25L*face[row[1]][column[0]]+0.25L*face[row[1]][column[1]];
+          lower = std::min(lower,control);
+          upper = std::max(upper,control);
+          if(lower <= padding && upper >= -padding) return;
+        }
+      }
+      minimum = lower;
+      maximum = upper;
+    }
     void UpdateBernsteinBounds(long double inheritedPadding) const {
       long double minimum = _bernstein[0], maximum = minimum, norm = 0;
       for(long double value : _bernstein) { minimum = std::min(minimum,value); maximum = std::max(maximum,value); norm += std::abs(value); }
