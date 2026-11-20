@@ -15,6 +15,7 @@ public:
 struct OuterIntervalStatistics {
   unsigned long long regularPanels = 0;
   unsigned long long transformedPanels = 0;
+  unsigned long long logarithmicPanels = 0;
   unsigned long long emergency15 = 0;
   unsigned long long emergency7 = 0;
   unsigned long long emergency3 = 0;
@@ -43,6 +44,7 @@ struct OuterInterval {
   int mapping = 0;
   unsigned exponent = 1;
   bool exactEndpoint = true;
+  bool logarithmic = false;
 };
 
 struct OuterIntervalPoint {
@@ -59,11 +61,11 @@ public:
     return data[dimension-2U];
   }
 
-  static std::vector<OuterInterval> Plan(long double left, long double right, unsigned leftExponent, unsigned rightExponent, unsigned dimension, bool leftExact = true, bool rightExact = true) {
+  static std::vector<OuterInterval> Plan(long double left, long double right, unsigned leftExponent, unsigned rightExponent, unsigned dimension, bool leftExact = true, bool rightExact = true, bool leftLog = false, bool rightLog = false) {
     if(!(right > left) || leftExponent == 0 || rightExponent == 0) throw std::invalid_argument("Invalid outer integration interval.");
     std::vector<OuterInterval> result;
-    const bool leftSingular = leftExponent > 1;
-    const bool rightSingular = rightExponent > 1;
+    const bool leftSingular = leftExponent > 1 || leftLog;
+    const bool rightSingular = rightExponent > 1 || rightLog;
     if(!leftSingular && !rightSingular) {
       ++Statistics(dimension).regularIntervals;
       result.push_back({left,right,0,0,0,1,true});
@@ -72,12 +74,12 @@ public:
       ++Statistics(dimension).twoSingularIntervals;
       const long double middle = left+0.5L*(right-left);
       if(!(middle > left && middle < right)) throw OuterQuadratureResolutionError("An outer midpoint is below coordinate resolution.");
-      result.push_back({left,middle,left,middle-left,1,leftExponent,leftExact});
-      result.push_back({middle,right,right,right-middle,-1,rightExponent,rightExact});
+      result.push_back({left,middle,left,middle-left,1,leftExponent,leftExact,leftLog});
+      result.push_back({middle,right,right,right-middle,-1,rightExponent,rightExact,rightLog});
     }
     else {
       ++Statistics(dimension).oneSingularIntervals;
-      result.push_back({left,right,leftSingular ? left : right,right-left,leftSingular ? 1 : -1,leftSingular ? leftExponent : rightExponent,leftSingular ? leftExact : rightExact});
+      result.push_back({left,right,leftSingular ? left : right,right-left,leftSingular ? 1 : -1,leftSingular ? leftExponent : rightExponent,leftSingular ? leftExact : rightExact,leftSingular ? leftLog : rightLog});
     }
     for(unsigned i = 0; i < result.size(); ++i) if(result[i].exponent > 2) ++Statistics(dimension).higherOrderMaps;
     return result;
@@ -123,7 +125,17 @@ public:
     return remaining;
   }
 
-  template<class Context> static bool Panel(const GaussKronrodRule& rule, Context& context, void (*sample)(Context&, const OuterIntervalPoint&, const std::vector<unsigned char>&, std::vector<long double>&, std::vector<long double>&, long double, long double, long double), const OuterInterval& interval, long double left, long double right, const std::vector<unsigned char>& active, long double absoluteH, long double absoluteD, long double relative, unsigned maximumEvaluations, unsigned& evaluations, unsigned dimension, bool precisionCheck, std::vector<long double>& values, std::vector<long double>& errors) {
+  // Each N-point generalized Gaussian rule integrates s^j and s^j log(s) for 0 <= j < N.
+  static void LogarithmicNode(unsigned q, long double& node, long double& high, long double& low) {
+    static const long double nodes12[12] = {0.00024528426497722221448699975364L,0.0035936980202136915849531808244L,0.017122925951596143704174347792L,0.050205612323188193845736701921L,0.11152358555736256442181045099L,0.20600300290512397587524959333L,0.33246269751360654009736754895L,0.48260670096593194254850303693L,0.64167947012399285898633423564L,0.79070908718335540686639989802L,0.90988382876556259211966274602L,0.98234793771576195102214189122L};
+    static const long double weights12[12] = {0.00093319988306714280630974348029L,0.0069774959151437159855304516682L,0.021694689021998533977157173992L,0.045970694395591124692663622762L,0.077527038695831784588421352718L,0.11125251818373960682631313807L,0.14027310600858333322922726974L,0.15751713008682962755415164872L,0.1574083422236489759715520806L,0.13728383271778585858603137209L,0.098196695474189500678766421273L,0.044965257393590795103875724885L};
+    static const long double nodes8[8] = {0.0010906939419218228941651118953L,0.015440653546374090356548031297L,0.069434862100702155896068201837L,0.18744324425543703147418501398L,0.37330442134309300687742241961L,0.60049401369939721600757270345L,0.81687733973466662645996840428L,0.96283975926944796797672939381L};
+    static const long double weights8[8] = {0.0041243011851983430198567327779L,0.029270379674687296116079634595L,0.083114067453170003569599344954L,0.15372167034228774045046056969L,0.21349760952226085537723210057L,0.23187027244357504563899737162L,0.19053623904036773900755846964L,0.093865460338452976820215776151L};
+    if(q < 12) { node = nodes12[q]; high = weights12[q]; low = 0; }
+    else { node = nodes8[q-12]; high = 0; low = weights8[q-12]; }
+  }
+
+  template<class Context> static bool Panel(const GaussKronrodRule& rule, Context& context, void (*sample)(Context&, const OuterIntervalPoint&, const std::vector<unsigned char>&, std::vector<long double>&, std::vector<long double>&, long double, long double, long double), const OuterInterval& interval, long double left, long double right, const std::vector<unsigned char>& active, long double absoluteH, long double absoluteD, long double relative, unsigned maximumEvaluations, unsigned& evaluations, unsigned dimension, bool precisionCheck, bool logarithmic, std::vector<long double>& values, std::vector<long double>& errors) {
     const unsigned long long previousWarnings = QuadratureWarningCount();
     const long double middle = left+0.5L*(right-left);
     const long double half = 0.5L*(right-left);
@@ -132,8 +144,15 @@ public:
     errors.assign(active.size(),0);
     std::vector<long double> low(active.size(),0);
     std::vector<long double> norm(active.size(),0);
-    for(unsigned q = 0; q < rule.size; ++q) for(unsigned side = 0; side < (q == 0 ? 1U : 2U); ++side) {
-      const long double parameter = middle+(side == 0 ? -half : half)*rule.nodes[q];
+    const unsigned size = logarithmic ? 20 : rule.size;
+    for(unsigned q = 0; q < size; ++q) for(unsigned side = 0; side < (logarithmic || q == 0 ? 1U : 2U); ++side) {
+      long double parameter, weight, gaussWeight;
+      if(logarithmic) { LogarithmicNode(q,parameter,weight,gaussWeight); parameter *= right; weight *= right; gaussWeight *= right; }
+      else {
+        parameter = middle+(side == 0 ? -half : half)*rule.nodes[q];
+        weight = half*rule.weights[q];
+        gaussWeight = q%2U == (rule.gauss%2U == 0 ? 1U : 0U) ? half*rule.gaussWeights[q/2U] : 0;
+      }
       const OuterIntervalPoint point = Point(interval,parameter);
       if(interval.mapping != 0 && point.coordinate == interval.endpoint) throw OuterQuadratureResolutionError("A transformed outer point collapsed onto its endpoint.");
       std::vector<long double> value;
@@ -161,13 +180,11 @@ public:
         sample(context,adjacent,active,adjacentValue,adjacentError,absoluteH/physicalWidth,absoluteD/physicalWidth,relative);
         for(unsigned n = 0; n < active.size(); ++n) if(active[n]) error[n] += std::abs(value[n]-adjacentValue[n])+adjacentError[n];
       }
-      const long double weight = half*rule.weights[q];
-      const long double gaussWeight = q%2U == (rule.gauss%2U == 0 ? 1U : 0U) ? half*rule.gaussWeights[q/2U] : 0;
       for(unsigned n = 0; n < active.size(); ++n) {
         if(!active[n]) { ++Statistics(dimension).skippedMoments; continue; }
         values[n] += weight*value[n];
         low[n] += gaussWeight*value[n];
-        errors[n] += weight*error[n];
+        errors[n] += (logarithmic ? weight+gaussWeight : weight)*error[n];
         norm[n] += weight*std::abs(value[n]);
       }
     }
@@ -182,13 +199,15 @@ public:
     std::vector<long double> best(active.size(),std::numeric_limits<long double>::quiet_NaN());
     std::vector<long double> bestErrors(active.size(),std::numeric_limits<long double>::infinity());
     const GaussKronrodRule& selected = GaussKronrodRules::Get(rules.Select(dimension,interval.mapping != 0));
-    const bool budgetLimited = evaluations >= maximumEvaluations || maximumEvaluations-evaluations < selected.kronrod;
+    const bool logarithmic = interval.logarithmic && left == 0;
+    const bool budgetLimited = evaluations >= maximumEvaluations || maximumEvaluations-evaluations < (logarithmic ? 20U : selected.kronrod);
     const GaussKronrodRule& primary = budgetLimited ? GaussKronrodRules::Get(3) : selected;
     bool reduce = interval.mapping != 0 && !Resolved(primary,interval,left,right);
     if(!reduce) {
-      if(interval.mapping == 0) { ++Statistics(dimension).regularPanels; ++Statistics(dimension).regularRulePanels[primary.index]; }
+      if(logarithmic && !budgetLimited) { ++Statistics(dimension).transformedPanels; ++Statistics(dimension).logarithmicPanels; }
+      else if(interval.mapping == 0) { ++Statistics(dimension).regularPanels; ++Statistics(dimension).regularRulePanels[primary.index]; }
       else { ++Statistics(dimension).transformedPanels; ++Statistics(dimension).transformedRulePanels[primary.index]; }
-      try { const bool childAccuracy = Panel(primary,context,sample,interval,left,right,active,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,false,values,errors); KeepBestQuadrature(values,errors,active,best,bestErrors); if(!childAccuracy) { ++Statistics(dimension).childResolutionFailures; reduce = true; } }
+      try { const bool childAccuracy = Panel(primary,context,sample,interval,left,right,active,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,false,logarithmic && !budgetLimited,values,errors); KeepBestQuadrature(values,errors,active,best,bestErrors); if(!childAccuracy) { ++Statistics(dimension).childResolutionFailures; reduce = true; } }
       catch(const QuadratureAccuracyRetry&) { ++Statistics(dimension).childResolutionFailures; reduce = true; }
       catch(const OuterQuadratureResolutionError&) { ++Statistics(dimension).childResolutionFailures; reduce = true; }
     }
@@ -201,7 +220,7 @@ public:
         if(coarse.kronrod == 15) ++Statistics(dimension).emergency15;
         else if(coarse.kronrod == 7) ++Statistics(dimension).emergency7;
         else if(coarse.kronrod == 3) ++Statistics(dimension).emergency3;
-        try { const bool childAccuracy = Panel(coarse,context,sample,interval,left,right,active,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,true,values,errors); KeepBestQuadrature(values,errors,active,best,bestErrors); if(!childAccuracy) { ++Statistics(dimension).childResolutionFailures; continue; } }
+        try { const bool childAccuracy = Panel(coarse,context,sample,interval,left,right,active,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,true,false,values,errors); KeepBestQuadrature(values,errors,active,best,bestErrors); if(!childAccuracy) { ++Statistics(dimension).childResolutionFailures; continue; } }
         catch(const QuadratureAccuracyRetry&) { ++Statistics(dimension).childResolutionFailures; continue; }
         catch(const OuterQuadratureResolutionError&) { ++Statistics(dimension).childResolutionFailures; continue; }
         if(!Accept(values,errors,absoluteH,absoluteD,relative,active,total,totalErrors,dimension)) { ++accepted; return; }

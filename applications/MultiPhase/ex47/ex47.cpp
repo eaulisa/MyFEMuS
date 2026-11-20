@@ -2239,7 +2239,9 @@ void TestHexSaddleProjection() {
   CutFemWeight_LS<long double,long double> quadrature(HEX,5,"legendre");
   std::vector<long double> positive, surface;
   const unsigned long long warnings = FELevelSetMoments::QuadratureWarningCount();
+  const unsigned long long logPanels = FELevelSetMoments::OuterIntervalQuadrature::Statistics(3).logarithmicPanels;
   quadrature.GetTangentialSurfaceWeightsFromNodalGeometry(nodal,coordinates,positive,surface,1e-8,1e-8);
+  Check(FELevelSetMoments::OuterIntervalQuadrature::Statistics(3).logarithmicPanels > logPanels,"interior saddles use logarithmic quadrature");
   Check(FELevelSetMoments::QuadratureWarningCount() == warnings,"saddle projection meets the requested tolerance");
   const std::vector<long double> h = FittedWeightMoments(quadrature,HEX,3,positive,5), d = FittedWeightMoments(quadrature,HEX,3,surface,5);
   const unsigned xy = FELevelSetMoments::UnitMomentIndex(3,1,1,0), z5 = FELevelSetMoments::UnitMomentIndex(3,0,0,5);
@@ -2250,6 +2252,30 @@ void TestHexSaddleProjection() {
   CheckNear(d[xy]/8,677258555576.12524L,1e-8L,"mixed tangential moment");
   CheckNear(h[z5]/8,0.12996399549813537L,1e-8L,"degree-five positive moment");
   CheckNear(d[z5]/8,199241442653.80463L,1e-8L,"degree-five tangential moment");
+
+  std::vector<std::vector<long double>> normals;
+  quadrature.GetNormalSurfaceWeightsFromNodalGeometry(nodal,coordinates,positive,normals,1e-8,1e-8);
+  const std::array<long double,3> expectedNormal = {168.65300890836528L,271.57008413395181L,534.28540021517574L};
+  for(unsigned axis = 0; axis < 3; ++axis) CheckNear(FittedWeightMoments(quadrature,HEX,3,normals[axis],5)[0]/8,expectedNormal[axis],1e-8L,"signed normal mass");
+  Check(FELevelSetMoments::QuadratureWarningCount() == warnings,"signed saddle projections meet the requested tolerance");
+
+  currentCheck = "HEX27 whole-element outer direction";
+  const std::vector<double> twoSaddles = {0.0011137319967982392,-0.00045001059519084603,-0.00097515682293665851,-0.00044996036212267804,0.0010944453954665851,-0.00046172092017875941,-0.00094752956408125589,-0.00046126626498387268,0.00043708252339941863,-0.00047416194807737297,-0.00047334447336950652,0.00043753463971559842,0.0004744843356212895,-0.00043373395702033028,-0.00043289383593618681,0.00047494675803111722,0.00094471009657230037,-0.00072743005977729839,-0.0009410772621390492,-0.00072732978923546558,0.00050921245406149401,-0.00045414287132016754,-0.00045327738702507608,0.00050912104630967091,0.00060012500935635962,0.00020820008447767745,0.00014636136428263074};
+  const CutFemLevelSetData data(HEX,twoSaddles);
+  FELevelSetMoments::PreparedMomentWorkspace workspace;
+  std::vector<long double> values, errors;
+  FELevelSetMoments::IntegrateSpatial(data,5,1e-8/64,1e-8,true,&coordinates,0,0,FELevelSetMoments::OuterQuadratureRules(),true,-1,true,workspace,values,errors);
+  Check(workspace.surface.outerCounts == std::array<unsigned,3>{0,0,1},"element 23611 chooses z on its first attempt");
+  Check(FELevelSetMoments::QuadratureWarningCount() == warnings,"selected outer axis meets tolerance");
+
+  currentCheck = "HEX27 volume shared between normal and tangential weights";
+  const std::vector<double> cachedVolumeField = {-0.0005452486121344316,-0.00016548584445942978,-0.0030631252117336158,-0.0037788307366267565,0.000394281025773052,-0.0010904698364475848,-0.00056801995789561559,0.000168276568626631,-0.00015360608204576716,-0.0012665497605746428,-0.00364177636619117,-0.001930954284192552,-0.00047884748321712855,-0.00073595872719249967,5.7853037213847363e-05,0.00017413329937618788,6.0737625104915975e-06,-0.00060871392795185022,-0.00098422816453096781,-0.0028786082169287614,9.0673555847626557e-05,-0.00021841635783366822,-0.0023006657090184823,-0.00092636562858408817,-0.001657415319868125,-7.8944039770497695e-05,-0.00059925034101617012};
+  quadrature.GetNormalSurfaceWeightsFromNodalGeometry(cachedVolumeField,coordinates,positive,normals,1e-8,1e-8);
+  const unsigned xxz = FELevelSetMoments::UnitMomentIndex(3,2,0,1);
+  CheckNear(FittedWeightMoments(quadrature,HEX,3,positive,5)[xxz]/8,0.0032484132034037356L,1e-8L,"signed-normal volume moment");
+  quadrature.GetTangentialSurfaceWeightsFromNodalGeometry(cachedVolumeField,coordinates,positive,surface,1e-8,1e-8);
+  CheckNear(FittedWeightMoments(quadrature,HEX,3,positive,5)[xxz]/8,0.0032484132034037356L,1e-8L,"volume moment after a signed-normal request");
+  Check(FELevelSetMoments::QuadratureWarningCount() == warnings,"reused positive weights meet tolerance");
 }
 
 void TestCenteredNormalWeights() {

@@ -278,7 +278,9 @@ class CutFemWeight_LS {
         deltaWeight = _nodalDeltaWeightCache[mode];
         return;
       }
-      const bool reusePositive = sameInput && _dim == 3;
+      // Signed-normal and tangential calls share positive moments at the tighter unit-cell tolerance.
+      const bool scaledPositive = _dim == 3 && _geomElemType != TET && (inverseSurface || normalComponent >= 0);
+      const bool reusePositive = sameInput && _dim == 3 && (!scaledPositive || _nodalPositiveScaled);
       if(!sameInput) for(unsigned cachedMode = 0; cachedMode < _nodalDeltaWeightCache.size(); ++cachedMode) _nodalDeltaWeightCache[cachedMode].clear();
       _nodalWeightCacheValid = false;
       IntegrateNodalMomentPair(nodalValues,absoluteTolerance,relativeTolerance,referenceSurface,rules,geometryCoordinates,inverseSurface,normalComponent,!reusePositive);
@@ -290,6 +292,7 @@ class CutFemWeight_LS {
       _nodalRelativeTolerance = relativeTolerance;
       EvaluateMomentWeightPair(positiveWeight,deltaWeight,reusePositive,absoluteTolerance,relativeTolerance);
       _nodalPositiveWeight = positiveWeight;
+      if(!reusePositive) _nodalPositiveScaled = scaledPositive;
       _nodalDeltaWeightCache[mode] = deltaWeight;
       _nodalWeightCacheValid = true;
     }
@@ -384,6 +387,7 @@ class CutFemWeight_LS {
     unsigned _directionValidation = 1;
     unsigned _integrationDirection = 0;
     bool _nodalWeightCacheValid = false;
+    bool _nodalPositiveScaled = false;
     double _nodalAbsoluteTolerance = 0.;
     double _nodalRelativeTolerance = 0.;
     std::vector<double> _nodalValues;

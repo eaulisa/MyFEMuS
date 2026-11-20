@@ -109,7 +109,7 @@ public:
     return selected == 0 ? CoefficientGraphOrder(coefficient,triangle,requested,strict) : selected;
   }
 
-  static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned direction = 0, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1, const PreparedPlane* prepared = nullptr) {
+  static void Integrate(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned direction = 0, bool fullBoundaryDelta = false, const std::vector<unsigned>* zeroBoundary = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1, const PreparedPlane* prepared = nullptr, bool parentChecksError = false) {
     QuadratureWarningScope warningScope(triangle ? "TRI endpoint integration" : "QUAD endpoint integration");
     rules.Validate();
     if(coefficient.size() != 3 || degree > 64 || maximumEvaluations < 3 || direction > 2 || !(absoluteH > 0) || !(absoluteD > 0) || !(relative >= 0)) throw std::invalid_argument("Invalid endpoint integration input.");
@@ -155,7 +155,7 @@ public:
     bool strict = false;
     selected = GraphOrder(coefficient,triangle,direction,strict,prepared);
     if(selected == 0) {
-      if(!EndpointStripQuadrature::Try(coefficient,degree,triangle,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,gradient,1,nullptr,nullptr,coordinates,requested,direction,fullBoundaryDelta,rules,inverseSurface,normalComponent,prepared)) throw std::runtime_error("Unsupported endpoint topology: "+EndpointStripQuadrature::Statistics().failure);
+      if(!EndpointStripQuadrature::Try(coefficient,degree,triangle,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations,values,errors,evaluations,accepted,selected,gradient,1,nullptr,nullptr,coordinates,requested,direction,fullBoundaryDelta,rules,inverseSurface,normalComponent,prepared,parentChecksError)) throw std::runtime_error("Unsupported endpoint topology: "+EndpointStripQuadrature::Statistics().failure);
       return;
     }
     std::vector<std::vector<long double>> working = coefficient;

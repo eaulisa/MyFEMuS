@@ -190,53 +190,16 @@ public:
     return selected;
   }
 
-  static std::vector<long double> RestrictHexHalf(const std::vector<long double>& coefficients, unsigned degree, unsigned axis, unsigned side) {
-    const unsigned size = degree+1, stride = axis == 0 ? size*size : (axis == 1 ? size : 1);
-    std::vector<long double> result(coefficients.size());
-    for(unsigned i = 0; i < coefficients.size(); ++i) {
-      const unsigned power = i/stride%size;
-      result[i] = std::ldexp(coefficients[i],-static_cast<int>(power));
-      if(side == 1) for(unsigned k = power+1; k <= degree; ++k) result[i] += ReferenceBinomial(k,power)*std::ldexp(coefficients[i+(k-power)*stride],-static_cast<int>(k));
+  // A signed normal component weights the logarithm by its projection on the physical unit normal at the saddle.
+  static bool HasWeightedSaddle(const SurfaceEndpointData& data, unsigned outer, const std::vector<EndpointCriticalPoint>& criticalPoints) {
+    for(const EndpointCriticalPoint& critical : criticalPoints) if(critical.saddle) {
+      if(data.normalComponent < 0) return true;
+      if(data.physicalMetric == nullptr) return static_cast<unsigned>(data.normalComponent) == outer;
+      std::array<long double,3> normal;
+      for(unsigned d = 0; d < 3; ++d) normal[d] = std::abs(CutFemLevelSetData::EvaluatePolynomial((*data.physicalMetric)[d],3,data.metricDegree,critical.point));
+      if(normal[data.normalComponent] >= *std::max_element(normal.begin(),normal.end())) return true;
     }
-    return result;
-  }
-
-  // Definite transverse Hessians admit extrema but exclude saddle points of the slicing height.
-  static bool DefiniteHexSlices(const CutFemLevelSetData& field, long double padding) {
-    std::array<long double,2> hessian[3][3];
-    for(unsigned i = 0; i < 3; ++i) {
-      CutFemLevelSetData derivative;
-      derivative.ResetPowerCoefficients(HEX,field.GetDerivativeCoefficients(i));
-      for(unsigned j = i; j < 3; ++j) hessian[i][j] = hessian[j][i] = derivative.GetDerivativeBounds(j);
-    }
-    for(unsigned outer = 0; outer < 3; ++outer) {
-      const unsigned i = (outer+1)%3, j = (outer+2)%3;
-      const long double mixed = std::max(std::abs(hessian[i][j][0]),std::abs(hessian[i][j][1]))+padding;
-      if(std::min(hessian[i][i][0],hessian[j][j][0]) <= mixed && std::max(hessian[i][i][1],hessian[j][j][1]) >= -mixed) return false;
-    }
-    return true;
-  }
-
-  // Store the split axes in preorder, with 3 marking an uncut box or a box with a signed derivative.
-  static bool PlanHexGraphs(const CutFemLevelSetData& field, unsigned remainingDepth, long double padding, std::vector<unsigned>& plan) {
-    const std::array<long double,2> value = field.GetBounds();
-    if(value[0] > padding || value[1] < -padding) { plan.push_back(3); return true; }
-    unsigned axis = 0;
-    long double variation = -1;
-    for(unsigned d = 0; d < 3; ++d) {
-      const std::array<long double,2> bounds = field.GetDerivativeBounds(d);
-      if(bounds[0] > padding || bounds[1] < -padding) { plan.push_back(3); return true; }
-      const long double spread = bounds[1]-bounds[0];
-      if(spread > variation) { variation = spread; axis = d; }
-    }
-    if(remainingDepth == 0) return false;
-    plan.push_back(axis);
-    for(unsigned side = 0; side < 2; ++side) {
-      CutFemLevelSetData child;
-      child.ResetPowerCoefficients(HEX,RestrictHexHalf(field.GetPowerCoefficients(),2,axis,side));
-      if(!PlanHexGraphs(child,remainingDepth-1,padding,plan)) return false;
-    }
-    return true;
+    return false;
   }
 
   static bool Independent(const SurfaceEndpointData& data, unsigned axis) {
@@ -284,14 +247,7 @@ public:
     const std::vector<unsigned> boundary = data.plane.Boundaries();
     const std::vector<long double>& origin = data.slice.GetParentOrigin();
     const std::vector<std::vector<long double>>& map = data.slice.GetParentMap();
-    std::array<long double,5> parent = {origin[first],map[first][0],origin[second],map[second][1],data.slice.GetParentMeasureScale()};
-    long double parentOuter = coordinate;
-    if(!cell.tetrahedron && !cell.wedge && data.domainVolume != 1) {
-      const std::array<long double,3>& lower = cell.vertices[0];
-      const std::array<long double,3>& upper = cell.vertices[1];
-      parent = {lower[first],upper[first]-lower[first],lower[second],upper[second]-lower[second],data.domainVolume};
-      parentOuter = std::fma(upper[outer]-lower[outer],coordinate,lower[outer]);
-    }
+    const std::array<long double,5> parent = {origin[first],map[first][0],origin[second],map[second][1],data.slice.GetParentMeasureScale()};
     std::vector<long double> moments;
     std::vector<long double> momentErrors;
     unsigned evaluations = 0;
@@ -299,7 +255,7 @@ public:
     unsigned selected = 0;
     try {
       if(triangleSlice) ++Statistics().triCalls; else ++Statistics().quadCalls;
-      PlanarEndpointIntegration::Integrate(chart,degree,triangleSlice,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,selected,data.referenceSurface ? &data.slicePolicy : nullptr,&parent,&required,requestedDirection,false,&boundary,data.quadratureRules,data.inverseSurface,data.normalComponent,&data.plane);
+      PlanarEndpointIntegration::Integrate(chart,degree,triangleSlice,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,selected,data.referenceSurface ? &data.slicePolicy : nullptr,&parent,&required,requestedDirection,false,&boundary,data.quadratureRules,data.inverseSurface,data.normalComponent,&data.plane,data.normalComponent >= 0);
     }
     catch(...) { data.evaluations += evaluations; throw; }
     data.evaluations += evaluations;
@@ -308,7 +264,7 @@ public:
     for(unsigned n = 0; n < count; ++n) {
       if(!active[n] && !active[count+n]) { ++Statistics().skippedComponents; continue; }
       const unsigned source = ReferenceMomentIndex2D(degree,data.powers[n][first],data.powers[n][second]);
-      const long double power = ReferencePower(parentOuter,data.powers[n][outer]);
+      const long double power = ReferencePower(coordinate,data.powers[n][outer]);
       for(unsigned pair = 0; pair < 2; ++pair) if(active[pair*count+n]) {
         values[pair*count+n] = power*moments[pair*sliceCount+source];
         errors[pair*count+n] = std::abs(power)*momentErrors[pair*sliceCount+source]+8*std::numeric_limits<long double>::epsilon()*std::abs(values[pair*count+n]);
@@ -321,16 +277,16 @@ public:
     for(unsigned n = 0; n < active.size(); ++n) if(active[n]) { values[n] *= point.jacobian; errors[n] *= point.jacobian; }
   }
 
-  static void Adaptive(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, unsigned outer, long double left, long double right, int mapping, long double endpoint, long double delta, unsigned exponent, long double budget, unsigned depth, const std::vector<unsigned char>& requested, std::vector<long double>& total, std::vector<long double>& totalErrors) {
+  static void Adaptive(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, unsigned outer, const OuterInterval& interval, long double budget, const std::vector<unsigned char>& requested, std::vector<long double>& total, std::vector<long double>& totalErrors) {
     SurfaceOuterContext context;
     context.data = &data;
     context.cell = &cell;
     context.outer = outer;
-    const OuterInterval interval = {mapping == 0 ? left : (mapping > 0 ? endpoint : endpoint-delta),mapping == 0 ? right : (mapping > 0 ? endpoint+delta : endpoint),endpoint,delta,mapping,exponent,true};
-    OuterIntervalQuadrature::Adaptive(context,OuterSample,interval,left,right,budget*data.absoluteH,budget*data.absoluteD,data.relative,depth,data.maximumDepth,data.maximumEvaluations,data.evaluations,data.accepted,3,requested,total,totalErrors,data.quadratureRules);
+    const long double left = interval.mapping == 0 ? interval.left : 0, right = interval.mapping == 0 ? interval.right : 1;
+    OuterIntervalQuadrature::Adaptive(context,OuterSample,interval,left,right,budget*data.absoluteH,budget*data.absoluteD,data.relative,0,data.maximumDepth,data.maximumEvaluations,data.evaluations,data.accepted,3,requested,total,totalErrors,data.quadratureRules);
   }
 
-  static void IntegrateParent(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, std::vector<long double>& total, std::vector<long double>& totalErrors) {
+  static void IntegrateParent(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, std::vector<long double>& total, std::vector<long double>& totalErrors, unsigned costlyOuter = 3) {
     const std::vector<unsigned char> active = data.requested;
     const int phase = Phase(data,cell);
     if(phase != 0) { if(phase > 0) Full(data,cell,total,totalErrors,active); ++data.accepted; return; }
@@ -353,6 +309,14 @@ public:
     std::vector<unsigned> axes;
     for(unsigned axis = 0; axis < 3; ++axis) if(axis != inner) axes.push_back(axis);
     for(unsigned i = 0; i < axes.size(); ++i) for(unsigned j = i+1U; j < axes.size(); ++j) if((axes[j] == data.preferredOuter) || (axes[i] != data.preferredOuter && energy[axes[j]] < energy[axes[i]])) std::swap(axes[i],axes[j]);
+    std::array<std::vector<EndpointCriticalPoint>,3> criticalPoints;
+    const bool saddleSearch = inner == 3 && !cell.tetrahedron && !cell.wedge;
+    if(saddleSearch && data.preferredOuter < 3) EndpointProjection::HexCriticalPoints(*data.prepared,data.preferredOuter,criticalPoints[data.preferredOuter]);
+    unsigned unchecked = axes.size();
+    if(saddleSearch && data.preferredOuter == 3 && costlyOuter < 3) {
+      const std::vector<unsigned>::iterator previous = std::find(axes.begin(),axes.end(),costlyOuter);
+      std::rotate(previous,previous+1,axes.end());
+    }
     std::runtime_error failure("No supported 3D endpoint projection.");
     std::vector<long double> best(total.size(),std::numeric_limits<long double>::quiet_NaN());
     std::vector<long double> bestErrors(total.size(),std::numeric_limits<long double>::infinity());
@@ -360,6 +324,13 @@ public:
     bool accuracyFailure = false;
     unsigned accuracyOuter = 3;
     for(unsigned attempt = 0; attempt < axes.size(); ++attempt) {
+      while(saddleSearch && data.preferredOuter == 3 && attempt < unchecked) {
+        const unsigned candidate = axes[attempt];
+        EndpointProjection::HexCriticalPoints(*data.prepared,candidate,criticalPoints[candidate]);
+        if(costlyOuter < 3 || !HasWeightedSaddle(data,candidate,criticalPoints[candidate])) break;
+        std::rotate(axes.begin()+attempt,axes.begin()+attempt+1,axes.end());
+        --unchecked;
+      }
       const unsigned outer = axes[attempt];
       if(data.preferredOuter < 3 && outer != data.preferredOuter) continue;
       std::vector<long double> values(total.size(),0);
@@ -381,7 +352,7 @@ public:
           const std::vector<long double> sourceError = errors;
           for(unsigned n = 0; n < data.powers.size(); ++n) {
             unsigned powers[3] = {data.powers[n][0],data.powers[n][1],data.powers[n][2]};
-            const long double factor = IntegralPower(cell.vertices[0][outer],cell.vertices[1][outer],powers[outer])/(cell.vertices[1][outer]-cell.vertices[0][outer]);
+            const long double factor = IntegralPower(0,1,powers[outer]);
             powers[outer] = 0;
             const unsigned index = HexMomentIndex(powers[0],powers[1],powers[2]);
             for(unsigned pair = 0; pair < 2; ++pair) {
@@ -393,15 +364,15 @@ public:
         }
         else {
           ++Statistics().eventBuilds;
-          const std::vector<EndpointProjectionEvent> events = EndpointProjection::Build(data.coefficient,cell.tetrahedron,outer,inner < 3 ? inner : data.preferredInner,inner < 3,cell.wedge,data.prepared);
+          const std::vector<EndpointProjectionEvent> events = EndpointProjection::Build(data.coefficient,cell.tetrahedron,outer,inner < 3 ? inner : data.preferredInner,inner < 3,cell.wedge,data.prepared,criticalPoints[outer]);
           const long double budget = data.domainVolume/(events.size()-1U);
           for(unsigned n = 1; n < events.size(); ++n) {
             const long double left = events[n-1U].point;
             const long double right = events[n].point;
             if(!(right > left)) continue;
-            const std::vector<OuterInterval> plan = OuterIntervalQuadrature::Plan(left,right,events[n-1U].exponent,events[n].exponent,3);
+            const std::vector<OuterInterval> plan = OuterIntervalQuadrature::Plan(left,right,events[n-1U].exponent,events[n].exponent,3,true,true,events[n-1U].logarithmic,events[n].logarithmic);
             for(unsigned part = 0; part < plan.size(); ++part) {
-              Adaptive(data,cell,outer,plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,plan[part].mapping,plan[part].endpoint,plan[part].delta,plan[part].exponent,budget/plan.size(),0,active,values,errors);
+              Adaptive(data,cell,outer,plan[part],budget/plan.size(),active,values,errors);
               if(plan[part].mapping != 0) ++Statistics().endpointStrips;
             }
           }
@@ -435,31 +406,6 @@ public:
     throw failure;
   }
 
-  static void IntegrateHexGraphs(SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, const std::vector<unsigned>& plan, std::size_t& index, std::vector<long double>& values, std::vector<long double>& errors) {
-    const unsigned axis = plan[index++];
-    if(axis == 3) { IntegrateParent(data,cell,values,errors); return; }
-    const long double middle = (cell.vertices[0][axis]+cell.vertices[1][axis])/2;
-    for(unsigned side = 0; side < 2; ++side) {
-      SurfaceEndpointDomain box = cell;
-      box.vertices[1-side][axis] = middle;
-      CutFemLevelSetData field;
-      field.ResetPowerCoefficients(HEX,RestrictHexHalf(data.prepared->GetPowerCoefficients(),2,axis,side));
-      SurfaceEndpointData child = data;
-      child.prepared = &field;
-      child.domainVolume = data.domainVolume/2;
-      child.coefficient = field.GetNormalizedPowerCoefficients();
-      child.metricDegree = data.physicalMetric == nullptr ? 2U : data.metricDegree;
-      for(unsigned n = 0; n < child.gradient.size(); ++n) child.gradient[n] = RestrictHexHalf(data.gradient[n],child.metricDegree,axis,side);
-      child.physicalMetric = child.referenceSurface ? &child.gradient : nullptr;
-      for(unsigned n = 0; n < child.zeroFaces.size(); ++n) child.zeroFaces[n] = field.IsZeroOnBoundary(n);
-      IntegrateHexGraphs(child,box,plan,index,values,errors);
-      data.evaluations = child.evaluations;
-      data.accepted = child.accepted;
-      data.innerCounts = child.innerCounts;
-      data.outerCounts = child.outerCounts;
-    }
-  }
-
   static void Integrate(SurfaceEndpointData& data, bool tetrahedron, std::vector<long double>& values, std::vector<long double>& errors) {
     QuadratureWarningScope warningScope("3D endpoint integration");
     data.quadratureRules.Validate();
@@ -489,12 +435,8 @@ public:
     if(!data.computeDelta) std::fill(data.requested.begin()+count,data.requested.end(),0);
     std::vector<long double> best(2U*count,std::numeric_limits<long double>::quiet_NaN());
     std::vector<long double> bestErrors(2U*count,std::numeric_limits<long double>::infinity());
-    std::vector<unsigned> plan;
-    if(!tetrahedron && !cell.wedge && data.preferredOuter == 3 && Phase(data,cell) == 0 && data.prepared->GetGraphDirection() < 0) {
-      const long double padding = 8192*std::numeric_limits<long double>::epsilon()*norm*data.prepared->GetNormalizationScale();
-      if(!DefiniteHexSlices(*data.prepared,padding) && !PlanHexGraphs(*data.prepared,data.maximumDepth,padding,plan)) plan.clear();
-    }
     long double budgetFactor = 1.0L;
+    unsigned costlyOuter = 3;
     for(unsigned pass = 0; pass < 8; ++pass) {
       data.absoluteH = budgetFactor*absoluteH/data.domainVolume;
       data.absoluteD = budgetFactor*absoluteD/data.domainVolume;
@@ -502,9 +444,7 @@ public:
       std::vector<long double> passValues(2U*count,0.0L);
       std::vector<long double> passErrors(2U*count,0.0L);
       ++Statistics().integrationPasses;
-      std::size_t index = 0;
-      if(plan.empty()) IntegrateParent(data,cell,passValues,passErrors);
-      else IntegrateHexGraphs(data,cell,plan,index,passValues,passErrors);
+      IntegrateParent(data,cell,passValues,passErrors,costlyOuter);
       KeepBestQuadrature(passValues,passErrors,data.requested,best,bestErrors);
       long double worst = 0.0L;
       bool remaining = false;
@@ -536,7 +476,11 @@ public:
         data.requested.clear();
         return;
       }
-      budgetFactor /= std::max(2.0L,2.0L*worst);
+      // When a signed projection costs more than the remaining budget, retry the unresolved moments on a different axis.
+      if(pass == 0 && data.normalComponent >= 0 && !cell.tetrahedron && !cell.wedge && data.graphAxis == 3 && data.preferredOuter == 3 && data.outerCounts[0]+data.outerCounts[1]+data.outerCounts[2] == 1 && data.evaluations > data.maximumEvaluations-data.evaluations) {
+        for(unsigned axis = 0; axis < 3; ++axis) if(data.outerCounts[axis] != 0) costlyOuter = axis;
+      }
+      else budgetFactor /= std::max(2.0L,2.0L*worst);
     }
   }
 

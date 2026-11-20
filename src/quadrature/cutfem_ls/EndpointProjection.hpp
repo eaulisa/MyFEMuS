@@ -3,13 +3,22 @@
 
 #include "Hex27LevelSetMoments.hpp"
 #include "CutFemPreparedContext.hpp"
+#include <utility>
 
 namespace FELevelSetMoments {
 
 struct EndpointProjectionEvent {
   long double point = 0;
   unsigned exponent = 1;
+  bool logarithmic = false;
+};
 
+struct EndpointCriticalPoint {
+  unsigned inner;
+  long double candidate;
+  long double height;
+  std::vector<long double> point;
+  bool saddle;
 };
 
 class EndpointProjection {
@@ -128,7 +137,13 @@ public:
     return false;
   }
 
-  static void AddConstraint(const std::vector<std::vector<long double>>& constraint, bool triangle, std::vector<long double>& events, bool regularGraphBoundary = false, long double middleLower = 0, long double outerLower = 0) {
+  static void AddProjectedRoots(const std::vector<long double>& polynomial, long double lower, unsigned inner, const std::vector<EndpointCriticalPoint>& criticalPoints, std::vector<long double>& candidates) {
+    const unsigned first = candidates.size();
+    AddRoots(polynomial,lower,candidates);
+    for(unsigned i = first; i < candidates.size(); ++i) for(const EndpointCriticalPoint& critical : criticalPoints) if(critical.inner == inner && candidates[i] == critical.candidate) { candidates[i] = critical.height; break; }
+  }
+
+  static void AddConstraint(const std::vector<std::vector<long double>>& constraint, bool triangle, std::vector<long double>& events, bool regularGraphBoundary = false, long double middleLower = 0, long double outerLower = 0, unsigned inner = 3, const std::vector<EndpointCriticalPoint>& criticalPoints = {}) {
     std::vector<std::vector<long double>> polynomial = constraint;
     Hex27TrimBivariate(polynomial);
     std::vector<long double> candidates;
@@ -141,7 +156,7 @@ public:
         const bool repeatedQuadraticTrace = regularGraphBoundary && polynomial.size() == 3 && PolynomialNorm(PolynomialSum(PolynomialProduct(polynomial[1],polynomial[1]),PolynomialProduct(polynomial[0],polynomial[2]),-4)) == 0;
         if(!repeatedQuadraticTrace) throw std::runtime_error("Unsupported repeated projection factor; endpoint topology is not certified.");
       }
-      AddRoots(resultant,outerLower,candidates);
+      AddProjectedRoots(resultant,outerLower,inner,criticalPoints,candidates);
     }
     for(unsigned i = 0; i < candidates.size(); ++i) if(Relevant(polynomial,candidates[i],triangle,middleLower)) events.push_back(candidates[i]);
   }
@@ -161,6 +176,77 @@ public:
     const long double root = -b/(2*a);
     const long double padding = 65536*std::numeric_limits<long double>::epsilon();
     return root >= lower-padding && root <= (triangle ? 1-(outerBoundary ? height : 0)-(middleBoundary ? middle : 0) : 1)+padding ? root : std::numeric_limits<long double>::infinity();
+  }
+
+  // Refine G = G_u = G_v = 0 and classify regular interior critical points of the slicing height.
+  static bool RefineHexCriticalPoint(const CutFemLevelSetData& data, unsigned outer, unsigned u, unsigned v, std::vector<long double>& point, bool& saddle) {
+    const long double tolerance = 512*std::numeric_limits<long double>::epsilon();
+    const long double scale = data.GetNormalizationScale();
+    for(unsigned iteration = 0; iteration < 16; ++iteration) {
+      for(long double x : point) if(!(x > 0 && x < 1)) return false;
+      std::array<long double,3> gradient;
+      data.GetGradient(point,gradient);
+      const long double value = data.Evaluate(point)/scale, gu = gradient[u]/scale, gv = gradient[v]/scale, gt = gradient[outer]/scale;
+      const long double uu = data.EvaluateSecondDerivative(u,u,point)/scale, uv = data.EvaluateSecondDerivative(u,v,point)/scale, vv = data.EvaluateSecondDerivative(v,v,point)/scale;
+      const long double determinant = std::fma(uu,vv,-uv*uv);
+      if(std::abs(determinant) <= tolerance*(std::abs(uu*vv)+uv*uv)) return false;
+      const long double ut = data.EvaluateSecondDerivative(u,outer,point)/scale, vt = data.EvaluateSecondDerivative(v,outer,point)/scale;
+      const long double du = (vv*gu-uv*gv)/determinant, dv = (uu*gv-uv*gu)/determinant;
+      const long double su = (vv*ut-uv*vt)/determinant, sv = (uu*vt-uv*ut)/determinant;
+      const long double slope = gt-gu*su-gv*sv;
+      if(std::abs(slope) <= tolerance*(std::abs(gt)+std::abs(gu*su)+std::abs(gv*sv))) return false;
+      const long double dt = (value-gu*du-gv*dv)/slope;
+      const long double step = std::max({std::abs(du-su*dt),std::abs(dv-sv*dt),std::abs(dt)});
+      const bool converged = step <= tolerance && std::max({std::abs(value),std::abs(gu),std::abs(gv)}) <= tolerance;
+      point[u] -= du-su*dt;
+      point[v] -= dv-sv*dt;
+      point[outer] -= dt;
+      if(converged) {
+        for(long double x : point) if(!(x > tolerance && x < 1-tolerance)) return false;
+        saddle = determinant < 0;
+        return std::abs(gt) > tolerance;
+      }
+    }
+    return false;
+  }
+
+  static void HexCriticalPoints(const CutFemLevelSetData& data, unsigned outer, std::vector<EndpointCriticalPoint>& criticalPoints) {
+    criticalPoints.clear();
+    for(unsigned u = 0; u < 3; ++u) if(u != outer) {
+      const unsigned v = 3-outer-u;
+      const std::vector<std::vector<std::vector<long double>>> field = PreparedField(data.GetNormalizedPowerCoefficients(),outer,u,&data);
+      bool quadratic = false;
+      for(const std::vector<long double>& row : field[2]) if(PolynomialNorm(row) != 0) quadratic = true;
+      const std::vector<std::vector<long double>> trace = quadratic ? PreparedDiscriminant(field,outer,u,&data) : field[1];
+      const std::vector<std::vector<long double>> stationary = quadratic ? Derivative(trace) : trace;
+      std::vector<long double> candidates;
+      AddRoots(quadratic ? Hex27Resultant(trace,stationary) : Hex27Resultant(field[0],field[1]),0,candidates);
+      for(long double height : candidates) {
+        std::vector<long double> fiber(stationary.size()), roots;
+        for(unsigned j = 0; j < fiber.size(); ++j) fiber[j] = PolynomialValue(stationary[j],height);
+        PolynomialRoots(fiber,0,1,roots);
+        const std::vector<std::vector<long double>>& constraint = quadratic ? trace : field[0];
+        std::vector<long double> section(constraint.size());
+        long double bound = 0;
+        for(unsigned j = 0; j < section.size(); ++j) { section[j] = PolynomialValue(constraint[j],height); bound += PolynomialBound(constraint[j],height); }
+        for(long double middle : roots) {
+          std::vector<long double> point(3);
+          point[v] = middle;
+          point[outer] = height;
+          if(quadratic) point[u] = FoldVertex(field,middle,height,false);
+          else {
+            const long double duv = PolynomialValue(field[1][1],height)+2*middle*PolynomialValue(field[1][2],height);
+            if(duv == 0) continue;
+            point[u] = -(PolynomialValue(field[0][1],height)+2*middle*PolynomialValue(field[0][2],height))/duv;
+          }
+          bool saddle = false;
+          if(!RefineHexCriticalPoint(data,outer,u,v,point,saddle)) continue;
+          for(const EndpointCriticalPoint& previous : criticalPoints) if(std::abs(previous.height-point[outer]) <= 512*std::numeric_limits<long double>::epsilon()) { point[outer] = previous.height; break; }
+          const bool projectedRoot = std::abs(PolynomialValue(section,middle)) <= 8192*std::numeric_limits<long double>::epsilon()*bound;
+          criticalPoints.push_back({u,projectedRoot ? height : point[outer],point[outer],std::move(point),saddle});
+        }
+      }
+    }
   }
 
   static unsigned ContactExponent(const std::vector<std::vector<long double>>& constraint, long double height, bool triangle, bool regularGraphBoundary = false, const std::vector<std::vector<long double>>* normalDerivative = nullptr, const std::vector<std::vector<std::vector<long double>>>* foldField = nullptr, bool wedge = false, bool middleBoundary = true, bool outerBoundary = true, long double innerLower = 0, long double middleLower = 0) {
@@ -211,7 +297,7 @@ public:
     return exponent;
   }
 
-  static std::vector<EndpointProjectionEvent> BuildDirection(const std::vector<long double>& coefficient, bool triangle, unsigned outer, unsigned certifiedInner, bool graphOnly, bool wedge = false, const CutFemLevelSetData* prepared = nullptr) {
+  static std::vector<EndpointProjectionEvent> BuildDirection(const std::vector<long double>& coefficient, bool triangle, unsigned outer, unsigned certifiedInner, bool graphOnly, bool wedge = false, const CutFemLevelSetData* prepared = nullptr, const std::vector<EndpointCriticalPoint>& criticalPoints = {}) {
     const long double outerLower = 0;
     const long double innerLower = 0;
     std::vector<long double> events = {outerLower,1};
@@ -237,26 +323,29 @@ public:
       bool linear = false;
       for(unsigned i = 0; i < 3; ++i) { quadratic = quadratic || PolynomialNorm(field[2][i]) != 0; linear = linear || PolynomialNorm(field[1][i]) != 0; }
       const std::vector<std::vector<long double>> discriminant = quadratic ? PreparedDiscriminant(field,outer,inner,prepared) : (linear ? field[1] : field[0]);
-      if(!quadratic && linear) AddRoots(Hex27Resultant(field[0],field[1]),outerLower,events);
+      if(!quadratic && linear) AddProjectedRoots(Hex27Resultant(field[0],field[1]),outerLower,inner,criticalPoints,events);
       if(quadratic && discriminant.size() == 1 && PolynomialNorm(discriminant[0]) == 0) throw std::runtime_error("A repeated fiber root has no regular delta moment.");
-      AddConstraint(discriminant,projectedTriangle,events,false,middleLower,outerLower);
+      AddConstraint(discriminant,projectedTriangle,events,false,middleLower,outerLower,inner,criticalPoints);
       constraints.push_back(discriminant);
       normalDerivatives.push_back({});
       foldFields.push_back(quadratic ? field : std::vector<std::vector<std::vector<long double>>>());
     }
+    for(const EndpointCriticalPoint& critical : criticalPoints) events.push_back(critical.height);
     SortDistinct(events);
     std::vector<EndpointProjectionEvent> result;
     for(unsigned n = 0; n < events.size(); ++n) {
+      bool logarithmic = false;
+      for(const EndpointCriticalPoint& critical : criticalPoints) if(critical.saddle && std::abs(critical.height-events[n]) <= 16*std::numeric_limits<long double>::epsilon()) { logarithmic = true; break; }
       unsigned exponent = 1;
-      for(unsigned i = 0; i < constraints.size(); ++i) exponent = CommonExponent(exponent,ContactExponent(constraints[i],events[n],projectedTriangle,graphOnly,normalDerivatives[i].empty() ? nullptr : &normalDerivatives[i],foldFields[i].empty() ? nullptr : &foldFields[i],wedge,middleBoundary,outerBoundary,innerLower,middleLower));
-      result.push_back({events[n],exponent});
+      if(!logarithmic) for(unsigned i = 0; i < constraints.size(); ++i) exponent = CommonExponent(exponent,ContactExponent(constraints[i],events[n],projectedTriangle,graphOnly,normalDerivatives[i].empty() ? nullptr : &normalDerivatives[i],foldFields[i].empty() ? nullptr : &foldFields[i],wedge,middleBoundary,outerBoundary,innerLower,middleLower));
+      result.push_back({events[n],exponent,logarithmic});
     }
     return result;
   }
-  static std::vector<EndpointProjectionEvent> Build(const std::vector<long double>& coefficient, bool triangle, unsigned outer, unsigned inner = 3, bool graphOnly = false, bool wedge = false, const CutFemLevelSetData* prepared = nullptr) {
+  static std::vector<EndpointProjectionEvent> Build(const std::vector<long double>& coefficient, bool triangle, unsigned outer, unsigned inner = 3, bool graphOnly = false, bool wedge = false, const CutFemLevelSetData* prepared = nullptr, const std::vector<EndpointCriticalPoint>& criticalPoints = {}) {
     std::runtime_error failure("No supported endpoint projection direction.");
     for(unsigned direction = 0; direction < 3; ++direction) if(direction != outer && (inner == 3 || inner == direction)) {
-      try { return BuildDirection(coefficient,triangle,outer,direction,graphOnly,wedge,prepared); }
+      try { return BuildDirection(coefficient,triangle,outer,direction,graphOnly,wedge,prepared,criticalPoints); }
       catch(const std::runtime_error& error) { failure = std::runtime_error(error.what()); }
     }
     throw failure;

@@ -190,7 +190,8 @@ inline void IntegrateSpatial(const CutFemLevelSetData& source, unsigned degree, 
   for(unsigned side = 0; side < data.zeroFaces.size(); ++side) data.zeroFaces[side] = field->IsZeroOnBoundary(side);
   if(direction != 0) { if(source.GetGeometry() == TET) data.preferredOuter = direction == 1 ? 0U : direction-2; else { unsigned middle; Hex27SelectedAxes(direction,data.preferredInner,middle,data.preferredOuter); } }
   const long double measure = 1, amplification = barycentric ? ReferencePower(4,degree) : 1;
-  data.absoluteH = absolute*measure/amplification;
+  const long double positiveScale = normalComponent >= 0 ? source.GetUnitToReferenceMeasureScale() : 1;
+  data.absoluteH = absolute*measure/(amplification*positiveScale*positiveScale);
   data.absoluteD = absolute*normalization*measure/amplification;
   data.relative = relative/amplification;
   std::vector<long double> moments, momentErrors;

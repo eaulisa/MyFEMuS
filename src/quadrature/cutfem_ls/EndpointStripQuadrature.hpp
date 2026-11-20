@@ -97,7 +97,7 @@ public:
     return false;
   }
 
-  static bool Try(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, long double metricScale = 1, const std::vector<std::vector<std::vector<long double>>>* coordinates = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::array<long double,5>* parent = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned requestedDirection = 0, bool fullBoundaryDelta = false, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1, const PreparedPlane* prepared = nullptr) {
+  static bool Try(const std::vector<std::vector<long double>>& coefficient, unsigned degree, bool triangle, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, unsigned& selected, const std::vector<std::vector<std::vector<long double>>>* gradient = nullptr, long double metricScale = 1, const std::vector<std::vector<std::vector<long double>>>* coordinates = nullptr, const std::vector<std::vector<double>>* inverseJacobian = nullptr, const std::array<long double,5>* parent = nullptr, const std::vector<unsigned char>* requested = nullptr, unsigned requestedDirection = 0, bool fullBoundaryDelta = false, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1, const PreparedPlane* prepared = nullptr, bool parentChecksError = false) {
     QuadratureWarningScope warningScope("Endpoint curve integration");
     rules.Validate();
     if(requestedDirection > 2) throw std::invalid_argument("Invalid endpoint direction.");
@@ -135,7 +135,7 @@ public:
       unsigned localEvaluations = 0;
       unsigned localAccepted = 0;
       try {
-        IntegrateDirection(directions[axis],degree,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations-evaluations,result,resultError,localEvaluations,localAccepted,rules);
+        IntegrateDirection(directions[axis],degree,computeDelta,absoluteH,absoluteD,relative,maximumDepth,maximumEvaluations-evaluations,result,resultError,localEvaluations,localAccepted,rules,parentChecksError);
         if(axis == 1) {
           const unsigned count = result.size()/2U;
           for(unsigned i = 0; i <= degree; ++i) for(unsigned j = i+1U; j <= degree-i; ++j) for(unsigned p = 0; p < 2; ++p) { std::swap(result[p*count+LineSliceUtilities::MomentIndex(degree,i,j)],result[p*count+LineSliceUtilities::MomentIndex(degree,j,i)]); std::swap(resultError[p*count+LineSliceUtilities::MomentIndex(degree,i,j)],resultError[p*count+LineSliceUtilities::MomentIndex(degree,j,i)]); }
@@ -324,7 +324,7 @@ private:
     errors.assign(values.size(),0);
   }
 
-  static void IntegrateDirection(const EndpointStripDirection& data, unsigned degree, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+  static void IntegrateDirection(const EndpointStripDirection& data, unsigned degree, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool parentChecksError = false) {
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     values.assign(2U*count,0);
     errors.assign(values.size(),0);
@@ -353,7 +353,7 @@ private:
         OuterIntervalQuadrature::Adaptive(context,CurveSample,plan[part],plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,intervalBudget*absoluteH/plan.size(),intervalBudget*absoluteD/plan.size(),relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,2,active,values,errors,rules);
       }
     }
-    CheckQuadratureTolerance("Endpoint curve moments","accumulated non-graph error exceeds tolerance",values,errors,absoluteH,absoluteD,relative,&data.requested);
+    if(!parentChecksError) CheckQuadratureTolerance("Endpoint curve moments","accumulated non-graph error exceeds tolerance",values,errors,absoluteH,absoluteD,relative,&data.requested);
   }
 };
 
