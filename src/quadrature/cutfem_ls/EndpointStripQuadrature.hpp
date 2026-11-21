@@ -70,6 +70,7 @@ struct PhysicalCurveFiber {
 
 struct CurveStripSamples {
   std::map<long double,PhysicalCurveFiber> fibers;
+  SharedSurfacePanel panel;
 };
 
 struct EndpointStripGeometry {
@@ -333,10 +334,11 @@ private:
   }
 
   static void Sample(const EndpointStripDirection& data, const EndpointStripInterval& interval, unsigned degree, const OuterIntervalPoint& point, const std::vector<unsigned char>& active, std::vector<long double>& values, CurveStripSamples* samples = nullptr) {
-    const unsigned count = active.size()/2U;
+    const unsigned count = (degree+1U)*(degree+2U)/2U;
+    const bool batch = active.size() == 5U*count;
     const long double x = point.coordinate, jacobian = point.jacobian;
     const long double parentX = LineSliceUtilities::ParentCoordinate(data.parent[1],x,data.parent[0]);
-    const PhysicalCurveFiber* shared = samples == nullptr || point.precisionProbe ? nullptr : &SharedFiber(*samples,data,interval,point);
+    const PhysicalCurveFiber* shared = samples == nullptr || point.precisionProbe || batch ? nullptr : &SharedFiber(*samples,data,interval,point);
     CurveFiberRoots local;
     if(shared == nullptr) local = FindFiber(data,interval,point);
     const CurveFiberRoots& fiber = shared == nullptr ? local : shared->geometry;
@@ -355,7 +357,16 @@ private:
         for(unsigned j = 0; j <= degree; ++j) { geometric = power+parentLeft*geometric; h[j] += (cuts[r+1U]-cuts[r])*geometric/(j+1U); power *= parentRight; }
       }
     }
-    if(std::find(active.begin()+count,active.end(),1) != active.end()) {
+    values.assign(active.size(),0);
+    if(batch) {
+      for(unsigned r = 0; r < interval.signs.size(); ++r) {
+        const long double root = fiber.roots[r];
+        const long double factor = (interval.boundary[r] == 0 || data.fullBoundaryDelta ? 1.0L : 0.5L)*fiber.surfaceRatio*data.parent[4];
+        LineIntegration::AddPhysicalSurfaceMoments(degree,parentX,LineSliceUtilities::ParentCoordinate(data.parent[3],root,data.parent[2]),factor,data.prepared->EvaluateMetric(data.order,x,root),active,values);
+      }
+      if(data.prepared->statistics != nullptr && interval.mapping != 0) data.prepared->statistics->endpointSamples += interval.signs.size();
+    }
+    else if(std::find(active.begin()+count,active.end(),1) != active.end()) {
       d.assign(degree+1U,0);
       for(unsigned r = 0; r < interval.signs.size(); ++r) {
         const long double root = fiber.roots[r];
@@ -370,23 +381,23 @@ private:
         for(unsigned j = 0; j <= degree; ++j) { d[j] += weight*power; power *= parentRoot; }
       }
     }
-    values.assign(active.size(),0);
+    if(interval.mapping == 0) ++Statistics().bulkSamples; else ++Statistics().stripSamples;
+    if(batch && h.empty()) return;
     long double power = 1;
     for(unsigned i = 0; i <= degree; ++i) {
       for(unsigned j = 0; j <= degree-i; ++j) {
         const unsigned n = LineSliceUtilities::MomentIndex(degree,i,j);
         if(active[n]) values[n] = data.parent[4]*jacobian*power*h[j]; else ++Statistics().inactiveComponents;
-        if(active[count+n]) values[count+n] = data.parent[4]*power*d[j]; else ++Statistics().inactiveComponents;
+        if(!batch) { if(active[count+n]) values[count+n] = data.parent[4]*power*d[j]; else ++Statistics().inactiveComponents; }
       }
       power *= parentX;
     }
-    if(interval.mapping == 0) ++Statistics().bulkSamples; else ++Statistics().stripSamples;
   }
 
   static void CurveSample(EndpointCurveContext& context, const OuterIntervalPoint& point, const std::vector<unsigned char>& active, std::vector<long double>& values, std::vector<long double>& errors, long double absoluteH, long double absoluteD, long double relative) {
     ++*context.evaluations;
     Sample(*context.data,context.interval,context.degree,point,active,values,context.samples);
-    errors.assign(values.size(),0);
+    errors.clear();
   }
 
   static void IntegrateDirection(const EndpointStripDirection& data, unsigned degree, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, std::vector<long double>& values, std::vector<long double>& errors, unsigned& evaluations, unsigned& accepted, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool parentChecksError = false) {
@@ -420,7 +431,8 @@ private:
         const LineIntegrationDiscriminant discriminant = LineIntegration::EndpointDiscriminant(data.coefficient,plan[part],data.prepared,data.order);
         context.interval.discriminantConstant = discriminant.constant;
         context.interval.reducedDiscriminant = discriminant.coefficient;
-        OuterIntervalQuadrature::Adaptive(context,CurveSample,plan[part],plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,intervalBudget*absoluteH/plan.size(),intervalBudget*absoluteD/plan.size(),relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,2,active,values,errors,rules);
+        const unsigned blocks = data.prepared == nullptr ? 0 : data.prepared->surfaceBlocks;
+        OuterIntervalQuadrature::Adaptive(context,CurveSample,plan[part],plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,intervalBudget*absoluteH/plan.size(),intervalBudget*absoluteD/plan.size(),relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,2,active,values,errors,rules,blocks ? &context.samples->panel : nullptr,degree,data.normalComponent+2,blocks);
       }
     }
     if(!parentChecksError) CheckQuadratureTolerance("Endpoint curve moments","accumulated non-graph error exceeds tolerance",values,errors,absoluteH,absoluteD,relative,&data.requested);

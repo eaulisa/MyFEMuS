@@ -30,7 +30,7 @@ The implementation uses prepared coefficient, graph, boundary, projection, LINE 
 
 Physical cofactor-gradient polynomials are prepared once per matching field/geometry snapshot, trimmed only where high powers are exactly zero, and restricted without lowering their degree. This cache survives rule, tolerance, surface-mode, and final-weight cache changes. Delta/reference requests do not prepare geometry. Reference requests preserve all original gradient components through slices; prepared physical requests restrict only their external cofactor-gradient components. Signed normal components retain their original orientation in barycentric charts.
 
-The combined 3D call shares the restricted field, physical cofactor-gradient and its norm at common quadrature nodes across the tangential and signed normal weights. Each density selects its projection and refines its own unresolved moments. Shared sample storage lasts for one element call.
+The combined HEX27 call chooses a common outer axis by minimizing the largest squared component of the reference unit normal sampled on the six face traces. Derivative bounds can establish the same choice directly. If the faces supply no regular trace point, the first geometric projection serves as the shared axis. At a common planar panel the combined call reuses the roots, physical cofactor-gradient, monomials and embedded quadrature estimates. Each moment keeps its own tolerance and can request finer panels. Panel storage lasts for one element call.
 
 Known endpoint roots use the parameterized map's slope when the absolute coordinate has rounded to the endpoint. `GetRegularRootDeltaFactor` permits density evaluation directly from this regular root record. Other LINE evaluations reuse the complete prepared topology and stable signed slopes. Sensitive ancestor fibers are contracted directly in compensated algebra, skipping zero polynomial terms, rather than recovered from three full ancestor evaluations. This preserves the same polynomial and introduces no approximation. Slice classification is lazy, so LINE root-only work does not pay for unused Bernstein sign certification.
 
@@ -42,11 +42,12 @@ Let `t` denote the outer slicing coordinate and `u,v` the transverse coordinates
 integrate(field, requested moments and weight)
     Classify the element and account for any face coincident with the interface.
     If the phase is certified and the interface contributes nothing, use exact full or empty moments.
+    For automatic grouped HEX27 weights, choose the shared outer axis from the face-normal criterion when available.
     Look for a transverse direction with a derivative bounded strictly away from zero.
-    If one exists, use it as the inner graph direction and order the remaining outer axes by derivative bound.
-    Otherwise, try outer axes in order of increasing maximum absolute derivative bound.
+    If one exists, use it as the inner graph direction.
+    Try the explicit or shared outer axis first. Order other eligible axes by increasing maximum absolute derivative bound.
         For each candidate t, find its regular interior critical points once for this field and chart.
-        Prefer an axis without a relevant saddle. Honor an explicitly requested outer axis.
+        When ranking alternatives, prefer an axis without a relevant saddle.
         If every candidate has a relevant saddle, use the first in the original order.
     If the field and density are independent of an outer product coordinate, integrate its powers exactly.
     Otherwise, get the event heights for the chosen outer axis and inner chart.
@@ -69,7 +70,7 @@ integrate(field, requested moments and weight)
 
 For a regular interior critical point, the code solves `G = G_u = G_v = 0` and checks `G_t ≠ 0`. The sign of `G_uu G_vv − G_uv²` distinguishes a saddle (negative) from an extremum (positive). The candidate point must lie inside the reference cube, the tetrahedron `x + y + z < 1`, or the prism `x + y < 1, z < 1`, respectively, with positive coordinates. The derivative bound orders the candidate axes cheaply. It cannot distinguish the two Hessian signs. For a nearly bilinear transverse field, the bilinear stationary equations supply extra Newton seeds. Every accepted point is checked on the full interpolant. A singular level set or degenerate Hessian requires separate analysis.
 
-A scalar weight demotes a direction with any detected saddle. For a signed normal weight the ranking uses the physical cofactor-gradient at each saddle and demotes the direction when the requested component is dominant, including ties. Once an axis is selected, its saddle heights receive the logarithmic rule. After adaptive bisection only the child touching the saddle uses that rule. The other child uses the configured tangent Gauss–Kronrod pair in the inherited distance coordinate. All subdivisions are intervals of quadrature on the original element.
+When ranking alternatives, a scalar weight demotes a direction with any detected saddle. For a signed normal weight the ranking uses the physical cofactor-gradient at each saddle and demotes the direction when the requested component is dominant, including ties. Once an axis is selected, its saddle heights receive the logarithmic rule. After adaptive bisection only the child touching the saddle uses that rule. The other child uses the configured tangent Gauss–Kronrod pair in the inherited distance coordinate. All subdivisions are intervals of quadrature on the original element.
 
 If child accuracy or coordinate resolution limits a panel, the integrator can try lower Gauss–Kronrod pairs. The final error check includes the error returned by the slices.
 

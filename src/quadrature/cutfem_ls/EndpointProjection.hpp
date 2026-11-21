@@ -3,6 +3,7 @@
 
 #include "Hex27LevelSetMoments.hpp"
 #include "CutFemPreparedContext.hpp"
+#include "GaussKronrodRules.hpp"
 
 namespace FELevelSetMoments {
 
@@ -39,10 +40,67 @@ class EndpointProjection {
   GeomElType geometry = LINE;
   std::vector<long double> coefficients;
   std::array<EndpointAxisProjection,3> axes;
+  unsigned faceRule = 0;
+  unsigned faceOuter = 3;
+
+  static void ScoreFaceFiber(const CutFemLevelSetData& field, const CutFemLevelSetData& face, unsigned root, unsigned other, long double coordinate, std::vector<long double>& point, std::array<long double,3>& alignment) {
+    point[other] = coordinate;
+    CutFemLevelSetData::LineAnalysis line;
+    face.AnalyzeLocalFiber(root < other ? 0U : 1U,coordinate,line);
+    for(unsigned i = 0; i < line.rootCount; ++i) {
+      point[root] = line.roots[i].coordinate;
+      std::array<long double,3> gradient;
+      field.GetGradient(point,gradient);
+      const long double scale = std::max(std::abs(gradient[0]),std::max(std::abs(gradient[1]),std::abs(gradient[2])));
+      if(scale == 0) continue;
+      for(long double& g : gradient) g /= scale;
+      const long double norm2 = gradient[0]*gradient[0]+gradient[1]*gradient[1]+gradient[2]*gradient[2];
+      for(unsigned d = 0; d < 3; ++d) alignment[d] = std::max(alignment[d],gradient[d]*gradient[d]/norm2);
+    }
+  }
+
+  // Minimize the largest squared reference-normal projection on the HEX face traces.
+  static unsigned FindHexOuter(const CutFemLevelSetData& field, unsigned order) {
+    for(unsigned d = 0; d < 3; ++d) if(!field.DependsOn(d)) return d;
+    std::array<long double,3> lower, upper;
+    for(unsigned d = 0; d < 3; ++d) {
+      const std::array<long double,2>& bounds = field.GetGraphCertificate(d).bounds;
+      lower[d] = std::max(0.0L,std::max(bounds[0],-bounds[1]));
+      upper[d] = std::max(std::abs(bounds[0]),std::abs(bounds[1]));
+    }
+    for(unsigned d = 0; d < 3; ++d) if(upper[d] <= std::min(lower[(d+1)%3],lower[(d+2)%3])) return d;
+    std::array<long double,3> alignment = {-1,-1,-1};
+    const GaussKronrodRule& rule = GaussKronrodRules::Get(order);
+    CutFemLevelSetData face;
+    std::vector<long double> point(3);
+    for(unsigned fixed = 0; fixed < 3; ++fixed) for(unsigned side = 0; side < 2; ++side) {
+      point[fixed] = side;
+      field.Restrict(fixed,side,face,false);
+      const std::array<long double,2> bounds = face.GetBounds();
+      if(bounds[0] > 0 || bounds[1] < 0) continue;
+      for(unsigned root = 0; root < 3; ++root) if(root != fixed) {
+        const unsigned other = 3-fixed-root;
+        ScoreFaceFiber(field,face,root,other,0.5L,point,alignment);
+        for(unsigned k = 1; k < rule.size; ++k) {
+          ScoreFaceFiber(field,face,root,other,(1-rule.nodes[k])/2,point,alignment);
+          ScoreFaceFiber(field,face,root,other,(1+rule.nodes[k])/2,point,alignment);
+        }
+        if(fixed < other) for(unsigned edge = 0; edge < 2; ++edge) ScoreFaceFiber(field,face,root,other,edge,point,alignment);
+      }
+    }
+    return alignment[0] < 0 ? 3U : static_cast<unsigned>(std::min_element(alignment.begin(),alignment.end())-alignment.begin());
+  }
+
 public:
+  unsigned SharedHexOuter(const CutFemLevelSetData& field, unsigned order) {
+    if(faceRule != order) { faceOuter = FindHexOuter(field,order); faceRule = order; }
+    return faceOuter;
+  }
+
   void Bind(const CutFemLevelSetData& data) {
     const std::vector<long double>& normalized = data.GetNormalizedPowerCoefficients();
     if(geometry == data.GetGeometry() && coefficients == normalized) return;
+    faceRule = 0;
     geometry = data.GetGeometry();
     coefficients = normalized;
     for(EndpointAxisProjection& axis : axes) {

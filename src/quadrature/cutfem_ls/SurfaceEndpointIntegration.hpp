@@ -30,6 +30,7 @@ struct SurfaceEndpointStatistics {
 struct SurfaceSlice {
   CutFemLevelSetData field;
   PreparedPlane plane;
+  std::vector<long double> outerPowers;
   std::vector<std::vector<long double>> metric;
   std::vector<std::vector<long double>> coefficient;
   std::vector<unsigned> boundary;
@@ -45,6 +46,8 @@ struct SharedSurfaceSlice {
 
 struct SharedSurfaceSlices {
   std::array<std::map<long double,SharedSurfaceSlice>,3> axes;
+  unsigned outer = 3;
+  unsigned surfaceBlocks = 0;
 };
 
 struct SurfaceEndpointDomain {
@@ -189,7 +192,7 @@ public:
     }
   }
 
-  static unsigned Direction(const SurfaceEndpointData& data, const SurfaceEndpointDomain& cell, bool& weak, long double* energy) {
+  static unsigned Direction(const SurfaceEndpointData& data, unsigned outer, bool& weak, long double* energy) {
     unsigned selected = 3;
     long double best = -1.0L;
     weak = false;
@@ -198,7 +201,7 @@ public:
       const long double minimum = certificate.bounds[0], maximum = certificate.bounds[1];
       energy[axis] = std::max(std::abs(minimum),std::abs(maximum));
       const long double lower = minimum > 0 ? minimum : (maximum < 0 ? -maximum : 0);
-      if(!certificate.strict || lower == 0 || axis == data.preferredOuter) continue;
+      if(!certificate.strict || lower == 0 || axis == outer) continue;
       const long double score = axis == data.preferredInner ? std::numeric_limits<long double>::infinity() : (lower > 0 ? 2+lower/std::max(energy[axis],std::numeric_limits<long double>::min()) : energy[axis]/(1+energy[axis]));
       if(score > best) {
         best = score;
@@ -263,6 +266,9 @@ public:
       if(!(slice.field.GetParentMeasureScale() > 0)) throw OuterQuadratureResolutionError("A prepared 3D slice reached coordinate resolution.");
       if(data.physicalMetric != nullptr) { data.prepared->RestrictComponents(outer,coordinate,data.metricDegree,*data.physicalMetric,slice.metric); if(data.statistics != nullptr) ++data.statistics->metricRestrictions; }
       slice.plane.Bind(slice.field,data.normalization,data.referenceSurface,data.inverseSurface,data.normalComponent,data.physicalMetric == nullptr ? nullptr : &slice.metric,data.metricDegree,data.statistics);
+      slice.outerPowers.resize(data.degree+1);
+      slice.outerPowers[0] = 1;
+      for(unsigned k = 1; k <= data.degree; ++k) slice.outerPowers[k] = coordinate*slice.outerPowers[k-1];
       slice.coefficient = PlanarCoefficients(slice.field,data.normalization);
       slice.boundary = slice.plane.Boundaries();
       const std::vector<long double>& origin = slice.field.GetParentOrigin();
@@ -272,6 +278,7 @@ public:
     }
     slice.plane.inverseSurface = data.inverseSurface;
     slice.plane.normalComponent = data.normalComponent;
+    slice.plane.surfaceBlocks = shared != nullptr && outer == cell.shared->outer ? cell.shared->surfaceBlocks : 0;
     const bool triangleSlice = slice.field.GetGeometry() == TRI;
     std::vector<long double> moments;
     std::vector<long double> momentErrors;
@@ -289,7 +296,7 @@ public:
     for(unsigned n = 0; n < count; ++n) {
       if(!active[n] && !active[count+n]) { ++Statistics().skippedComponents; continue; }
       const unsigned source = ReferenceMomentIndex2D(degree,data.powers[n][first],data.powers[n][second]);
-      const long double power = ReferencePower(coordinate,data.powers[n][outer]);
+      const long double power = slice.outerPowers[data.powers[n][outer]];
       for(unsigned pair = 0; pair < 2; ++pair) if(active[pair*count+n]) {
         values[pair*count+n] = power*moments[pair*sliceCount+source];
         errors[pair*count+n] = std::abs(power)*momentErrors[pair*sliceCount+source]+8*std::numeric_limits<long double>::epsilon()*std::abs(values[pair*count+n]);
@@ -315,6 +322,12 @@ public:
     const std::vector<unsigned char> active = data.requested;
     const int phase = Phase(data,cell);
     if(phase != 0) { if(phase > 0) Full(data,cell,total,totalErrors,active); ++data.accepted; return; }
+    unsigned preferred = data.preferredOuter;
+    const bool chooseShared = preferred == 3 && cell.shared != nullptr && cell.shared->surfaceBlocks != 0;
+    if(chooseShared) {
+      if(cell.shared->outer == 3) cell.shared->outer = data.projection->SharedHexOuter(*data.prepared,data.quadratureRules.Select(2,false));
+      preferred = cell.shared->outer;
+    }
     if(data.preferredOuter < 3) {
       long double axial = 0;
       long double transverse = 0;
@@ -324,16 +337,16 @@ public:
         for(unsigned n = 0; n < derivative.size(); ++n) norm += std::abs(derivative[n]);
         if(axis == data.preferredOuter) axial = norm; else transverse += norm;
       }
-      if(axial > 0 && transverse <= 1e-10L*axial) data.preferredOuter = 3;
+      if(axial > 0 && transverse <= 1e-10L*axial) preferred = data.preferredOuter = 3;
     }
     bool weak = false;
     long double energy[3];
-    const unsigned inner = Direction(data,cell,weak,energy);
+    const unsigned inner = Direction(data,preferred,weak,energy);
     data.graphAxis = inner;
     if(inner < 3) ++Statistics().graphCells; else ++Statistics().generalSurfaces;
     std::vector<unsigned> axes;
     for(unsigned axis = 0; axis < 3; ++axis) if(axis != inner) axes.push_back(axis);
-    for(unsigned i = 0; i < axes.size(); ++i) for(unsigned j = i+1U; j < axes.size(); ++j) if((axes[j] == data.preferredOuter) || (axes[i] != data.preferredOuter && energy[axes[j]] < energy[axes[i]])) std::swap(axes[i],axes[j]);
+    for(unsigned i = 0; i < axes.size(); ++i) for(unsigned j = i+1U; j < axes.size(); ++j) if((axes[j] == preferred) || (axes[i] != preferred && energy[axes[j]] < energy[axes[i]])) std::swap(axes[i],axes[j]);
     const bool saddleSearch = inner == 3;
     unsigned unchecked = axes.size();
     if(saddleSearch && data.preferredOuter == 3 && costlyOuter < 3) {
@@ -349,14 +362,15 @@ public:
     for(unsigned attempt = 0; attempt < axes.size(); ++attempt) {
       while(saddleSearch && data.preferredOuter == 3 && attempt < unchecked) {
         const unsigned candidate = axes[attempt];
-        if(costlyOuter < 3 || !data.prepared->DependsOn(candidate)) break;
+        if(candidate == preferred || costlyOuter < 3 || !data.prepared->DependsOn(candidate)) break;
         EndpointAxisProjection& projection = data.projection->CriticalPoints(*data.prepared,candidate,Statistics().criticalSearches);
-        if(!HasWeightedSaddle(data,candidate,projection)) break;
+        if(!(chooseShared && preferred == 3 ? projection.hasSaddle : HasWeightedSaddle(data,candidate,projection))) break;
         std::rotate(axes.begin()+attempt,axes.begin()+attempt+1,axes.end());
         --unchecked;
       }
       const unsigned outer = axes[attempt];
       if(data.preferredOuter < 3 && outer != data.preferredOuter) continue;
+      if(chooseShared && cell.shared->outer == 3) cell.shared->outer = outer;
       std::vector<long double> values(total.size(),0);
       std::vector<long double> errors(total.size(),0);
       const unsigned long long previousWarnings = QuadratureWarningCount();

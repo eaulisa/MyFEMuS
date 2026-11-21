@@ -27,6 +27,7 @@ struct EndpointStripGeometry;
 struct PreparedPlane {
   SharedGraphStrips* graphs = nullptr;
   EndpointStripGeometry* endpoints = nullptr;
+  unsigned surfaceBlocks = 0;
   const CutFemLevelSetData* data = nullptr;
   const std::vector<std::vector<long double>>* metric = nullptr;
   long double normalization = 1;
@@ -43,6 +44,7 @@ struct PreparedPlane {
   void Bind(const CutFemLevelSetData& field, long double scale, bool surface, bool inverse, int component, const std::vector<std::vector<long double>>* physicalMetric, unsigned physicalDegree, PreparedStatistics* counts) {
     graphs = nullptr;
     endpoints = nullptr;
+    surfaceBlocks = 0;
     data = &field;
     metric = physicalMetric;
     normalization = scale;

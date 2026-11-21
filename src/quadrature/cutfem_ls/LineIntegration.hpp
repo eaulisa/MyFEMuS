@@ -46,10 +46,16 @@ struct PhysicalGraphFiber {
 
 struct GraphStripSamples {
   std::map<long double,PhysicalGraphFiber> fibers;
+  SharedSurfacePanel panel;
+};
+
+struct GraphStripGeometry {
+  std::vector<long double> events, tangencies;
+  std::map<std::array<long double,4>,GraphStripSamples> panels;
 };
 
 struct SharedGraphStrips {
-  std::array<std::map<std::array<long double,4>,GraphStripSamples>,2> directions;
+  std::array<GraphStripGeometry,2> directions;
 };
 
 struct LineGraphContext {
@@ -190,9 +196,33 @@ public:
     return {positiveLeft,positiveRight,root,number == 1 ? std::copysign(derivative,signedDerivative) : 0,root == lower || root == upper};
   }
 
+  static void AddPhysicalSurfaceMoments(unsigned degree, long double x, long double y, long double factor, const PhysicalSurfaceMetric& metric, const std::vector<unsigned char>& active, std::vector<long double>& values) {
+    const unsigned count = (degree+1U)*(degree+2U)/2U;
+    const long double inverse = 1/metric.norm;
+    const bool regularInverse = std::isfinite(inverse);
+    std::array<long double*,4> output;
+    std::array<long double,4> weights;
+    unsigned size = 0;
+    for(unsigned block = 1; block < 5; ++block) if(active[block*count]) {
+      output[size] = values.data()+block*count;
+      weights[size++] = block == 1 ? (regularInverse ? factor*inverse : factor/metric.norm) : factor*(regularInverse ? metric.gradient[block-2]*inverse : metric.gradient[block-2]/metric.norm);
+    }
+    long double xPower = 1;
+    unsigned n = 0;
+    for(unsigned i = 0; i <= degree; ++i) {
+      long double monomial = xPower;
+      for(unsigned j = 0; j <= degree-i; ++j, ++n) {
+        for(unsigned b = 0; b < size; ++b) output[b][n] += weights[b]*monomial;
+        monomial *= y;
+      }
+      xPower *= x;
+    }
+  }
+
   static void FastGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double x, bool computeDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& active, long double mappedDerivative = -1.0L, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0, bool inverseSurface = false, int normalComponent = -1, const PreparedPlane* prepared = nullptr, unsigned preparedOrder = 1, const PhysicalGraphFiber* shared = nullptr) {
     const unsigned count = (degree+1U)*(degree+2U)/2U;
-    values.assign(2U*count,0.0L);
+    const bool batch = active.size() == 5U*count;
+    values.assign(active.size(),0.0L);
     const long double parentX = coordinates == nullptr ? x : (*coordinates)[0]+(*coordinates)[1]*x;
     const long double measure = coordinates == nullptr ? 1.0L : (*coordinates)[4];
     GraphFiberRoots local;
@@ -209,7 +239,12 @@ public:
         rightPower *= parentRight;
       }
     }
-    if(computeDelta && fiber.signedDerivative != 0 && std::find(active.begin()+count,active.end(),1) != active.end()) {
+    if(batch && fiber.signedDerivative != 0) {
+      const long double factor = measure*(fiber.boundary && !strip.fullBoundaryDelta ? 0.5L : 1.0L)/std::abs(fiber.signedDerivative);
+      const long double parentRoot = (*coordinates)[2]+(*coordinates)[3]*fiber.root;
+      AddPhysicalSurfaceMoments(degree,parentX,parentRoot,factor,prepared->EvaluateMetric(preparedOrder,x,fiber.root),active,values);
+    }
+    else if(!batch && computeDelta && fiber.signedDerivative != 0 && std::find(active.begin()+count,active.end(),1) != active.end()) {
       long double weight = measure*(fiber.boundary && !strip.fullBoundaryDelta ? 0.5L : 1.0L);
       if(shared != nullptr) weight *= shared->metric.Factor(inverseSurface,normalComponent)/std::abs(fiber.signedDerivative);
       else if(prepared != nullptr) weight *= prepared->Density(preparedOrder,x,fiber.root,fiber.signedDerivative);
@@ -218,6 +253,7 @@ public:
       long double rootPower = 1.0L;
       for(unsigned j = 0; j <= degree; ++j) { values[count+j] = rootPower*weight; rootPower *= parentRoot; }
     }
+    if(batch && !active[0]) return;
     long double xPower = 1.0L;
     for(unsigned i = 1; i <= degree; ++i) {
       xPower *= parentX;
@@ -225,8 +261,7 @@ public:
         const unsigned k = LineSliceUtilities::MomentIndex(degree,i,j);
         if(active[k]) values[k] = xPower*values[j];
         else ++Statistics().inactiveSkipped;
-        if(active[count+k]) values[count+k] = xPower*values[count+j];
-        else ++Statistics().inactiveSkipped;
+        if(!batch) { if(active[count+k]) values[count+k] = xPower*values[count+j]; else ++Statistics().inactiveSkipped; }
       }
     }
   }
@@ -271,11 +306,12 @@ public:
   static void GraphSample(LineGraphContext& context, const OuterIntervalPoint& point, const std::vector<unsigned char>& active, std::vector<long double>& values, std::vector<long double>& errors, long double absoluteH, long double absoluteD, long double relative) {
     ++*context.evaluations;
     ++Statistics().fastSamples;
-    const PhysicalGraphFiber* shared = context.samples == nullptr || point.precisionProbe ? nullptr : &SharedGraphFiber(context,point);
+    const unsigned count = (context.degree+1U)*(context.degree+2U)/2U;
+    const PhysicalGraphFiber* shared = context.samples == nullptr || point.precisionProbe || active.size() != 2U*count ? nullptr : &SharedGraphFiber(context,point);
     const long double derivative = shared != nullptr || context.interval.mapping == 0 ? -1 : EndpointDerivative(context.interval,context.discriminant,point);
     FastGraphSample(*context.coefficient,context.degree,context.strip,point.coordinate,context.computeDelta,context.lowerZero,context.upperZero,values,context.gradient,active,derivative,context.coordinates,context.derivativeSign,context.inverseSurface,context.normalComponent,context.prepared,context.preparedOrder,shared);
-    errors.assign(values.size(),0);
-    for(unsigned n = 0; n < values.size(); ++n) if(active[n]) values[n] *= point.jacobian;
+    errors.clear();
+    if(point.jacobian != 1) for(unsigned n = 0; n < values.size(); ++n) if(active[n]) values[n] *= point.jacobian;
   }
 
   static bool Accept(const std::vector<long double>& values, const std::vector<long double>& errors, long double absoluteH, long double absoluteD, long double relative, std::vector<unsigned char>& active, std::vector<long double>& total, std::vector<long double>& totalErrors) {
@@ -360,9 +396,14 @@ public:
   static void IntegrateStrip(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, bool graph, bool mapped, bool computeDelta, long double absoluteH, long double absoluteD, long double relative, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, std::vector<long double>& values, std::vector<long double>& errors, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient = nullptr, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr, const OuterQuadratureRules& rules = OuterQuadratureRules(), bool inverseSurface = false, int normalComponent = -1, const PreparedPlane* prepared = nullptr, unsigned preparedOrder = 1) {
     rules.Validate();
     if(!graph) throw std::invalid_argument("The LINE outer graph path requires a certified graph.");
-    std::vector<long double> events;
-    std::vector<long double> tangencies;
-    CollectEvents(coefficient,strip,events,&tangencies,graph && !mapped,prepared,preparedOrder);
+    GraphStripGeometry* shared = prepared != nullptr && prepared->graphs != nullptr ? &prepared->graphs->directions[preparedOrder-1] : nullptr;
+    std::vector<long double> localEvents, localTangencies;
+    if(shared == nullptr || shared->events.empty()) {
+      CollectEvents(coefficient,strip,localEvents,&localTangencies,!mapped,prepared,preparedOrder);
+      if(shared != nullptr) { shared->events.swap(localEvents); shared->tangencies.swap(localTangencies); }
+    }
+    const std::vector<long double>& events = shared == nullptr ? localEvents : shared->events;
+    const std::vector<long double>& tangencies = shared == nullptr ? localTangencies : shared->tangencies;
     const long double intervalBudget = events.size() > 1 ? 1.0L/(events.size()-1U) : 1;
     const bool lowerZero = strip.certifiedLowerZero || (prepared == nullptr ? BoundaryIsZero(coefficient,strip.lowerConstant,strip.lowerSlope) : prepared->ZeroBoundary(preparedOrder,strip.lowerConstant,strip.lowerSlope));
     const bool upperZero = strip.certifiedUpperZero || (prepared == nullptr ? BoundaryIsZero(coefficient,strip.upperConstant,strip.upperSlope) : prepared->ZeroBoundary(preparedOrder,strip.upperConstant,strip.upperSlope));
@@ -413,14 +454,15 @@ public:
         context.coordinates = coordinates;
         context.derivativeSign = middleDerivative > 0 ? 1 : -1;
         context.interval = plan[part];
-        if(prepared != nullptr && prepared->graphs != nullptr) {
+        if(shared != nullptr) {
           const OuterInterval& panel = plan[part];
           const std::array<long double,4> key = {panel.left,panel.right,static_cast<long double>(panel.mapping)*panel.exponent,static_cast<long double>(panel.exactEndpoint)};
-          context.samples = &prepared->graphs->directions[preparedOrder-1][key];
+          context.samples = &shared->panels[key];
         }
         context.discriminant = EndpointDiscriminant(coefficient,plan[part],prepared,preparedOrder);
         context.evaluations = &evaluations;
-        OuterIntervalQuadrature::Adaptive(context,GraphSample,plan[part],plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,intervalBudget*absoluteH/plan.size(),intervalBudget*absoluteD/plan.size(),relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,2,active,values,errors,rules);
+        const unsigned blocks = prepared == nullptr ? 0 : prepared->surfaceBlocks;
+        OuterIntervalQuadrature::Adaptive(context,GraphSample,plan[part],plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,intervalBudget*absoluteH/plan.size(),intervalBudget*absoluteD/plan.size(),relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,2,active,values,errors,rules,blocks ? &context.samples->panel : nullptr,degree,normalComponent+2,blocks);
       }
     }
   }

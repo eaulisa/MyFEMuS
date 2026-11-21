@@ -29,6 +29,7 @@ struct OuterIntervalStatistics {
   unsigned long long higherOrderMaps = 0;
   unsigned long long samples = 0;
   unsigned long long precisionSamples = 0;
+  unsigned long long reusedPanels = 0;
   unsigned long long acceptedMoments = 0;
   unsigned long long skippedMoments = 0;
   std::array<unsigned long long,15> regularRulePanels = {};
@@ -53,6 +54,31 @@ struct OuterIntervalPoint {
   long double offset = 0;
   long double jacobian = 1;
   bool precisionProbe = false;
+};
+
+// Blocks hold the volume, tangential and three signed-normal embedded estimates on one planar panel.
+struct SharedSurfacePanel {
+  unsigned storedDegree = 0;
+  unsigned moments = 0;
+  unsigned blocks = 0;
+  std::vector<long double> values, errors;
+  std::vector<SharedSurfacePanel> children;
+
+  bool Covers(unsigned count, unsigned required) const { return moments >= count && (blocks & required) == required; }
+
+  void Read(unsigned degree, unsigned block, const std::vector<unsigned char>& active, std::vector<long double>& result, std::vector<long double>& error) const {
+    const unsigned count = active.size()/2;
+    result.assign(active.size(),0);
+    error.assign(active.size(),0);
+    unsigned source = 0, target = 0;
+    for(unsigned i = 0; i <= degree; ++i) {
+      for(unsigned j = 0; j <= degree-i; ++j, ++target) {
+        if(active[target]) { result[target] = values[source+j]; error[target] = errors[source+j]; }
+        if(active[count+target]) { result[count+target] = values[block*moments+source+j]; error[count+target] = errors[block*moments+source+j]; }
+      }
+      source += storedDegree+1-i;
+    }
+  }
 };
 
 class OuterIntervalQuadrature {
@@ -147,6 +173,9 @@ public:
     std::vector<long double> norm(active.size(),0);
     std::vector<long double> value, error, adjacentValue, adjacentError;
     const long double sampleAbsoluteH = absoluteH/physicalWidth, sampleAbsoluteD = absoluteD/physicalWidth;
+    std::vector<unsigned> indices;
+    indices.reserve(active.size());
+    for(unsigned n = 0; n < active.size(); ++n) if(active[n]) indices.push_back(n);
     const unsigned size = logarithmic ? 20 : rule.size;
     for(unsigned q = 0; q < size; ++q) for(unsigned side = 0; side < (logarithmic || q == 0 ? 1U : 2U); ++side) {
       long double parameter, weight, gaussWeight;
@@ -182,21 +211,22 @@ public:
         ++Statistics(dimension).samples;
         ++Statistics(dimension).precisionSamples;
         sample(context,adjacent,active,adjacentValue,adjacentError,sampleAbsoluteH,sampleAbsoluteD,relative);
-        for(unsigned n = 0; n < active.size(); ++n) if(active[n]) error[n] += std::abs(value[n]-adjacentValue[n])+adjacentError[n];
+        if(error.empty()) error.assign(active.size(),0);
+        for(unsigned n : indices) error[n] += std::abs(value[n]-adjacentValue[n])+(adjacentError.empty() ? 0 : adjacentError[n]);
       }
-      for(unsigned n = 0; n < active.size(); ++n) {
-        if(!active[n]) { ++Statistics(dimension).skippedMoments; continue; }
+      Statistics(dimension).skippedMoments += active.size()-indices.size();
+      for(unsigned n : indices) {
         values[n] += weight*value[n];
         low[n] += gaussWeight*value[n];
-        errors[n] += (logarithmic ? weight+gaussWeight : weight)*error[n];
         norm[n] += weight*std::abs(value[n]);
       }
+      if(!error.empty()) for(unsigned n : indices) errors[n] += (logarithmic ? weight+gaussWeight : weight)*error[n];
     }
-    for(unsigned n = 0; n < active.size(); ++n) if(active[n]) errors[n] += std::max(std::abs(values[n]-low[n]),256*std::numeric_limits<long double>::epsilon()*norm[n]);
+    for(unsigned n : indices) errors[n] += std::max(std::abs(values[n]-low[n]),256*std::numeric_limits<long double>::epsilon()*norm[n]);
     return QuadratureWarningCount() == previousWarnings;
   }
 
-  template<class Context> static void Adaptive(Context& context, void (*sample)(Context&, const OuterIntervalPoint&, const std::vector<unsigned char>&, std::vector<long double>&, std::vector<long double>&, long double, long double, long double), const OuterInterval& interval, long double left, long double right, long double absoluteH, long double absoluteD, long double relative, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, unsigned dimension, const std::vector<unsigned char>& requested, std::vector<long double>& total, std::vector<long double>& totalErrors, const OuterQuadratureRules& rules = OuterQuadratureRules()) {
+  template<class Context> static void Adaptive(Context& context, void (*sample)(Context&, const OuterIntervalPoint&, const std::vector<unsigned char>&, std::vector<long double>&, std::vector<long double>&, long double, long double, long double), const OuterInterval& interval, long double left, long double right, long double absoluteH, long double absoluteD, long double relative, unsigned depth, unsigned maximumDepth, unsigned maximumEvaluations, unsigned& evaluations, unsigned& accepted, unsigned dimension, const std::vector<unsigned char>& requested, std::vector<long double>& total, std::vector<long double>& totalErrors, const OuterQuadratureRules& rules = OuterQuadratureRules(), SharedSurfacePanel* shared = nullptr, unsigned degree = 0, unsigned block = 0, unsigned surfaceBlocks = 0) {
     QuadratureWarningScope warningScope(dimension == 2 ? "2D outer quadrature" : "3D outer quadrature");
     std::vector<unsigned char> active = requested;
     std::vector<long double> values, errors;
@@ -204,14 +234,34 @@ public:
     std::vector<long double> bestErrors(active.size(),std::numeric_limits<long double>::infinity());
     const GaussKronrodRule& selected = GaussKronrodRules::Get(rules.Select(dimension,interval.mapping != 0));
     const bool logarithmic = interval.logarithmic && left == 0;
-    const bool budgetLimited = evaluations >= maximumEvaluations || maximumEvaluations-evaluations < (logarithmic ? 20U : selected.kronrod);
+    const unsigned count = active.size()/2;
+    const unsigned required = shared == nullptr ? 0U : (1U<<block) | (std::find(active.begin(),active.begin()+count,1) != active.begin()+count ? 1U : 0U);
+    const bool cached = shared != nullptr && shared->Covers(count,required);
+    const bool budgetLimited = !cached && (evaluations >= maximumEvaluations || maximumEvaluations-evaluations < (logarithmic ? 20U : selected.kronrod));
     const GaussKronrodRule& primary = budgetLimited ? GaussKronrodRules::Get(3) : selected;
     bool reduce = interval.mapping != 0 && !Resolved(primary,interval,left,right);
     if(!reduce) {
       if(logarithmic && !budgetLimited) { ++Statistics(dimension).transformedPanels; ++Statistics(dimension).logarithmicPanels; }
       else if(interval.mapping == 0) { ++Statistics(dimension).regularPanels; ++Statistics(dimension).regularRulePanels[primary.index]; }
       else { ++Statistics(dimension).transformedPanels; ++Statistics(dimension).transformedRulePanels[primary.index]; }
-      try { const bool childAccuracy = Panel(primary,context,sample,interval,left,right,active,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,false,logarithmic && !budgetLimited,values,errors); KeepBestQuadrature(values,errors,active,best,bestErrors); if(!childAccuracy) { ++Statistics(dimension).childResolutionFailures; reduce = true; } }
+      try {
+        bool childAccuracy = true;
+        if(cached) { shared->Read(degree,block,active,values,errors); ++Statistics(dimension).reusedPanels; }
+        else if(shared != nullptr && !budgetLimited && shared->moments <= count && (surfaceBlocks & (surfaceBlocks-1U)) != 0) {
+          const unsigned blocks = surfaceBlocks | (required & 1U);
+          std::vector<unsigned char> batch(5*count,0);
+          for(unsigned b = 0; b < 5; ++b) if(blocks & (1U<<b)) std::fill_n(batch.begin()+b*count,count,1);
+          shared->blocks = 0;
+          childAccuracy = Panel(primary,context,sample,interval,left,right,batch,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,false,logarithmic,shared->values,shared->errors);
+          shared->moments = count;
+          shared->storedDegree = degree;
+          shared->Read(degree,block,active,values,errors);
+          if(childAccuracy) shared->blocks = blocks;
+        }
+        else childAccuracy = Panel(primary,context,sample,interval,left,right,active,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,false,logarithmic && !budgetLimited,values,errors);
+        KeepBestQuadrature(values,errors,active,best,bestErrors);
+        if(!childAccuracy) { ++Statistics(dimension).childResolutionFailures; reduce = true; }
+      }
       catch(const QuadratureAccuracyRetry&) { ++Statistics(dimension).childResolutionFailures; reduce = true; }
       catch(const OuterQuadratureResolutionError&) { ++Statistics(dimension).childResolutionFailures; reduce = true; }
     }
@@ -256,8 +306,10 @@ public:
     const std::vector<long double> savedErrors = totalErrors;
     const unsigned savedAccepted = accepted;
     try {
-      Adaptive(context,sample,interval,left,middle,0.5L*absoluteH,0.5L*absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,dimension,active,total,totalErrors,rules);
-      Adaptive(context,sample,interval,middle,right,0.5L*absoluteH,0.5L*absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,dimension,active,total,totalErrors,rules);
+      if(shared != nullptr && shared->children.empty() && (surfaceBlocks & (surfaceBlocks-1U)) != 0) shared->children.resize(2);
+      SharedSurfacePanel* children = shared != nullptr && !shared->children.empty() ? shared->children.data() : nullptr;
+      Adaptive(context,sample,interval,left,middle,0.5L*absoluteH,0.5L*absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,dimension,active,total,totalErrors,rules,children,degree,block,surfaceBlocks);
+      Adaptive(context,sample,interval,middle,right,0.5L*absoluteH,0.5L*absoluteD,relative,depth+1U,maximumDepth,maximumEvaluations,evaluations,accepted,dimension,active,total,totalErrors,rules,children == nullptr ? nullptr : children+1,degree,block,surfaceBlocks);
     }
     catch(const OuterQuadratureResolutionError&) {
       for(unsigned n = 0; n < active.size(); ++n) if(active[n]) { total[n] = savedTotal[n]; totalErrors[n] = savedErrors[n]; }

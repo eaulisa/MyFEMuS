@@ -183,6 +183,7 @@ class CutFemWeight_LS {
       if(&positive == tangential) throw std::invalid_argument("Volume and tangential weights require distinct output vectors.");
       for(const std::vector<TypeIO>& component : normals) if(&component == &positive || &component == tangential) throw std::invalid_argument("Volume, tangential and normal weights require distinct output vectors.");
       FELevelSetMoments::SharedSurfaceSlices shared;
+      if(_geomElemType == HEX && _integrationDirection == 0) for(int component = tangential == nullptr ? 0 : -1; component < 3; ++component) shared.surfaceBlocks |= 1U<<(component+2);
       std::vector<TypeIO> resultPositive, resultTangential;
       std::vector<std::vector<TypeIO>> resultNormals(3);
       if(tangential != nullptr) GetPreparedWeightPair(data,resultPositive,resultTangential,absolute,relative,true,rules,&coordinates,true,-1,&shared);
@@ -284,6 +285,7 @@ class CutFemWeight_LS {
       if(geometryCoordinates != nullptr) FELevelSetMoments::ValidateSurfaceGeometryCoordinates(*geometryCoordinates, _dim, _geomElemType == LINE ? 3U : (_geomElemType == TRI ? 7U : (_geomElemType == QUAD ? 9U : (_geomElemType == TET ? 15U : (_geomElemType == WEDGE ? 21U : 27U)))));
       const bool sameGeometry = geometryCoordinates == nullptr ? _nodalGeometryCoordinates.empty() : _nodalGeometryCoordinates == *geometryCoordinates;
       const bool sameInput = _nodalWeightCacheValid && _cachedOuterQuadratureRules.SameAs(rules) && sameGeometry && nodalValues == _nodalValues && absoluteTolerance == _nodalAbsoluteTolerance && relativeTolerance == _nodalRelativeTolerance;
+      if(shared != nullptr && shared->surfaceBlocks != 0 && sameInput) for(unsigned m = 2; m < _nodalDeltaWeightCache.size(); ++m) if(!_nodalDeltaWeightCache[m].empty()) shared->surfaceBlocks &= ~(1U<<(m-1));
       const unsigned mode = normalComponent >= 0 ? 3U+static_cast<unsigned>(normalComponent) : (inverseSurface ? 2U : (referenceSurface ? 1U : 0U));
       if(sameInput && !_nodalDeltaWeightCache[mode].empty()) {
         positiveWeight = _nodalPositiveWeight;

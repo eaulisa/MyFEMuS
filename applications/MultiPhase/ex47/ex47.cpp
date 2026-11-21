@@ -2368,6 +2368,22 @@ void TestHexSaddleProjection() {
   Check(FELevelSetMoments::SurfaceEndpointIntegration::Statistics().criticalSearches == searches+3,"scalar and rotated signed measures reuse all critical points");
   Check(FELevelSetMoments::SurfaceEndpointIntegration::Statistics().eventBuilds == plans,"rotating the physical map reuses reference event plans");
 
+  currentCheck = "HEX27 shared outer axis on element 69612";
+  CutFemWeight_LS<long double,long double> joint(HEX,5,"legendre");
+  const CutFemLevelSetData saddle(HEX,nodal);
+  FELevelSetMoments::EndpointProjection projection;
+  projection.Bind(saddle);
+  Check(projection.SharedHexOuter(saddle,15) == 1,"the face-normal criterion selects y");
+  const unsigned long long previousPlans = FELevelSetMoments::SurfaceEndpointIntegration::Statistics().eventBuilds;
+  const unsigned long long previousHits = FELevelSetMoments::OuterIntervalQuadrature::Statistics(2).reusedPanels;
+  joint.GetTangentialAndNormalSurfaceWeightsFromLevelSetData(saddle,coordinates,positive,surface,normals,1e-8,1e-8);
+  Check(FELevelSetMoments::SurfaceEndpointIntegration::Statistics().eventBuilds == previousPlans+1,"all five weights use one outer projection");
+  Check(FELevelSetMoments::OuterIntervalQuadrature::Statistics(2).reusedPanels > previousHits,"the combined call reuses embedded planar estimates");
+  const std::vector<long double> jointH = FittedWeightMoments(joint,HEX,3,positive,5), jointT = FittedWeightMoments(joint,HEX,3,surface,5);
+  for(unsigned n = 0; n < h.size(); ++n) { CheckNear(jointH[n]/8,h[n]/8,1e-8L,"joint positive moment"); CheckNear(jointT[n]/8,d[n]/8,1e-8L,"joint tangential moment"); }
+  for(unsigned axis = 0; axis < 3; ++axis) CheckNear(FittedWeightMoments(joint,HEX,3,normals[axis],5)[0]/8,expectedNormal[axis],1e-8L,"joint signed normal mass");
+  Check(FELevelSetMoments::QuadratureWarningCount() == warnings,"shared saddle projection meets tolerance");
+
   currentCheck = "HEX27 whole-element outer direction";
   const std::vector<double> twoSaddles = {0.0011137319967982392,-0.00045001059519084603,-0.00097515682293665851,-0.00044996036212267804,0.0010944453954665851,-0.00046172092017875941,-0.00094752956408125589,-0.00046126626498387268,0.00043708252339941863,-0.00047416194807737297,-0.00047334447336950652,0.00043753463971559842,0.0004744843356212895,-0.00043373395702033028,-0.00043289383593618681,0.00047494675803111722,0.00094471009657230037,-0.00072743005977729839,-0.0009410772621390492,-0.00072732978923546558,0.00050921245406149401,-0.00045414287132016754,-0.00045327738702507608,0.00050912104630967091,0.00060012500935635962,0.00020820008447767745,0.00014636136428263074};
   const CutFemLevelSetData data(HEX,twoSaddles);
