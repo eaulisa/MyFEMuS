@@ -1552,11 +1552,8 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
               if(rule->GetGaussQuadraturePointNumber() != nGauss)
                 throw std::runtime_error("Quadratic CutFEM Gauss rule mismatch");
 
-              rule->GetTangentialSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCF,tol,tol);
-
-              if(dim == 3 && surfaceWeightCount == 3) {
-                rule->GetNormalSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCFNormal,tol,tol);
-              }
+              if(dim == 3 && surfaceWeightCount == 3) rule->GetTangentialAndNormalSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCF,weightCFNormal,tol,tol);
+              else rule->GetTangentialSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCF,tol,tol);
 
             }
             else {

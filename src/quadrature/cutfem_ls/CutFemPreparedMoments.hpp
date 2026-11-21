@@ -122,7 +122,7 @@ inline void IntegratePlanar(const CutFemLevelSetData& source, unsigned degree, d
     if(barycentric) { if(workspace.chartMetricRevision != workspace.metricRevision) { field->TransformParentComponents(metricDegree,*metric,workspace.chartMetricDegree,workspace.chartMetric); TrimMetric(field->GetDimension(),workspace.chartMetric,workspace.chartMetricDegree); workspace.chartMetricRevision = workspace.metricRevision; } metric = &workspace.chartMetric; metricDegree = workspace.chartMetricDegree; }
   }
   workspace.plane.Bind(*field,normalization,referenceSurface,inverseSurface,normalComponent,metric,metricDegree,&workspace.statistics);
-  if(referenceSurface) PlanarPolicy(*field,metric,metricDegree,workspace.policy);
+  if(validation == 2 && referenceSurface) PlanarPolicy(*field,metric,metricDegree,workspace.policy);
   const unsigned count = (degree+1)*(degree+2)/2;
   std::vector<unsigned char> requested(2*count,1);
   if(!computePositive) std::fill(requested.begin(),requested.begin()+count,0);
@@ -132,7 +132,7 @@ inline void IntegratePlanar(const CutFemLevelSetData& source, unsigned degree, d
   std::vector<long double> moments, momentErrors;
   unsigned evaluations = 0, accepted = 0, selected = 0;
   const std::vector<std::vector<long double>> coefficient = PlanarCoefficients(*field,normalization);
-  PlanarEndpointIntegration::Integrate(coefficient,degree,source.GetGeometry() == TRI,true,absolute*volume/amplification,absolute*normalization*volume/amplification,relative/amplification,28,200000,moments,momentErrors,evaluations,accepted,selected,referenceSurface ? &workspace.policy : nullptr,&parent,&requested,barycentric ? 1U : direction,false,&boundary,rules,inverseSurface,normalComponent,&workspace.plane);
+  PlanarEndpointIntegration::Integrate(coefficient,degree,source.GetGeometry() == TRI,true,absolute*volume/amplification,absolute*normalization*volume/amplification,relative/amplification,28,200000,moments,momentErrors,evaluations,accepted,selected,nullptr,&parent,&requested,barycentric ? 1U : direction,false,&boundary,rules,inverseSurface,normalComponent,&workspace.plane);
   if(validation == 2) PlanarEndpointIntegration::Compare(coefficient,degree,source.GetGeometry() == TRI,true,absolute*volume/amplification,absolute*normalization*volume/amplification,relative/amplification,28,200000,moments,momentErrors,evaluations,accepted,selected,referenceSurface ? &workspace.policy : nullptr,&parent,false,&boundary,rules,inverseSurface,normalComponent,&workspace.plane);
   if(barycentric) { std::vector<long double> original, originalErrors; EndpointSimplexChart::RestoreTriangle(degree,moments,momentErrors,original,originalErrors); moments.swap(original); momentErrors.swap(originalErrors); }
   std::vector<long double> h(count), d(count);
@@ -145,7 +145,7 @@ inline void IntegratePlanar(const CutFemLevelSetData& source, unsigned degree, d
   errors.insert(errors.end(),ed.begin(),ed.end());
 }
 
-inline void IntegrateSpatial(const CutFemLevelSetData& source, unsigned degree, double absolute, double relative, bool referenceSurface, const std::vector<std::vector<double>>* geometry, unsigned direction, unsigned validation, const OuterQuadratureRules& rules, bool inverseSurface, int normalComponent, bool computePositive, PreparedMomentWorkspace& workspace, std::vector<long double>& values, std::vector<long double>& errors) {
+inline void IntegrateSpatial(const CutFemLevelSetData& source, unsigned degree, double absolute, double relative, bool referenceSurface, const std::vector<std::vector<double>>* geometry, unsigned direction, unsigned validation, const OuterQuadratureRules& rules, bool inverseSurface, int normalComponent, bool computePositive, PreparedMomentWorkspace& workspace, std::vector<long double>& values, std::vector<long double>& errors, SharedSurfaceSlices* shared = nullptr) {
   const CutFemLevelSetData* field = &source;
   const bool barycentric = source.GetGeometry() == TET && direction == 1;
   if(barycentric) { if(!workspace.chart.IsInitialized() || source.GetNodalValues().empty() || workspace.chartNodes != source.GetNodalValues()) { source.PermuteSimplexVertices({1,0,2,3},workspace.chart); workspace.chartNodes = source.GetNodalValues(); workspace.chartMetricRevision = 0; } field = &workspace.chart; }
@@ -175,8 +175,6 @@ inline void IntegrateSpatial(const CutFemLevelSetData& source, unsigned degree, 
   data.statistics = &workspace.statistics;
   workspace.projection.Bind(*field);
   data.projection = &workspace.projection;
-  data.gradient.clear();
-  if(referenceSurface) { if(metric != nullptr) data.gradient = *metric; else { data.gradient.resize(3); for(unsigned component = 0; component < 3; ++component) data.gradient[component] = field->GetRootDerivativeCoefficients(component); } }
   data.degree = degree;
   data.evaluations = data.accepted = 0;
   data.graphAxis = data.preferredInner = data.preferredOuter = 3;
@@ -198,8 +196,8 @@ inline void IntegrateSpatial(const CutFemLevelSetData& source, unsigned degree, 
   data.absoluteD = absolute*normalization*measure/amplification;
   data.relative = relative/amplification;
   std::vector<long double> moments, momentErrors;
-  SurfaceEndpointIntegration::Integrate(data,source.GetGeometry() == TET,moments,momentErrors);
-  if(validation == 2) SurfaceEndpointIntegration::Compare(data,source.GetGeometry() == TET,moments,momentErrors);
+  SurfaceEndpointIntegration::Integrate(data,source.GetGeometry() == TET,moments,momentErrors,shared);
+  if(validation == 2) SurfaceEndpointIntegration::Compare(data,source.GetGeometry() == TET,moments,momentErrors,shared);
   if(barycentric) { std::vector<long double> original, originalErrors; EndpointSimplexChart::RestoreTetrahedron(degree,moments,momentErrors,original,originalErrors); moments.swap(original); momentErrors.swap(originalErrors); }
   const unsigned count = moments.size()/2;
   std::vector<long double> h(moments.begin(),moments.begin()+count), d(moments.begin()+count,moments.end());

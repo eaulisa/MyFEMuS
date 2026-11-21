@@ -5,6 +5,7 @@
 #include "FELevelSetMoments.hpp"
 #include "OuterIntervalQuadrature.hpp"
 #include <array>
+#include <map>
 #include "CutFemPreparedContext.hpp"
 
 namespace FELevelSetMoments {
@@ -33,7 +34,26 @@ struct LineIntegrationDiscriminant {
   long double constant = 0;
 };
 
+struct GraphFiberRoots {
+  long double positiveLeft, positiveRight, root, signedDerivative;
+  bool boundary;
+};
+
+struct PhysicalGraphFiber {
+  GraphFiberRoots geometry;
+  PhysicalSurfaceMetric metric;
+};
+
+struct GraphStripSamples {
+  std::map<long double,PhysicalGraphFiber> fibers;
+};
+
+struct SharedGraphStrips {
+  std::array<std::map<std::array<long double,4>,GraphStripSamples>,2> directions;
+};
+
 struct LineGraphContext {
+  GraphStripSamples* samples = nullptr;
   const PreparedPlane* prepared = nullptr;
   unsigned preparedOrder = 1;
   const std::vector<std::vector<long double>>* coefficient = nullptr;
@@ -80,11 +100,13 @@ public:
     return LineSliceUtilities::PolynomialNorm(boundary) == 0.0L;
   }
 
-  static void FastGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double x, bool computeDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& active, long double mappedDerivative = -1.0L, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0, bool inverseSurface = false, int normalComponent = -1, const PreparedPlane* prepared = nullptr, unsigned preparedOrder = 1) {
-    const unsigned count = (degree+1U)*(degree+2U)/2U;
-    values.assign(2U*count,0.0L);
-    const long double parentX = coordinates == nullptr ? x : (*coordinates)[0]+(*coordinates)[1]*x;
-    const long double measure = coordinates == nullptr ? 1.0L : (*coordinates)[4];
+  static long double QuadraticRootDerivative(const std::array<long double,3>& polynomial, long double mappedDerivative) {
+    if(mappedDerivative >= 0) return mappedDerivative;
+    const long double discriminant = std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
+    return discriminant >= 0 ? std::sqrt(discriminant) : -1.0L;
+  }
+
+  static GraphFiberRoots FindGraphFiber(const std::vector<std::vector<long double>>& coefficient, const LineIntegrationStrip& strip, long double x, bool lowerZero, bool upperZero, long double mappedDerivative, int derivativeSign, const PreparedPlane* prepared, unsigned preparedOrder) {
     const long double lower = StripLower(strip,x);
     const long double upper = StripUpper(strip,x);
     std::array<long double,3> polynomial = {0,0,0};
@@ -117,9 +139,8 @@ public:
         if(polynomial[1] != 0.0L) { root = -polynomial[0]/polynomial[1]; derivative = std::abs(polynomial[1]); available = true; }
       }
       else {
-        const long double discriminant = mappedDerivative >= 0 ? mappedDerivative*mappedDerivative : std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
-        if(discriminant >= 0.0L) {
-          derivative = std::sqrt(discriminant);
+        derivative = QuadraticRootDerivative(polynomial,mappedDerivative);
+        if(derivative >= 0.0L) {
           const long double denominator = polynomial[1]+derivativeSign*derivative;
           root = derivativeSign*polynomial[1] >= 0.0L && denominator != 0.0L ? -2.0L*polynomial[0]/denominator : 0.5L*(-polynomial[1]+derivativeSign*derivative)/polynomial[2];
           available = true;
@@ -129,6 +150,7 @@ public:
       signedDerivative = derivativeSign;
     }
     else {
+      const long double quadraticDerivative = polynomial[2] == 0.0L ? -1.0L : QuadraticRootDerivative(polynomial,mappedDerivative);
       std::array<long double,2> roots;
       unsigned rootsCount = 0;
       if(lowerZero || upperZero) {
@@ -142,10 +164,9 @@ public:
         if(polynomial[1] != 0.0L) roots[rootsCount++] = -polynomial[0]/polynomial[1];
       }
       else {
-        const long double discriminant = mappedDerivative >= 0 ? mappedDerivative*mappedDerivative : std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
-        if(discriminant == 0.0L) roots[rootsCount++] = -polynomial[1]/(2.0L*polynomial[2]);
-        else if(discriminant > 0.0L) {
-          const long double numerator = -0.5L*(polynomial[1]+std::copysign(std::sqrt(discriminant),polynomial[1]));
+        if(quadraticDerivative == 0.0L) roots[rootsCount++] = -polynomial[1]/(2.0L*polynomial[2]);
+        else if(quadraticDerivative > 0.0L) {
+          const long double numerator = -0.5L*(polynomial[1]+std::copysign(quadraticDerivative,polynomial[1]));
           roots[rootsCount++] = numerator/polynomial[2];
           roots[rootsCount++] = polynomial[0]/numerator;
         }
@@ -154,8 +175,7 @@ public:
       if(number > 1) throw std::runtime_error("The cached graph branch is not a single root.");
       if(number == 1) {
         signedDerivative = polynomial[2] == 0.0L ? polynomial[1] : std::fma(2.0L*polynomial[2],root,polynomial[1]);
-        const long double discriminant = polynomial[2] == 0.0L ? polynomial[1]*polynomial[1] : std::fma(-4.0L*polynomial[2],polynomial[0],polynomial[1]*polynomial[1]);
-        derivative = polynomial[2] == 0.0L ? std::abs(polynomial[1]) : (discriminant >= 0.0L ? std::sqrt(discriminant) : std::abs(signedDerivative));
+        derivative = polynomial[2] == 0.0L ? std::abs(polynomial[1]) : (quadraticDerivative >= 0.0L ? quadraticDerivative : std::abs(signedDerivative));
       }
     }
     long double positiveLeft = lower;
@@ -167,20 +187,34 @@ public:
       positiveRight = signedDerivative > 0.0L ? upper : root;
     }
     else if(prepared != nullptr && mappedDerivative < 0 ? preparedPositive : std::fma(std::fma(polynomial[2],0.5L*(lower+upper),polynomial[1]),0.5L*(lower+upper),polynomial[0]) > 0.0L) positiveRight = upper;
-    const long double parentLeft = coordinates == nullptr ? positiveLeft : (*coordinates)[2]+(*coordinates)[3]*positiveLeft;
-    const long double parentRight = coordinates == nullptr ? positiveRight : (*coordinates)[2]+(*coordinates)[3]*positiveRight;
-    long double rightPower = 1.0L;
-    long double geometric = 0.0L;
-    for(unsigned j = 0; j <= degree; ++j) {
-      geometric = rightPower+parentLeft*geometric;
-      values[j] = measure*(positiveRight-positiveLeft)*geometric/(j+1U);
-      rightPower *= parentRight;
+    return {positiveLeft,positiveRight,root,number == 1 ? std::copysign(derivative,signedDerivative) : 0,root == lower || root == upper};
+  }
+
+  static void FastGraphSample(const std::vector<std::vector<long double>>& coefficient, unsigned degree, const LineIntegrationStrip& strip, long double x, bool computeDelta, bool lowerZero, bool upperZero, std::vector<long double>& values, const std::vector<std::vector<std::vector<long double>>>* surfaceGradient, const std::vector<unsigned char>& active, long double mappedDerivative = -1.0L, const std::array<long double,5>* coordinates = nullptr, int derivativeSign = 0, bool inverseSurface = false, int normalComponent = -1, const PreparedPlane* prepared = nullptr, unsigned preparedOrder = 1, const PhysicalGraphFiber* shared = nullptr) {
+    const unsigned count = (degree+1U)*(degree+2U)/2U;
+    values.assign(2U*count,0.0L);
+    const long double parentX = coordinates == nullptr ? x : (*coordinates)[0]+(*coordinates)[1]*x;
+    const long double measure = coordinates == nullptr ? 1.0L : (*coordinates)[4];
+    GraphFiberRoots local;
+    if(shared == nullptr) local = FindGraphFiber(coefficient,strip,x,lowerZero,upperZero,mappedDerivative,derivativeSign,prepared,preparedOrder);
+    const GraphFiberRoots& fiber = shared == nullptr ? local : shared->geometry;
+    if(std::find(active.begin(),active.begin()+count,1) != active.begin()+count) {
+      const long double parentLeft = coordinates == nullptr ? fiber.positiveLeft : (*coordinates)[2]+(*coordinates)[3]*fiber.positiveLeft;
+      const long double parentRight = coordinates == nullptr ? fiber.positiveRight : (*coordinates)[2]+(*coordinates)[3]*fiber.positiveRight;
+      long double rightPower = 1.0L;
+      long double geometric = 0.0L;
+      for(unsigned j = 0; j <= degree; ++j) {
+        geometric = rightPower+parentLeft*geometric;
+        values[j] = measure*(fiber.positiveRight-fiber.positiveLeft)*geometric/(j+1U);
+        rightPower *= parentRight;
+      }
     }
-    if(computeDelta && number == 1) {
-      long double weight = measure*((root == lower || root == upper) && !strip.fullBoundaryDelta ? 0.5L : 1.0L);
-      if(prepared != nullptr) weight *= prepared->Density(preparedOrder,x,root,std::copysign(derivative,signedDerivative));
-      else { weight /= derivative; if(surfaceGradient != nullptr) weight *= SurfaceGradientFactor(*surfaceGradient,x,root,inverseSurface,normalComponent); }
-      const long double parentRoot = coordinates == nullptr ? root : (*coordinates)[2]+(*coordinates)[3]*root;
+    if(computeDelta && fiber.signedDerivative != 0 && std::find(active.begin()+count,active.end(),1) != active.end()) {
+      long double weight = measure*(fiber.boundary && !strip.fullBoundaryDelta ? 0.5L : 1.0L);
+      if(shared != nullptr) weight *= shared->metric.Factor(inverseSurface,normalComponent)/std::abs(fiber.signedDerivative);
+      else if(prepared != nullptr) weight *= prepared->Density(preparedOrder,x,fiber.root,fiber.signedDerivative);
+      else { weight /= std::abs(fiber.signedDerivative); if(surfaceGradient != nullptr) weight *= SurfaceGradientFactor(*surfaceGradient,x,fiber.root,inverseSurface,normalComponent); }
+      const long double parentRoot = coordinates == nullptr ? fiber.root : (*coordinates)[2]+(*coordinates)[3]*fiber.root;
       long double rootPower = 1.0L;
       for(unsigned j = 0; j <= degree; ++j) { values[count+j] = rootPower*weight; rootPower *= parentRoot; }
     }
@@ -223,11 +257,23 @@ public:
     return point.parameter*std::sqrt(reduced);
   }
 
+  static const PhysicalGraphFiber& SharedGraphFiber(LineGraphContext& context, const OuterIntervalPoint& point) {
+    std::map<long double,PhysicalGraphFiber>& fibers = context.samples->fibers;
+    const std::map<long double,PhysicalGraphFiber>::iterator entry = fibers.lower_bound(point.parameter);
+    if(entry != fibers.end() && entry->first == point.parameter) return entry->second;
+    const long double derivative = context.interval.mapping == 0 ? -1 : EndpointDerivative(context.interval,context.discriminant,point);
+    PhysicalGraphFiber fiber;
+    fiber.geometry = FindGraphFiber(*context.coefficient,context.strip,point.coordinate,context.lowerZero,context.upperZero,derivative,context.derivativeSign,context.prepared,context.preparedOrder);
+    if(fiber.geometry.signedDerivative != 0) fiber.metric = context.prepared->EvaluateMetric(context.preparedOrder,point.coordinate,fiber.geometry.root);
+    return fibers.emplace_hint(entry,point.parameter,std::move(fiber))->second;
+  }
+
   static void GraphSample(LineGraphContext& context, const OuterIntervalPoint& point, const std::vector<unsigned char>& active, std::vector<long double>& values, std::vector<long double>& errors, long double absoluteH, long double absoluteD, long double relative) {
     ++*context.evaluations;
     ++Statistics().fastSamples;
-    const long double derivative = context.interval.mapping == 0 ? -1 : EndpointDerivative(context.interval,context.discriminant,point);
-    FastGraphSample(*context.coefficient,context.degree,context.strip,point.coordinate,context.computeDelta,context.lowerZero,context.upperZero,values,context.gradient,active,derivative,context.coordinates,context.derivativeSign,context.inverseSurface,context.normalComponent,context.prepared,context.preparedOrder);
+    const PhysicalGraphFiber* shared = context.samples == nullptr || point.precisionProbe ? nullptr : &SharedGraphFiber(context,point);
+    const long double derivative = shared != nullptr || context.interval.mapping == 0 ? -1 : EndpointDerivative(context.interval,context.discriminant,point);
+    FastGraphSample(*context.coefficient,context.degree,context.strip,point.coordinate,context.computeDelta,context.lowerZero,context.upperZero,values,context.gradient,active,derivative,context.coordinates,context.derivativeSign,context.inverseSurface,context.normalComponent,context.prepared,context.preparedOrder,shared);
     errors.assign(values.size(),0);
     for(unsigned n = 0; n < values.size(); ++n) if(active[n]) values[n] *= point.jacobian;
   }
@@ -276,18 +322,19 @@ public:
   static const std::array<FullStripRule,34>& FullStripRules() { static const std::array<FullStripRule,34> rules = BuildFullStripRules(); return rules; }
 
   static void FullStripMoments(unsigned degree, const LineIntegrationStrip& strip, long double left, long double right, std::vector<long double>& values, std::vector<long double>& errors, const std::array<long double,5>* coordinates = nullptr, const std::vector<unsigned char>* requested = nullptr) {
+    const unsigned count = (degree+1U)*(degree+2U)/2U;
+    if(requested != nullptr && std::find(requested->begin(),requested->begin()+count,1) == requested->begin()+count) return;
     const FullStripRule& rule = FullStripRules()[(degree+3U)/2U];
     const std::vector<long double>& points = rule.points;
     const std::vector<long double>& weights = rule.weights;
     std::vector<long double> fiber(degree+1U);
-    const unsigned count = (degree+1U)*(degree+2U)/2U;
     for(unsigned q = 0; q < points.size(); ++q) {
       const long double x = left+(right-left)*points[q];
       const long double lower = StripLower(strip,x);
       const long double upper = StripUpper(strip,x);
-      const long double parentX = coordinates == nullptr ? x : std::fma((*coordinates)[1],x,(*coordinates)[0]);
-      const long double parentLower = coordinates == nullptr ? lower : std::fma((*coordinates)[3],lower,(*coordinates)[2]);
-      const long double parentUpper = coordinates == nullptr ? upper : std::fma((*coordinates)[3],upper,(*coordinates)[2]);
+      const long double parentX = coordinates == nullptr ? x : LineSliceUtilities::ParentCoordinate((*coordinates)[1],x,(*coordinates)[0]);
+      const long double parentLower = coordinates == nullptr ? lower : LineSliceUtilities::ParentCoordinate((*coordinates)[3],lower,(*coordinates)[2]);
+      const long double parentUpper = coordinates == nullptr ? upper : LineSliceUtilities::ParentCoordinate((*coordinates)[3],upper,(*coordinates)[2]);
       const long double weight = (right-left)*weights[q]*(coordinates == nullptr ? 1.0L : (*coordinates)[4]);
       long double xPower = 1.0L;
       long double geometric = 0.0L;
@@ -366,6 +413,11 @@ public:
         context.coordinates = coordinates;
         context.derivativeSign = middleDerivative > 0 ? 1 : -1;
         context.interval = plan[part];
+        if(prepared != nullptr && prepared->graphs != nullptr) {
+          const OuterInterval& panel = plan[part];
+          const std::array<long double,4> key = {panel.left,panel.right,static_cast<long double>(panel.mapping)*panel.exponent,static_cast<long double>(panel.exactEndpoint)};
+          context.samples = &prepared->graphs->directions[preparedOrder-1][key];
+        }
         context.discriminant = EndpointDiscriminant(coefficient,plan[part],prepared,preparedOrder);
         context.evaluations = &evaluations;
         OuterIntervalQuadrature::Adaptive(context,GraphSample,plan[part],plan[part].mapping == 0 ? plan[part].left : 0,plan[part].mapping == 0 ? plan[part].right : 1,intervalBudget*absoluteH/plan.size(),intervalBudget*absoluteD/plan.size(),relative,0,maximumDepth,maximumEvaluations,evaluations,accepted,2,active,values,errors,rules);

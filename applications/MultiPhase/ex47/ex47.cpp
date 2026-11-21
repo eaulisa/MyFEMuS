@@ -2133,8 +2133,8 @@ void TestHighDegreePreparedMoments() {
     for(unsigned mode = 0; mode < 4; ++mode) {
       std::vector<long double> values, errors, exactH, exactD;
       FELevelSetMoments::IntegrateSpatial(data,13,1e-10,1e-10,mode != 0,mode >= 2 ? &coordinates : nullptr,0,1,FELevelSetMoments::OuterQuadratureRules(),mode == 3,-1,true,workspace,values,errors);
-      if(mode == 1 && geometry == WEDGE) Check(workspace.surface.gradient == workspace.referenceMetric,"WEDGE reference bookkeeping uses the selected metric exactly once");
-      if(mode >= 2) Check(workspace.surface.gradient == workspace.metric,"physical bookkeeping retains the selected cofactor metric");
+      if(mode == 1 && geometry == WEDGE) Check(workspace.surface.physicalMetric == &workspace.referenceMetric,"WEDGE reference bookkeeping uses the selected metric exactly once");
+      if(mode >= 2) Check(workspace.surface.physicalMetric == &workspace.metric,"physical bookkeeping retains the selected cofactor metric");
       ReferenceBallWeightMoments(geometry,13,mode,center,radius,exactH,exactD);
       const long double measure = geometry == HEX ? 8 : (geometry == WEDGE ? 2 : 1);
       const long double surfaceFactor = mode == 0 ? 1 : (mode >= 2 ? (mode == 3 ? measure : 1/measure) : (geometry == HEX ? 0.5L : 1.0L));
@@ -2282,11 +2282,25 @@ void TestSpatialSaddleRules() {
         const unsigned long long plans = FELevelSetMoments::SurfaceEndpointIntegration::Statistics().eventBuilds;
         std::vector<long double> h, tangential;
         std::vector<std::vector<long double>> normal;
-        rule.GetTangentialSurfaceWeightsFromLevelSetData(field,coordinates,h,tangential,1e-8,1e-8);
-        rule.GetNormalSurfaceWeightsFromLevelSetData(field,coordinates,h,normal,1e-8,1e-8);
+        const unsigned long long restrictions = rule.GetPreparedStatistics().surfaceRestrictions;
+        rule.GetTangentialAndNormalSurfaceWeightsFromLevelSetData(field,coordinates,h,tangential,normal,1e-8,1e-8);
+        const unsigned long long jointRestrictions = rule.GetPreparedStatistics().surfaceRestrictions-restrictions;
+        rule.ClearCache();
+        std::vector<long double> separateH, separateT;
+        std::vector<std::vector<long double>> separateN;
+        rule.GetTangentialSurfaceWeightsFromLevelSetData(field,coordinates,separateH,separateT,1e-8,1e-8);
+        rule.GetNormalSurfaceWeightsFromLevelSetData(field,coordinates,separateH,separateN,1e-8,1e-8);
+        Check(h == separateH && tangential == separateT && normal == separateN,"joint and separate calls fit the same weights");
+        Check(jointRestrictions > 0 && rule.GetPreparedStatistics().surfaceRestrictions-restrictions-jointRestrictions > jointRestrictions,"joint weights reuse common outer slices");
         CheckNear(FittedWeightMoments(rule,geometry,3,tangential,5)[0]/(scale*scale),normalMass[geometry][1],1e-9L,"independent tangential mass on a saddle projection");
         for(unsigned d = 0; d < 3; ++d) CheckNear(FittedWeightMoments(rule,geometry,3,normal[d],5)[0]/scale,normalMass[geometry][d == 2],1e-9L,"independent signed normal mass on a saddle projection");
         Check(FELevelSetMoments::SurfaceEndpointIntegration::Statistics().criticalSearches == searches && FELevelSetMoments::SurfaceEndpointIntegration::Statistics().eventBuilds == plans,"forced projection shared across all weight components");
+        std::vector<std::vector<double>> rotated = coordinates;
+        for(unsigned n = 0; n < nodal.size(); ++n) { rotated[0][n] = -coordinates[1][n]; rotated[1][n] = coordinates[0][n]; }
+        if(geometry == TET) rule.SetIntegrationDirection(1);
+        rule.GetTangentialAndNormalSurfaceWeightsFromLevelSetData(field,rotated,h,tangential,normal,1e-8,1e-8);
+        CheckNear(FittedWeightMoments(rule,geometry,3,tangential,5)[0]/(scale*scale),normalMass[geometry][1],1e-9L,"rotation preserves the inverse metric");
+        for(unsigned d = 0; d < 3; ++d) CheckNear(FittedWeightMoments(rule,geometry,3,normal[d],5)[0]/scale,(d == 0 ? -1 : 1)*normalMass[geometry][d == 2],1e-9L,"joint weights follow the rotated physical normal");
       }
     }
   }
@@ -2385,7 +2399,9 @@ void TestCenteredNormalWeights() {
     if(sign != 0) for(double& value : nodal) value = -value;
     std::vector<long double> h;
     std::vector<std::vector<long double>> normal;
-    quadrature.GetNormalSurfaceWeightsFromNodalGeometry(nodal,coordinates,h,normal,1e-10,1e-10);
+    std::vector<long double> tangential;
+    if(sign == 0) quadrature.GetNormalSurfaceWeightsFromNodalGeometry(nodal,coordinates,h,normal,1e-10,1e-10);
+    else quadrature.GetTangentialAndNormalSurfaceWeightsFromNodalGeometry(nodal,coordinates,h,tangential,normal,1e-10,1e-10);
     for(unsigned component = 0; component < 3; ++component) {
       const std::vector<long double> moments = FittedWeightMoments(quadrature,HEX,3,normal[component],2);
       CheckNear(moments[0],0,2e-12L,"centered normal has zero mean");

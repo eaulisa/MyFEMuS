@@ -1305,40 +1305,11 @@ void AssembleMultiphase(MultiLevelProblem& ml_prob2) {
               auto* rule = elementSurfaceQuadRule;
               if(rule == nullptr) throw std::runtime_error("Unsupported quadratic CutFEM element.");
               if(rule->GetGaussQuadraturePointNumber() != nGauss) throw std::runtime_error("Quadratic CutFEM Gauss rule mismatch");
-              // rule->GetTangentialSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCF, tol, tol);
-              // if(dim == 3 && surfaceWeightCount == 3) rule->GetNormalSurfaceWeightsFromNodalGeometry(psi, coordX, weightCFInt, weightCFNormal, tol, tol);
               if(dim == 3 && surfaceWeightCount == 3) {
-
-                // Compute normal moments first, as in the standalone test.
-                // These also provide the positive-volume weights.
-                // rule->GetNormalSurfaceWeightsFromNodalGeometry(
-                //   psi, coordX, weightCFInt, weightCFNormal, tol, tol
-                // );
-                try {
-                  rule->GetNormalSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCFNormal,tol,tol);
-                }
-                catch(const std::exception& e) {
-                  std::cerr
-                    << "CUT MOMENT FAILURE"
-                    << " rank=" << iproc
-                    << " level=" << l
-                    << " element=" << iel
-                    << " stage=normal"
-                    << " error=" << e.what()
-                    << std::endl;
-                  throw;
-                }
-
-                // Compute tangential weights separately, preserving
-                // the positive-volume weights from the normal calculation.
-                std::vector<TypeIO> unusedPositive;
-
-                rule->GetTangentialSurfaceWeightsFromLevelSetData(levelSet,coordX,unusedPositive,weightCF,tol,tol);
+                try { rule->GetTangentialAndNormalSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCF,weightCFNormal,tol,tol); }
+                catch(const std::exception& e) { std::cerr << "CUT MOMENT FAILURE rank=" << iproc << " level=" << l << " element=" << iel << " stage=surface error=" << e.what() << std::endl; throw; }
               }
-              else {
-
-                rule->GetTangentialSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCF,tol,tol);
-              }
+              else rule->GetTangentialSurfaceWeightsFromLevelSetData(levelSet,coordX,weightCFInt,weightCF,tol,tol);
             }
             else {
               auto* rule = elementSurfaceRule;

@@ -57,7 +57,29 @@ struct EndpointStripDirection {
   long double score = std::numeric_limits<long double>::infinity();
 };
 
+struct CurveFiberRoots {
+  std::array<long double,2> roots;
+  long double derivative;
+  long double surfaceRatio;
+};
+
+struct PhysicalCurveFiber {
+  CurveFiberRoots geometry;
+  std::array<PhysicalSurfaceMetric,2> metric;
+};
+
+struct CurveStripSamples {
+  std::map<long double,PhysicalCurveFiber> fibers;
+};
+
+struct EndpointStripGeometry {
+  std::array<EndpointStripDirection,2> directions;
+  std::array<std::vector<std::array<CurveStripSamples,2>>,2> strips;
+  bool ready = false;
+};
+
 struct EndpointCurveContext {
+  CurveStripSamples* samples = nullptr;
   const EndpointStripDirection* data = nullptr;
   EndpointStripInterval interval;
   unsigned degree = 0;
@@ -106,21 +128,24 @@ public:
     static thread_local bool cachedTriangle = false;
     static thread_local std::vector<double> cachedNodes;
     static thread_local std::array<EndpointStripDirection,2> cachedDirections;
-    if(cachedCoefficient != coefficient || cachedTriangle != triangle || prepared == nullptr || cachedNodes != prepared->data->GetNodalValues() || prepared->data->GetNodalValues().empty()) {
+    EndpointStripGeometry* shared = prepared == nullptr ? nullptr : prepared->endpoints;
+    std::array<EndpointStripDirection,2>& geometry = shared == nullptr ? cachedDirections : shared->directions;
+    if(shared != nullptr ? !shared->ready : (cachedCoefficient != coefficient || cachedTriangle != triangle || prepared == nullptr || cachedNodes != prepared->data->GetNodalValues() || prepared->data->GetNodalValues().empty())) {
       for(unsigned d = 0; d < 2; ++d) {
-        cachedDirections[d] = EndpointStripDirection();
-        try { BuildDirection(coefficient,triangle,d+1U,nullptr,cachedDirections[d],prepared); cachedDirections[d].prepared = nullptr; }
-        catch(const std::runtime_error& error) { cachedDirections[d].score = std::numeric_limits<long double>::infinity(); Statistics().failure = error.what(); }
+        geometry[d] = EndpointStripDirection();
+        try { BuildDirection(coefficient,triangle,d+1U,nullptr,geometry[d],prepared); geometry[d].prepared = nullptr; }
+        catch(const std::runtime_error& error) { geometry[d].score = std::numeric_limits<long double>::infinity(); Statistics().failure = error.what(); }
       }
-      cachedCoefficient = coefficient;
-      cachedTriangle = triangle;
-      cachedNodes = prepared == nullptr ? std::vector<double>() : prepared->data->GetNodalValues();
+      if(shared != nullptr) shared->ready = true;
+      else { cachedCoefficient = coefficient; cachedTriangle = triangle; cachedNodes = prepared == nullptr ? std::vector<double>() : prepared->data->GetNodalValues(); }
       ++Statistics().geometryBuilds;
     }
     else ++Statistics().geometryHits;
-    std::array<EndpointStripDirection,2> directions = cachedDirections;
+    std::array<EndpointStripDirection,2> localDirections;
+    if(shared == nullptr) localDirections = geometry;
+    std::array<EndpointStripDirection,2>& directions = shared == nullptr ? localDirections : geometry;
     for(EndpointStripDirection& direction : directions) direction.prepared = prepared;
-    if(gradient != nullptr) { directions[0].gradient = *gradient; SurfaceGradientTranspose(*gradient,directions[1].gradient); }
+    if(prepared == nullptr && gradient != nullptr) { directions[0].gradient = *gradient; SurfaceGradientTranspose(*gradient,directions[1].gradient); }
     for(unsigned d = 0; d < 2; ++d) { directions[d].metricScale = metricScale; if(inverseJacobian != nullptr) directions[d].inverseJacobian = *inverseJacobian; }
     if(coordinates != nullptr) { directions[0].coordinates = *coordinates; SurfaceGradientTranspose(*coordinates,directions[1].coordinates); }
     for(unsigned d = 0; d < 2; ++d) { directions[d].fullBoundaryDelta = fullBoundaryDelta; directions[d].inverseSurface = inverseSurface; directions[d].normalComponent = normalComponent; if(parent != nullptr) directions[d].parent = LineIntegration::MomentCoordinates(parent,d+1U); directions[d].requested = LineIntegration::MomentRequest(degree,requested,d+1U,computeDelta); }
@@ -249,32 +274,39 @@ private:
     }
   }
 
-  static void Sample(const EndpointStripDirection& data, const EndpointStripInterval& interval, unsigned degree, const OuterIntervalPoint& point, const std::vector<unsigned char>& active, std::vector<long double>& values) {
-    const unsigned count = active.size()/2U;
+  static CurveFiberRoots FindFiber(const EndpointStripDirection& data, const EndpointStripInterval& interval, const OuterIntervalPoint& point) {
+    CurveFiberRoots fiber = {};
     const long double parameter = point.parameter;
     const long double offset = point.offset;
     const long double x = point.coordinate;
     const long double jacobian = point.jacobian;
-    const long double a = PolynomialValue(data.field[0],x);
-    const long double b = PolynomialValue(data.field[1],x);
-    const long double c = PolynomialValue(data.field[2],x);
-    const long double discriminant = std::fma(-4*a,c,b*b);
-    const long double reduced = interval.mapping == 0 ? 0 : interval.discriminantConstant/(parameter*parameter)+interval.mapping*interval.delta*PolynomialValue(interval.reducedDiscriminant,offset);
-    if(interval.mapping != 0 && !(reduced > 0)) throw std::runtime_error("An endpoint map requires a positive simple-fold discriminant.");
-    const long double regularDerivative = interval.mapping == 0 ? 0 : std::sqrt(reduced);
-    long double derivative = interval.mapping == 0 ? (a == 0 ? std::abs(b) : std::sqrt(std::max(0.0L,discriminant))) : parameter*regularDerivative;
+    long double a = 0, b = 0, c = 0, derivative = 0, regularDerivative = 0;
     const CutFemLevelSetData::LineAnalysis* analysis = nullptr;
     if(interval.mapping == 0 && data.prepared != nullptr) {
       analysis = &data.prepared->Analyze(data.order,x);
       if(analysis->identicallyZero || analysis->rootCount != interval.signs.size()) throw std::runtime_error("Prepared root topology changed within an interval.");
       if(analysis->rootCount != 0) derivative = std::abs(data.prepared->WorkingDerivative(data.order,analysis->roots[0]));
     }
-    const long double surfaceRatio = interval.mapping == 0 ? 1.0L/derivative : (2*interval.delta/regularDerivative)*(jacobian/(2*interval.delta*parameter));
+    else {
+      a = PolynomialValue(data.field[0],x);
+      b = PolynomialValue(data.field[1],x);
+      c = PolynomialValue(data.field[2],x);
+      if(interval.mapping == 0) derivative = a == 0 ? std::abs(b) : std::sqrt(std::max(0.0L,std::fma(-4*a,c,b*b)));
+      else {
+        const long double reduced = interval.discriminantConstant/(parameter*parameter)+interval.mapping*interval.delta*PolynomialValue(interval.reducedDiscriminant,offset);
+        if(!(reduced > 0)) throw std::runtime_error("An endpoint map requires a positive simple-fold discriminant.");
+        regularDerivative = std::sqrt(reduced);
+        derivative = parameter*regularDerivative;
+      }
+    }
+    if(interval.signs.empty()) return fiber;
+    if(!(derivative > 0)) throw std::runtime_error("A bulk node reached a singular fiber.");
+    fiber.derivative = derivative;
+    fiber.surfaceRatio = interval.mapping == 0 ? 1.0L/derivative : 2*interval.delta/regularDerivative;
+    if(interval.mapping != 0 && point.precisionProbe) fiber.surfaceRatio *= jacobian/(2*interval.delta*parameter);
     const long double lower = 0.0L;
     const long double upper = data.triangle ? 1-x : 1;
-    const long double parentX = std::fma(data.parent[1],x,data.parent[0]);
-    std::vector<long double> roots;
-    std::vector<long double> cuts(1,lower);
+    if(interval.signs.size() > fiber.roots.size()) throw std::logic_error("A quadratic fiber can have at most two roots.");
     for(unsigned r = 0; r < interval.signs.size(); ++r) {
       long double root = interval.boundary[r] < 0 ? lower : upper;
       if(analysis != nullptr) root = data.prepared->RootCoordinate(data.order,analysis->roots[r]);
@@ -283,27 +315,60 @@ private:
         root = a == 0 ? -c/b : (interval.signs[r]*b >= 0 && denominator != 0 ? -2*c/denominator : (-b+interval.signs[r]*derivative)/(2*a));
       }
       if(!std::isfinite(root) || root < lower-1e-12L || root > upper+1e-12L) throw std::runtime_error("Cached root topology is inconsistent with a quadrature node.");
-      roots.push_back(root);
-      if(interval.boundary[r] == 0) cuts.push_back(root);
+      fiber.roots[r] = root;
     }
-    cuts.push_back(upper);
-    std::vector<long double> h(degree+1U,0);
-    std::vector<long double> d(degree+1U,0);
-    for(unsigned r = 0; r < interval.positive.size(); ++r) if(interval.positive[r] != 0) {
-      const long double parentLeft = std::fma(data.parent[3],cuts[r],data.parent[2]);
-      const long double parentRight = std::fma(data.parent[3],cuts[r+1U],data.parent[2]);
-      long double power = 1;
-      long double geometric = 0;
-      for(unsigned j = 0; j <= degree; ++j) { geometric = power+parentLeft*geometric; h[j] += (cuts[r+1U]-cuts[r])*geometric/(j+1U); power *= parentRight; }
+    return fiber;
+  }
+
+  static const PhysicalCurveFiber& SharedFiber(CurveStripSamples& samples, const EndpointStripDirection& data, const EndpointStripInterval& interval, const OuterIntervalPoint& point) {
+    const std::map<long double,PhysicalCurveFiber>::iterator entry = samples.fibers.lower_bound(point.parameter);
+    if(entry != samples.fibers.end() && entry->first == point.parameter) return entry->second;
+    PhysicalCurveFiber fiber;
+    fiber.geometry = FindFiber(data,interval,point);
+    for(unsigned r = 0; r < interval.signs.size(); ++r) {
+      const long double x = point.coordinate, y = fiber.geometry.roots[r];
+      fiber.metric[r] = data.prepared->EvaluateMetric(data.order,x,y);
     }
-    for(unsigned r = 0; r < roots.size(); ++r) {
-      if(!(derivative > 0)) throw std::runtime_error("A bulk node reached a singular fiber.");
-      long double weight = (interval.boundary[r] == 0 || data.fullBoundaryDelta ? 1.0L : 0.5L)*surfaceRatio;
-      if(data.prepared != nullptr) { weight *= derivative*data.prepared->Density(data.order,x,roots[r],interval.signs[r]*derivative); if(data.prepared->statistics != nullptr && interval.mapping != 0) ++data.prepared->statistics->endpointSamples; }
-      else if(!data.gradient.empty()) weight *= SurfaceGradientFactor(data.gradient,x,roots[r],data.inverseSurface,data.normalComponent);
-      const long double parentRoot = std::fma(data.parent[3],roots[r],data.parent[2]);
-      long double power = 1;
-      for(unsigned j = 0; j <= degree; ++j) { d[j] += weight*power; power *= parentRoot; }
+    return samples.fibers.emplace_hint(entry,point.parameter,std::move(fiber))->second;
+  }
+
+  static void Sample(const EndpointStripDirection& data, const EndpointStripInterval& interval, unsigned degree, const OuterIntervalPoint& point, const std::vector<unsigned char>& active, std::vector<long double>& values, CurveStripSamples* samples = nullptr) {
+    const unsigned count = active.size()/2U;
+    const long double x = point.coordinate, jacobian = point.jacobian;
+    const long double parentX = LineSliceUtilities::ParentCoordinate(data.parent[1],x,data.parent[0]);
+    const PhysicalCurveFiber* shared = samples == nullptr || point.precisionProbe ? nullptr : &SharedFiber(*samples,data,interval,point);
+    CurveFiberRoots local;
+    if(shared == nullptr) local = FindFiber(data,interval,point);
+    const CurveFiberRoots& fiber = shared == nullptr ? local : shared->geometry;
+    std::vector<long double> h, d;
+    if(std::find(active.begin(),active.begin()+count,1) != active.begin()+count) {
+      h.assign(degree+1U,0);
+      std::array<long double,4> cuts = {};
+      unsigned cutsCount = 1;
+      for(unsigned r = 0; r < interval.signs.size(); ++r) if(interval.boundary[r] == 0) cuts[cutsCount++] = fiber.roots[r];
+      cuts[cutsCount] = data.triangle ? 1-x : 1;
+      for(unsigned r = 0; r < interval.positive.size(); ++r) if(interval.positive[r] != 0) {
+        const long double parentLeft = LineSliceUtilities::ParentCoordinate(data.parent[3],cuts[r],data.parent[2]);
+        const long double parentRight = LineSliceUtilities::ParentCoordinate(data.parent[3],cuts[r+1U],data.parent[2]);
+        long double power = 1;
+        long double geometric = 0;
+        for(unsigned j = 0; j <= degree; ++j) { geometric = power+parentLeft*geometric; h[j] += (cuts[r+1U]-cuts[r])*geometric/(j+1U); power *= parentRight; }
+      }
+    }
+    if(std::find(active.begin()+count,active.end(),1) != active.end()) {
+      d.assign(degree+1U,0);
+      for(unsigned r = 0; r < interval.signs.size(); ++r) {
+        const long double root = fiber.roots[r];
+        long double weight = (interval.boundary[r] == 0 || data.fullBoundaryDelta ? 1.0L : 0.5L)*fiber.surfaceRatio;
+        if(shared != nullptr) weight *= shared->metric[r].Factor(data.inverseSurface,data.normalComponent);
+        else if(data.prepared != nullptr && data.prepared->metric != nullptr) weight *= data.prepared->EvaluateMetric(data.order,x,root).Factor(data.inverseSurface,data.normalComponent);
+        else if(data.prepared != nullptr) weight *= fiber.derivative*data.prepared->Density(data.order,x,root,interval.signs[r]*fiber.derivative);
+        else if(!data.gradient.empty()) weight *= SurfaceGradientFactor(data.gradient,x,root,data.inverseSurface,data.normalComponent);
+        if(data.prepared != nullptr && data.prepared->statistics != nullptr && interval.mapping != 0) ++data.prepared->statistics->endpointSamples;
+        const long double parentRoot = LineSliceUtilities::ParentCoordinate(data.parent[3],root,data.parent[2]);
+        long double power = 1;
+        for(unsigned j = 0; j <= degree; ++j) { d[j] += weight*power; power *= parentRoot; }
+      }
     }
     values.assign(active.size(),0);
     long double power = 1;
@@ -320,7 +385,7 @@ private:
 
   static void CurveSample(EndpointCurveContext& context, const OuterIntervalPoint& point, const std::vector<unsigned char>& active, std::vector<long double>& values, std::vector<long double>& errors, long double absoluteH, long double absoluteD, long double relative) {
     ++*context.evaluations;
-    Sample(*context.data,context.interval,context.degree,point,active,values);
+    Sample(*context.data,context.interval,context.degree,point,active,values,context.samples);
     errors.assign(values.size(),0);
   }
 
@@ -340,6 +405,11 @@ private:
       const std::vector<OuterInterval> plan = OuterIntervalQuadrature::Plan(interval.left,interval.right,leftExponent,rightExponent,2,interval.leftTangent,interval.rightTangent);
       for(unsigned part = 0; part < plan.size(); ++part) {
         EndpointCurveContext context;
+        if(data.prepared != nullptr && data.prepared->endpoints != nullptr) {
+          std::vector<std::array<CurveStripSamples,2>>& strips = data.prepared->endpoints->strips[data.order-1U];
+          if(strips.empty()) strips.resize(data.intervals.size());
+          context.samples = &strips[k][part];
+        }
         context.data = &data;
         context.interval = interval;
         context.degree = degree;

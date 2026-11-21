@@ -19,6 +19,7 @@ Construct the weight object once for a fixed element type, fitting degree, and G
 | Physical surface | `GetPhysicalSurfaceWeightsFromLevelSetData` | `GetPhysicalSurfaceWeightsFromNodalGeometry` |
 | Inverse-metric tangential measure | `GetTangentialSurfaceWeightsFromLevelSetData` | `GetTangentialSurfaceWeightsFromNodalGeometry` |
 | Three signed normal measures, 3D only | `GetNormalSurfaceWeightsFromLevelSetData` | `GetNormalSurfaceWeightsFromNodalGeometry` |
+| Positive volume, tangential and three signed normals, 3D | `GetTangentialAndNormalSurfaceWeightsFromLevelSetData` | `GetTangentialAndNormalSurfaceWeightsFromNodalGeometry` |
 | Classification | `element.GetPhase()` | `GetLevelSetPhaseFromNodalValues` |
 
 Prepared overloads require a nodal root record matching the weight object's element. A restricted child retains its ancestor's derivative context and is used internally by the recursive integration. Nodal wrappers retain an owned record, exposed by `GetPreparedLevelSetData()`. Snapshot changes invalidate the relevant preparation.
@@ -29,7 +30,7 @@ The implementation uses prepared coefficient, graph, boundary, projection, LINE 
 
 Physical cofactor-gradient polynomials are prepared once per matching field/geometry snapshot, trimmed only where high powers are exactly zero, and restricted without lowering their degree. This cache survives rule, tolerance, surface-mode, and final-weight cache changes. Delta/reference requests do not prepare geometry. Reference requests preserve all original gradient components through slices; prepared physical requests restrict only their external cofactor-gradient components. Signed normal components retain their original orientation in barycentric charts.
 
-Only the requested scalar density is evaluated. The three-normal public wrapper currently performs three selected integrations, reusing its positive weights and geometry; a shared traversal of the whole normal family remains a separate production optimization.
+The combined 3D call shares the restricted field, physical cofactor-gradient and its norm at common quadrature nodes across the tangential and signed normal weights. Each density selects its projection and refines its own unresolved moments. Shared sample storage lasts for one element call.
 
 Known endpoint roots use the parameterized map's slope when the absolute coordinate has rounded to the endpoint. `GetRegularRootDeltaFactor` permits density evaluation directly from this regular root record. Other LINE evaluations reuse the complete prepared topology and stable signed slopes. Sensitive ancestor fibers are contracted directly in compensated algebra, skipping zero polynomial terms, rather than recovered from three full ancestor evaluations. This preserves the same polynomial and introduces no approximation. Slice classification is lazy, so LINE root-only work does not pay for unused Bernstein sign certification.
 

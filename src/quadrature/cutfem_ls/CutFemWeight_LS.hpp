@@ -121,26 +121,24 @@ class CutFemWeight_LS {
     }
 
     void GetNormalSurfaceWeightsFromNodalGeometry(const std::vector<double>& nodalValues, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positiveWeight, std::vector<std::vector<TypeIO>>& normalWeight, double absoluteTolerance, double relativeTolerance, const FELevelSetMoments::OuterQuadratureRules& rules) {
-      if(_dim != 3) throw std::invalid_argument("Three normal surface weights require a three-dimensional element.");
-      for(unsigned component = 0; component < normalWeight.size(); ++component) if(&positiveWeight == &normalWeight[component]) throw std::invalid_argument("Volume and normal weights require distinct output vectors.");
-      std::vector<TypeIO> positive;
-      std::vector<std::vector<TypeIO>> result(3);
-      for(unsigned component = 0; component < 3; ++component) GetNodalWeightPair(nodalValues,positive,result[component],absoluteTolerance,relativeTolerance,true,rules,&coordinates,false,static_cast<int>(component));
-      positiveWeight.swap(positive);
-      normalWeight.swap(result);
+      _preparedData.Reset(_geomElemType,nodalValues,_maximumCertificationDepth);
+      GetSurfaceWeightComponents(_preparedData,coordinates,positiveWeight,nullptr,normalWeight,absoluteTolerance,relativeTolerance,rules);
+    }
+
+    void GetTangentialAndNormalSurfaceWeightsFromNodalGeometry(const std::vector<double>& nodalValues, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positive, std::vector<TypeIO>& tangential, std::vector<std::vector<TypeIO>>& normals, double absolute = 1e-12, double relative = 1e-12) {
+      _preparedData.Reset(_geomElemType,nodalValues,_maximumCertificationDepth);
+      GetSurfaceWeightComponents(_preparedData,coordinates,positive,&tangential,normals,absolute,relative,_outerQuadratureRules);
     }
 
     void GetWeightsFromLevelSetData(const CutFemLevelSetData& data, std::vector<TypeIO>& positive, std::vector<TypeIO>& delta, double absolute = 1e-12, double relative = 1e-12, bool referenceSurface = false) { GetPreparedWeightPair(data,positive,delta,absolute,relative,referenceSurface,_outerQuadratureRules); }
     void GetPhysicalSurfaceWeightsFromLevelSetData(const CutFemLevelSetData& data, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positive, std::vector<TypeIO>& surface, double absolute = 1e-12, double relative = 1e-12) { GetPreparedWeightPair(data,positive,surface,absolute,relative,true,_outerQuadratureRules,&coordinates); }
     void GetTangentialSurfaceWeightsFromLevelSetData(const CutFemLevelSetData& data, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positive, std::vector<TypeIO>& surface, double absolute = 1e-12, double relative = 1e-12) { GetPreparedWeightPair(data,positive,surface,absolute,relative,true,_outerQuadratureRules,&coordinates,true); }
     void GetNormalSurfaceWeightsFromLevelSetData(const CutFemLevelSetData& data, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positive, std::vector<std::vector<TypeIO>>& surface, double absolute = 1e-12, double relative = 1e-12) {
-      if(_dim != 3) throw std::invalid_argument("Three normal surface weights require a three-dimensional element.");
-      for(unsigned component = 0; component < surface.size(); ++component) if(&positive == &surface[component]) throw std::invalid_argument("Volume and normal weights require distinct output vectors.");
-      std::vector<TypeIO> resultPositive;
-      std::vector<std::vector<TypeIO>> result(3);
-      for(unsigned component = 0; component < 3; ++component) GetPreparedWeightPair(data,resultPositive,result[component],absolute,relative,true,_outerQuadratureRules,&coordinates,false,static_cast<int>(component));
-      positive.swap(resultPositive);
-      surface.swap(result);
+      GetSurfaceWeightComponents(data,coordinates,positive,nullptr,surface,absolute,relative,_outerQuadratureRules);
+    }
+
+    void GetTangentialAndNormalSurfaceWeightsFromLevelSetData(const CutFemLevelSetData& data, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positive, std::vector<TypeIO>& tangential, std::vector<std::vector<TypeIO>>& normals, double absolute = 1e-12, double relative = 1e-12) {
+      GetSurfaceWeightComponents(data,coordinates,positive,&tangential,normals,absolute,relative,_outerQuadratureRules);
     }
 
     // Returns the last actually integrated pair; cached weight returns do not replace it.
@@ -180,11 +178,25 @@ class CutFemWeight_LS {
     }
 
   private:
-    void GetPreparedWeightPair(const CutFemLevelSetData& data, std::vector<TypeIO>& positive, std::vector<TypeIO>& surface, double absolute, double relative, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* coordinates = nullptr, bool inverseSurface = false, int normalComponent = -1) {
+    void GetSurfaceWeightComponents(const CutFemLevelSetData& data, const std::vector<std::vector<double>>& coordinates, std::vector<TypeIO>& positive, std::vector<TypeIO>* tangential, std::vector<std::vector<TypeIO>>& normals, double absolute, double relative, const FELevelSetMoments::OuterQuadratureRules& rules) {
+      if(_dim != 3) throw std::invalid_argument("Three normal surface weights require a three-dimensional element.");
+      if(&positive == tangential) throw std::invalid_argument("Volume and tangential weights require distinct output vectors.");
+      for(const std::vector<TypeIO>& component : normals) if(&component == &positive || &component == tangential) throw std::invalid_argument("Volume, tangential and normal weights require distinct output vectors.");
+      FELevelSetMoments::SharedSurfaceSlices shared;
+      std::vector<TypeIO> resultPositive, resultTangential;
+      std::vector<std::vector<TypeIO>> resultNormals(3);
+      if(tangential != nullptr) GetPreparedWeightPair(data,resultPositive,resultTangential,absolute,relative,true,rules,&coordinates,true,-1,&shared);
+      for(unsigned component = 0; component < 3; ++component) GetPreparedWeightPair(data,resultPositive,resultNormals[component],absolute,relative,true,rules,&coordinates,false,component,&shared);
+      positive.swap(resultPositive);
+      if(tangential != nullptr) tangential->swap(resultTangential);
+      normals.swap(resultNormals);
+    }
+
+    void GetPreparedWeightPair(const CutFemLevelSetData& data, std::vector<TypeIO>& positive, std::vector<TypeIO>& surface, double absolute, double relative, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* coordinates = nullptr, bool inverseSurface = false, int normalComponent = -1, FELevelSetMoments::SharedSurfaceSlices* shared = nullptr) {
       if(data.GetGeometry() != _geomElemType || data.GetDimension() != _dim || data.GetRootDimension() != _dim || data.GetNodalValues().empty()) throw std::invalid_argument("Prepared weights require the matching native nodal element record.");
       const CutFemLevelSetData* previous = _activePreparedData;
       _activePreparedData = &data;
-      try { GetNodalWeightPair(data.GetNodalValues(),positive,surface,absolute,relative,referenceSurface,rules,coordinates,inverseSurface,normalComponent); }
+      try { GetNodalWeightPair(data.GetNodalValues(),positive,surface,absolute,relative,referenceSurface,rules,coordinates,inverseSurface,normalComponent,shared); }
       catch(...) { _activePreparedData = previous; throw; }
       _activePreparedData = previous;
     }
@@ -263,7 +275,7 @@ class CutFemWeight_LS {
       }
     }
 
-    void GetNodalWeightPair(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, bool inverseSurface = false, int normalComponent = -1) {
+    void GetNodalWeightPair(const std::vector<double>& nodalValues, std::vector<TypeIO>& positiveWeight, std::vector<TypeIO>& deltaWeight, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, bool inverseSurface = false, int normalComponent = -1, FELevelSetMoments::SharedSurfaceSlices* shared = nullptr) {
       const char* geometryNames[6] = {"HEX27","TET15","WEDGE21","QUAD9","TRI7","LINE3"};
       FELevelSetMoments::QuadratureWarningScope warningScope(std::string(geometryNames[static_cast<unsigned>(_geomElemType)])+" q="+std::to_string(_qM)+(inverseSurface ? " tangential surface" : (referenceSurface ? " surface" : " delta")));
       rules.Validate();
@@ -283,7 +295,7 @@ class CutFemWeight_LS {
       const bool reusePositive = sameInput && _dim == 3 && (!scaledPositive || _nodalPositiveScaled);
       if(!sameInput) for(unsigned cachedMode = 0; cachedMode < _nodalDeltaWeightCache.size(); ++cachedMode) _nodalDeltaWeightCache[cachedMode].clear();
       _nodalWeightCacheValid = false;
-      IntegrateNodalMomentPair(nodalValues,absoluteTolerance,relativeTolerance,referenceSurface,rules,geometryCoordinates,inverseSurface,normalComponent,!reusePositive);
+      IntegrateNodalMomentPair(nodalValues,absoluteTolerance,relativeTolerance,referenceSurface,rules,geometryCoordinates,inverseSurface,normalComponent,!reusePositive,shared);
       _cachedOuterQuadratureRules = rules;
       _nodalValues = nodalValues;
       if(geometryCoordinates == nullptr) _nodalGeometryCoordinates.clear();
@@ -297,7 +309,7 @@ class CutFemWeight_LS {
       _nodalWeightCacheValid = true;
     }
 
-    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, bool inverseSurface = false, int normalComponent = -1, bool computePositive = true) {
+    void IntegrateNodalMomentPair(const std::vector<double>& nodalValues, double absoluteTolerance, double relativeTolerance, bool referenceSurface, const FELevelSetMoments::OuterQuadratureRules& rules, const std::vector<std::vector<double>>* geometryCoordinates = nullptr, bool inverseSurface = false, int normalComponent = -1, bool computePositive = true, FELevelSetMoments::SharedSurfaceSlices* shared = nullptr) {
       if(_activePreparedData == nullptr) _preparedData.Reset(_geomElemType,nodalValues,_maximumCertificationDepth);
       const CutFemLevelSetData& data = _activePreparedData == nullptr ? _preparedData : *_activePreparedData;
       const bool tensor = _geomElemType == LINE || _geomElemType == QUAD || _geomElemType == HEX;
@@ -320,7 +332,7 @@ class CutFemWeight_LS {
         return;
       }
       std::vector<long double> values, errors;
-      FELevelSetMoments::IntegrateSpatial(data,_qM,absoluteTolerance,relativeTolerance,referenceSurface,geometryCoordinates,_integrationDirection,_directionValidation,rules,inverseSurface,normalComponent,computePositive,_preparedWorkspace,values,errors);
+      FELevelSetMoments::IntegrateSpatial(data,_qM,absoluteTolerance,relativeTolerance,referenceSurface,geometryCoordinates,_integrationDirection,_directionValidation,rules,inverseSurface,normalComponent,computePositive,_preparedWorkspace,values,errors,shared);
       for(unsigned n = 0; n < _L; ++n) { if(computePositive) _fPair(n,0) = static_cast<TypeA>(values[n]); _fPair(n,1) = static_cast<TypeA>(surfaceFactor*values[_L+n]); }
       _haveIntegratedMoments = true;
     }

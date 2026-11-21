@@ -120,8 +120,8 @@ public:
     const unsigned count = (degree+1U)*(degree+2U)/2U;
     if(requested != nullptr && requested->size() != 2U*count) throw std::invalid_argument("Invalid selective moment mask.");
     std::vector<unsigned char> needed = requested == nullptr ? std::vector<unsigned char>(2U*count,1) : *requested;
-    if(!triangle && coordinates != nullptr) {
-      for(unsigned axis = 0; axis < 2; ++axis) if(std::fma(0.5L,(*coordinates)[2U*axis+1],(*coordinates)[2U*axis]) == 0 && prepared != nullptr && prepared->data->GetReflectionParity(axis) == 1 && gradient == nullptr) {
+    if(!triangle && coordinates != nullptr && prepared != nullptr && !prepared->referenceSurface && gradient == nullptr) {
+      for(unsigned axis = 0; axis < 2; ++axis) if(std::fma(0.5L,(*coordinates)[2U*axis+1],(*coordinates)[2U*axis]) == 0 && prepared->data->GetReflectionParity(axis) == 1) {
         for(unsigned i = 0; i <= degree; ++i) for(unsigned j = 0; j <= degree-i; ++j) if((axis == 0 ? i : j)%2U != 0) { const unsigned n = ReferenceMomentIndex2D(degree,i,j); needed[n] = 0; needed[count+n] = 0; }
       }
     }
@@ -159,10 +159,8 @@ public:
       return;
     }
     std::vector<std::vector<long double>> working = coefficient;
-    std::vector<std::vector<std::vector<long double>>> transposed;
     if(selected == 2) {
       for(unsigned i = 0; i < 3; ++i) for(unsigned j = i+1U; j < 3; ++j) std::swap(working[i][j],working[j][i]);
-      if(gradient != nullptr) { SurfaceGradientTranspose(*gradient,transposed); gradient = &transposed; }
     }
     const std::array<long double,5> parent = coordinates == nullptr ? std::array<long double,5>{0,1,0,1,1} : LineIntegration::MomentCoordinates(coordinates,selected);
     const std::vector<unsigned char> active = LineIntegration::MomentRequest(degree,requested,selected,computeDelta);

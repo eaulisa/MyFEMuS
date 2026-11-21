@@ -52,6 +52,7 @@ struct OuterIntervalPoint {
   long double coordinate = 0;
   long double offset = 0;
   long double jacobian = 1;
+  bool precisionProbe = false;
 };
 
 class OuterIntervalQuadrature {
@@ -144,6 +145,8 @@ public:
     errors.assign(active.size(),0);
     std::vector<long double> low(active.size(),0);
     std::vector<long double> norm(active.size(),0);
+    std::vector<long double> value, error, adjacentValue, adjacentError;
+    const long double sampleAbsoluteH = absoluteH/physicalWidth, sampleAbsoluteD = absoluteD/physicalWidth;
     const unsigned size = logarithmic ? 20 : rule.size;
     for(unsigned q = 0; q < size; ++q) for(unsigned side = 0; side < (logarithmic || q == 0 ? 1U : 2U); ++side) {
       long double parameter, weight, gaussWeight;
@@ -155,12 +158,13 @@ public:
       }
       const OuterIntervalPoint point = Point(interval,parameter);
       if(interval.mapping != 0 && point.coordinate == interval.endpoint) throw OuterQuadratureResolutionError("A transformed outer point collapsed onto its endpoint.");
-      std::vector<long double> value;
-      std::vector<long double> error;
+      value.clear();
+      error.clear();
       ++Statistics(dimension).samples;
-      sample(context,point,active,value,error,absoluteH/physicalWidth,absoluteD/physicalWidth,relative);
+      sample(context,point,active,value,error,sampleAbsoluteH,sampleAbsoluteD,relative);
       if(precisionCheck) {
         OuterIntervalPoint adjacent = point;
+        adjacent.precisionProbe = true;
         if(interval.mapping == 0) {
           adjacent.coordinate = std::nextafter(point.coordinate,left);
           if(adjacent.coordinate == left) adjacent.coordinate = std::nextafter(point.coordinate,right);
@@ -173,11 +177,11 @@ public:
           if(adjacent.coordinate == interval.endpoint) throw OuterQuadratureResolutionError("An adjacent outer point collapsed onto its endpoint.");
           adjacent.parameter = std::pow(std::abs(adjacent.offset)/interval.delta,1.0L/interval.exponent);
         }
-          std::vector<long double> adjacentValue;
-        std::vector<long double> adjacentError;
+        adjacentValue.clear();
+        adjacentError.clear();
         ++Statistics(dimension).samples;
         ++Statistics(dimension).precisionSamples;
-        sample(context,adjacent,active,adjacentValue,adjacentError,absoluteH/physicalWidth,absoluteD/physicalWidth,relative);
+        sample(context,adjacent,active,adjacentValue,adjacentError,sampleAbsoluteH,sampleAbsoluteD,relative);
         for(unsigned n = 0; n < active.size(); ++n) if(active[n]) error[n] += std::abs(value[n]-adjacentValue[n])+adjacentError[n];
       }
       for(unsigned n = 0; n < active.size(); ++n) {

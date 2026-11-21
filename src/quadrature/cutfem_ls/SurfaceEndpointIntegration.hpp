@@ -27,7 +27,28 @@ struct SurfaceEndpointStatistics {
   unsigned directions[3] = {0,0,0};
 };
 
+struct SurfaceSlice {
+  CutFemLevelSetData field;
+  PreparedPlane plane;
+  std::vector<std::vector<long double>> metric;
+  std::vector<std::vector<long double>> coefficient;
+  std::vector<unsigned> boundary;
+  std::array<long double,5> parent = {0,1,0,1,1};
+};
+
+struct SharedSurfaceSlice {
+  SurfaceSlice slice;
+  SharedGraphStrips graphs;
+  EndpointStripGeometry endpoints;
+  bool ready = false;
+};
+
+struct SharedSurfaceSlices {
+  std::array<std::map<long double,SharedSurfaceSlice>,3> axes;
+};
+
 struct SurfaceEndpointDomain {
+  SharedSurfaceSlices* shared = nullptr;
   bool tetrahedron = false;
   bool wedge = false;
   std::vector<std::array<long double,3>> vertices;
@@ -41,13 +62,9 @@ struct SurfaceEndpointData {
   unsigned long long metricRevision = 0;
   bool referenceSurface = false;
   long double normalization = 1;
-  CutFemLevelSetData slice;
-  PreparedPlane plane;
+  SurfaceSlice slice;
   PreparedStatistics* statistics = nullptr;
-  std::vector<std::vector<long double>> sliceMetric;
-  std::vector<std::vector<std::vector<long double>>> slicePolicy;
   EndpointProjection* projection = nullptr;
-  std::vector<std::vector<long double>> gradient;
   std::vector<std::array<unsigned,3>> powers;
   unsigned degree = 0;
   unsigned maximumDepth = 24;
@@ -212,11 +229,13 @@ public:
 
   static bool Independent(const SurfaceEndpointData& data, unsigned axis) {
     if(data.prepared->DependsOn(axis)) return false;
-    for(unsigned n = 0; n < data.gradient.size(); ++n) {
-      const unsigned size = SurfacePolynomialCubeSize(data.gradient[n].size());
+    if(!data.referenceSurface) return true;
+    for(unsigned n = 0; n < data.prepared->GetRootDimension(); ++n) {
+      const std::vector<long double>& gradient = data.physicalMetric == nullptr ? data.prepared->GetRootDerivativeCoefficients(n) : (*data.physicalMetric)[n];
+      const unsigned size = SurfacePolynomialCubeSize(gradient.size());
       for(unsigned i = 0; i < size; ++i) for(unsigned j = 0; j < size; ++j) for(unsigned k = 0; k < size; ++k) {
         const unsigned powers[3] = {i,j,k};
-        if(powers[axis] != 0 && data.gradient[n][size*size*i+size*j+k] != 0.0L) return false;
+        if(powers[axis] != 0 && gradient[size*size*i+size*j+k] != 0.0L) return false;
       }
     }
     return true;
@@ -236,26 +255,24 @@ public:
     const unsigned requestedDirection = preferred < 3 && preferred != outer ? (preferred == first ? 2U : 1U) : 0;
     std::vector<unsigned char> required(2U*sliceCount,0);
     for(unsigned n = 0; n < count; ++n) for(unsigned pair = 0; pair < 2; ++pair) if(active[pair*count+n]) required[pair*sliceCount+ReferenceMomentIndex2D(degree,data.powers[n][first],data.powers[n][second])] = 1;
-    data.prepared->Restrict(outer,coordinate,data.slice,data.referenceSurface && data.physicalMetric == nullptr);
-    if(data.statistics != nullptr) ++data.statistics->surfaceRestrictions;
-    const bool triangleSlice = data.slice.GetGeometry() == TRI;
-    if(!(data.slice.GetParentMeasureScale() > 0)) throw OuterQuadratureResolutionError("A prepared 3D slice reached coordinate resolution.");
-    if(data.physicalMetric != nullptr) { data.prepared->RestrictComponents(outer,coordinate,data.metricDegree,*data.physicalMetric,data.sliceMetric); if(data.statistics != nullptr) ++data.statistics->metricRestrictions; }
-    data.plane.Bind(data.slice,data.normalization,data.referenceSurface,data.inverseSurface,data.normalComponent,data.physicalMetric == nullptr ? nullptr : &data.sliceMetric,data.metricDegree,data.statistics);
-    const std::vector<std::vector<long double>> chart = PlanarCoefficients(data.slice,data.normalization);
-    if(data.referenceSurface) {
-      const unsigned components = data.physicalMetric == nullptr ? data.slice.GetRootDimension() : data.sliceMetric.size(), size = data.physicalMetric == nullptr ? 3U : data.metricDegree+1;
-      data.slicePolicy.resize(components);
-      for(unsigned component = 0; component < components; ++component) {
-        const std::vector<long double>& field = data.physicalMetric == nullptr ? data.slice.GetRootDerivativeCoefficients(component) : data.sliceMetric[component];
-        data.slicePolicy[component].resize(size);
-        for(unsigned i = 0; i < size; ++i) { data.slicePolicy[component][i].resize(size); for(unsigned j = 0; j < size; ++j) data.slicePolicy[component][i][j] = field[size*i+j]; }
-      }
+    SharedSurfaceSlice* shared = cell.shared == nullptr ? nullptr : &cell.shared->axes[outer][coordinate];
+    SurfaceSlice& slice = shared == nullptr ? data.slice : shared->slice;
+    if(shared == nullptr || !shared->ready) {
+      data.prepared->Restrict(outer,coordinate,slice.field,data.referenceSurface && data.physicalMetric == nullptr);
+      if(data.statistics != nullptr) ++data.statistics->surfaceRestrictions;
+      if(!(slice.field.GetParentMeasureScale() > 0)) throw OuterQuadratureResolutionError("A prepared 3D slice reached coordinate resolution.");
+      if(data.physicalMetric != nullptr) { data.prepared->RestrictComponents(outer,coordinate,data.metricDegree,*data.physicalMetric,slice.metric); if(data.statistics != nullptr) ++data.statistics->metricRestrictions; }
+      slice.plane.Bind(slice.field,data.normalization,data.referenceSurface,data.inverseSurface,data.normalComponent,data.physicalMetric == nullptr ? nullptr : &slice.metric,data.metricDegree,data.statistics);
+      slice.coefficient = PlanarCoefficients(slice.field,data.normalization);
+      slice.boundary = slice.plane.Boundaries();
+      const std::vector<long double>& origin = slice.field.GetParentOrigin();
+      const std::vector<std::vector<long double>>& map = slice.field.GetParentMap();
+      slice.parent = {origin[first],map[first][0],origin[second],map[second][1],slice.field.GetParentMeasureScale()};
+      if(shared != nullptr) { slice.plane.graphs = &shared->graphs; slice.plane.endpoints = &shared->endpoints; shared->ready = true; }
     }
-    const std::vector<unsigned> boundary = data.plane.Boundaries();
-    const std::vector<long double>& origin = data.slice.GetParentOrigin();
-    const std::vector<std::vector<long double>>& map = data.slice.GetParentMap();
-    const std::array<long double,5> parent = {origin[first],map[first][0],origin[second],map[second][1],data.slice.GetParentMeasureScale()};
+    slice.plane.inverseSurface = data.inverseSurface;
+    slice.plane.normalComponent = data.normalComponent;
+    const bool triangleSlice = slice.field.GetGeometry() == TRI;
     std::vector<long double> moments;
     std::vector<long double> momentErrors;
     unsigned evaluations = 0;
@@ -263,7 +280,7 @@ public:
     unsigned selected = 0;
     try {
       if(triangleSlice) ++Statistics().triCalls; else ++Statistics().quadCalls;
-      PlanarEndpointIntegration::Integrate(chart,degree,triangleSlice,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,selected,data.referenceSurface ? &data.slicePolicy : nullptr,&parent,&required,requestedDirection,false,&boundary,data.quadratureRules,data.inverseSurface,data.normalComponent,&data.plane,data.normalComponent >= 0);
+      PlanarEndpointIntegration::Integrate(slice.coefficient,degree,triangleSlice,data.computeDelta,0.01L*allocation*data.absoluteH,0.01L*allocation*data.absoluteD,0.01L*data.relative,data.maximumDepth,std::max(3U,data.maximumEvaluations > data.evaluations ? data.maximumEvaluations-data.evaluations : 0U),moments,momentErrors,evaluations,accepted,selected,nullptr,&slice.parent,&required,requestedDirection,false,&slice.boundary,data.quadratureRules,data.inverseSurface,data.normalComponent,&slice.plane,data.normalComponent >= 0);
     }
     catch(...) { data.evaluations += evaluations; throw; }
     data.evaluations += evaluations;
@@ -412,13 +429,16 @@ public:
     throw failure;
   }
 
-  static void Integrate(SurfaceEndpointData& data, bool tetrahedron, std::vector<long double>& values, std::vector<long double>& errors) {
+  static void Integrate(SurfaceEndpointData& data, bool tetrahedron, std::vector<long double>& values, std::vector<long double>& errors, SharedSurfaceSlices* shared = nullptr) {
     QuadratureWarningScope warningScope("3D endpoint integration");
     data.quadratureRules.Validate();
     const unsigned count = (data.degree+1U)*(data.degree+2U)*(data.degree+3U)/6U;
-    data.powers.assign(count,{0,0,0});
-    for(unsigned i = 0; i <= data.degree; ++i) for(unsigned j = 0; j <= data.degree-i; ++j) for(unsigned k = 0; k <= data.degree-i-j; ++k) data.powers[HexMomentIndex(i,j,k)] = {i,j,k};
+    if(data.powers.size() != count) {
+      data.powers.resize(count);
+      for(unsigned i = 0; i <= data.degree; ++i) for(unsigned j = 0; j <= data.degree-i; ++j) for(unsigned k = 0; k <= data.degree-i-j; ++k) data.powers[HexMomentIndex(i,j,k)] = {i,j,k};
+    }
     SurfaceEndpointDomain cell;
+    cell.shared = shared;
     cell.tetrahedron = tetrahedron;
     cell.wedge = data.wedge;
     cell.vertices = tetrahedron ? std::vector<std::array<long double,3>>{{0,0,0},{1,0,0},{0,1,0},{0,0,1}} : (data.wedge ? std::vector<std::array<long double,3>>{{0,0,0},{1,1,1}} : std::vector<std::array<long double,3>>{{0,0,0},{1,1,1}});
@@ -490,7 +510,7 @@ public:
     }
   }
 
-  static void Compare(SurfaceEndpointData& data, bool tetrahedron, const std::vector<long double>& values, std::vector<long double>& errors) {
+  static void Compare(SurfaceEndpointData& data, bool tetrahedron, const std::vector<long double>& values, std::vector<long double>& errors, SharedSurfaceSlices* shared = nullptr) {
     QuadratureWarningScope warningScope("Independent 3D validation");
     SurfaceEndpointData independent = data;
     independent.evaluations = independent.accepted = 0;
@@ -500,7 +520,7 @@ public:
     if(independent.preferredOuter == data.graphAxis) independent.preferredOuter = (outer+2U)%3U;
     std::vector<long double> second;
     std::vector<long double> secondErrors;
-    try { Integrate(independent,tetrahedron,second,secondErrors); }
+    try { Integrate(independent,tetrahedron,second,secondErrors,shared); }
     catch(const std::runtime_error& error) { WarnQuadrature("Independent 3D validation",std::string("validation unavailable: ")+error.what(),0,std::numeric_limits<long double>::infinity(),data.absoluteD); data.evaluations += independent.evaluations; return; }
     for(unsigned n = 0; n < values.size(); ++n) {
       errors[n] += secondErrors[n]+std::abs(values[n]-second[n]);

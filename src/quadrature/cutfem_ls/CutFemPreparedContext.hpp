@@ -14,7 +14,19 @@ struct PreparedStatistics {
   unsigned long long geometryPreparations = 0;
 };
 
+struct PhysicalSurfaceMetric {
+  std::array<long double,3> gradient = {};
+  long double norm = 0;
+
+  long double Factor(bool inverse, int component) const { return component >= 0 ? gradient[component]/norm : (inverse ? 1/norm : norm); }
+};
+
+struct SharedGraphStrips;
+struct EndpointStripGeometry;
+
 struct PreparedPlane {
+  SharedGraphStrips* graphs = nullptr;
+  EndpointStripGeometry* endpoints = nullptr;
   const CutFemLevelSetData* data = nullptr;
   const std::vector<std::vector<long double>>* metric = nullptr;
   long double normalization = 1;
@@ -29,6 +41,8 @@ struct PreparedPlane {
   mutable std::array<bool,2> analysisReady = {false,false};
 
   void Bind(const CutFemLevelSetData& field, long double scale, bool surface, bool inverse, int component, const std::vector<std::vector<long double>>* physicalMetric, unsigned physicalDegree, PreparedStatistics* counts) {
+    graphs = nullptr;
+    endpoints = nullptr;
     data = &field;
     metric = physicalMetric;
     normalization = scale;
@@ -53,22 +67,30 @@ struct PreparedPlane {
 
   long double WorkingDerivative(unsigned order, const CutFemLevelSetData::LineRoot& root) const { return root.derivative/normalization; }
 
+  static long double EvaluateMetricRow(const long double* row, unsigned degree, long double coordinate) {
+    long double value = row[degree];
+    for(unsigned power = degree; power > 0; --power) value = value*coordinate+row[power-1];
+    return value;
+  }
+
+  PhysicalSurfaceMetric EvaluateMetric(unsigned order, long double x, long double y) const {
+    const long double first = InnerAxis(order) == 0 ? y : x, second = InnerAxis(order) == 0 ? x : y;
+    const unsigned size = metricDegree+1;
+    PhysicalSurfaceMetric result;
+    for(unsigned component = 0; component < metric->size(); ++component) {
+      const long double* polynomial = (*metric)[component].data();
+      long double value = EvaluateMetricRow(polynomial+metricDegree*size,metricDegree,second);
+      for(unsigned row = metricDegree; row > 0; --row) value = value*first+EvaluateMetricRow(polynomial+(row-1)*size,metricDegree,second);
+      result.gradient[component] = value;
+      result.norm = component == 0 ? std::abs(value) : std::hypot(result.norm,value);
+    }
+    if(!(result.norm > 0) || !std::isfinite(result.norm)) throw std::domain_error("A local fiber has no regular surface metric.");
+    return result;
+  }
+
   long double Density(unsigned order, long double x, long double y, long double signedDerivative) const {
     if(!referenceSurface) { CutFemLevelSetData::LineRoot root; root.coordinate = y; root.derivative = signedDerivative; root.multiplicity = 1; return CutFemLevelSetData::GetRegularRootDeltaFactor(root); }
-    if(metric != nullptr) {
-      const long double first = InnerAxis(order) == 0 ? y : x, second = InnerAxis(order) == 0 ? x : y;
-      std::array<long double,3> h = {0,0,0};
-      long double norm = 0;
-      for(unsigned component = 0; component < metric->size(); ++component) {
-        const std::vector<long double>& polynomial = (*metric)[component];
-        long double value = 0;
-        for(unsigned row = metricDegree+1; row > 0; --row) { long double line = polynomial[(metricDegree+1)*(row-1)+metricDegree]; for(unsigned power = metricDegree; power > 0; --power) line = line*second+polynomial[(metricDegree+1)*(row-1)+power-1]; value = value*first+line; }
-        h[component] = value;
-        norm = std::hypot(norm,value);
-      }
-      if(!(norm > 0) || !std::isfinite(norm)) throw std::domain_error("A local fiber has no regular surface metric.");
-      return (normalComponent >= 0 ? h[normalComponent]/norm : (inverseSurface ? 1/norm : norm))/std::abs(signedDerivative);
-    }
+    if(metric != nullptr) return EvaluateMetric(order,x,y).Factor(inverseSurface,normalComponent)/std::abs(signedDerivative);
     const unsigned inner = InnerAxis(order);
     point[inner] = y;
     point[1-inner] = x;

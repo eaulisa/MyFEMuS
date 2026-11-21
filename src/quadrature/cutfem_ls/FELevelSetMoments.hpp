@@ -7,7 +7,7 @@
 #include <limits>
 #include <stdexcept>
 #include <vector>
-#include "ReferenceSurfaceMoments.hpp"
+#include "LineSliceUtilities.hpp"
 #include "QuadratureWarnings.hpp"
 #include "ReferenceElementLS.hpp"
 
@@ -59,13 +59,7 @@ namespace FELevelSetMoments {
     }
   }
 
-  inline long double PolynomialValue(const std::vector<long double>& polynomial, long double x) {
-    long double value = 0.0L;
-    for (unsigned k = static_cast<unsigned>(polynomial.size()); k > 0; --k) {
-      value = std::fma(value, x, polynomial[k - 1U]);
-    }
-    return value;
-  }
+  inline long double PolynomialValue(const std::vector<long double>& polynomial, long double x) { return LineSliceUtilities::PolynomialValue(polynomial,x); }
 
   inline long double PolynomialBound(const std::vector<long double>& polynomial, long double x) {
     long double value = 0.0L;

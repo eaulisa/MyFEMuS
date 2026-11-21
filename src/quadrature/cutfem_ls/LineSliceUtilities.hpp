@@ -61,9 +61,12 @@ inline void Trim(std::vector<long double>& polynomial) {
   }
 }
 
+inline long double ParentCoordinate(long double scale, long double coordinate, long double origin) { return scale == 1 && origin == 0 ? coordinate : std::fma(scale,coordinate,origin); }
+
 inline long double PolynomialValue(const std::vector<long double>& polynomial, long double x) {
-  long double value = 0.0L;
-  for (unsigned k = static_cast<unsigned>(polynomial.size()); k > 0; --k) {
+  if (polynomial.empty()) return 0.0L;
+  long double value = polynomial.back();
+  for (unsigned k = static_cast<unsigned>(polynomial.size())-1U; k > 0; --k) {
     value = std::fma(value, x, polynomial[k - 1U]);
   }
   return value;
