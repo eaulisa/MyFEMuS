@@ -2543,6 +2543,8 @@ void TestReviewedWeightState() {
   Check(afterH == originalH && afterD == originalD,"cache hits retain the last actually integrated pair");
 }
 
+void TestHex27Elements(const std::string& path);
+
 int main(int argc, char** argv) {
   try {
     unsigned cases = 64, points = 32;
@@ -2553,6 +2555,7 @@ int main(int argc, char** argv) {
     bool algebraBenchmark = false;
     bool weightTests = false;
     bool weightBenchmark = false;
+    std::string hex27Fixture;
     unsigned weightDimension = 0;
     for(int i = 1; i < argc; ++i) {
       const std::string option = argv[i];
@@ -2570,14 +2573,16 @@ int main(int argc, char** argv) {
       else if(option == "--benchmark-data") dataBenchmark = true;
       else if(option == "--benchmark-algebra") algebraBenchmark = true;
       else if(option == "--test-weights") weightTests = true;
+      else if(option == "--test-hex27-elements" && i+1 < argc) hex27Fixture = argv[++i];
       else if(option == "--benchmark-weights") weightBenchmark = true;
       else if(option == "--weight-dimension" && i+1 < argc) { const std::string value = argv[++i]; if(value.empty() || value.find_first_not_of("0123456789") != std::string::npos) throw std::invalid_argument("Invalid weight-test dimension."); weightDimension = static_cast<unsigned>(std::stoul(value)); if(weightDimension < 1 || weightDimension > 3) throw std::invalid_argument("Weight-test dimension must be one, two, or three."); }
       else if(option == "--help") {
-        std::cout << "MultiPhase_ex47 [--cases N] [--points N] [--benchmark] [--benchmark-quadrature] [--benchmark-surface] [--benchmark-data] [--benchmark-algebra] [--test-weights] [--benchmark-weights] [--weight-dimension 1|2|3]\n";
+        std::cout << "MultiPhase_ex47 [--cases N] [--points N] [--benchmark] [--benchmark-quadrature] [--benchmark-surface] [--benchmark-data] [--benchmark-algebra] [--test-weights] [--test-hex27-elements FILE] [--benchmark-weights] [--weight-dimension 1|2|3]\n";
         return 0;
       }
       else throw std::invalid_argument("Unknown or incomplete argument: " + option);
     }
+    if(!hex27Fixture.empty()) { TestHex27Elements(hex27Fixture); return 0; }
     if(quadratureBenchmark) { BenchmarkQuadratureKernels(); return 0; }
     if(surfaceBenchmark) { BenchmarkSelectiveSurfaceKernels(); return 0; }
     if(dataBenchmark) { BenchmarkDataReuse(); return 0; }

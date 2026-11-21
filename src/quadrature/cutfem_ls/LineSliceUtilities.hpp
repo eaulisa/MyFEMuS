@@ -172,7 +172,17 @@ inline std::vector<long double> QuadraticRoots(long double a, long double b, lon
   return result;
 }
 
-inline void PolynomialRoots(const std::vector<long double>& input, long double left, long double right, std::vector<long double>& roots) {
+// On the unit interval the guard covers roundoff in both fused and ordinary Horner evaluation, including underflow.
+inline long double PolynomialSignValue(const std::vector<long double>& polynomial, long double x, long double signBound) {
+  if(std::isfinite(signBound)) {
+    long double value = polynomial.back();
+    for(unsigned k = polynomial.size()-1; k > 0; --k) value = value*x+polynomial[k-1];
+    if(std::abs(value) > signBound) return value;
+  }
+  return PolynomialValue(polynomial,x);
+}
+
+inline void FindPolynomialRoots(const std::vector<long double>& input, long double left, long double right, std::vector<long double>& roots, void (*sortCritical)(std::vector<long double>&)) {
   std::vector<long double> polynomial(input);
   Trim(polynomial);
   if (polynomial.size() <= 1) {
@@ -189,22 +199,27 @@ inline void PolynomialRoots(const std::vector<long double>& input, long double l
   }
   std::vector<long double> derivative = PolynomialDerivative(polynomial);
   std::vector<long double> critical;
-  PolynomialRoots(derivative, left, right, critical);
+  FindPolynomialRoots(derivative,left,right,critical,sortCritical);
   critical.push_back(left);
   critical.push_back(right);
-  SortDistinct(critical);
+  sortCritical(critical);
+  std::vector<long double> endpointValues(critical.size());
+  const long double factor = 8.0L*polynomial.size();
+  const long double epsilon = std::numeric_limits<long double>::epsilon();
+  const long double norm = PolynomialBound(polynomial,1);
+  const long double signBound = std::abs(left) <= 1 && std::abs(right) <= 1 && factor*epsilon < 0.5L && norm < std::numeric_limits<long double>::max()/2 ? factor*(epsilon*norm+std::numeric_limits<long double>::min()) : std::numeric_limits<long double>::infinity();
   for (unsigned k = 0; k < critical.size(); ++k) {
-    long double value = PolynomialValue(polynomial, critical[k]);
+    endpointValues[k] = PolynomialValue(polynomial,critical[k]);
     long double tolerance = 64.0L * std::numeric_limits<long double>::epsilon() * PolynomialBound(polynomial, critical[k]);
-    if (std::abs(value) <= tolerance) {
+    if (std::abs(endpointValues[k]) <= tolerance) {
       roots.push_back(critical[k]);
     }
   }
   for (unsigned k = 1; k < critical.size(); ++k) {
     long double a = critical[k - 1U];
     long double b = critical[k];
-    long double fa = PolynomialValue(polynomial, a);
-    long double fb = PolynomialValue(polynomial, b);
+    const long double fa = endpointValues[k-1];
+    const long double fb = endpointValues[k];
     if (fa == 0.0L || fb == 0.0L || (fa > 0.0L) == (fb > 0.0L)) {
       continue;
     }
@@ -213,7 +228,7 @@ inline void PolynomialRoots(const std::vector<long double>& input, long double l
       if (middle == a || middle == b) {
         break;
       }
-      long double fm = PolynomialValue(polynomial, middle);
+      const long double fm = PolynomialSignValue(polynomial,middle,signBound);
       if (fm == 0.0L) {
         a = middle;
         b = middle;
@@ -221,15 +236,17 @@ inline void PolynomialRoots(const std::vector<long double>& input, long double l
       }
       if ((fm > 0.0L) == (fa > 0.0L)) {
         a = middle;
-        fa = fm;
       }
       else {
         b = middle;
-        fb = fm;
       }
     }
     roots.push_back(a + 0.5L * (b - a));
   }
+}
+
+inline void PolynomialRoots(const std::vector<long double>& input, long double left, long double right, std::vector<long double>& roots) {
+  FindPolynomialRoots(input,left,right,roots,SortDistinct);
 }
 
 template <class Type> inline void NormalizeCanonicalPolynomial(const std::vector<std::vector<Type>>& coefficient, std::vector<std::vector<long double>>& normalized, long double& scale) {

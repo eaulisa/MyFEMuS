@@ -5,7 +5,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 get_filename_component(EX47_REPOSITORY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
-add_executable(MultiPhase_ex47 ex47.cpp "${EX47_REPOSITORY_ROOT}/src/fe/Line.cpp" "${EX47_REPOSITORY_ROOT}/src/fe/Quadrilateral.cpp" "${EX47_REPOSITORY_ROOT}/src/fe/Triangle.cpp" "${EX47_REPOSITORY_ROOT}/src/fe/Hexaedron.cpp" "${EX47_REPOSITORY_ROOT}/src/fe/Tetrahedral.cpp" "${EX47_REPOSITORY_ROOT}/src/fe/Wedge.cpp")
+add_executable(MultiPhase_ex47 ex47.cpp "${EX47_REPOSITORY_ROOT}/unittests/testCutFemWeightLSNative/hex27_replay.cpp" "${EX47_REPOSITORY_ROOT}/src/fe/Line.cpp" "${EX47_REPOSITORY_ROOT}/src/fe/Quadrilateral.cpp" "${EX47_REPOSITORY_ROOT}/src/fe/Triangle.cpp" "${EX47_REPOSITORY_ROOT}/src/fe/Hexaedron.cpp" "${EX47_REPOSITORY_ROOT}/src/fe/Tetrahedral.cpp" "${EX47_REPOSITORY_ROOT}/src/fe/Wedge.cpp")
 target_include_directories(MultiPhase_ex47 PRIVATE "${EX47_REPOSITORY_ROOT}/src/fe" "${EX47_REPOSITORY_ROOT}/src/enums" "${EX47_REPOSITORY_ROOT}/src/quadrature/cutfem_ls")
 target_include_directories(MultiPhase_ex47 PRIVATE "${EX47_REPOSITORY_ROOT}/src/quadrature")
 find_path(EX47_EIGEN_INCLUDE_DIR Eigen/Dense HINTS "${EIGEN3_INCLUDE_DIR}" ENV EIGEN3_INCLUDE_DIR PATH_SUFFIXES eigen3)

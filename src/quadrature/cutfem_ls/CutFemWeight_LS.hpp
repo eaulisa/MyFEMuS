@@ -6,6 +6,7 @@
 #include <boost/multiprecision/cpp_bin_float.hpp>
 #include "gram_smithLS.hpp"
 #include <Eigen/Dense>
+#include <map>
 #include "CutFemLevelSetData.hpp"
 #include "CutFemPreparedMoments.hpp"
 
@@ -214,23 +215,39 @@ class CutFemWeight_LS {
       if(_qM != 0) { coefficient[1][0] = -1; coefficient[1][1] = 2; }
       for(unsigned n = 2; n <= _qM; ++n) for(unsigned k = 0; k <= n; ++k) coefficient[n][k] = ((2U*n-1U)*(2*(k == 0 ? boost::multiprecision::cpp_bin_float_oct(0) : coefficient[n-1U][k-1U])-coefficient[n-1U][k])-(n-1U)*coefficient[n-2U][k])/n;
       _momentToWeight.resize(_gn,_L);
+      std::map<double,std::vector<boost::multiprecision::cpp_bin_float_oct>> legendre;
+      std::vector<boost::multiprecision::cpp_bin_float_oct> lineValues;
+      std::vector<boost::multiprecision::cpp_bin_float_oct> row(_L);
       for(unsigned ig = 0; ig < _gn; ++ig) {
-        std::vector<std::vector<boost::multiprecision::cpp_bin_float_oct>> polynomials(_dim,std::vector<boost::multiprecision::cpp_bin_float_oct>(_qM+1U,1));
+        std::array<const std::vector<boost::multiprecision::cpp_bin_float_oct>*,3> polynomials;
         for(unsigned d = 0; d < _dim; ++d) {
-          const boost::multiprecision::cpp_bin_float_oct point(_gauss.GetGaussCoordinatePointer(d)[ig]);
-          if(_qM != 0) polynomials[d][1] = point;
-          for(unsigned n = 2; n <= _qM; ++n) polynomials[d][n] = ((2U*n-1U)*point*polynomials[d][n-1U]-(n-1U)*polynomials[d][n-2U])/n;
+          const double node = _gauss.GetGaussCoordinatePointer(d)[ig];
+          std::vector<boost::multiprecision::cpp_bin_float_oct>& values = _dim == 1 ? lineValues : legendre[node];
+          if(_dim == 1 || values.empty()) {
+            const boost::multiprecision::cpp_bin_float_oct point(node);
+            values.resize(_qM+1U,1);
+            if(_qM != 0) values[1] = point;
+            for(unsigned n = 2; n <= _qM; ++n) values[n] = ((2U*n-1U)*point*values[n-1U]-(n-1U)*values[n-2U])/n;
+            for(unsigned n = 1; n <= _qM; ++n) values[n] *= 2U*n+1U;
+          }
+          polynomials[d] = &values;
         }
-        std::vector<boost::multiprecision::cpp_bin_float_oct> row(_L,0);
-        for(unsigned i = 0; i <= _qM; ++i) for(unsigned j = 0; j <= (_dim > 1 ? _qM-i : 0U); ++j) for(unsigned k = 0; k <= (_dim > 2 ? _qM-i-j : 0U); ++k) {
-          boost::multiprecision::cpp_bin_float_oct value = (2U*i+1U)*polynomials[0][i];
-          if(_dim > 1) value *= (2U*j+1U)*polynomials[1][j];
-          if(_dim > 2) value *= (2U*k+1U)*polynomials[2][k];
-          for(unsigned a = 0; a <= i; ++a) for(unsigned b = 0; b <= j; ++b) for(unsigned c = 0; c <= k; ++c) {
-            boost::multiprecision::cpp_bin_float_oct term = value*coefficient[i][a];
-            if(_dim > 1) term *= coefficient[j][b];
-            if(_dim > 2) term *= coefficient[k][c];
-            row[FELevelSetMoments::UnitMomentIndex(_dim,a,b,c)] += term;
+        std::fill(row.begin(),row.end(),0);
+        if(_dim == 1) {
+          for(unsigned i = 0; i <= _qM; ++i) for(unsigned a = 0; a <= i; ++a) row[a] += (*polynomials[0])[i]*coefficient[i][a];
+        }
+        else for(unsigned i = 0; i <= _qM; ++i) for(unsigned j = 0; j <= _qM-i; ++j) {
+          const boost::multiprecision::cpp_bin_float_oct xy = (*polynomials[0])[i]*(*polynomials[1])[j];
+          for(unsigned k = 0; k <= (_dim > 2 ? _qM-i-j : 0U); ++k) {
+            boost::multiprecision::cpp_bin_float_oct value = xy;
+            if(_dim > 2) value *= (*polynomials[2])[k];
+            for(unsigned a = 0; a <= i; ++a) {
+              const boost::multiprecision::cpp_bin_float_oct first = value*coefficient[i][a];
+              for(unsigned b = 0; b <= j; ++b) {
+                const boost::multiprecision::cpp_bin_float_oct second = first*coefficient[j][b];
+                for(unsigned c = 0; c <= k; ++c) row[FELevelSetMoments::UnitMomentIndex(_dim,a,b,c)] += _dim > 2 ? second*coefficient[k][c] : second;
+              }
+            }
           }
         }
         for(unsigned n = 0; n < _L; ++n) _momentToWeight(ig,n) = static_cast<TypeA>(row[n]);
@@ -246,13 +263,13 @@ class CutFemWeight_LS {
       std::vector<boost::multiprecision::cpp_bin_float_oct> x(_dim);
       std::vector<std::vector<boost::multiprecision::cpp_bin_float_oct>> powers(_dim, std::vector<boost::multiprecision::cpp_bin_float_oct>(_qM + 1U, 1));
       _momentToWeight.resize(_gn, _L);
+      std::vector<boost::multiprecision::cpp_bin_float_oct> basis(_L);
       for(unsigned ig = 0; ig < _gn; ++ig) {
         for(unsigned d = 0; d < _dim; ++d) x[d] = _geomElemType == WEDGE && d == 2 ? (boost::multiprecision::cpp_bin_float_oct(xgp[d][ig])+1)/2 : boost::multiprecision::cpp_bin_float_oct(xgp[d][ig]);
         for(unsigned d = 0; d < _dim; ++d) {
           for(unsigned i = 1; i <= _qM; ++i) powers[d][i] = powers[d][i - 1U] * x[d];
         }
         unsigned index = 0;
-        std::vector<boost::multiprecision::cpp_bin_float_oct> basis(_L, 0);
         for(unsigned q = 0; q <= _qM; ++q) {
           if(_dim == 1) basis[index++] = powers[0][q];
           else {
@@ -298,15 +315,16 @@ class CutFemWeight_LS {
       if(!sameInput) for(unsigned cachedMode = 0; cachedMode < _nodalDeltaWeightCache.size(); ++cachedMode) _nodalDeltaWeightCache[cachedMode].clear();
       _nodalWeightCacheValid = false;
       IntegrateNodalMomentPair(nodalValues,absoluteTolerance,relativeTolerance,referenceSurface,rules,geometryCoordinates,inverseSurface,normalComponent,!reusePositive,shared);
-      _cachedOuterQuadratureRules = rules;
-      _nodalValues = nodalValues;
-      if(geometryCoordinates == nullptr) _nodalGeometryCoordinates.clear();
-      else _nodalGeometryCoordinates = *geometryCoordinates;
-      _nodalAbsoluteTolerance = absoluteTolerance;
-      _nodalRelativeTolerance = relativeTolerance;
+      if(!sameInput) {
+        _cachedOuterQuadratureRules = rules;
+        _nodalValues = nodalValues;
+        if(geometryCoordinates == nullptr) _nodalGeometryCoordinates.clear();
+        else _nodalGeometryCoordinates = *geometryCoordinates;
+        _nodalAbsoluteTolerance = absoluteTolerance;
+        _nodalRelativeTolerance = relativeTolerance;
+      }
       EvaluateMomentWeightPair(positiveWeight,deltaWeight,reusePositive,absoluteTolerance,relativeTolerance);
-      _nodalPositiveWeight = positiveWeight;
-      if(!reusePositive) _nodalPositiveScaled = scaledPositive;
+      if(!reusePositive) { _nodalPositiveWeight = positiveWeight; _nodalPositiveScaled = scaledPositive; }
       _nodalDeltaWeightCache[mode] = deltaWeight;
       _nodalWeightCacheValid = true;
     }
@@ -365,7 +383,7 @@ class CutFemWeight_LS {
         }
         if(!reusePositive) positiveResult[ig] = static_cast<TypeIO>(positive);
         deltaResult[ig] = static_cast<TypeIO>(delta);
-        if(!Eigen::numext::isfinite(positiveResult[ig]) || !Eigen::numext::isfinite(deltaResult[ig])) throw std::overflow_error("A level-set quadrature correction exceeds the output range.");
+        if((!reusePositive && !Eigen::numext::isfinite(positiveResult[ig])) || !Eigen::numext::isfinite(deltaResult[ig])) throw std::overflow_error("A level-set quadrature correction exceeds the output range.");
         if(checkRounding) {
           const long double weight = std::abs(GetGaussWeightPointer()[ig])/measureScale;
           deltaRounding += weight*std::abs(static_cast<long double>(delta-static_cast<TypeA>(deltaResult[ig])));

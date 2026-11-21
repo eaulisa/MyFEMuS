@@ -87,8 +87,8 @@ inline void PrepareMetric(const CutFemLevelSetData& data, const std::vector<std:
   }
   else {
     SurfaceGradientCofactor3D(gradient,coordinates,1);
-    workspace.metric = gradient;
     workspace.metricDegree = SurfacePolynomialCubeSize(gradient[0].size())-1;
+    workspace.metric.swap(gradient);
   }
   TrimMetric(dimension,workspace.metric,workspace.metricDegree);
   workspace.metricNodes = data.GetNodalValues();

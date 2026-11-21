@@ -162,63 +162,7 @@ namespace FELevelSetMoments {
   }
 
   inline void PolynomialRoots(const std::vector<long double>& input, long double left, long double right, std::vector<long double>& roots) {
-    std::vector<long double> polynomial(input);
-    Trim(polynomial);
-    if (polynomial.size() <= 1) {
-      return;
-    }
-    if (polynomial.size() <= 3) {
-      std::vector<long double> candidates = QuadraticRoots((polynomial.size() == 3) ? polynomial[2] : 0.0L, polynomial[1], polynomial[0]);
-      for (unsigned k = 0; k < candidates.size(); ++k) {
-        if (candidates[k] >= left && candidates[k] <= right) {
-          roots.push_back(candidates[k]);
-        }
-      }
-      return;
-    }
-    std::vector<long double> derivative = PolynomialDerivative(polynomial);
-    std::vector<long double> critical;
-    PolynomialRoots(derivative, left, right, critical);
-    critical.push_back(left);
-    critical.push_back(right);
-    SortDistinct(critical);
-    for (unsigned k = 0; k < critical.size(); ++k) {
-      long double value = PolynomialValue(polynomial, critical[k]);
-      long double tolerance = 64.0L * std::numeric_limits<long double>::epsilon() * PolynomialBound(polynomial, critical[k]);
-      if (std::abs(value) <= tolerance) {
-        roots.push_back(critical[k]);
-      }
-    }
-    for (unsigned k = 1; k < critical.size(); ++k) {
-      long double a = critical[k - 1U];
-      long double b = critical[k];
-      long double fa = PolynomialValue(polynomial, a);
-      long double fb = PolynomialValue(polynomial, b);
-      if (fa == 0.0L || fb == 0.0L || (fa > 0.0L) == (fb > 0.0L)) {
-        continue;
-      }
-      for (unsigned iteration = 0; iteration < 180; ++iteration) {
-        long double middle = a + 0.5L * (b - a);
-        if (middle == a || middle == b) {
-          break;
-        }
-        long double fm = PolynomialValue(polynomial, middle);
-        if (fm == 0.0L) {
-          a = middle;
-          b = middle;
-          break;
-        }
-        if ((fm > 0.0L) == (fa > 0.0L)) {
-          a = middle;
-          fa = fm;
-        }
-        else {
-          b = middle;
-          fb = fm;
-        }
-      }
-      roots.push_back(a + 0.5L * (b - a));
-    }
+    LineSliceUtilities::FindPolynomialRoots(input,left,right,roots,SortDistinct);
   }
 
   inline void Integrate1DInternal(long double a, long double b, long double c, unsigned degree, long double left, long double right, bool computeDelta, bool fullBoundaryDelta, std::vector<long double>& positive, std::vector<long double>& delta) {

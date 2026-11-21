@@ -46,6 +46,7 @@ class CutFemLevelSetData {
       std::vector<long double> discriminant;
       std::array<std::array<long double,2>,5> compensatedDiscriminant = {};
       bool compensatedReady = false;
+      std::array<long double,3> lineCoefficientNorms = {};
     };
 
     // FEMuS nodal ordering is preserved; all polynomial coordinates are unit coordinates.
@@ -946,7 +947,7 @@ class CutFemLevelSetData {
     static std::array<long double,2> CompensatedEvaluate(const long double* coefficient, unsigned dimension, unsigned degree, const std::array<std::array<long double,2>,3>& point);
     static void CompensatedPolynomialRoots(const std::array<std::array<long double,2>,5>& coefficient, unsigned degree, long double left, long double right, std::vector<long double>& roots);
     static long double QuadraticDiscriminant(const std::array<std::array<long double,2>,3>& coefficient);
-    static unsigned SolveQuadratic(long double a, long double b, long double c, long double discriminant, std::array<long double,2>& roots);
+    static unsigned SolveQuadratic(long double a, long double b, long double c, long double discriminant, std::array<long double,2>& roots, long double& slope);
     static const std::vector<std::array<long double,3>>& ReferenceNodes(GeomElType geometry);
     static void ExpandUnit(GeomElType geometry, const std::vector<long double>& nodal, std::vector<long double>& coefficient);
     static std::array<std::array<std::array<long double,27>,27>,6> BuildInterpolationTables();

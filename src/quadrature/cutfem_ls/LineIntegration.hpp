@@ -279,10 +279,17 @@ public:
     return result;
   }
 
+  static std::array<long double,2> FiberDiscriminantAndDerivative(const std::vector<std::vector<long double>>& coefficient, long double x, const PreparedPlane* prepared, unsigned order) {
+    if(prepared == nullptr) return {FiberDiscriminantValue(coefficient,x),FiberDiscriminantDerivative(coefficient,x)};
+    std::array<long double,5> shifted;
+    prepared->ShiftedDiscriminant(order,x,shifted);
+    return {shifted[0],shifted[1]};
+  }
+
   static bool NearEndpoint(const std::vector<std::vector<long double>>& coefficient, long double point, int inward, long double width, const PreparedPlane* prepared = nullptr, unsigned preparedOrder = 1) {
-    if(FiberPolynomial(coefficient,point)[2] == 0) return false;
-    const long double value = prepared == nullptr ? FiberDiscriminantValue(coefficient,point) : prepared->Discriminant(preparedOrder,point);
-    const long double derivative = inward*(prepared == nullptr ? FiberDiscriminantDerivative(coefficient,point) : prepared->DiscriminantDerivative(preparedOrder,point));
+    if((coefficient[0][2]+coefficient[1][2]*point)+coefficient[2][2]*(point*point) == 0) return false;
+    const std::array<long double,2> discriminant = FiberDiscriminantAndDerivative(coefficient,point,prepared,preparedOrder);
+    const long double value = discriminant[0], derivative = inward*discriminant[1];
     return value >= 0 && derivative > 0 && value <= 0.25L*width*derivative;
   }
 
@@ -419,22 +426,30 @@ public:
       const long double middle = left+0.5L*(right-left);
       const long double lower = StripLower(strip,middle);
       const long double upper = StripUpper(strip,middle);
-      const std::vector<long double> polynomial = FiberPolynomial(coefficient,middle);
       unsigned number = 0;
-      long double middleRoot = 0, preparedDerivative = 0;
+      long double middleDerivative = 0;
       if(prepared != nullptr) {
         const CutFemLevelSetData::LineAnalysis& analysis = prepared->Analyze(preparedOrder,middle);
-        for(unsigned n = 0; n < analysis.rootCount; ++n) { const long double root = prepared->RootCoordinate(preparedOrder,analysis.roots[n]); if(root >= lower && root <= upper) { middleRoot = root; preparedDerivative = prepared->WorkingDerivative(preparedOrder,analysis.roots[n]); ++number; } }
+        for(unsigned n = 0; n < analysis.rootCount; ++n) {
+          const long double root = prepared->RootCoordinate(preparedOrder,analysis.roots[n]);
+          if(root >= lower && root <= upper) { middleDerivative = prepared->WorkingDerivative(preparedOrder,analysis.roots[n]); ++number; }
+        }
       }
-      else { const std::vector<long double> roots = LineSliceUtilities::QuadraticRoots(polynomial[2],polynomial[1],polynomial[0]); for(unsigned n = 0; n < roots.size(); ++n) if(roots[n] >= lower && roots[n] <= upper) { middleRoot = roots[n]; ++number; } }
-      if(lowerZero || upperZero) { number = 1; middleRoot = lowerZero ? lower : upper; }
+      else {
+        const std::vector<long double> polynomial = FiberPolynomial(coefficient,middle);
+        const std::vector<long double> roots = LineSliceUtilities::QuadraticRoots(polynomial[2],polynomial[1],polynomial[0]);
+        long double middleRoot = 0;
+        for(long double root : roots) if(root >= lower && root <= upper) { middleRoot = root; ++number; }
+        if(lowerZero || upperZero) middleRoot = lowerZero ? lower : upper;
+        if(number == 1 || lowerZero || upperZero) middleDerivative = std::fma(2.0L*polynomial[2],middleRoot,polynomial[1]);
+      }
+      if(lowerZero || upperZero) number = 1;
       if(number == 0) {
         if(Evaluate(coefficient,middle,0.5L*(lower+upper)) > 0) FullStripMoments(degree,strip,left,right,values,errors,coordinates,&active);
         ++accepted;
         continue;
       }
       if(number != 1) throw std::runtime_error("The selected graph interval contains multiple roots.");
-      const long double middleDerivative = prepared == nullptr ? std::fma(2.0L*polynomial[2],middleRoot,polynomial[1]) : preparedDerivative;
       const unsigned leftExponent = leftTangency || NearEndpoint(coefficient,left,1,right-left,prepared,preparedOrder) ? 2U : 1U;
       const unsigned rightExponent = rightTangency || NearEndpoint(coefficient,right,-1,right-left,prepared,preparedOrder) ? 2U : 1U;
       const std::vector<OuterInterval> plan = OuterIntervalQuadrature::Plan(left,right,leftExponent,rightExponent,2,leftTangency,rightTangency);
@@ -620,8 +635,8 @@ public:
   static long double RefineDiscriminantEvent(const std::vector<std::vector<long double>>& coefficient, long double root, long double left, long double right, const PreparedPlane* prepared = nullptr, unsigned preparedOrder = 1) {
     long double current = root;
     for(unsigned iteration = 0; iteration < 12; ++iteration) {
-      const long double value = prepared == nullptr ? FiberDiscriminantValue(coefficient,current) : prepared->Discriminant(preparedOrder,current);
-      const long double derivative = prepared == nullptr ? FiberDiscriminantDerivative(coefficient,current) : prepared->DiscriminantDerivative(preparedOrder,current);
+      const std::array<long double,2> discriminant = FiberDiscriminantAndDerivative(coefficient,current,prepared,preparedOrder);
+      const long double value = discriminant[0], derivative = discriminant[1];
       if(derivative == 0.0L || !std::isfinite(value) || !std::isfinite(derivative)) break;
       const long double next = current-value/derivative;
       if(!(next >= left && next <= right) || !std::isfinite(next)) break;

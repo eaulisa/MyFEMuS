@@ -11,3 +11,4 @@ add_test(NAME cutfem_level_set_data COMMAND MultiPhase_ex47 --cases 256 --points
 add_test(NAME cutfem_line_weights COMMAND MultiPhase_ex47 --test-weights --weight-dimension 1)
 add_test(NAME cutfem_planar_weights COMMAND MultiPhase_ex47 --test-weights --weight-dimension 2)
 add_test(NAME cutfem_spatial_weights COMMAND MultiPhase_ex47 --test-weights --weight-dimension 3)
+add_test(NAME cutfem_hex27_elements COMMAND MultiPhase_ex47 --test-hex27-elements "${CMAKE_CURRENT_SOURCE_DIR}/data/hex27_degree5.txt")

@@ -230,8 +230,7 @@ public:
     QuadratureWarningScope warningScope(dimension == 2 ? "2D outer quadrature" : "3D outer quadrature");
     std::vector<unsigned char> active = requested;
     std::vector<long double> values, errors;
-    std::vector<long double> best(active.size(),std::numeric_limits<long double>::quiet_NaN());
-    std::vector<long double> bestErrors(active.size(),std::numeric_limits<long double>::infinity());
+    bool haveEstimate = false;
     const GaussKronrodRule& selected = GaussKronrodRules::Get(rules.Select(dimension,interval.mapping != 0));
     const bool logarithmic = interval.logarithmic && left == 0;
     const unsigned count = active.size()/2;
@@ -259,12 +258,16 @@ public:
           if(childAccuracy) shared->blocks = blocks;
         }
         else childAccuracy = Panel(primary,context,sample,interval,left,right,active,absoluteH,absoluteD,relative,maximumEvaluations,evaluations,dimension,false,logarithmic && !budgetLimited,values,errors);
-        KeepBestQuadrature(values,errors,active,best,bestErrors);
+        if(childAccuracy && !Accept(values,errors,absoluteH,absoluteD,relative,active,total,totalErrors,dimension)) { ++accepted; return; }
+        haveEstimate = true;
         if(!childAccuracy) { ++Statistics(dimension).childResolutionFailures; reduce = true; }
       }
       catch(const QuadratureAccuracyRetry&) { ++Statistics(dimension).childResolutionFailures; reduce = true; }
       catch(const OuterQuadratureResolutionError&) { ++Statistics(dimension).childResolutionFailures; reduce = true; }
     }
+    std::vector<long double> best(active.size(),std::numeric_limits<long double>::quiet_NaN());
+    std::vector<long double> bestErrors(active.size(),std::numeric_limits<long double>::infinity());
+    if(haveEstimate) KeepBestQuadrature(values,errors,active,best,bestErrors);
     if(reduce) {
       ++Statistics(dimension).coordinateCollapses;
       for(unsigned lower = primary.gauss/2U; lower > 0; lower /= 2U) {
@@ -285,7 +288,6 @@ public:
       ++accepted;
       return;
     }
-    if(!Accept(values,errors,absoluteH,absoluteD,relative,active,total,totalErrors,dimension)) { ++accepted; return; }
     std::vector<unsigned char> precisionLimited(active.size(),0);
     bool pending = false;
     for(unsigned n = 0; n < active.size(); ++n) if(active[n]) {
